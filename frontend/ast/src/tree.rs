@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use sysyc_derive::{has_attrs, AstNode};
 use utils::{Attr, Attrs};
 
-use crate::{visitor::Visitor, BinaryOp, Type, UnaryOp};
+use crate::{visitor::Visitor, BinaryOp, FuncType, UnaryOp, VarType};
 
 pub trait AstNode: Debug + Attrs {
 	fn accept(&mut self, visitor: &dyn Visitor, ctx: &mut dyn Scope);
@@ -20,15 +20,9 @@ pub struct Program {
 
 #[derive(Debug, AstNode)]
 #[has_attrs]
-pub struct DimList {
-	pub exprs: NodeList,
-}
-
-#[derive(Debug, AstNode)]
-#[has_attrs]
 pub struct VarDef {
 	pub ident: String,
-	pub dim_list: Option<Node>,
+	pub dim_list: Option<NodeList>,
 	pub init: Option<Node>,
 }
 
@@ -36,7 +30,7 @@ pub struct VarDef {
 #[has_attrs]
 pub struct VarDecl {
 	pub is_const: bool,
-	pub type_t: Type,
+	pub type_t: VarType,
 	pub defs: NodeList,
 }
 
@@ -56,6 +50,13 @@ pub struct LiteralInt {
 #[has_attrs]
 pub struct LiteralFloat {
 	pub value: f32,
+}
+
+#[derive(Debug, AstNode)]
+#[has_attrs]
+pub struct Lval {
+	pub ident: String,
+	pub dim_list: Option<NodeList>,
 }
 
 #[derive(Debug, AstNode)]
@@ -83,21 +84,51 @@ pub struct FuncCall {
 #[derive(Debug, AstNode)]
 #[has_attrs]
 pub struct FuncDecl {
+	pub func_type: FuncType,
 	pub ident: String,
 	pub formal_params: NodeList,
+	pub block: Node,
 }
 
 #[derive(Debug, AstNode)]
 #[has_attrs]
 pub struct FormalParam {
-	pub type_t: Type,
+	pub type_t: VarType,
 	pub ident: String,
-	pub dim_list: Option<Node>,
+	pub dim_list: Option<NodeList>,
 }
 
 #[derive(Debug, AstNode)]
 #[has_attrs]
-pub struct Lval {
-	pub ident: String,
-	pub dim_list: Option<Node>,
+pub struct Block {
+	pub stmts: NodeList,
+}
+
+#[derive(Debug, AstNode)]
+#[has_attrs]
+pub struct If {
+	pub cond: Node,
+	pub body: Node,
+	pub then: Option<Node>,
+}
+
+#[derive(Debug, AstNode)]
+#[has_attrs]
+pub struct While {
+	pub cond: Node,
+	pub body: Node,
+}
+
+#[derive(Debug, AstNode)]
+#[has_attrs]
+pub struct Break {}
+
+#[derive(Debug, AstNode)]
+#[has_attrs]
+pub struct Continue {}
+
+#[derive(Debug, AstNode)]
+#[has_attrs]
+pub struct Return {
+	pub value: Option<Node>,
 }

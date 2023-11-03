@@ -1,10 +1,18 @@
+pub mod impls;
 pub mod tree;
 pub mod visitor;
 
 #[derive(Debug)]
-pub enum Type {
+pub enum VarType {
 	Int,
 	Float,
+}
+
+#[derive(Debug)]
+pub enum FuncType {
+	Int,
+	Float,
+	Void,
 }
 
 #[derive(Debug)]

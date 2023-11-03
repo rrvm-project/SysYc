@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::Hash};
 
-use ast::{tree::*, BinaryOp, Type, UnaryOp};
+use ast::{tree::*, BinaryOp, FuncType, UnaryOp, VarType};
 use pest::{iterators::Pair, pratt_parser::PrattParser, Parser};
 use pest_derive::Parser;
 use utils::SysycError;
@@ -36,7 +36,7 @@ fn map_unary_op(pair: &Pair<Rule>) -> UnaryOp {
 	}
 }
 
-// TODO: 我摆了，太多东西了不想填生命周期了，谁闲的话把这个改成 &str
+// TODO: 把这个改成 &str
 fn parse_identifier(pair: Pair<Rule>) -> String {
 	match pair.as_rule() {
 		Rule::Identifier => String::from(pair.as_str()),
@@ -44,21 +44,27 @@ fn parse_identifier(pair: Pair<Rule>) -> String {
 	}
 }
 
-fn parse_type(pair: Pair<Rule>) -> Type {
+fn parse_var_type(pair: Pair<Rule>) -> VarType {
 	match pair.as_rule() {
-		Rule::int_t => Type::Int,
-		Rule::float_t => Type::Float,
+		Rule::int_t => VarType::Int,
+		Rule::float_t => VarType::Float,
 		_ => unreachable!(),
 	}
 }
 
-fn parse_dim_list(pair: Pair<Rule>, min_dims: usize) -> Option<Node> {
-	let dim_list = DimList {
-		_attrs: HashMap::new(),
-		exprs: pair.into_inner().map(|v| parse_expr(v)).collect(),
-	};
-	if dim_list.exprs.len() >= min_dims {
-		Some(Box::new(dim_list))
+fn parse_func_type(pair: Pair<Rule>) -> FuncType {
+	match pair.as_rule() {
+		Rule::int_t => FuncType::Int,
+		Rule::float_t => FuncType::Float,
+		Rule::void_t => FuncType::Void,
+		_ => unreachable!(),
+	}
+}
+
+fn parse_dim_list(pair: Pair<Rule>, min_dims: usize) -> Option<NodeList> {
+	let dim_list: NodeList = pair.into_inner().map(parse_expr).collect();
+	if dim_list.len() >= min_dims {
+		Some(dim_list)
 	} else {
 		None
 	}
@@ -68,7 +74,6 @@ lazy_static::lazy_static! {
 	static ref PRATT_PARSER: PrattParser<Rule> = {
 		use pest::pratt_parser::{Assoc::*, Op};
 		PrattParser::new()
-			.op(Op::infix(Rule::Assign, Left))
 			.op(Op::infix(Rule::LOr, Left))
 			.op(Op::infix(Rule::LAnd, Left))
 			.op(Op::infix(Rule::EQ, Left) | Op::infix(Rule::NE, Left))
@@ -85,7 +90,7 @@ fn parse_func_call(pair: Pair<Rule>) -> Node {
 	let func_call = FuncCall {
 		_attrs: HashMap::new(),
 		ident: parse_identifier(pairs.next().unwrap()),
-		params: pairs.map(|v| parse_expr(v)).collect(),
+		params: pairs.map(parse_expr).collect(),
 	};
 	Box::new(func_call)
 }
@@ -134,12 +139,29 @@ fn parse_unary_expr(op: Pair<Rule>, rhs: Node) -> Node {
 	})
 }
 
-fn parse_expr(pair: Pair<Rule>) -> Node {
+fn parse_expr_no_assign(pair: Pair<Rule>) -> Node {
 	PRATT_PARSER
 		.map_primary(|v| parse_primary_expr(v))
 		.map_infix(|lhs, op, rhs| parse_binary_expr(lhs, op, rhs))
 		.map_prefix(|op, rhs| parse_unary_expr(op, rhs))
 		.parse(pair.into_inner())
+}
+
+fn parse_expr(pair: Pair<Rule>) -> Node {
+	let mut pairs = pair.into_inner();
+	let lhs = parse_expr_no_assign(pairs.next().unwrap());
+	let op = pairs.next();
+	let rhs = pairs.next();
+	if op.is_some() {
+		Box::new(BinaryExpr {
+			_attrs: HashMap::new(),
+			lhs,
+			op: map_binary_op(&op.unwrap()),
+			rhs: parse_expr(rhs.unwrap()),
+		})
+	} else {
+		lhs
+	}
 }
 
 fn parse_init_val(pair: Pair<Rule>) -> Node {
@@ -153,7 +175,7 @@ fn parse_init_val(pair: Pair<Rule>) -> Node {
 fn parse_init_val_list(pair: Pair<Rule>) -> Node {
 	let init_val_list = InitValList {
 		_attrs: HashMap::new(),
-		val_list: pair.into_inner().map(|v| parse_init_val(v)).collect(),
+		val_list: pair.into_inner().map(parse_init_val).collect(),
 	};
 	Box::new(init_val_list)
 }
@@ -178,13 +200,14 @@ fn parse_var_def(pair: Pair<Rule>) -> Node {
 }
 
 fn parse_decl(pair: Pair<Rule>) -> Node {
+	let pair = pair.into_inner().next().unwrap();
 	fn _parse(pair: Pair<Rule>, is_const: bool) -> VarDecl {
 		let mut pairs = pair.into_inner();
 		VarDecl {
 			_attrs: HashMap::new(),
 			is_const,
-			type_t: parse_type(pairs.next().unwrap()),
-			defs: pairs.into_iter().map(|v| parse_var_def(v)).collect(),
+			type_t: parse_var_type(pairs.next().unwrap()),
+			defs: pairs.into_iter().map(parse_var_def).collect(),
 		}
 	}
 	match pair.as_rule() {
@@ -194,15 +217,94 @@ fn parse_decl(pair: Pair<Rule>) -> Node {
 	}
 }
 
-#[allow(unused)]
+fn parse_formal_params(pair: Pair<Rule>) -> NodeList {
+	fn parse_formal_param(pair: Pair<Rule>) -> Node {
+		let mut pairs = pair.into_inner();
+		let formal_param = FormalParam {
+			_attrs: HashMap::new(),
+			type_t: parse_var_type(pairs.next().unwrap()),
+			ident: parse_identifier(pairs.next().unwrap()),
+			dim_list: pairs.next().and_then(|v| parse_dim_list(v, 0)),
+		};
+		Box::new(formal_param)
+	}
+	pair.into_inner().map(parse_formal_param).collect()
+}
+
+fn parse_if_stmt(pair: Pair<Rule>) -> Node {
+	let mut pairs = pair.into_inner();
+	let if_stmt = If {
+		_attrs: HashMap::new(),
+		cond: parse_expr(pairs.next().unwrap()),
+		body: parse_stmt(pairs.next().unwrap()),
+		then: pairs.next().map(parse_stmt),
+	};
+	Box::new(if_stmt)
+}
+
+fn parse_while_stmt(pair: Pair<Rule>) -> Node {
+	let mut pairs = pair.into_inner();
+	let while_stmt = While {
+		_attrs: HashMap::new(),
+		cond: parse_expr(pairs.next().unwrap()),
+		body: parse_stmt(pairs.next().unwrap()),
+	};
+	Box::new(while_stmt)
+}
+
+fn parse_return(pair: Pair<Rule>) -> Node {
+	let return_stmt = Return {
+		_attrs: HashMap::new(),
+		value: pair.into_inner().next().map(parse_expr),
+	};
+	Box::new(return_stmt)
+}
+
+fn parse_stmt(pair: Pair<Rule>) -> Node {
+	let pair = pair.into_inner().next().unwrap();
+	match pair.as_rule() {
+		Rule::Expr => parse_expr(pair),
+		Rule::Block => parse_block(pair),
+		Rule::IfStmt => parse_if_stmt(pair),
+		Rule::WhileStmt => parse_while_stmt(pair),
+		Rule::Break => Box::new(Break::new()),
+		Rule::Continue => Box::new(Continue::new()),
+		Rule::Return => parse_return(pair),
+		_ => unreachable!(),
+	}
+}
+
+fn parse_block(pair: Pair<Rule>) -> Node {
+	fn parse_block_item(pair: Pair<Rule>) -> Node {
+		match pair.as_rule() {
+			Rule::Decl => parse_decl(pair),
+			Rule::Stmt => parse_stmt(pair),
+			_ => unreachable!(),
+		}
+	}
+	let block = Block {
+		_attrs: HashMap::new(),
+		stmts: pair.into_inner().map(parse_block_item).collect(),
+	};
+	Box::new(block)
+}
+
 fn parse_func_decl(pair: Pair<Rule>) -> Node {
-	todo!()
+	let mut pairs = pair.into_inner();
+	let func_decl = FuncDecl {
+		_attrs: HashMap::new(),
+		func_type: parse_func_type(pairs.next().unwrap()),
+		ident: parse_identifier(pairs.next().unwrap()),
+		formal_params: parse_formal_params(pairs.next().unwrap()),
+		block: parse_block(pairs.next().unwrap()),
+	};
+	Box::new(func_decl)
 }
 
 fn parse_comp_unit(pair: Pair<Rule>) -> Option<Node> {
 	match pair.as_rule() {
-		Rule::Decl => Some(parse_decl(pair.into_inner().next().unwrap())),
-		Rule::FuncDecl => Some(parse_func_decl(pair.into_inner().next().unwrap())),
+		Rule::Decl => Some(parse_decl(pair)),
+		Rule::FuncDecl => Some(parse_func_decl(pair)),
 		Rule::EOI => None,
 		_ => unreachable!(),
 	}
@@ -215,7 +317,7 @@ pub fn parse(str: &str) -> Result<Program, SysycError> {
 		_attrs: HashMap::new(),
 		comp_units: progam
 			.into_iter()
-			.map(|v| parse_comp_unit(v))
+			.map(parse_comp_unit)
 			.filter_map(|x| x)
 			.collect(),
 	})
