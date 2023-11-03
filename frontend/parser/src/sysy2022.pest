@@ -5,10 +5,11 @@ COMMENT = _{
   "/*" ~ (!"*/" ~ ANY)* ~ "*/"
 }
 
+// TODO: 多种进制的整数
 Integer = ${ ASCII_DIGIT+ }
 // 先这样看看效果
 Float = ${ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
-Number = _{ Integer | Float }
+Number = _{ Float | Integer}
 
 // 怎么能不支持下划线，我给他加上了
 Identifier = ${ (ASCII_ALPHA | "_") ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
@@ -64,7 +65,7 @@ FuncDecl = {
 
 FormalParams = { (FormalParam ~ ("," ~ FormalParam)*)? }
 FormalParam = { BType ~ Identifier ~ ("[]" ~ DimList)? }
-RealParams = { Expr ~ ("," ~ Expr)* }
+RealParams = _{ (Expr ~ ("," ~ Expr)*)? }
 
 Block = { "{" ~ BlockItem* ~ "}" }
 BlockItem = _{ Decl | Stmt }
