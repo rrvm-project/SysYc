@@ -44,7 +44,7 @@ fn main() -> Result<()> {
 
 	let program = step_parse(args.input)?;
 	if args.parse {
-		write!(writer, "{:?}", program)?;
+		write!(writer, "{:#?}", program)?;
 		return Ok(());
 	}
 

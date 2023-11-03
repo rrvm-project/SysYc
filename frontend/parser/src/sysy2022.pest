@@ -6,9 +6,9 @@ COMMENT = _{
 }
 
 Integer = ${ ASCII_DIGIT+ }
-// pdf 打不开，先这样看看效果
+// 先这样看看效果
 Float = ${ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
-Number = { Integer | Float }
+Number = _{ Integer | Float }
 
 // 怎么能不支持下划线，我给他加上了
 Identifier = ${ (ASCII_ALPHA | "_") ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
@@ -16,11 +16,11 @@ Identifier = ${ (ASCII_ALPHA | "_") ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
 int_t = { "int" }
 float_t = { "float" }
 Void = { "void" }
-BType = { int_t | float_t }
+BType = _{ int_t | float_t }
 FuncType = { int_t | float_t | Void }
 
-Plus = { "+" }
-Minus = { "-" }
+Add = { "+" }
+Sub = { "-" }
 Mul = { "*" }
 Div = { "/" }
 Mod = { "%" }
@@ -32,8 +32,11 @@ EQ = { "==" }
 NE = { "!=" }
 LAnd = { "&&" }
 LOr = { "||" }
-Not = { "!" }
 Assign = { "=" }
+
+UnaryAdd = { "+" }
+UnarySub = { "-" }
+UnaryNot = { "!" }
 
 Break = { "break" }
 Continue = { "Continue" }
@@ -41,10 +44,10 @@ Return = { "return" }
 
 // 他不把赋值当运算，我给改了
 BinaryOp = _{
-  Assign | Plus | Minus | Mul | Div | Mod | LQ | LE | GE | GQ | EQ | NE
+  Assign | Add | Sub | Mul | Div | Mod | LQ | LE | GE | GQ | EQ | NE
 }
 UnaryOp = _{
-  Plus | Minus | Not
+  UnaryAdd | UnarySub | UnaryNot
 }
 
 CompUnit = _{ Decl | FuncDecl }
@@ -52,8 +55,8 @@ DimList = { ("[" ~ Expr ~ "]")* }
 
 Decl = { ConstDecl | VarDecl }
 ConstDecl = { "const" ~ " " ~ BType ~ " " ~ VarDef ~ ("," ~ VarDef)* ~ ";" }
-VarDecl = { BType ~ " " ~ VarDef ~ ("," ~ VarDef)* ~ ";" }
-VarDef = { Identifier ~ DimList? ~ ("=" ~ InitVal)? }
+VarDecl = { BType ~ VarDef ~ ("," ~ VarDef)* ~ ";" }
+VarDef = { Identifier ~ DimList ~ ("=" ~ InitVal)? }
 InitVal = _{ Expr | InitValList }
 InitValList = { "{" ~ (InitVal ~ ("," ~ InitVal)*)? ~ "}" }
 FuncDecl = {
@@ -63,7 +66,6 @@ FuncDecl = {
 FormalParams = { FormalParam ~ ("," ~ FormalParam)* }
 FormalParam = { BType ~ " " ~ Identifier ~ ("[]" ~ DimList)? }
 RealParams = { Expr ~ ("," ~ Expr)* }
-
 
 Block = { "{" ~ BlockItem* ~ "}" }
 BlockItem = { Decl | Stmt }
@@ -86,10 +88,10 @@ Stmt = {
   | Return ~ Expr? ~ ";"
 }
 
-// BinaryExp = { Expr ~ BinaryOp ~ Expr }
-// UnaryExp = { UnaryOp ~ Expr }
-Primary = _{ "(" ~ Expr ~ ")" | Number | Identifier ~ DimList? }
+LVal = { Identifier ~ DimList }
+FuncCall = { Identifier ~ "(" ~ RealParams ~ ")"}
+Primary = _{ "(" ~ Expr ~ ")" | Number | FuncCall }
 Atom = _{ UnaryOp? ~ Primary }
 Expr = { Atom ~ (BinaryOp ~ Atom)* }
 
-Program = { SOI ~ (CompUnit)* ~ EOI }
+Program = _{ SOI ~ (CompUnit)* ~ EOI }
