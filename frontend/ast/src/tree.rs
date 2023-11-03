@@ -75,4 +75,29 @@ pub struct UnaryExpr {
 
 #[derive(Debug, AstNode)]
 #[has_attrs]
-pub struct FuncDecl {}
+pub struct FuncCall {
+	pub ident: String,
+	pub params: NodeList,
+}
+
+#[derive(Debug, AstNode)]
+#[has_attrs]
+pub struct FuncDecl {
+	pub ident: String,
+	pub formal_params: NodeList,
+}
+
+#[derive(Debug, AstNode)]
+#[has_attrs]
+pub struct FormalParam {
+	pub type_t: Type,
+	pub ident: String,
+	pub dim_list: Option<Node>,
+}
+
+#[derive(Debug, AstNode)]
+#[has_attrs]
+pub struct Lval {
+	pub ident: String,
+	pub dim_list: Option<Node>,
+}
