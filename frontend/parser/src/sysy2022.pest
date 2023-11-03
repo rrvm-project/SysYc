@@ -1,4 +1,4 @@
-WHITESPACE = _{  " " | "\t" | NEWLINE }
+WHITESPACE = _{ " " | "\t" | NEWLINE }
 NEWLINE = _{ "\r\n" | "\n" | "\r" }
 COMMENT = _{
   "//" ~ (!NEWLINE ~ ANY)* |
@@ -13,11 +13,11 @@ Number = _{ Integer | Float }
 // 怎么能不支持下划线，我给他加上了
 Identifier = ${ (ASCII_ALPHA | "_") ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
 
-int_t = { "int" }
-float_t = { "float" }
-Void = { "void" }
+int_t = { "int " }
+float_t = { "float " }
+void_t = { "void " }
 BType = _{ int_t | float_t }
-FuncType = { int_t | float_t | Void }
+FuncType = _{ int_t | float_t | void_t }
 
 Add = { "+" }
 Sub = { "-" }
@@ -39,12 +39,11 @@ UnarySub = { "-" }
 UnaryNot = { "!" }
 
 Break = { "break" }
-Continue = { "Continue" }
-Return = { "return" }
+Continue = { "continue" }
+Return = { "return" ~ Expr? }
 
-// 他不把赋值当运算，我给改了
 BinaryOp = _{
-  Assign | Add | Sub | Mul | Div | Mod | LQ | LE | GE | GQ | EQ | NE
+  Add | Sub | Mul | Div | Mod | LQ | LE | GE | GQ | EQ | NE
 }
 UnaryOp = _{
   UnaryAdd | UnarySub | UnaryNot
@@ -54,7 +53,7 @@ CompUnit = _{ Decl | FuncDecl }
 DimList = { ("[" ~ Expr ~ "]")* }
 
 Decl = { ConstDecl | VarDecl }
-ConstDecl = { "const" ~ " " ~ BType ~ " " ~ VarDef ~ ("," ~ VarDef)* ~ ";" }
+ConstDecl = { "const " ~ BType ~ VarDef ~ ("," ~ VarDef)* ~ ";" }
 VarDecl = { BType ~ VarDef ~ ("," ~ VarDef)* ~ ";" }
 VarDef = { Identifier ~ DimList ~ ("=" ~ InitVal)? }
 InitVal = _{ Expr | InitValList }
@@ -63,12 +62,12 @@ FuncDecl = {
   FuncType ~ Identifier ~ "(" ~ FormalParams ~ ")" ~ Block
 }
 
-FormalParams = { FormalParam ~ ("," ~ FormalParam)* }
-FormalParam = { BType ~ " " ~ Identifier ~ ("[]" ~ DimList)? }
+FormalParams = { (FormalParam ~ ("," ~ FormalParam)*)? }
+FormalParam = { BType ~ Identifier ~ ("[]" ~ DimList)? }
 RealParams = { Expr ~ ("," ~ Expr)* }
 
 Block = { "{" ~ BlockItem* ~ "}" }
-BlockItem = { Decl | Stmt }
+BlockItem = _{ Decl | Stmt }
 
 IfStmt = {
   "if" ~ "(" ~ Expr ~ ")" ~ Stmt ~ ( "else" ~ Stmt)?
@@ -79,19 +78,20 @@ WhileStmt = {
 
 Stmt = {
   ";"
+  | Return ~ ";"
+  | Continue ~ ";"
+  | Break ~ ";"
+  | WhileStmt
   | Expr ~ ";"
   | Block
   | IfStmt
-  | WhileStmt
-  | Break ~ ";"
-  | Continue ~ ";"
-  | Return ~ Expr? ~ ";"
 }
 
 Lval = { Identifier ~ DimList }
 FuncCall = { Identifier ~ "(" ~ RealParams ~ ")"}
 Primary = _{ "(" ~ Expr ~ ")" | Number | FuncCall | Lval }
 Atom = _{ UnaryOp? ~ Primary }
-Expr = { Atom ~ (BinaryOp ~ Atom)* }
+NoAssignExpr = { Atom ~ (BinaryOp ~ Atom)* }
+Expr = { NoAssignExpr ~ (Assign ~ Expr)? }
 
 Program = _{ SOI ~ (CompUnit)* ~ EOI }
