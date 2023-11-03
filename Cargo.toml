@@ -1,8 +1,22 @@
 [package]
-name = "sysy_c"
+name = "sysyc"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+members = [
+  "sysyc_derive",
+  "utils",
+  "frontend/ast",
+  "frontend/scope",
+  "frontend/parser",
+]
+
 [dependencies]
+utils = { path = "utils" }
+ast = { path = "frontend/ast" }
+parser = { path = "frontend/parser" }
+clap = { version = "4.4.7", features = ["derive"] }
+anyhow = "1.0.75"
