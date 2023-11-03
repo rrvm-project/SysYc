@@ -13,6 +13,9 @@ pub trait Visitor {
 	fn visit_literal_float(&self,	val_decl: &mut LiteralFloat, ctx: &mut dyn Scope);
 	fn visit_binary_expr(&self,	val_decl: &mut BinaryExpr, ctx: &mut dyn Scope);
 	fn visit_unary_expr(&self,	val_decl: &mut UnaryExpr, ctx: &mut dyn Scope);
+	fn visit_func_call(&self,	val_decl: &mut FuncCall, ctx: &mut dyn Scope);
+	fn visit_formal_param(&self,	val_decl: &mut FormalParam, ctx: &mut dyn Scope);
+	fn visit_lval(&self,	val_decl: &mut Lval, ctx: &mut dyn Scope);
 }
 
 /*

@@ -1,4 +1,6 @@
 mod cli;
+mod config;
+mod printer;
 
 use std::{
 	fs::{self, File},
@@ -12,6 +14,8 @@ use clap::Parser;
 use cli::Args;
 use parser::parser::parse;
 use utils::{fatal_error, map_sys_err};
+
+use crate::{config::PARSER_INDENT, printer::trans_indent};
 
 fn step_parse(name: Option<String>) -> Result<Program> {
 	if name.is_none() {
@@ -44,7 +48,8 @@ fn main() -> Result<()> {
 
 	let program = step_parse(args.input)?;
 	if args.parse {
-		write!(writer, "{:#?}", program)?;
+		let x = format!("{:#?}", program);
+		write!(writer, "{}", trans_indent(&x, PARSER_INDENT))?;
 		return Ok(());
 	}
 

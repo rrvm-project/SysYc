@@ -80,6 +80,26 @@ lazy_static::lazy_static! {
 	};
 }
 
+fn parse_func_call(pair: Pair<Rule>) -> Node {
+	let mut pairs = pair.into_inner();
+	let func_call = FuncCall {
+		_attrs: HashMap::new(),
+		ident: parse_identifier(pairs.next().unwrap()),
+		params: pairs.map(|v| parse_expr(v)).collect(),
+	};
+	Box::new(func_call)
+}
+
+fn parse_lval(pair: Pair<Rule>) -> Node {
+	let mut pairs = pair.into_inner();
+	let lval = Lval {
+		_attrs: HashMap::new(),
+		ident: parse_identifier(pairs.next().unwrap()),
+		dim_list: parse_dim_list(pairs.next().unwrap(), 1),
+	};
+	Box::new(lval)
+}
+
 fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 	match pair.as_rule() {
 		Rule::Integer => Box::new(LiteralInt {
@@ -90,6 +110,8 @@ fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 			_attrs: HashMap::new(),
 			value: pair.as_str().parse().unwrap(),
 		}),
+		Rule::FuncCall => parse_func_call(pair),
+		Rule::Lval => parse_lval(pair),
 		Rule::Expr => parse_expr(pair),
 		_ => unreachable!(),
 	}
