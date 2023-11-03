@@ -4,3 +4,6 @@ chain_width = 80
 comment_width = 80
 hard_tabs = true
 imports_granularity = "Crate"
+ignore = [
+  "frontend/ast/src/visitor.rs"
+]
