@@ -4,6 +4,8 @@ use thiserror::Error;
 pub enum SysycError {
 	#[error("{0}")]
 	DecafLexError(String),
+	#[error("Namer Error")]
+	NamerError(String),
 	#[error("system error: {0}")]
 	SystemError(String),
 	#[error("llvm syntex error: {0}")]
