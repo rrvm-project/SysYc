@@ -12,12 +12,15 @@ members = [
   "utils/llvm",
   "frontend/ast",
   "frontend/scope",
-  "frontend/parser",
+  "frontend/ir_gen",
 ]
 
 [dependencies]
 utils = { path = "utils" }
 ast = { path = "frontend/ast" }
 parser = { path = "frontend/parser" }
+namer = { path = "frontend/namer" }
+ir_gen = { path = "frontend/ir_gen"}
+
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"
