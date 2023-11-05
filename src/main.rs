@@ -30,7 +30,7 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 
 #[allow(unused_variables)]
 fn step_llvm(program: Program) -> Result<()> {
-	let namer : Namer = Namer {};
+	let namer : Namer = Namer::default();
 	let program = namer.transform(program)?;
 
 	
