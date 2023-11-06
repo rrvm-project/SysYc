@@ -1,14 +1,15 @@
 pub mod impls;
 pub mod tree;
 pub mod visitor;
+pub mod context;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum VarType {
 	Int,
 	Float,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FuncType {
 	Int,
 	Float,

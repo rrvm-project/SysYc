@@ -57,8 +57,9 @@ pub fn ast_node_derive(input: TokenStream) -> TokenStream {
 
 	let expanded = quote! {
 			impl AstNode for #name {
-					fn accept(&mut self, visitor: &dyn Visitor, ctx: &mut dyn Scope) {
-							visitor.#visitor_fn_ident(self, ctx);
+				// TODO: 这里的 ctx 可能需要删掉
+					fn accept(&mut self, visitor: &dyn Visitor, ctx: &mut dyn Context) -> Result<(), SysycError> {
+							visitor.#visitor_fn_ident(self, ctx)
 					}
 			}
 	};
