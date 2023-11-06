@@ -7,8 +7,10 @@ pub fn fatal_error(str: &str) {
 	std::process::exit(0);
 }
 
+// TODO：这里考虑如何添加symbol
 pub enum Attr {
 	Int(i32),
+	FuncSymbol(String),
 }
 
 pub trait Attrs {
