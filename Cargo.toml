@@ -13,6 +13,8 @@ members = [
   "frontend/ast",
   "frontend/scope",
   "frontend/ir_gen",
+  "frontend/scope",
+  "frontend/ir_type",
 ]
 
 [dependencies]

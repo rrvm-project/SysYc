@@ -1,7 +1,6 @@
 pub mod impls;
 pub mod tree;
 pub mod visitor;
-pub mod context;
 
 #[derive(Debug, Clone)]
 pub enum VarType {

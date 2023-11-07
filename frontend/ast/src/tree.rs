@@ -1,4 +1,3 @@
-use crate::context::Context;
 use std::fmt::Debug;
 use sysyc_derive::{has_attrs, AstNode};
 use utils::{Attr, Attrs};
@@ -9,7 +8,7 @@ use crate::{visitor::Visitor, BinaryOp, FuncType, UnaryOp, VarType};
 
 // TODO: 这里的 ctx 可能需要删掉
 pub trait AstNode: Debug + Attrs {
-	fn accept(&mut self, visitor: &dyn Visitor, ctx: &mut dyn Context) -> Result<(), SysycError>;
+	fn accept(&mut self, visitor: &dyn Visitor) -> Result<(), SysycError>;
 }
 
 pub type Node = Box<dyn AstNode>;
