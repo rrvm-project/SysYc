@@ -1,1 +1,1 @@
-pub mod ir_type;
+pub mod builtin_type;
