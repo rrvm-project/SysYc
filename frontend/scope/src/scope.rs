@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use ast::context::Context;
 
 use crate::symbol::{VarSymbol, FuncSymbol};
 
@@ -97,8 +96,4 @@ impl ScopeStack {
         }
         None
     }
-}
-
-impl Context for ScopeStack {
-    
 }
