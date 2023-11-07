@@ -3,7 +3,7 @@ use utils::SysycError;
 use scope::{scope::ScopeStack, symbol::FuncSymbol};
 
 #[derive(Debug)]
-pub struct Namer{
+pub struct Namer{// namer 需要的context在这里存！
 	pub loop_num: i32,
 }
 
@@ -19,6 +19,7 @@ impl Namer {
 	pub fn transform(&self, mut program : Program) -> Result<Program, SysycError>{
 		let mut ctx = ScopeStack::new();
 		// program.accept(self);
+		// 给每个ident，对应根据可见性规则的VarSymbol或者FuncSymbol
 		Ok(program)	
 	}
 }

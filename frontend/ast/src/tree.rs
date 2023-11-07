@@ -6,7 +6,6 @@ use utils::SysycError;
 use crate::{visitor::Visitor, BinaryOp, FuncType, UnaryOp, VarType};
 
 
-// TODO: 这里的 ctx 可能需要删掉
 pub trait AstNode: Debug + Attrs {
 	fn accept(&mut self, visitor: &dyn Visitor) -> Result<(), SysycError>;
 }
