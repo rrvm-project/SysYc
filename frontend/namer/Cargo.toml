@@ -9,4 +9,5 @@ edition = "2021"
 scope = { path = "../scope" }
 ast = {path = "../ast"}
 utils = { path = "../../utils"}
+ir_type = { path = "../ir_type" }
 anyhow = "1.0.75"

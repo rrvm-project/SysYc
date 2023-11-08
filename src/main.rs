@@ -13,10 +13,10 @@ use anyhow::Result;
 use ast::tree::Program;
 use clap::Parser;
 use cli::Args;
+use ir_gen::llvm_gen::LLVMIrGen;
+use namer::namer::Namer;
 use parser::parser::parse;
 use utils::{fatal_error, map_sys_err};
-use namer::namer::Namer;
-use ir_gen::llvm_gen::LLVMIrGen;
 
 fn step_parse(name: Option<String>) -> Result<Program> {
 	if name.is_none() {
@@ -30,11 +30,10 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 
 #[allow(unused_variables)]
 fn step_llvm(program: Program) -> Result<()> {
-	let namer : Namer = Namer::default();
+	let mut namer: Namer = Namer::default();
 	let program = namer.transform(program)?;
 
-	
-	let generator : LLVMIrGen = LLVMIrGen {};
+	let generator: LLVMIrGen = LLVMIrGen {};
 	Ok(generator.transform(program)?)
 }
 

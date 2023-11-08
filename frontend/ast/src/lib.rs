@@ -2,20 +2,20 @@ pub mod impls;
 pub mod tree;
 pub mod visitor;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VarType {
 	Int,
 	Float,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FuncType {
 	Int,
 	Float,
 	Void,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BinaryOp {
 	Assign,
 	Add,
