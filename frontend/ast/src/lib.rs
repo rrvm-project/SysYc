@@ -23,10 +23,10 @@ pub enum BinaryOp {
 	Mul,
 	Div,
 	Mod,
-	LQ,
+	LT,
 	LE,
 	GE,
-	GQ,
+	GT,
 	EQ,
 	NE,
 }
