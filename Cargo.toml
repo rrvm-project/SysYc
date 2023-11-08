@@ -12,6 +12,7 @@ members = [
   "frontend/ast",
   "frontend/scope",
   "frontend/parser",
+  "backend/irparser",
 ]
 
 [dependencies]
