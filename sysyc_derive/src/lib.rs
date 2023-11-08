@@ -12,12 +12,12 @@ pub fn has_attrs(_: TokenStream, item: TokenStream) -> TokenStream {
 	let mut input = parse_macro_input!(item as DeriveInput);
 
 	let Data::Struct(data) = &mut input.data else {
-    panic!("This trait can only implement on struct");
-  };
+		panic!("This trait can only implement on struct");
+	};
 
 	let Fields::Named(fields) = &mut data.fields else {
-    panic!("made, struct li mian zen me neng shi mei name de");
-  };
+		panic!("made, struct li mian zen me neng shi mei name de");
+	};
 
 	fields.named.push(Field {
 		attrs: Vec::new(),
@@ -57,8 +57,7 @@ pub fn ast_node_derive(input: TokenStream) -> TokenStream {
 
 	let expanded = quote! {
 			impl AstNode for #name {
-				// TODO: 这里的 ctx 可能需要删掉
-					fn accept(&mut self, visitor: &dyn Visitor) -> Result<(), SysycError> {
+					fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<(), SysycError> {
 							visitor.#visitor_fn_ident(self)
 					}
 			}
