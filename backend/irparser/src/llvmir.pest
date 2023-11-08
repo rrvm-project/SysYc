@@ -1,0 +1,131 @@
+WHITESPACE = _{ " " | "\t" | ("\\" ~ NEWLINE) }
+NEWLINE = _{ "\r\n" | "\n" | "\r" }
+COMMENT = _{ ";" ~ (!NEWLINE ~ ANY)* }
+Integer = ${ ASCII_DIGIT+ }
+Float = ${ ASCII_DIGIT+ ~ (".")? ~ ASCII_DIGIT* }
+
+// need more types of int or float ?
+i32_t = { "i32 " }
+int_t = _{ i32_t }
+f32_t = { "f32 " }
+flaot_t = _{ f32_t }
+i32_ptr = { "i32* " }
+f32_ptr = { "f32* " }
+void_t = { "void " }
+
+Label = ${ (ASCII_ALPHA | "_") ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
+RefLabel = @{ "%" ~ Label }
+Ident = ${ "%" ~ (ASCII_ALPHA | ASCII_DIGIT | "." | "_" )+ }
+Number = _{ Float | Integer }
+Val = _{ Number | Ident }
+FuncType= _{ i32_t | f32_t | void_t }
+VarType = _{ i32_t | f32_t }
+PtrType = _{ i32_ptr | f32_ptr }
+
+// integer binary operation
+Add = { "add " }
+Sub = { "sub " }
+Div = { "div " }
+Mul = { "smul " }
+Rem = { "srem " }
+// unsigned operation is ont supported now
+// Umul = { "umul " }
+// Urem = { "urem " }
+
+// flaot point binary operation
+Fadd = { "fadd " }
+Fsub = { "fsub " }
+Fdiv = { "fdiv " }
+Fmul = { "fmul " }
+Frem = { "frem " }
+
+// bit operation
+Shl = { "shl " }
+Lshr = { "lshr " }
+Ashr = { "ashr " }
+And = { "and " }
+Or = { "or " }
+Xor = { "xor " }
+
+// arithmetic instruction
+ArithOp = {
+  Add | Sub | Div | Mul | Rem
+  | Fadd | Fsub | Fdiv | Fmul| Frem
+  | Shl | Lshr | Ashr | And | Or | Xor
+}
+
+// integer comparison predicate, consider signed only
+EQ = { "eq " }
+NE = { "ne " }
+SGT = { "sgt " }
+SGE = { "sge " }
+SLT = { "slt " }
+SLE = { "sle " }
+IcmpCond = _{ EQ | NE | SGT | SGE | SLT | SLE }
+
+// float comparison predicate, consider orderded only
+OEQ = { "oeq " }
+ONE = { "one " }
+OGT = { "ogt " }
+OGE = { "oge " }
+OLT = { "olt " }
+OLE = { "ole " }
+FcmpCond = _{ OEQ | ONE | OGT | OGE | OLT | OLE }
+
+// type convert
+// note: do not convert an immediate value !
+SiToFp = { "sitofp " }
+FpToSi = { "fptosi " }
+
+// phi
+PhiItem = { "[" ~ Ident ~ "," ~ RefLabel ~ "]" }
+
+// instructions
+LabelInstr = { Label ~ ":" }
+ArithInstr = { Ident ~ " = " ~ ArithOp ~ VarType ~ Val ~ "," ~ Val }
+IcmpInstr = { Ident ~ " = " ~ "icmp" ~ IcmpCond ~ VarType ~ Val ~ "," ~ Val }
+FcmpInstr = { Ident ~ " = " ~ "fcmp " ~ FcmpCond ~ VarType ~ Val ~ "," ~ Val }
+ConvertInstr = {
+  Ident ~ " = " ~ (SiToFp | FpToSi) ~ VarType ~ Val ~ " to " ~ VarType
+}
+JumpInstr = { "br " ~ "label " ~ RefLabel }
+JumpCondInstr = {
+  "br " ~ VarType ~ Val ~ "," ~ "label " ~ RefLabel ~ "," ~ "label " ~ RefLabel
+}
+PhiInstr = { Ident ~ " = " ~ "phi " ~ VarType ~ PhiItem ~ ("," ~ PhiItem)* }
+RetInstr = { "ret " ~ ((VarType ~ Val) | void_t) }
+// you should explicitly declare the size of space to alloc 
+AllocInstr = { 
+  Ident ~ " = " ~ "alloca " ~ VarType ~ "," ~ VarType ~ Val
+}
+StoreInstr = { "store " ~ VarType ~ Val ~ "," ~ PtrType ~ Ident }
+LoadInstr = { Ident ~ " = " ~ "load " ~ VarType ~ Val ~ "," ~ PtrType ~ Ident }
+// note this is different from the real llvm !
+GEPInstr = { Ident ~ " = " ~ "getelementptr " ~ (Label | Ident) ~ "," ~ VarType ~ Val }
+Instr = {
+  LabelInstr | ArithInstr | IcmpInstr | FcmpInstr
+  | ConvertInstr | JumpInstr | JumpCondInstr | PhiInstr
+  | AllocInstr | StoreInstr | LoadInstr
+  | StoreInstr | LoadInstr | GEPInstr
+}
+
+// function declaration
+VarDecl = { VarType ~ Ident }
+FuncDecl = {
+  "define" ~ FuncType ~ RefLabel ~ "(" ~ VarDecl* ~ ")" ~ "{"~ NEWLINE
+  ~ (Instr ~ NEWLINE)* ~ "}"
+}
+
+// global declaration
+// TODO: 添加链接属性、字节对齐等额外信息，不过我想不会有人想写这个
+VarGlobalDecl = { Label ~ " = " ~ "global " ~ VarType ~ Number }
+// multidimensional array is banned
+ArrayDimsDecl = { "[" ~ Integer ~ " x " ~ VarType ~ "]" }
+// array with length 0 is also banned
+ArrayInitList = { "[" ~ VarType ~ Number ~ ("," ~ VarType ~ Number)* ~ "]" }
+ArrayGlobalDecl = { Label ~ " = " ~ "global " ~ ArrayDimsDecl ~ ArrayInitList }
+
+// finally, the program
+Program = {
+  SOI ~ ((VarGlobalDecl | ArrayGlobalDecl | FuncDecl) ~ NEWLINE)* ~ EOI
+}
