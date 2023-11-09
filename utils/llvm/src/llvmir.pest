@@ -14,10 +14,11 @@ f32_ptr = { "f32* " }
 void_t = { "void " }
 
 Label = ${ (ASCII_ALPHA | "_") ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
-RefLabel = @{ "%" ~ Label }
+RefLabel = @{ ("%" | "@") ~ Label }
+RefGLobalLabel = @{ "%" ~ Label }
 Ident = ${ "%" ~ (ASCII_ALPHA | ASCII_DIGIT | "." | "_" )+ }
 Number = _{ Float | Integer }
-Val = _{ Number | Ident }
+Value = _{ Number | Ident }
 FuncType= _{ i32_t | f32_t | void_t }
 VarType = _{ i32_t | f32_t }
 PtrType = _{ i32_ptr | f32_ptr }
@@ -77,36 +78,39 @@ SiToFp = { "sitofp " }
 FpToSi = { "fptosi " }
 
 // phi
-PhiItem = { "[" ~ Val ~ "," ~ RefLabel ~ "]" }
+PhiItem = { "[" ~ Value ~ "," ~ RefLabel ~ "]" }
 
 // instructions
 LabelInstr = { Label ~ ":" }
-ArithInstr = { Ident ~ " = " ~ ArithOp ~ VarType ~ Val ~ "," ~ Val }
-IcmpInstr = { Ident ~ " = " ~ "icmp" ~ IcmpCond ~ VarType ~ Val ~ "," ~ Val }
-FcmpInstr = { Ident ~ " = " ~ "fcmp " ~ FcmpCond ~ VarType ~ Val ~ "," ~ Val }
+ArithInstr = { Ident ~ " = " ~ ArithOp ~ VarType ~ Value ~ "," ~ Value }
+IcmpInstr = { Ident ~ " = " ~ "icmp" ~ IcmpCond ~ VarType ~ Value ~ "," ~ Value }
+FcmpInstr = { Ident ~ " = " ~ "fcmp " ~ FcmpCond ~ VarType ~ Value ~ "," ~ Value }
 ConvertInstr = {
-  Ident ~ " = " ~ (SiToFp | FpToSi) ~ VarType ~ Val ~ " to " ~ VarType
+  Ident ~ " = " ~ (SiToFp | FpToSi) ~ VarType ~ Value ~ " to " ~ VarType
 }
 JumpInstr = { "br " ~ "label " ~ RefLabel }
 JumpCondInstr = {
-  "br " ~ VarType ~ Val ~ "," ~ "label " ~ RefLabel ~ "," ~ "label " ~ RefLabel
+  "br " ~ VarType ~ Value ~ "," ~ "label " ~ RefLabel ~ "," ~ "label " ~ RefLabel
 }
 PhiInstr = { Ident ~ " = " ~ "phi " ~ VarType ~ PhiItem ~ ("," ~ PhiItem)* }
-RetInstr = { "ret " ~ ((VarType ~ Val) | void_t) }
+RetInstr = { "ret " ~ ((VarType ~ Value) | void_t) }
 // you should explicitly declare the size of space to alloc 
 AllocInstr = { 
-  Ident ~ " = " ~ "alloca " ~ VarType ~ "," ~ VarType ~ Val
+  Ident ~ " = " ~ "alloca " ~ VarType ~ "," ~ VarType ~ Value
 }
-StoreInstr = { "store " ~ VarType ~ Val ~ "," ~ PtrType ~ Ident }
+StoreInstr = { "store " ~ VarType ~ Value ~ "," ~ PtrType ~ Ident }
 LoadInstr = { Ident ~ " = " ~ "load " ~ VarType ~ "," ~ PtrType ~ Ident }
 // note this is different from the real llvm !
-GEPInstr = { Ident ~ " = " ~ "getelementptr " ~ (Label | Ident) ~ "," ~ VarType ~ Val }
-CallInstr = { "call" } // TODO
+GEPInstr = { Ident ~ " = " ~ "getelementptr " ~ VarType ~ RefLabel ~ "," ~ VarType ~ Value }
+CallInstr = {
+  Ident ~ " = " ~ "call" ~ VarType ~ RefLabel ~ "(" 
+    ~ ((VarType ~ Value) ~ ("," ~ VarType ~ Value)*)? ~")"
+}
 Instr = {
   LabelInstr | ArithInstr | IcmpInstr | FcmpInstr
   | ConvertInstr | JumpInstr | JumpCondInstr | PhiInstr
   | RetInstr | AllocInstr | StoreInstr | LoadInstr 
-  | CallInstr | LoadInstr | GEPInstr
+  | CallInstr | GEPInstr
 }
 
 // function declaration

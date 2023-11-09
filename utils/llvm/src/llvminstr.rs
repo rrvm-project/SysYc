@@ -90,3 +90,17 @@ pub struct LoadInstr {
 	pub var_type: VarType,
 	pub addr: Value,
 }
+
+pub struct GEPInstr {
+	pub target: Temp,
+	pub var_type: VarType,
+	pub addr: Value,
+	pub offset: Value,
+}
+
+pub struct CallInstr {
+	pub target: Temp,
+	pub var_type: VarType,
+	pub func: Label,
+	pub params: Vec<(VarType, Value)>,
+}
