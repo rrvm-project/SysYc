@@ -8,13 +8,24 @@ use crate::{
 };
 
 pub struct LlvmGen {
-	func: Vec<Box<dyn LlvmInstr>>,
+	label: Label,
+	ret_type: VarType,
 	temp_mgr: TempManager,
+	func_body: Vec<Box<dyn LlvmInstr>>,
 }
 
 impl LlvmGen {
+	pub fn new(name: String, ret_type: VarType) -> Self {
+		LlvmGen {
+			label: Label::new(name),
+			ret_type,
+			temp_mgr: TempManager::new(),
+			func_body: Vec::new(),
+		}
+	}
+
 	pub fn visit_label(&mut self, label: Label) {
-		self.func.push(Box::new(LabelInstr { label }))
+		self.func_body.push(Box::new(LabelInstr { label }))
 	}
 
 	pub fn visit_arith_instr(
@@ -31,7 +42,7 @@ impl LlvmGen {
 			op,
 			rhs,
 		};
-		self.func.push(Box::new(instr));
+		self.func_body.push(Box::new(instr));
 		target
 	}
 
@@ -57,13 +68,13 @@ impl LlvmGen {
 			op,
 			rhs,
 		};
-		self.func.push(Box::new(instr));
+		self.func_body.push(Box::new(instr));
 		target
 	}
 
 	pub fn visit_jump_instr(&mut self, target: Label) {
 		let instr = JumpInstr { target };
-		self.func.push(Box::new(instr));
+		self.func_body.push(Box::new(instr));
 	}
 
 	pub fn visit_jump_cond_instr(
@@ -78,7 +89,7 @@ impl LlvmGen {
 			target_true,
 			target_false,
 		};
-		self.func.push(Box::new(instr));
+		self.func_body.push(Box::new(instr));
 	}
 
 	pub fn visit_phi_instr(
@@ -92,11 +103,31 @@ impl LlvmGen {
 			var_type,
 			source,
 		};
-		self.func.push(Box::new(instr));
+		self.func_body.push(Box::new(instr));
 		target
 	}
 
-	pub fn visit_end(&self) -> LlvmFunc {
-		todo!()
+	pub fn visit_ret(&mut self, value: Value) {
+		let instr = RetInstr { value };
+		self.func_body.push(Box::new(instr));
+	}
+
+	pub fn visit_end(mut self) -> LlvmFunc {
+		fn get_default_value(ret_type: VarType) -> Value {
+			match ret_type {
+				VarType::F32 => Value::Float(0.0),
+				VarType::I32 => Value::Int(0),
+				VarType::Void => Value::Void,
+				_ => unreachable!(),
+			}
+		}
+		if self.func_body.last().map_or(true, |v| !v.is_ret()) {
+			self.visit_ret(get_default_value(self.ret_type));
+		}
+		LlvmFunc {
+			label: self.label,
+			ret_type: self.ret_type,
+			body: self.func_body,
+		}
 	}
 }

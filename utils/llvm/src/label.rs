@@ -10,3 +10,11 @@ impl Display for Label {
 		write!(f, "%{}", self.name)
 	}
 }
+
+impl Label {
+	pub fn new(name: impl ToString) -> Self {
+		Label {
+			name: name.to_string(),
+		}
+	}
+}
