@@ -73,3 +73,20 @@ pub struct PhiInstr {
 pub struct RetInstr {
 	pub value: Value,
 }
+
+pub struct AllocInstr {
+	pub target: Temp,
+	pub var_type: VarType,
+	pub length: Value,
+}
+
+pub struct StoreInstr {
+	pub value: Value,
+	pub addr: Value,
+}
+
+pub struct LoadInstr {
+	pub target: Temp,
+	pub var_type: VarType,
+	pub addr: Value,
+}
