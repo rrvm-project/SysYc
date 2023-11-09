@@ -6,6 +6,7 @@ pub enum VarType {
 	F32,
 	I32Ptr,
 	F32Ptr,
+	Void,
 }
 
 impl Display for VarType {
@@ -15,6 +16,7 @@ impl Display for VarType {
 			Self::I32Ptr => "i32*",
 			Self::F32 => "f32",
 			Self::F32Ptr => "f32*",
+			Self::Void => "void",
 		};
 		write!(f, "{}", type_str)
 	}

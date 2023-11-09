@@ -69,3 +69,7 @@ pub struct PhiInstr {
 	pub var_type: VarType,
 	pub source: Vec<(Value, Label)>,
 }
+
+pub struct RetInstr {
+	pub value: Value,
+}

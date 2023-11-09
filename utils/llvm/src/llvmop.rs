@@ -7,6 +7,7 @@ pub enum Value {
 	Int(i32),
 	Float(f32),
 	Temp(Temp),
+	Void,
 }
 
 pub trait LlvmOp: Display {
@@ -61,7 +62,8 @@ impl Value {
 	pub fn get_type(&self) -> VarType {
 		match self {
 			Self::Int(_) => VarType::I32,
-			Self::Float(_) => VarType::I32,
+			Self::Float(_) => VarType::F32,
+			Self::Void => VarType::Void,
 			Self::Temp(v) => v.var_type.clone(),
 		}
 	}
@@ -73,6 +75,7 @@ impl Display for Value {
 			Self::Int(v) => write!(f, "{}", v),
 			Self::Float(v) => write!(f, "{}", v),
 			Self::Temp(v) => write!(f, "{}", v),
+			Self::Void => write!(f, "void"),
 		}
 	}
 }
