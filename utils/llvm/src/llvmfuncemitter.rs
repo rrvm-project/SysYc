@@ -5,6 +5,7 @@ use crate::{
 	llvmop::*,
 	llvmvar::VarType,
 	temp::{Temp, TempManager},
+	utils::ptr2type,
 };
 
 pub struct LlvmFuncEmitter {
@@ -110,6 +111,34 @@ impl LlvmFuncEmitter {
 	pub fn visit_ret(&mut self, value: Value) {
 		let instr = RetInstr { value };
 		self.func_body.push(Box::new(instr));
+	}
+
+	pub fn visit_alloc(&mut self, var_type: VarType, length: Value) -> Temp {
+		let target = self.temp_mgr.new_temp(var_type);
+		let instr = AllocInstr {
+			target: target.clone(),
+			var_type,
+			length,
+		};
+		self.func_body.push(Box::new(instr));
+		target
+	}
+
+	pub fn visit_store(&mut self, value: Value, addr: Value) {
+		let instr = StoreInstr { value, addr };
+		self.func_body.push(Box::new(instr));
+	}
+
+	pub fn visit_load(&mut self, addr: Value) -> Temp {
+		let var_type = ptr2type(addr.get_type());
+		let target = self.temp_mgr.new_temp(var_type);
+		let instr = LoadInstr {
+			target: target.clone(),
+			var_type,
+			addr,
+		};
+		self.func_body.push(Box::new(instr));
+		target
 	}
 
 	pub fn visit_end(mut self) -> LlvmFunc {

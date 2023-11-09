@@ -1,7 +1,11 @@
 use std::fmt::Display;
 
 use crate::{
-	llvminstr::*, llvmop::*, llvmvar::VarType, temp::Temp, utils::all_equal,
+	llvminstr::*,
+	llvmop::*,
+	llvmvar::VarType,
+	temp::Temp,
+	utils::{all_equal, type_match_ptr},
 };
 
 impl Display for ArithInstr {
@@ -155,6 +159,9 @@ impl LlvmInstr for PhiInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		self.source.iter().flat_map(|(v, _)| v.unwrap_temp()).collect()
 	}
+	fn get_write(&self) -> Vec<Temp> {
+		vec![self.target.clone()]
+	}
 	fn type_valid(&self) -> bool {
 		let mut v: Vec<_> = self.source.iter().map(|(v, _)| v.get_type()).collect();
 		v.push(self.var_type);
@@ -182,5 +189,80 @@ impl LlvmInstr for RetInstr {
 	}
 	fn is_ret(&self) -> bool {
 		true
+	}
+}
+
+impl Display for AllocInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(
+			f,
+			"  {} = alloca {}, {} {}",
+			self.target,
+			self.var_type,
+			self.length.get_type(),
+			self.length
+		)
+	}
+}
+
+impl LlvmInstr for AllocInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		vec![&self.length].into_iter().flat_map(|v| v.unwrap_temp()).collect()
+	}
+	fn get_write(&self) -> Vec<Temp> {
+		vec![self.target.clone()]
+	}
+	fn type_valid(&self) -> bool {
+		self.length.get_type() == VarType::I32
+	}
+}
+
+impl Display for StoreInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(
+			f,
+			"  store {} {}, {} {}",
+			self.value.get_type(),
+			self.value,
+			self.addr.get_type(),
+			self.addr
+		)
+	}
+}
+
+impl LlvmInstr for StoreInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		vec![&self.value, &self.addr]
+			.into_iter()
+			.flat_map(|v| v.unwrap_temp())
+			.collect()
+	}
+	fn type_valid(&self) -> bool {
+		type_match_ptr(self.value.get_type(), self.addr.get_type())
+	}
+}
+
+impl Display for LoadInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(
+			f,
+			"  {} = load {}, {} {}",
+			self.target,
+			self.var_type,
+			self.addr.get_type(),
+			self.addr
+		)
+	}
+}
+
+impl LlvmInstr for LoadInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		vec![&self.addr].into_iter().flat_map(|v| v.unwrap_temp()).collect()
+	}
+	fn get_write(&self) -> Vec<Temp> {
+		vec![self.target.clone()]
+	}
+	fn type_valid(&self) -> bool {
+		type_match_ptr(self.var_type, self.addr.get_type())
 	}
 }

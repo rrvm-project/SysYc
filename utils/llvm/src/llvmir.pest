@@ -98,7 +98,7 @@ AllocInstr = {
   Ident ~ " = " ~ "alloca " ~ VarType ~ "," ~ VarType ~ Val
 }
 StoreInstr = { "store " ~ VarType ~ Val ~ "," ~ PtrType ~ Ident }
-LoadInstr = { Ident ~ " = " ~ "load " ~ VarType ~ Val ~ "," ~ PtrType ~ Ident }
+LoadInstr = { Ident ~ " = " ~ "load " ~ VarType ~ "," ~ PtrType ~ Ident }
 // note this is different from the real llvm !
 GEPInstr = { Ident ~ " = " ~ "getelementptr " ~ (Label | Ident) ~ "," ~ VarType ~ Val }
 CallInstr = { "call" } // TODO
