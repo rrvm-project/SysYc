@@ -8,6 +8,10 @@ pub enum Value {
 	Temp(Temp),
 }
 
+pub trait LlvmOp: Display {
+	fn oprand_type(&self) -> VarType;
+}
+
 pub enum ArithOp {
 	Add,
 	Sub,
@@ -25,6 +29,36 @@ pub enum ArithOp {
 	And,
 	Or,
 	Xor,
+}
+
+pub enum CompOp {
+	EQ,
+	NE,
+	SGT,
+	SGE,
+	SLT,
+	SLE,
+	OEQ,
+	ONE,
+	OGT,
+	OGE,
+	OLT,
+	OLE,
+}
+
+pub enum CompKind {
+	Icmp,
+	Fcmp,
+}
+
+impl Value {
+	pub fn get_type(&self) -> VarType {
+		match self {
+			Self::Int(_) => VarType::I32,
+			Self::Float(_) => VarType::I32,
+			Self::Temp(v) => v.var_type.clone(),
+		}
+	}
 }
 
 impl Display for Value {
@@ -61,8 +95,8 @@ impl Display for ArithOp {
 	}
 }
 
-impl ArithOp {
-	pub fn oprand_type(&self) -> VarType {
+impl LlvmOp for ArithOp {
+	fn oprand_type(&self) -> VarType {
 		match self {
 			Self::Add => VarType::I32,
 			Self::Sub => VarType::I32,
@@ -80,6 +114,62 @@ impl ArithOp {
 			Self::And => VarType::I32,
 			Self::Or => VarType::I32,
 			Self::Xor => VarType::I32,
+		}
+	}
+}
+
+impl Display for CompOp {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match self {
+			Self::EQ => write!(f, "eq"),
+			Self::NE => write!(f, "ne"),
+			Self::SGT => write!(f, "sgt"),
+			Self::SGE => write!(f, "sge"),
+			Self::SLT => write!(f, "slt"),
+			Self::SLE => write!(f, "sle"),
+			Self::OEQ => write!(f, "oeq"),
+			Self::ONE => write!(f, "one"),
+			Self::OGT => write!(f, "ogt"),
+			Self::OGE => write!(f, "oge"),
+			Self::OLT => write!(f, "olt"),
+			Self::OLE => write!(f, "ole"),
+		}
+	}
+}
+
+impl LlvmOp for CompOp {
+	fn oprand_type(&self) -> VarType {
+		match self {
+			Self::EQ => VarType::I32,
+			Self::NE => VarType::I32,
+			Self::SGT => VarType::I32,
+			Self::SGE => VarType::I32,
+			Self::SLT => VarType::I32,
+			Self::SLE => VarType::I32,
+			Self::OEQ => VarType::F32,
+			Self::ONE => VarType::F32,
+			Self::OGT => VarType::F32,
+			Self::OGE => VarType::F32,
+			Self::OLT => VarType::F32,
+			Self::OLE => VarType::F32,
+		}
+	}
+}
+
+impl Display for CompKind {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match self {
+			Self::Icmp => write!(f, "icmp"),
+			Self::Fcmp => write!(f, "fcmp"),
+		}
+	}
+}
+
+impl LlvmOp for CompKind {
+	fn oprand_type(&self) -> VarType {
+		match self {
+			Self::Icmp => VarType::I32,
+			Self::Fcmp => VarType::F32,
 		}
 	}
 }

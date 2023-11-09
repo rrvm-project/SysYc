@@ -27,12 +27,12 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 }
 
 #[allow(unused_variables)]
-fn step_llvm(program: Program) -> Result<()> {
+fn step_llvm(program: Program) -> Result<i32> {
 	todo!()
 }
 
 #[allow(unused_variables)]
-fn step_riscv(what: ()) -> Result<()> {
+fn step_riscv(what: i32) -> Result<i32> {
 	todo!()
 }
 

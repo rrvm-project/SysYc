@@ -1,9 +1,4 @@
-use crate::{
-	label::Label,
-	llvmop::{ArithOp, Value},
-	llvmvar::VarType,
-	temp::Temp,
-};
+use crate::{label::Label, llvmop::*, llvmvar::VarType, temp::Temp};
 use std::fmt::Display;
 
 pub struct GlobalVar {}
@@ -26,4 +21,13 @@ pub struct ArithInstr {
 
 pub struct LabelInstr {
 	pub label: Label,
+}
+
+pub struct CompInstr {
+	pub kind: CompKind,
+	pub target: Temp,
+	pub op: CompOp,
+	pub var_type: VarType,
+	pub lhs: Value,
+	pub rhs: Value,
 }

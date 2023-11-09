@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{llvminstr::*, temp::Temp};
+use crate::{llvminstr::*, llvmop::LlvmOp, temp::Temp, utils::all_equal};
 
 impl Display for ArithInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -29,9 +29,12 @@ impl LlvmInstr for ArithInstr {
 		true
 	}
 	fn type_valid(&self) -> bool {
-		self.var_type == self.op.oprand_type()
-			&& self.lhs.unwrap_temp().map_or(true, |v| self.var_type == v.var_type)
-			&& self.rhs.unwrap_temp().map_or(true, |v| self.var_type == v.var_type)
+		all_equal(&[
+			&self.var_type,
+			&self.op.oprand_type(),
+			&self.lhs.get_type(),
+			&self.rhs.get_type(),
+		])
 	}
 }
 
@@ -56,5 +59,41 @@ impl LlvmInstr for LabelInstr {
 	}
 	fn type_valid(&self) -> bool {
 		true
+	}
+}
+
+impl Display for CompInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(
+			f,
+			"  {} = {} {} {} {}, {}",
+			self.target, self.kind, self.op, self.var_type, self.lhs, self.rhs
+		)
+	}
+}
+
+impl LlvmInstr for CompInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		vec![&self.lhs, &self.rhs]
+			.into_iter()
+			.flat_map(|v| v.unwrap_temp())
+			.collect()
+	}
+	fn get_write(&self) -> Vec<Temp> {
+		vec![self.target.clone()]
+	}
+	fn is_label(&self) -> bool {
+		false
+	}
+	fn is_seq(&self) -> bool {
+		true
+	}
+	fn type_valid(&self) -> bool {
+		all_equal(&[
+			&self.var_type,
+			&self.op.oprand_type(),
+			&self.lhs.get_type(),
+			&self.rhs.get_type(),
+		])
 	}
 }
