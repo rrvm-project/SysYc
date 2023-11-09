@@ -50,7 +50,7 @@ Xor = { "xor " }
 // arithmetic instruction
 ArithOp = {
   Add | Sub | Div | Mul | Rem
-  | Fadd | Fsub | Fdiv | Fmul| Frem
+  | Fadd | Fsub | Fdiv | Fmul | Frem
   | Shl | Lshr | Ashr | And | Or | Xor
 }
 
