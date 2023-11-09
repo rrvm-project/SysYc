@@ -9,10 +9,10 @@ edition = "2021"
 members = [
   "sysyc_derive",
   "utils",
+  "utils/llvm",
   "frontend/ast",
   "frontend/scope",
   "frontend/parser",
-  "backend/irparser",
 ]
 
 [dependencies]
