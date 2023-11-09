@@ -51,6 +51,11 @@ pub enum CompKind {
 	Fcmp,
 }
 
+pub enum ConvertOp {
+	Int2Float,
+	Float2Int,
+}
+
 impl Value {
 	pub fn get_type(&self) -> VarType {
 		match self {
@@ -170,6 +175,30 @@ impl LlvmOp for CompKind {
 		match self {
 			Self::Icmp => VarType::I32,
 			Self::Fcmp => VarType::F32,
+		}
+	}
+}
+
+impl Display for ConvertOp {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match self {
+			Self::Int2Float => write!(f, "sitofp"),
+			Self::Float2Int => write!(f, "fptpsi"),
+		}
+	}
+}
+
+impl ConvertOp {
+	pub fn type_from(&self) -> VarType {
+		match self {
+			Self::Float2Int => VarType::F32,
+			Self::Int2Float => VarType::I32,
+		}
+	}
+	pub fn type_to(&self) -> VarType {
+		match self {
+			Self::Float2Int => VarType::I32,
+			Self::Int2Float => VarType::F32,
 		}
 	}
 }

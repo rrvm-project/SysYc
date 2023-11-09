@@ -73,7 +73,6 @@ OLE = { "ole " }
 FcmpCond = _{ OEQ | ONE | OGT | OGE | OLT | OLE }
 
 // type convert
-// note: do not convert an immediate value !
 SiToFp = { "sitofp " }
 FpToSi = { "fptosi " }
 

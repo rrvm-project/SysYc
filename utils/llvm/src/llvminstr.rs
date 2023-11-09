@@ -31,3 +31,11 @@ pub struct CompInstr {
 	pub lhs: Value,
 	pub rhs: Value,
 }
+
+pub struct ConvertInstr {
+	pub target: Temp,
+	pub op: ConvertOp,
+	pub var_type: VarType,
+	pub lhs: Value,
+	pub rhs: Value,
+}
