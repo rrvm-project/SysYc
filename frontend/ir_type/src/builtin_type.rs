@@ -11,6 +11,7 @@
 //     fn name(&self) -> String;
 //     fn dims(&self) -> Vec<u32>;
 // }
+
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum BaseType {
 	Int,
@@ -33,11 +34,11 @@ impl PartialEq for IRType {
 		if self.dims.len() != other.dims.len() {
 			return false;
 		}
-		if self.dims.len() > 0 {
+		if !self.dims.is_empty() {
 			for i in 0..self.dims.len() {
 				if self.dims[i] != other.dims[i] {
 					if i == 0 {
-						if self.dims[i] != 0 && self.dims[i] != 0 {
+						if self.dims[i] != 0 && other.dims[i] != 0 {
 							return false;
 						}
 					} else {
@@ -52,27 +53,38 @@ impl PartialEq for IRType {
 }
 
 impl IRType {
-	fn dim_length(&self) -> usize {
+	pub fn dim_length(&self) -> usize {
 		self.dims.len()
 	}
 
-	fn new_scalar(base_type: BaseType, is_const: bool) -> Self {
+	pub fn get_scalar(base_type: BaseType, is_const: bool) -> Self {
 		IRType {
-			base_type: base_type,
+			base_type,
 			dims: vec![],
-			is_const: is_const,
+			is_const,
 		}
 	}
 
-	fn new_array(base_type: BaseType, is_const: bool, dims: Vec<usize>) -> Self {
-		IRType {
-			base_type: base_type,
-			dims: dims,
-			is_const: is_const,
-		}
+	pub fn is_array(&self) -> bool {
+		self.dim_length() > 0
 	}
 
-	fn size(&self) -> usize {
+	pub fn is_scalar(&self) -> bool {
+		self.dim_length() == 0
+	}
+
+	pub fn get_index(&self, a: &Vec<usize>) -> usize {
+		let mut ans: usize = if !a.is_empty() { a[0] } else { 0 };
+
+		let length = self.dim_length();
+		for i in 1..length {
+			ans *= self.dims[i];
+			ans += if i < a.len() { a[i] } else { 0 };
+		}
+		ans
+	}
+
+	pub fn size(&self) -> usize {
 		let mut i = match self.base_type {
 			BaseType::Int => 4,
 			BaseType::Float => 4,
