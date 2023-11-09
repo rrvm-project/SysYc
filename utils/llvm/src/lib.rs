@@ -8,6 +8,7 @@ pub mod parser;
 pub mod temp;
 
 mod impls;
+mod utils;
 
 use func::LlvmFunc;
 use llvminstr::GlobalVar;
