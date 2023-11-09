@@ -15,6 +15,7 @@ members = [
   "frontend/ir_gen",
   "frontend/scope",
   "frontend/ir_type",
+  "frontend/parser",
 ]
 
 [dependencies]
