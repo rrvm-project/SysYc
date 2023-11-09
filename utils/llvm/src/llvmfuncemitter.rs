@@ -7,16 +7,16 @@ use crate::{
 	temp::{Temp, TempManager},
 };
 
-pub struct LlvmGen {
+pub struct LlvmFuncEmitter {
 	label: Label,
 	ret_type: VarType,
 	temp_mgr: TempManager,
 	func_body: Vec<Box<dyn LlvmInstr>>,
 }
 
-impl LlvmGen {
+impl LlvmFuncEmitter {
 	pub fn new(name: String, ret_type: VarType) -> Self {
-		LlvmGen {
+		LlvmFuncEmitter {
 			label: Label::new(name),
 			ret_type,
 			temp_mgr: TempManager::new(),
