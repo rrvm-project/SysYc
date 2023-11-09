@@ -31,7 +31,9 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 #[allow(unused_variables)]
 fn step_llvm(program: Program) -> Result<()> {
 	let mut namer: Namer = Namer::default();
-	let program = namer.transform(program)?;
+	let (program, data) = namer.transform(program)?;
+
+	println!("Data From Namer \n {:?}", data);
 
 	let generator: LLVMIrGen = LLVMIrGen {};
 	Ok(generator.transform(program)?)

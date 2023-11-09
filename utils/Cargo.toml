@@ -9,3 +9,4 @@ edition = "2021"
 thiserror = "1.0.50"
 console = "0.15.7"
 sysyc_derive = { path = "../sysyc_derive" }
+ir_type = {path = "../frontend/ir_type"}

@@ -15,6 +15,12 @@ pub struct Scope {
 	pub funcsymbols: HashMap<String, FuncSymbol>,
 }
 
+impl Default for Scope {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl Scope {
 	pub fn new() -> Self {
 		Scope {
@@ -41,9 +47,15 @@ pub struct ScopeStack {
 	pub scopes: Vec<Scope>,
 }
 
+impl Default for ScopeStack {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl ScopeStack {
 	pub fn current_is_global(&self) -> bool {
-		return self.scopes.len() == 1;
+		self.scopes.len() == 1
 	}
 
 	pub fn new() -> Self {
@@ -84,6 +96,9 @@ impl ScopeStack {
 	}
 	pub fn declare_func(&mut self, func: &FuncSymbol) {
 		self.current_scope_mut().declare_func(func);
+	}
+	pub fn declare_func_at_global(&mut self, func: &FuncSymbol) {
+		self.scopes[0].declare_func(func);
 	}
 	pub fn lookup_var(&self, name: &str) -> Option<&VarSymbol> {
 		for scope in self.scopes.iter().rev() {

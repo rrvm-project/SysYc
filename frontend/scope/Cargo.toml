@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 
 ir_type = {path = "../ir_type"}
+utils = {path = "../../utils"}
