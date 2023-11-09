@@ -2,7 +2,7 @@ use ir_type::builtin_type::{BaseType, IRType};
 
 use scope::symbol::{FuncSymbol, VarSymbol};
 use std::{collections::HashMap, vec};
-use utils::{InitValueItem, SysycError, CompileConstValue};
+use utils::{InitValueItem, SysycError};
 
 pub fn assert_is_convertable_to(
 	this: &IRType,
@@ -59,7 +59,6 @@ pub fn array_init_for_backend<T: std::fmt::Debug>(
 	}
 	result
 }
-
 
 #[derive(Debug)]
 pub struct DataFromNamer {

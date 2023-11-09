@@ -246,22 +246,27 @@ impl Visitor for Namer {
 				self.init_list_context = None;
 			}
 		} else {
-			println!("{:?}",var_type);
+			println!("{:?}", var_type);
 			init_value = match &mut val_def.init {
-
 				Some(value) => {
 					value.accept(self)?;
 
-					if let Some(Attr::CompileConstValue(inner)) = value.get_attr(COMPILE_CONST){
+					if let Some(Attr::CompileConstValue(inner)) =
+						value.get_attr(COMPILE_CONST)
+					{
 						match var_type.base_type {
-							BaseType::Float => Some(utils::CompileConstValue::Float(inner.to_f32()?)),
-							BaseType::Int => Some(utils::CompileConstValue::Int(inner.to_i32()?)),
-							_  => None
+							BaseType::Float => {
+								Some(utils::CompileConstValue::Float(inner.to_f32()?))
+							}
+							BaseType::Int => {
+								Some(utils::CompileConstValue::Int(inner.to_i32()?))
+							}
+							_ => None,
 						}
-					}else {
+					} else {
 						None
 					}
-				},
+				}
 
 				None => None,
 			};
