@@ -10,16 +10,18 @@ use crate::{
 
 pub struct LlvmFuncEmitter {
 	label: Label,
+	params: Vec<Temp>,
 	ret_type: VarType,
 	temp_mgr: TempManager,
 	func_body: Vec<Box<dyn LlvmInstr>>,
 }
 
 impl LlvmFuncEmitter {
-	pub fn new(name: String, ret_type: VarType) -> Self {
+	pub fn new(name: String, ret_type: VarType, params: Vec<Temp>) -> Self {
 		LlvmFuncEmitter {
-			label: Label::new(name),
+			label: Label::new(format!("Function<{}>", name)),
 			ret_type,
+			params,
 			temp_mgr: TempManager::new(),
 			func_body: Vec::new(),
 		}
@@ -113,7 +115,11 @@ impl LlvmFuncEmitter {
 		self.func_body.push(Box::new(instr));
 	}
 
-	pub fn visit_alloc(&mut self, var_type: VarType, length: Value) -> Temp {
+	pub fn visit_alloc_instr(
+		&mut self,
+		var_type: VarType,
+		length: Value,
+	) -> Temp {
 		let target = self.temp_mgr.new_temp(var_type);
 		let instr = AllocInstr {
 			target: target.clone(),
@@ -124,18 +130,48 @@ impl LlvmFuncEmitter {
 		target
 	}
 
-	pub fn visit_store(&mut self, value: Value, addr: Value) {
+	pub fn visit_store_instr(&mut self, value: Value, addr: Value) {
 		let instr = StoreInstr { value, addr };
 		self.func_body.push(Box::new(instr));
 	}
 
-	pub fn visit_load(&mut self, addr: Value) -> Temp {
+	pub fn visit_load_instr(&mut self, addr: Value) -> Temp {
 		let var_type = ptr2type(addr.get_type());
 		let target = self.temp_mgr.new_temp(var_type);
 		let instr = LoadInstr {
 			target: target.clone(),
 			var_type,
 			addr,
+		};
+		self.func_body.push(Box::new(instr));
+		target
+	}
+
+	pub fn visit_gep_instr(&mut self, addr: Value, offset: Value) -> Temp {
+		let var_type = ptr2type(addr.get_type());
+		let target = self.temp_mgr.new_temp(var_type);
+		let instr = GEPInstr {
+			target: target.clone(),
+			var_type,
+			addr,
+			offset,
+		};
+		self.func_body.push(Box::new(instr));
+		target
+	}
+
+	pub fn visit_call_instr(
+		&mut self,
+		var_type: VarType,
+		func_label: Label,
+		params: Vec<Value>,
+	) -> Temp {
+		let target = self.temp_mgr.new_temp(var_type);
+		let instr = CallInstr {
+			target: target.clone(),
+			var_type,
+			func: func_label,
+			params: params.into_iter().map(|v| (v.get_type(), v)).collect(),
 		};
 		self.func_body.push(Box::new(instr));
 		target
@@ -155,6 +191,7 @@ impl LlvmFuncEmitter {
 		}
 		LlvmFunc {
 			label: self.label,
+			params: self.params,
 			ret_type: self.ret_type,
 			body: self.func_body,
 		}

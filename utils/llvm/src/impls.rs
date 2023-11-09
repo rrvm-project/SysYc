@@ -1,12 +1,6 @@
 use std::fmt::Display;
 
-use crate::{
-	llvminstr::*,
-	llvmop::*,
-	llvmvar::VarType,
-	temp::Temp,
-	utils::{all_equal, type_match_ptr},
-};
+use crate::{llvminstr::*, llvmop::*, llvmvar::VarType, temp::Temp, utils::*};
 
 impl Display for ArithInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -20,10 +14,7 @@ impl Display for ArithInstr {
 
 impl LlvmInstr for ArithInstr {
 	fn get_read(&self) -> Vec<Temp> {
-		vec![&self.lhs, &self.rhs]
-			.into_iter()
-			.flat_map(|v| v.unwrap_temp())
-			.collect()
+		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
 	fn get_write(&self) -> Vec<Temp> {
 		vec![self.target.clone()]
@@ -62,10 +53,7 @@ impl Display for CompInstr {
 
 impl LlvmInstr for CompInstr {
 	fn get_read(&self) -> Vec<Temp> {
-		vec![&self.lhs, &self.rhs]
-			.into_iter()
-			.flat_map(|v| v.unwrap_temp())
-			.collect()
+		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
 	fn get_write(&self) -> Vec<Temp> {
 		vec![self.target.clone()]
@@ -92,10 +80,7 @@ impl Display for ConvertInstr {
 
 impl LlvmInstr for ConvertInstr {
 	fn get_read(&self) -> Vec<Temp> {
-		vec![&self.lhs, &self.rhs]
-			.into_iter()
-			.flat_map(|v| v.unwrap_temp())
-			.collect()
+		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
 	fn get_write(&self) -> Vec<Temp> {
 		vec![self.target.clone()]
@@ -232,10 +217,7 @@ impl Display for StoreInstr {
 
 impl LlvmInstr for StoreInstr {
 	fn get_read(&self) -> Vec<Temp> {
-		vec![&self.value, &self.addr]
-			.into_iter()
-			.flat_map(|v| v.unwrap_temp())
-			.collect()
+		unwrap_values(vec![&self.value, &self.addr])
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.value.get_type(), self.addr.get_type())
@@ -264,5 +246,57 @@ impl LlvmInstr for LoadInstr {
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.var_type, self.addr.get_type())
+	}
+}
+
+impl Display for GEPInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(
+			f,
+			"  {} = getelementptr {} {}, {} {}",
+			self.target,
+			self.addr.get_type(),
+			self.addr,
+			self.offset.get_type(),
+			self.offset
+		)
+	}
+}
+
+impl LlvmInstr for GEPInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		unwrap_values(vec![&self.addr, &self.offset])
+	}
+	fn get_write(&self) -> Vec<Temp> {
+		vec![self.target.clone()]
+	}
+	fn type_valid(&self) -> bool {
+		is_ptr(self.addr.get_type())
+			&& self.offset.get_type() == VarType::I32
+			&& type_match_ptr(self.var_type, self.addr.get_type())
+	}
+}
+
+impl Display for CallInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		let ctx: Vec<_> =
+			self.params.iter().map(|(a, b)| format!("{} {}", a, b)).collect();
+		write!(
+			f,
+			"  {} = call {} {}({})",
+			self.target,
+			self.var_type,
+			self.func,
+			ctx.join(", ")
+		)
+	}
+}
+
+impl LlvmInstr for CallInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		unwrap_values(self.params.iter().map(|(_, x)| x).collect())
+	}
+	fn get_write(&self) -> Vec<Temp> {
+		vec![self.target.clone()]
 	}
 }
