@@ -4,11 +4,24 @@ use std::fmt::Display;
 pub struct GlobalVar {}
 
 pub trait LlvmInstr: Display {
-	fn get_read(&self) -> Vec<Temp>;
-	fn get_write(&self) -> Vec<Temp>;
-	fn is_label(&self) -> bool;
-	fn is_seq(&self) -> bool;
-	fn type_valid(&self) -> bool;
+	fn get_read(&self) -> Vec<Temp> {
+		Vec::new()
+	}
+	fn get_write(&self) -> Vec<Temp> {
+		Vec::new()
+	}
+	fn type_valid(&self) -> bool {
+		true
+	}
+	fn is_label(&self) -> bool {
+		false
+	}
+	fn is_seq(&self) -> bool {
+		true
+	}
+	fn is_ret(&self) -> bool {
+		false
+	}
 }
 
 pub struct ArithInstr {
@@ -38,4 +51,21 @@ pub struct ConvertInstr {
 	pub var_type: VarType,
 	pub lhs: Value,
 	pub rhs: Value,
+}
+
+pub struct JumpInstr {
+	pub target: Label,
+}
+
+pub struct JumpCondInstr {
+	pub var_type: VarType,
+	pub cond: Value,
+	pub target_true: Label,
+	pub target_false: Label,
+}
+
+pub struct PhiInstr {
+	pub target: Temp,
+	pub var_type: VarType,
+	pub source: Vec<(Value, Label)>,
 }

@@ -16,6 +16,7 @@ impl LlvmGen {
 	pub fn visit_label(&mut self, label: Label) {
 		self.func.push(Box::new(LabelInstr { label }))
 	}
+
 	pub fn visit_arith_instr(
 		&mut self,
 		lhs: Value,
@@ -33,6 +34,7 @@ impl LlvmGen {
 		self.func.push(Box::new(instr));
 		target
 	}
+
 	pub fn visit_comp_instr(
 		&mut self,
 		lhs: Value,
@@ -58,6 +60,42 @@ impl LlvmGen {
 		self.func.push(Box::new(instr));
 		target
 	}
+
+	pub fn visit_jump_instr(&mut self, target: Label) {
+		let instr = JumpInstr { target };
+		self.func.push(Box::new(instr));
+	}
+
+	pub fn visit_jump_cond_instr(
+		&mut self,
+		cond: Value,
+		target_true: Label,
+		target_false: Label,
+	) {
+		let instr = JumpCondInstr {
+			var_type: VarType::I32,
+			cond,
+			target_true,
+			target_false,
+		};
+		self.func.push(Box::new(instr));
+	}
+
+	pub fn visit_phi_instr(
+		&mut self,
+		var_type: VarType,
+		source: Vec<(Value, Label)>,
+	) -> Temp {
+		let target = self.temp_mgr.new_temp(var_type);
+		let instr = PhiInstr {
+			target: target.clone(),
+			var_type,
+			source,
+		};
+		self.func.push(Box::new(instr));
+		target
+	}
+
 	pub fn visit_end(&self) -> LlvmFunc {
 		todo!()
 	}

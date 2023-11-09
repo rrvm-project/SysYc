@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum VarType {
 	I32,
 	F32,
