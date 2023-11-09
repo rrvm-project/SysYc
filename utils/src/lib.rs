@@ -26,35 +26,35 @@ pub enum CompileConstValue {
 }
 
 impl From<i32> for CompileConstValue {
-    fn from(value: i32) -> Self {
-        CompileConstValue::Int(value)
-    }
+	fn from(value: i32) -> Self {
+		CompileConstValue::Int(value)
+	}
 }
 
 impl From<f32> for CompileConstValue {
-    fn from(value: f32) -> Self {
-        CompileConstValue::Float(value)
-    }
+	fn from(value: f32) -> Self {
+		CompileConstValue::Float(value)
+	}
 }
 
 impl CompileConstValue {
-	pub fn to_i32(&self) -> Result<i32, SysycError>{
-		let err =  "Array can not be transformed into int value".to_string();
+	pub fn to_i32(&self) -> Result<i32, SysycError> {
+		let err = "Array can not be transformed into int value".to_string();
 		match self {
 			CompileConstValue::Int(v) => Ok(*v),
 			CompileConstValue::Float(v) => Ok(*v as i32),
 			CompileConstValue::IntArray(_) => Err(SysycError::SyntaxError(err)),
-			CompileConstValue::FloatArray(_) => Err(SysycError::SyntaxError(err))
+			CompileConstValue::FloatArray(_) => Err(SysycError::SyntaxError(err)),
 		}
 	}
 
-	pub fn to_f32(&self) -> Result<f32, SysycError>{
-		let err =  "Array can not be transformed into int value".to_string();
+	pub fn to_f32(&self) -> Result<f32, SysycError> {
+		let err = "Array can not be transformed into int value".to_string();
 		match self {
 			CompileConstValue::Int(v) => Ok(*v as f32),
 			CompileConstValue::Float(v) => Ok(*v),
 			CompileConstValue::IntArray(_) => Err(SysycError::SyntaxError(err)),
-			CompileConstValue::FloatArray(_) => Err(SysycError::SyntaxError(err))
+			CompileConstValue::FloatArray(_) => Err(SysycError::SyntaxError(err)),
 		}
 	}
 }
@@ -67,19 +67,23 @@ pub enum InitValueItem {
 }
 
 impl InitValueItem {
-	pub fn to_i32(&self) -> i32{
+	pub fn to_i32(&self) -> i32 {
 		match self {
 			InitValueItem::Int(v) => *v,
 			InitValueItem::Float(v) => *v as i32,
-			InitValueItem::None(_) => unreachable!("None 类型用于填充初始化列表中空白而不是表示具体的值")
+			InitValueItem::None(_) => {
+				unreachable!("None 类型用于填充初始化列表中空白而不是表示具体的值")
+			}
 		}
 	}
 
-	pub fn to_f32(&self) -> f32{
+	pub fn to_f32(&self) -> f32 {
 		match self {
 			InitValueItem::Int(v) => *v as f32,
-			InitValueItem::Float(v) => *v ,
-			InitValueItem::None(_) => unreachable!("None 类型用于填充初始化列表中空白而不是表示具体的值")
+			InitValueItem::Float(v) => *v,
+			InitValueItem::None(_) => {
+				unreachable!("None 类型用于填充初始化列表中空白而不是表示具体的值")
+			}
 		}
 	}
 }
