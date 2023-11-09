@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
-use crate::{llvminstr::*, llvmop::LlvmOp, temp::Temp, utils::all_equal};
+use crate::{
+	llvminstr::*, llvmop::LlvmOp, llvmvar::VarType, temp::Temp, utils::all_equal,
+};
 
 impl Display for ArithInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -22,12 +24,6 @@ impl LlvmInstr for ArithInstr {
 	fn get_write(&self) -> Vec<Temp> {
 		vec![self.target.clone()]
 	}
-	fn is_label(&self) -> bool {
-		false
-	}
-	fn is_seq(&self) -> bool {
-		true
-	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[
 			&self.var_type,
@@ -45,19 +41,7 @@ impl Display for LabelInstr {
 }
 
 impl LlvmInstr for LabelInstr {
-	fn get_read(&self) -> Vec<Temp> {
-		Vec::new()
-	}
-	fn get_write(&self) -> Vec<Temp> {
-		Vec::new()
-	}
 	fn is_label(&self) -> bool {
-		true
-	}
-	fn is_seq(&self) -> bool {
-		false
-	}
-	fn type_valid(&self) -> bool {
 		true
 	}
 }
@@ -81,12 +65,6 @@ impl LlvmInstr for CompInstr {
 	}
 	fn get_write(&self) -> Vec<Temp> {
 		vec![self.target.clone()]
-	}
-	fn is_label(&self) -> bool {
-		false
-	}
-	fn is_seq(&self) -> bool {
-		true
 	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[
@@ -118,19 +96,69 @@ impl LlvmInstr for ConvertInstr {
 	fn get_write(&self) -> Vec<Temp> {
 		vec![self.target.clone()]
 	}
-	fn is_label(&self) -> bool {
+	fn type_valid(&self) -> bool {
+		all_equal(&[
+			&self.var_type,
+			&self.op.type_from(),
+			&self.lhs.get_type(),
+			&self.rhs.get_type(),
+		])
+	}
+}
+
+impl Display for JumpInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "  br label {}", self.target)
+	}
+}
+
+impl LlvmInstr for JumpInstr {
+	fn is_seq(&self) -> bool {
 		false
 	}
+}
+
+impl Display for JumpCondInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(
+			f,
+			"  br {} {}, label {}, label {}",
+			self.var_type, self.cond, self.target_true, self.target_true
+		)
+	}
+}
+
+impl LlvmInstr for JumpCondInstr {
 	fn is_seq(&self) -> bool {
-		true
+		false
 	}
 	fn type_valid(&self) -> bool {
-		self.op.type_to() == self.target.var_type
-			&& all_equal(&[
-				&self.var_type,
-				&self.op.type_from(),
-				&self.lhs.get_type(),
-				&self.rhs.get_type(),
-			])
+		all_equal(&[&self.cond.get_type(), &self.var_type, &VarType::I32])
+	}
+}
+
+impl Display for PhiInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		let ctx: Vec<_> =
+			self.source.iter().map(|(a, b)| format!("[{}, {}]", a, b)).collect();
+		write!(
+			f,
+			"  {} = phi {} {}",
+			self.target,
+			self.var_type,
+			ctx.join(", ")
+		)
+	}
+}
+
+impl LlvmInstr for PhiInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		self.source.iter().flat_map(|(v, _)| v.unwrap_temp()).collect()
+	}
+	fn type_valid(&self) -> bool {
+		let mut v: Vec<_> = self.source.iter().map(|(v, _)| v.get_type()).collect();
+		v.push(self.var_type);
+		v.push(self.target.var_type);
+		all_equal(&v)
 	}
 }

@@ -77,7 +77,7 @@ SiToFp = { "sitofp " }
 FpToSi = { "fptosi " }
 
 // phi
-PhiItem = { "[" ~ Ident ~ "," ~ RefLabel ~ "]" }
+PhiItem = { "[" ~ Val ~ "," ~ RefLabel ~ "]" }
 
 // instructions
 LabelInstr = { Label ~ ":" }
@@ -101,11 +101,12 @@ StoreInstr = { "store " ~ VarType ~ Val ~ "," ~ PtrType ~ Ident }
 LoadInstr = { Ident ~ " = " ~ "load " ~ VarType ~ Val ~ "," ~ PtrType ~ Ident }
 // note this is different from the real llvm !
 GEPInstr = { Ident ~ " = " ~ "getelementptr " ~ (Label | Ident) ~ "," ~ VarType ~ Val }
+CallInstr = { "call" }
 Instr = {
   LabelInstr | ArithInstr | IcmpInstr | FcmpInstr
   | ConvertInstr | JumpInstr | JumpCondInstr | PhiInstr
   | AllocInstr | StoreInstr | LoadInstr
-  | StoreInstr | LoadInstr | GEPInstr
+  | CallInstr | LoadInstr | GEPInstr
 }
 
 // function declaration

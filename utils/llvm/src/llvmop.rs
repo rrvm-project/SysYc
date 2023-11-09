@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::{llvmvar::VarType, temp::Temp};
 
+#[derive(Clone)]
 pub enum Value {
 	Int(i32),
 	Float(f32),
