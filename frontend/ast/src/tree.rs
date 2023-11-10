@@ -1,6 +1,6 @@
+use attr::{Attr, Attrs};
 use std::fmt::Debug;
 use sysyc_derive::{has_attrs, AstNode};
-use attr::{Attr, Attrs};
 use utils::SysycError;
 
 use crate::{visitor::Visitor, BinaryOp, FuncType, UnaryOp, VarType};

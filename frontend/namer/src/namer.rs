@@ -2,6 +2,7 @@ use crate::utils::{
 	array_init_for_backend, assert_is_convertable_to, DataFromNamer,
 };
 use ast::{tree::*, visitor::Visitor, BinaryOp, FuncType};
+use attr::{Attr, Attrs, CompileConstValue, InitValueItem};
 use ir_type::builtin_type::{BaseType, IRType};
 use scope::{
 	scope::ScopeStack,
@@ -9,7 +10,6 @@ use scope::{
 };
 use std::{collections::HashMap, vec};
 use utils::SysycError;
-use attr::{CompileConstValue, InitValueItem, Attrs, Attr};
 
 use crate::complie_calculate::{
 	evaluate_binary, evaluate_unary, type_binary, type_unary,
