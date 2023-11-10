@@ -1,6 +1,6 @@
 use llvm::llvminstr::LlvmInstr;
 
-pub enum Instr {
-	LlvmInstr(Box<dyn LlvmInstr>),
-	RiscvInstr(),
+pub enum InstrSet {
+	LlvmInstrSet(Vec<Box<dyn LlvmInstr>>),
+	RiscvInstrSet(),
 }

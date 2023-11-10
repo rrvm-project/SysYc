@@ -37,7 +37,7 @@ impl Display for LabelInstr {
 }
 
 impl LlvmInstr for LabelInstr {
-	fn is_label(&self) -> Option<Label> {
+	fn get_label(&self) -> Option<Label> {
 		Some(self.label.clone())
 	}
 }

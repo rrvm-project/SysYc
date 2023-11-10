@@ -13,7 +13,7 @@ pub trait LlvmInstr: Display {
 	fn type_valid(&self) -> bool {
 		true
 	}
-	fn is_label(&self) -> Option<Label> {
+	fn get_label(&self) -> Option<Label> {
 		None
 	}
 	fn is_seq(&self) -> bool {
@@ -24,6 +24,9 @@ pub trait LlvmInstr: Display {
 	}
 	fn is_phi(&self) -> bool {
 		false
+	}
+	fn get_succ(&self) -> Vec<Label> {
+		Vec::new()
 	}
 }
 
