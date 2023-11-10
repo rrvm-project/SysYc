@@ -17,6 +17,7 @@ use ir_gen::llvmirgen::LlvmIrGen;
 use llvm::LlvmProgram;
 use namer::namer::Namer;
 use parser::parser::parse;
+use rrvm_program::rrvmprogram::RrvmProgram;
 use utils::{fatal_error, map_sys_err};
 
 fn step_parse(name: Option<String>) -> Result<Program> {
@@ -48,8 +49,12 @@ fn step_llvm(program: Program) -> Result<LlvmProgram> {
 }
 
 #[allow(unused_variables)]
-fn step_riscv(what: i32) -> Result<i32> {
-	todo!()
+fn step_riscv(program: LlvmProgram) -> Result<i32> {
+	let mut program = RrvmProgram::new(program);
+	program.solve_global();
+	program.funcs = program.funcs.into_iter().map(|v| v.transform()).collect();
+	let code = program.alloc_regs();
+	Ok(code)
 }
 
 fn main() -> Result<()> {

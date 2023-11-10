@@ -276,7 +276,7 @@ impl Visitor for Namer {
 
 		let symbol = VarSymbol {
 			name: val_def.ident.clone(),
-			tp: var_type.clone(),
+			tp: var_type,
 			is_global: self.scope_stack.current_is_global(),
 			id: self.var_symbols.len(),
 			const_or_global_initial_value: init_value,
