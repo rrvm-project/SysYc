@@ -11,3 +11,4 @@ llvm = { path = "../../utils/llvm" }
 ast = { path = "../ast" }
 namer = { path = "../namer" }
 attr = { path = "../../attr" }
+ir_type = { path = "../ir_type" }
