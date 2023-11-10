@@ -16,6 +16,7 @@ members = [
   "frontend/scope",
   "frontend/ir_type",
   "frontend/parser",
+  "attr",
 ]
 
 [dependencies]

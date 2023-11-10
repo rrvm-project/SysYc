@@ -1,11 +1,11 @@
 [package]
-name = "ast"
+name = "attr"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-utils = { path = "../../utils"}
-sysyc_derive = { path = "../../sysyc_derive" }
-attr = { path = "../../attr" }
+llvm = { path = "../utils/llvm" }
+utils = { path = "../utils" }
+ir_type = { path = "../frontend/ir_type" }

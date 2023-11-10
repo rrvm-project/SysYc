@@ -35,7 +35,10 @@ fn step_llvm(program: Program) -> Result<()> {
 
 	println!("Data From Namer \n {:?}", data);
 
-	let generator: LLVMIrGen = LLVMIrGen {};
+	let generator: LLVMIrGen = LLVMIrGen {
+		data,
+		funcemitter: Default::default(),
+	};
 	Ok(generator.transform(program)?)
 }
 

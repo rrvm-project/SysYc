@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use sysyc_derive::{has_attrs, AstNode};
-use utils::{Attr, Attrs, SysycError};
+use attr::{Attr, Attrs};
+use utils::SysycError;
 
 use crate::{visitor::Visitor, BinaryOp, FuncType, UnaryOp, VarType};
 
