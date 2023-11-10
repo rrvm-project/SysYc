@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{llvmop::Value, llvmvar::VarType};
 
-#[derive(Clone)]
+#[derive(Clone,PartialEq, Eq, PartialOrd, Ord,Hash)]
 pub struct Temp {
 	pub name: String,
 	pub var_type: VarType,
