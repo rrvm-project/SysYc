@@ -25,6 +25,7 @@ ast = { path = "frontend/ast" }
 parser = { path = "frontend/parser" }
 namer = { path = "frontend/namer" }
 ir_gen = { path = "frontend/ir_gen"}
+llvm = { path = "utils/llvm" }
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"

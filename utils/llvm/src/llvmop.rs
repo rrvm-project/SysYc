@@ -14,6 +14,7 @@ pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
 }
 
+#[derive(Clone, Debug)]
 pub enum ArithOp {
 	Add,
 	Sub,
@@ -45,15 +46,25 @@ pub enum ArithOp {
 pub enum CompOp {
 	EQ,
 	NE,
+	// signed greater than
 	SGT,
+	// signed greater or equal
 	SGE,
+	// signed less than
 	SLT,
+	// signed less or equal
 	SLE,
+	// ordered and equal
 	OEQ,
+	// ordered and not equal
 	ONE,
+	// ordered and greater than
 	OGT,
+	// ordered and greater or equal
 	OGE,
+	// ordered and less than
 	OLT,
+	// ordered and less or equal
 	OLE,
 }
 

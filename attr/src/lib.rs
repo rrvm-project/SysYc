@@ -1,5 +1,5 @@
-use llvm::llvmop::Value;
 use ir_type::builtin_type::IRType;
+use llvm::llvmop::Value;
 use std::collections::HashMap;
 use utils::SysycError;
 

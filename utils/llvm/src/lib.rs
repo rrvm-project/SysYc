@@ -12,9 +12,23 @@ mod utils;
 
 use func::LlvmFunc;
 use llvminstr::GlobalVar;
+use std::fmt::Display;
 
 #[allow(unused)]
 pub struct LlvmProgram {
-	funcs: Vec<LlvmFunc>,
-	global_vars: Vec<GlobalVar>,
+	pub funcs: Vec<LlvmFunc>,
+	pub global_vars: Vec<GlobalVar>,
+}
+
+impl Display for LlvmProgram {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		// TODO: 暂时不打印全局变量
+		// for global_var in &self.global_vars {
+		// 	writeln!(f, "{}", global_var)?;
+		// }
+		for func in &self.funcs {
+			writeln!(f, "{}", func)?;
+		}
+		Ok(())
+	}
 }

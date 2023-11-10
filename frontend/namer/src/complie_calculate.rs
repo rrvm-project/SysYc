@@ -1,8 +1,8 @@
 use ast::{BinaryOp, UnaryOp};
-use ir_type::builtin_type::{BaseType, IRType};
-use utils::SysycError;
 use attr::CompileConstValue;
+use ir_type::builtin_type::{BaseType, IRType};
 use std::collections::HashMap;
+use utils::SysycError;
 
 pub fn get_value() {}
 
