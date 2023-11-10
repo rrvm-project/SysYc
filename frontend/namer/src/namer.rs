@@ -274,7 +274,7 @@ impl Visitor for Namer {
 
 		let symbol = VarSymbol {
 			name: val_def.ident.clone(),
-			tp: var_type.clone(),
+			tp: var_type,
 			is_global: self.scope_stack.current_is_global(),
 			id: self.var_symbols.len(),
 			const_or_global_initial_value: init_value,
@@ -517,13 +517,13 @@ impl Visitor for Namer {
 		} else {
 			let r = binary_expr.rhs.get_attr(COMPILE_CONST);
 			let l = binary_expr.lhs.get_attr(COMPILE_CONST);
-			if r.is_some() && l.is_some() {
-				if let (Attr::CompileConstValue(l), Attr::CompileConstValue(r)) =
-					(l.unwrap(), r.unwrap())
-				{
-					let result = evaluate_binary(l, &binary_expr.op, r)?;
-					binary_expr.set_attr(COMPILE_CONST, Attr::CompileConstValue(result));
-				}
+			if let (
+				Some(Attr::CompileConstValue(l)),
+				Some(Attr::CompileConstValue(r)),
+			) = (l, r)
+			{
+				let result = evaluate_binary(l, &binary_expr.op, r)?;
+				binary_expr.set_attr(COMPILE_CONST, Attr::CompileConstValue(result));
 			}
 		}
 

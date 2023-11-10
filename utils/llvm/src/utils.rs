@@ -25,11 +25,7 @@ pub fn ptr2type(var_type: VarType) -> VarType {
 }
 
 pub fn is_ptr(var_type: VarType) -> bool {
-	match var_type {
-		VarType::F32Ptr => true,
-		VarType::I32Ptr => true,
-		_ => false,
-	}
+	matches!(var_type, VarType::F32Ptr | VarType::I32Ptr)
 }
 
 pub fn type_match_ptr(var_type: VarType, ptr_type: VarType) -> bool {

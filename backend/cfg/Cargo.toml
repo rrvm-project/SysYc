@@ -1,10 +1,9 @@
 [package]
-name = "riscv"
+name = "cfg"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-utils = { path = "../../utils" }
-llvm = { path = "../../utils/llvm" }
+basicblock = { path = "../basicblock" }

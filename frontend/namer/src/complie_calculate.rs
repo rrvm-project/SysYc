@@ -71,8 +71,7 @@ fn x_op_y(
 	let err_msg = error_binary_op(lhs, op_name, rhs);
 	let x =
 		value_unwarp_f32(lhs).ok_or(SysycError::SyntaxError(err_msg.clone()))?;
-	let y =
-		value_unwarp_f32(rhs).ok_or(SysycError::SyntaxError(err_msg.clone()))?;
+	let y = value_unwarp_f32(rhs).ok_or(SysycError::SyntaxError(err_msg))?;
 	if logical {
 		if float_op(x, y) == 0.0 {
 			Ok(CompileConstValue::Int(0))

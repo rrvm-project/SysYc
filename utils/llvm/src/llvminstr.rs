@@ -21,7 +21,8 @@ pub trait LlvmInstr: Display {
 	}
 	fn is_ret(&self) -> bool {
 		false
-	}fn is_phi(&self) -> bool {
+	}
+	fn is_phi(&self) -> bool {
 		false
 	}
 }

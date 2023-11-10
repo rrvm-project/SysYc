@@ -15,6 +15,6 @@ use llvminstr::GlobalVar;
 
 #[allow(unused)]
 pub struct LlvmProgram {
-	funcs: Vec<LlvmFunc>,
-	global_vars: Vec<GlobalVar>,
+	pub funcs: Vec<LlvmFunc>,
+	pub global_vars: Vec<GlobalVar>,
 }

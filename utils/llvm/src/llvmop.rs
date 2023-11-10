@@ -64,7 +64,7 @@ impl Value {
 			Self::Int(_) => VarType::I32,
 			Self::Float(_) => VarType::F32,
 			Self::Void => VarType::Void,
-			Self::Temp(v) => v.var_type.clone(),
+			Self::Temp(v) => v.var_type,
 		}
 	}
 }

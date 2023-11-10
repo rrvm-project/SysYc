@@ -14,8 +14,10 @@ use ast::tree::Program;
 use clap::Parser;
 use cli::Args;
 use ir_gen::llvm_gen::LLVMIrGen;
+use llvm::LlvmProgram;
 use namer::namer::Namer;
 use parser::parser::parse;
+use rrvm_program::rrvmprogram::RrvmProgram;
 use utils::{fatal_error, map_sys_err};
 
 fn step_parse(name: Option<String>) -> Result<Program> {
@@ -29,19 +31,27 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 }
 
 #[allow(unused_variables)]
-fn step_llvm(program: Program) -> Result<()> {
+fn step_llvm(program: Program) -> Result<LlvmProgram> {
 	let mut namer: Namer = Namer::default();
 	let (program, data) = namer.transform(program)?;
 
 	println!("Data From Namer \n {:?}", data);
 
 	let generator: LLVMIrGen = LLVMIrGen {};
-	Ok(generator.transform(program)?)
+	generator.transform(program)?;
+	Ok(LlvmProgram {
+		funcs: Vec::new(),
+		global_vars: Vec::new(),
+	})
 }
 
 #[allow(unused_variables)]
-fn step_riscv(what: i32) -> Result<i32> {
-	todo!()
+fn step_riscv(program: LlvmProgram) -> Result<i32> {
+	let mut program = RrvmProgram::new(program);
+	program.solve_global();
+	program.funcs = program.funcs.into_iter().map(|v| v.transform()).collect();
+	let code = program.alloc_regs();
+	Ok(code)
 }
 
 fn main() -> Result<()> {
@@ -62,7 +72,7 @@ fn main() -> Result<()> {
 
 	let llvm = step_llvm(program)?;
 	if args.llvm {
-		write!(writer, "{:?}", llvm)?;
+		// write!(writer, "{:?}", llvm)?;
 		return Ok(());
 	}
 
