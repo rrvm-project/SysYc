@@ -177,6 +177,12 @@ impl LlvmFuncEmitter {
 		target
 	}
 
+	pub fn visit_formal_param(&mut self, param_type: VarType) -> Temp {
+		let tmp = self.temp_mgr.new_temp(param_type);
+		self.params.push(tmp.clone());
+		tmp
+	}
+
 	pub fn visit_end(mut self) -> LlvmFunc {
 		fn get_default_value(ret_type: VarType) -> Value {
 			match ret_type {

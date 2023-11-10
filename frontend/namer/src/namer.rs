@@ -8,17 +8,18 @@ use scope::{
 	symbol::{FuncSymbol, VarSymbol},
 };
 use std::{collections::HashMap, vec};
-use utils::{Attr, Attrs, CompileConstValue, InitValueItem, SysycError};
+use utils::SysycError;
+use attr::{CompileConstValue, InitValueItem, Attrs, Attr};
 
 use crate::complie_calculate::{
 	evaluate_binary, evaluate_unary, type_binary, type_unary,
 };
 
-static COMPILE_CONST: &str = "compile_const";
-static COMPILE_CONST_INDEX: &str = "compile_const_index";
-static SYMBOL_NUMBER: &str = "symbol_number";
-static TYPE: &str = "type";
-static INDEX: &str = "index";
+pub static COMPILE_CONST: &str = "compile_const";
+pub static COMPILE_CONST_INDEX: &str = "compile_const_index";
+pub static SYMBOL_NUMBER: &str = "symbol_number";
+pub static TYPE: &str = "type";
+pub static INDEX: &str = "index";
 
 static _INIT_LIST_ALIGNMENT: &str = "init_list_alignment";
 static _INIT_LIST_HEIGHT: &str = "init_list_height";
@@ -256,10 +257,10 @@ impl Visitor for Namer {
 					{
 						match var_type.base_type {
 							BaseType::Float => {
-								Some(utils::CompileConstValue::Float(inner.to_f32()?))
+								Some(attr::CompileConstValue::Float(inner.to_f32()?))
 							}
 							BaseType::Int => {
-								Some(utils::CompileConstValue::Int(inner.to_i32()?))
+								Some(attr::CompileConstValue::Int(inner.to_i32()?))
 							}
 							_ => None,
 						}
@@ -451,11 +452,11 @@ impl Visitor for Namer {
 	) -> Result<(), SysycError> {
 		literal_int.set_attr(
 			COMPILE_CONST,
-			utils::Attr::CompileConstValue(CompileConstValue::Int(literal_int.value)),
+			attr::Attr::CompileConstValue(CompileConstValue::Int(literal_int.value)),
 		);
 		literal_int.set_attr(
 			TYPE,
-			utils::Attr::Type(IRType {
+			attr::Attr::Type(IRType {
 				base_type: BaseType::Int,
 				dims: vec![],
 				is_const: false,
@@ -470,13 +471,13 @@ impl Visitor for Namer {
 	) -> Result<(), SysycError> {
 		literal_float.set_attr(
 			COMPILE_CONST,
-			utils::Attr::CompileConstValue(CompileConstValue::Float(
+			attr::Attr::CompileConstValue(CompileConstValue::Float(
 				literal_float.value,
 			)),
 		);
 		literal_float.set_attr(
 			TYPE,
-			utils::Attr::Type(IRType {
+			attr::Attr::Type(IRType {
 				base_type: BaseType::Float,
 				dims: vec![],
 				is_const: false,
