@@ -1,6 +1,6 @@
 // TODO: 另起一个文件用来描述symbol
 use ir_type::builtin_type::IRType;
-use utils::CompileConstValue;
+use attr::CompileConstValue;
 
 #[derive(Debug, Clone)]
 pub struct VarSymbol {
