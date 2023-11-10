@@ -564,6 +564,8 @@ impl Visitor for Namer {
 		func_call: &mut FuncCall,
 	) -> Result<(), SysycError> {
 		if let Some(func_symbol) = self.scope_stack.lookup_func(&func_call.ident) {
+			// 给FuncCall绑定上一个FuncSymbol
+			func_call.set_attr(SYMBOL_NUMBER, Attr::FuncSymbol(func_symbol.id));
 			if func_call.params.len() != func_symbol.params.len() {
 				return Err(SysycError::SyntaxError(format!(
 					"In correct argument list length when calling {}",

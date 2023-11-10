@@ -4,6 +4,7 @@ use namer::utils::DataFromNamer;
 use namer::namer::SYMBOL_NUMBER;
 use ast::{tree::*, visitor::Visitor};
 use utils::SysycError;
+use llvm::llvmvar::VarType;
 
 static VALUE: &str = "value";
 pub struct LlvmIrGen {
@@ -66,15 +67,42 @@ impl Visitor for LlvmIrGen {
         let mut params = vec![];
         for param in &mut val_decl.params {
             param.accept(self)?;
-            params.push(param.get_attr(VALUE));
+            if let Some(Attr::Value(v)) = param.get_attr(VALUE) {
+                params.push(v.clone());
+            } else {
+                return Err(SysycError::LlvmSyntexError(format!("param of call {} has no value", val_decl.ident.clone())));
+            }
         };
-        let func_label = format!("@{}", val_decl.ident);
-        let var_type = match self.data.funcs.get(&val_decl.ident).unwrap().func_type {
-            ast::FuncType::Int => llvm::llvmvar::VarType::I32,
-            ast::FuncType::Float => llvm::llvmvar::VarType::F32,
-            ast::FuncType::Void => llvm::llvmvar::VarType::Void,
+        let funcsymbol_id = match val_decl.get_attr(SYMBOL_NUMBER) {
+            Some(Attr::FuncSymbol(id)) => *id,
+            _ => return Err(SysycError::LlvmSyntexError(format!("call {} has no funcsymbol", val_decl.ident.clone()))),
         };
-        let target = self.funcemitter.visit_call_instr(var_type, func_label, params);
-        Ok(target)
+        let funcsymbol = &self.data.func_symbols[funcsymbol_id];
+        let var_type = match funcsymbol.ret_t.base_type {
+            ir_type::builtin_type::BaseType::Int => if funcsymbol.ret_t.dims.len() == 0 {VarType::I32} else {VarType::I32Ptr},
+            ir_type::builtin_type::BaseType::Float => if funcsymbol.ret_t.dims.len() == 0 {VarType::F32} else {VarType::F32Ptr},
+            ir_type::builtin_type::BaseType::Void => VarType::Void,
+        };
+        let target = self.funcemitter.visit_call_instr(var_type, val_decl.ident.clone(), params);
+        val_decl.set_attr(VALUE, Attr::Value(llvm::llvmop::Value::Temp(target)));
+        Ok(())
+    }
+    fn visit_binary_expr(&mut self,	val_decl: &mut BinaryExpr) -> Result<(), SysycError> {
+        val_decl.lhs.accept(self)?;
+        val_decl.rhs.accept(self)?;
+        let lhs = match val_decl.lhs.get_attr(VALUE) {
+            Some(Attr::Value(v)) => v.clone(),
+            _ => return Err(SysycError::LlvmSyntexError(format!("lhs of binary expr has no value"))),
+        };
+        let rhs = match val_decl.rhs.get_attr(VALUE) {
+            Some(Attr::Value(v)) => v.clone(),
+            _ => return Err(SysycError::LlvmSyntexError(format!("rhs of binary expr has no value"))),
+        };
+        let op = match val_decl.op {
+            ast::BinaryOp::Add => llvm::llvmop::ArithOp::Add,
+            ast::BinaryOp::Sub => llvm::llvmop::ArithOp::Sub,
+            ast::BinaryOp::Mul => llvm::llvmop::ArithOp::Mul,
+        }
+
     }
 }

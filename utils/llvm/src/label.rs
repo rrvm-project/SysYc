@@ -18,3 +18,18 @@ impl Label {
 		}
 	}
 }
+
+#[derive(Default)]
+pub struct LabelManager {
+	total: u32,
+}
+
+impl LabelManager {
+	pub fn new() -> Self {
+		Self::default()
+	}
+	pub fn new_label(&mut self) -> Label {
+		self.total += 1;
+		Label::new("L".to_string() + self.total.to_string().as_str())
+	}
+}
