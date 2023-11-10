@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{llvmvar::VarType, temp::Temp};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Value {
 	Int(i32),
 	Float(f32),
@@ -19,14 +19,23 @@ pub enum ArithOp {
 	Sub,
 	Div,
 	Mul,
+	// modulo
 	Rem,
+	// Float add
 	Fadd,
+	// Float sub
 	Fsub,
+	// Float div
 	Fdiv,
+	// Float mul
 	Fmul,
+	// Float modulo
 	Frem,
+	// shift left
 	Shl,
+	// logical shift right
 	Lshr,
+	// arithmetic shift right
 	Ashr,
 	And,
 	Or,

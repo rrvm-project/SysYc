@@ -1,4 +1,4 @@
-use llvm::temp::Temp;
+use llvm::llvmop::Value;
 use ir_type::builtin_type::IRType;
 use std::collections::HashMap;
 use utils::SysycError;
@@ -6,13 +6,14 @@ use utils::SysycError;
 #[derive(Debug, Clone)]
 pub enum Attr {
 	CompileConstValue(CompileConstValue),
+	FuncSymbol(usize),
 	VarSymbol(usize),
 	Type(IRType),
 	UIntValue(usize),
 	IntValue(i32),
 
 	// used in llvmgen
-	Temp(Temp),
+	Value(Value),
 }
 
 #[derive(Debug, Clone)]

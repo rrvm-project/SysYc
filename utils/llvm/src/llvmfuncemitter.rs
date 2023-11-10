@@ -1,6 +1,6 @@
 use crate::{
 	func::LlvmFunc,
-	label::Label,
+	label::{Label, LabelManager},
 	llvminstr::*,
 	llvmop::*,
 	llvmvar::VarType,
@@ -13,6 +13,7 @@ pub struct LlvmFuncEmitter {
 	params: Vec<Temp>,
 	ret_type: VarType,
 	temp_mgr: TempManager,
+	label_mgr: LabelManager,
 	func_body: Vec<Box<dyn LlvmInstr>>,
 }
 
@@ -23,8 +24,13 @@ impl LlvmFuncEmitter {
 			ret_type,
 			params,
 			temp_mgr: TempManager::new(),
+			label_mgr: LabelManager::new(),
 			func_body: Vec::new(),
 		}
+	}
+
+	pub fn fresh_label(&mut self) -> Label {
+		self.label_mgr.new_label()
 	}
 
 	pub fn visit_label(&mut self, label: Label) {
@@ -163,10 +169,11 @@ impl LlvmFuncEmitter {
 	pub fn visit_call_instr(
 		&mut self,
 		var_type: VarType,
-		func_label: Label,
+		func_name: String,
 		params: Vec<Value>,
 	) -> Temp {
 		let target = self.temp_mgr.new_temp(var_type);
+		let func_label = Label::new(format!("Function<{}>", func_name));
 		let instr = CallInstr {
 			target: target.clone(),
 			var_type,
