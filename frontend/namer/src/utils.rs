@@ -1,9 +1,9 @@
 use ir_type::builtin_type::{BaseType, IRType};
 
+use attr::InitValueItem;
 use scope::symbol::{FuncSymbol, VarSymbol};
 use std::{collections::HashMap, vec};
 use utils::SysycError;
-use attr::InitValueItem;
 
 pub fn assert_is_convertable_to(
 	this: &IRType,

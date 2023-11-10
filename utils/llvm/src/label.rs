@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Clone,PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Label {
 	pub name: String,
 }
