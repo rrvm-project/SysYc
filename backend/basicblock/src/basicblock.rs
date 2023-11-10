@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use llvm::{label::Label, llvminstr::LlvmInstr, temp::Temp};
 
 pub struct BasicBlock {
-	pub id: i32,
-	pub pred: Vec<i32>,
-	pub succ: Vec<i32>,
+	pub id: usize,
+	pub pred: Vec<usize>,
+	pub succ: Vec<usize>,
 	pub label: Option<Label>,
 	pub defs: HashSet<Temp>,
 	pub uses: HashSet<Temp>,
