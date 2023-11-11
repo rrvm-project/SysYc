@@ -1,6 +1,6 @@
-use std::fmt::Display;
-
 use crate::{llvmvar::VarType, temp::Temp};
+use serde_derive::Serialize;
+use std::fmt::Display;
 
 #[derive(Clone)]
 pub enum Value {
@@ -13,7 +13,8 @@ pub enum Value {
 pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
 }
-
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ArithOp {
 	Add,
 	Sub,
@@ -32,7 +33,8 @@ pub enum ArithOp {
 	Or,
 	Xor,
 }
-
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum CompOp {
 	EQ,
 	NE,
@@ -47,7 +49,8 @@ pub enum CompOp {
 	OLT,
 	OLE,
 }
-
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum CompKind {
 	Icmp,
 	Fcmp,
@@ -82,25 +85,8 @@ impl Display for Value {
 
 impl Display for ArithOp {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		let op_str = match self {
-			Self::Add => "add",
-			Self::Sub => "sub",
-			Self::Div => "div",
-			Self::Mul => "mul",
-			Self::Rem => "rem",
-			Self::Fadd => "fadd",
-			Self::Fsub => "fsub",
-			Self::Fdiv => "fdiv",
-			Self::Fmul => "fmul",
-			Self::Frem => "frem",
-			Self::Shl => "shl",
-			Self::Lshr => "lshr",
-			Self::Ashr => "ashr",
-			Self::And => "and",
-			Self::Or => "or",
-			Self::Xor => "xor",
-		};
-		write!(f, "{}", op_str)
+		f.write_str(&serde_json::to_string(self).unwrap().trim_matches('\"'));
+		Ok(())
 	}
 }
 
@@ -129,20 +115,8 @@ impl LlvmOp for ArithOp {
 
 impl Display for CompOp {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		match self {
-			Self::EQ => write!(f, "eq"),
-			Self::NE => write!(f, "ne"),
-			Self::SGT => write!(f, "sgt"),
-			Self::SGE => write!(f, "sge"),
-			Self::SLT => write!(f, "slt"),
-			Self::SLE => write!(f, "sle"),
-			Self::OEQ => write!(f, "oeq"),
-			Self::ONE => write!(f, "one"),
-			Self::OGT => write!(f, "ogt"),
-			Self::OGE => write!(f, "oge"),
-			Self::OLT => write!(f, "olt"),
-			Self::OLE => write!(f, "ole"),
-		}
+		f.write_str(&serde_json::to_string(self).unwrap().trim_matches('\"'));
+		Ok(())
 	}
 }
 
@@ -167,10 +141,8 @@ impl LlvmOp for CompOp {
 
 impl Display for CompKind {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		match self {
-			Self::Icmp => write!(f, "icmp"),
-			Self::Fcmp => write!(f, "fcmp"),
-		}
+		f.write_str(&serde_json::to_string(self).unwrap().trim_matches('\"'));
+		Ok(())
 	}
 }
 
