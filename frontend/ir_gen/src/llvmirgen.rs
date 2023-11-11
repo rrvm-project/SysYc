@@ -267,6 +267,7 @@ impl Visitor for LlvmIrGen {
 		&mut self,
 		val_decl: &mut UnaryExpr,
 	) -> Result<(), SysycError> {
+		val_decl.rhs.accept(self)?;
 		// 检查是否有编译期常量
 		if let Some(Attr::CompileConstValue(v)) = val_decl.get_attr(COMPILE_CONST) {
 			let v = match v {
@@ -283,7 +284,6 @@ impl Visitor for LlvmIrGen {
 			return Ok(());
 		}
 		// 这里不检查rhs是否有编译期常量，因为如果是的话，UnaryExpr也一定是
-		val_decl.rhs.accept(self)?;
 		let expr_value = match val_decl.rhs.get_attr(VALUE) {
 			Some(Attr::Value(v)) => v.clone(),
 			_ => {
@@ -320,6 +320,8 @@ impl Visitor for LlvmIrGen {
 		&mut self,
 		val_decl: &mut BinaryExpr,
 	) -> Result<(), SysycError> {
+		val_decl.lhs.accept(self)?;
+		val_decl.rhs.accept(self)?;
 		if let Some(Attr::CompileConstValue(v)) = val_decl.get_attr(COMPILE_CONST) {
 			let v = match v {
 				CompileConstValue::Int(v) => llvm::llvmop::Value::Int(*v),
@@ -332,6 +334,26 @@ impl Visitor for LlvmIrGen {
 				}
 			};
 			val_decl.set_attr(VALUE, Attr::Value(v));
+			if let ast::BinaryOp::Assign = val_decl.op {
+				// 不能使用 lhs attrs中的VALUE，应当使用ADDRESS
+				let addr = match val_decl.lhs.get_attr(ADDRESS) {
+					Some(Attr::Value(v)) => v.clone(),
+					_ => {
+						return Err(SysycError::LlvmSyntexError(
+							"lhs of assign has no address".to_string(),
+						))
+					}
+				};
+				let rhs = match val_decl.rhs.get_attr(COMPILE_CONST) {
+					Some(Attr::Value(v)) => v.clone(),
+					_ => {
+						return Err(SysycError::LlvmSyntexError(
+							"rhs of assign has no value".to_string(),
+						))
+					}
+				};
+				self.funcemitter.as_mut().unwrap().visit_store_instr(rhs.clone(), addr);
+			}
 			return Ok(());
 		}
 		let lhs = match val_decl.lhs.get_attr(COMPILE_CONST) {
@@ -346,7 +368,6 @@ impl Visitor for LlvmIrGen {
 				}
 			},
 			_ => {
-				val_decl.lhs.accept(self)?;
 				match val_decl.lhs.get_attr(VALUE) {
 					Some(Attr::Value(v)) => v.clone(),
 					_ => {
@@ -369,7 +390,6 @@ impl Visitor for LlvmIrGen {
 				}
 			},
 			_ => {
-				val_decl.rhs.accept(self)?;
 				match val_decl.rhs.get_attr(VALUE) {
 					Some(Attr::Value(v)) => v.clone(),
 					_ => {
