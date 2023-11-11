@@ -83,6 +83,9 @@ impl Visitor for LlvmIrGen {
 				)))
 			}
 		};
+		if symbol.is_global {
+			return Ok(());
+		}
 		let var_type = &symbol.tp;
 		// 分配空间与初始化
 		if val_decl.dim_list.is_some() {
@@ -113,7 +116,7 @@ impl Visitor for LlvmIrGen {
 				init.accept(self)?;
 			}
 		} else {
-			// TODO: 是常量，这里也选择分配到栈上，为了保证SSA
+			// TODO: 是标量，这里也选择分配到栈上，为了保证SSA
 			// 既然被分配到了栈上，临时变量的类型应当是指针
 			let tp = match var_type.base_type {
 				ir_type::builtin_type::BaseType::Int => llvm::llvmvar::VarType::I32Ptr,
@@ -137,6 +140,7 @@ impl Visitor for LlvmIrGen {
 			// TODO: 这里应该从val_decl.init中获取值呢，还是从symbol.const_or_global_initial_value中获取值呢
 			if let Some(init) = &mut val_decl.init {
 				let temp = symbol.temp.as_ref().unwrap().clone();
+				init.accept(self)?;
 				if let Some(Attr::CompileConstValue(const_value)) =
 					init.get_attr(COMPILE_CONST)
 				{
@@ -163,7 +167,6 @@ impl Visitor for LlvmIrGen {
 						}
 					}
 				} else {
-					init.accept(self)?;
 					let init_value = match init.get_attr(VALUE) {
 						Some(Attr::Value(v)) => v.clone(),
 						_ => {
@@ -187,23 +190,26 @@ impl Visitor for LlvmIrGen {
 		&mut self,
 		val_decl: &mut FormalParam,
 	) -> Result<(), SysycError> {
+		// TODO: 无论是标量还是数组，这里都选择分配到栈上，为了保证SSA
+		// 既然被分配到了栈上，临时变量的类型应当是指针
 		let var_type = match val_decl.type_t {
 			ast::VarType::Int => {
-				if val_decl.dim_list.is_none() {
-					llvm::llvmvar::VarType::I32
-				} else {
-					llvm::llvmvar::VarType::I32Ptr
-				}
+				llvm::llvmvar::VarType::I32Ptr
 			}
 			ast::VarType::Float => {
-				if val_decl.dim_list.is_none() {
-					llvm::llvmvar::VarType::F32
-				} else {
-					llvm::llvmvar::VarType::F32Ptr
-				}
+				llvm::llvmvar::VarType::F32Ptr
 			}
 		};
-		self.funcemitter.as_mut().unwrap().visit_formal_param(var_type);
+		let tmp = self.funcemitter.as_mut().unwrap().visit_formal_param(var_type);
+		match val_decl.get_attr(SYMBOL_NUMBER) {
+			Some(Attr::VarSymbol(id)) => self.data.var_symbols[*id].temp = Some(tmp),
+			_ => {
+				return Err(SysycError::LlvmSyntexError(format!(
+					"param {} has no symbol",
+					val_decl.ident.clone()
+				)))
+			}
+		};
 		Ok(())
 	}
 	fn visit_block(&mut self, val_decl: &mut Block) -> Result<(), SysycError> {
@@ -345,7 +351,16 @@ impl Visitor for LlvmIrGen {
 					}
 				};
 				let rhs = match val_decl.rhs.get_attr(COMPILE_CONST) {
-					Some(Attr::Value(v)) => v.clone(),
+					Some(Attr::CompileConstValue(v)) => match v {
+						CompileConstValue::Int(v) => llvm::llvmop::Value::Int(*v),
+						CompileConstValue::Float(v) => llvm::llvmop::Value::Float(*v),
+						_ => {
+							return Err(SysycError::LlvmSyntexError(format!(
+								"Compile const value in binary should not be {:?}",
+								v
+							)))
+						}
+					},
 					_ => {
 						return Err(SysycError::LlvmSyntexError(
 							"rhs of assign has no value".to_string(),
@@ -688,8 +703,8 @@ impl Visitor for LlvmIrGen {
 			Some(Attr::VarSymbol(id)) => *id,
 			_ => {
 				return Err(SysycError::LlvmSyntexError(format!(
-					"lval {} has no symbol",
-					val_decl.ident.clone()
+					"lval {:?} has no symbol",
+					val_decl
 				)))
 			}
 		};

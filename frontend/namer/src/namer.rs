@@ -567,6 +567,11 @@ impl Visitor for Namer {
 		func_call: &mut FuncCall,
 	) -> Result<(), SysycError> {
 		if let Some(func_symbol) = self.scope_stack.lookup_func(&func_call.ident) {
+			// Add by cyh
+			func_call.set_attr(
+				TYPE,
+				Attr::Type(func_symbol.ret_t.clone()),
+			);
 			// 给FuncCall绑定上一个FuncSymbol
 			func_call.set_attr(SYMBOL_NUMBER, Attr::FuncSymbol(func_symbol.id));
 			if func_call.params.len() != func_symbol.params.len() {
@@ -784,6 +789,11 @@ impl Visitor for Namer {
 	fn visit_if(&mut self, if_statement: &mut If) -> Result<(), SysycError> {
 		if_statement.cond.accept(self)?;
 		if_statement.body.accept(self)?;
+		// Add by cyh
+		// if语句是可能有then的
+		if let Some(then) = &mut if_statement.then {
+			then.accept(self)?;
+		}
 		Ok(())
 	}
 	fn visit_while(
