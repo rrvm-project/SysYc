@@ -13,7 +13,7 @@ impl RrvmProgram {
 	pub fn solve_global(&mut self) {
 		todo!()
 	}
-	pub fn alloc_regs(&mut self) -> i32 {
+	pub fn alloc_reg(&mut self) -> i32 {
 		todo!()
 	}
 }

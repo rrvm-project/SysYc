@@ -41,4 +41,3 @@ instruction = { path = "backend/instruction" }
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"
-serde="1.0.192"

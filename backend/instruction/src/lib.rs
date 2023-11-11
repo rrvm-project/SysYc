@@ -1,5 +1,6 @@
 mod instr_dag;
 mod instr_schedule;
+mod transformer;
 
 use crate::instr_dag::InstrDag;
 use basicblock::basicblock::BasicBlock;

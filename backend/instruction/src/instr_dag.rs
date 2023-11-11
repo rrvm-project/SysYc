@@ -1,7 +1,9 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use constants::InstrSet;
-use llvm::llvminstr::LlvmInstr;
+use llvm::{llvminstr::LlvmInstr, temp::TempManager};
+
+use crate::transformer::to_riscv;
 
 type Node = Rc<RefCell<InstrNode>>;
 
@@ -24,8 +26,8 @@ impl InstrNode {
 		}
 	}
 	// TODO: convert to riscv instruction
-	fn convert(&mut self) {
-		todo!()
+	fn convert(&mut self, mgr: &mut TempManager) {
+		to_riscv(&mut self.instr, mgr);
 	}
 }
 
@@ -53,8 +55,9 @@ impl InstrDag {
 		InstrDag { nodes }
 	}
 	pub fn convert(&mut self) {
+		let mut mgr = TempManager::new();
 		for node in self.nodes.iter_mut() {
-			node.borrow_mut().convert();
+			node.borrow_mut().convert(&mut mgr);
 		}
 	}
 }

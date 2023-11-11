@@ -1,6 +1,10 @@
-use crate::{llvmvar::VarType, temp::Temp};
-use serde_derive::Serialize;
 use std::fmt::Display;
+
+use sysyc_derive::FuyukiDisplay;
+
+use crate::{llvmvar::VarType, temp::Temp};
+
+use sysyc_derive::FuyukiDisplay;
 
 use crate::{llvmvar::VarType, temp::Temp};
 
@@ -16,7 +20,7 @@ pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
 }
 
-#[derive(Clone, Debug)]
+#[derive(FuyukiDisplay)]
 pub enum ArithOp {
 	Add,
 	Sub,
@@ -44,8 +48,8 @@ pub enum ArithOp {
 	Or,
 	Xor,
 }
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
+
+#[derive(FuyukiDisplay)]
 pub enum CompOp {
 	EQ,
 	NE,
@@ -70,8 +74,8 @@ pub enum CompOp {
 	// ordered and less or equal
 	OLE,
 }
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
+
+#[derive(FuyukiDisplay)]
 pub enum CompKind {
 	Icmp,
 	Fcmp,
@@ -104,13 +108,6 @@ impl Display for Value {
 	}
 }
 
-impl Display for ArithOp {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		f.write_str(&serde_json::to_string(self).unwrap().trim_matches('\"'));
-		Ok(())
-	}
-}
-
 impl LlvmOp for ArithOp {
 	fn oprand_type(&self) -> VarType {
 		match self {
@@ -134,13 +131,6 @@ impl LlvmOp for ArithOp {
 	}
 }
 
-impl Display for CompOp {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		f.write_str(&serde_json::to_string(self).unwrap().trim_matches('\"'));
-		Ok(())
-	}
-}
-
 impl LlvmOp for CompOp {
 	fn oprand_type(&self) -> VarType {
 		match self {
@@ -157,13 +147,6 @@ impl LlvmOp for CompOp {
 			Self::OLT => VarType::F32,
 			Self::OLE => VarType::F32,
 		}
-	}
-}
-
-impl Display for CompKind {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		f.write_str(&serde_json::to_string(self).unwrap().trim_matches('\"'));
-		Ok(())
 	}
 }
 

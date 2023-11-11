@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
-	parse2, parse_macro_input, parse_quote, Data, DeriveInput, Field,
+	parse2, parse_macro_input, parse_quote, Data, DataEnum, DeriveInput, Field,
 	FieldMutability, Fields, Ident, Visibility,
 };
 
@@ -64,4 +64,34 @@ pub fn ast_node_derive(input: TokenStream) -> TokenStream {
 	};
 
 	TokenStream::from(expanded)
+}
+
+#[proc_macro_derive(FuyukiDisplay)]
+pub fn display_lowercase(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as DeriveInput);
+
+	let name = input.ident;
+	if let Data::Enum(DataEnum { variants, .. }) = input.data {
+		let cases = variants.into_iter().map(|v| {
+			let variant_name = &v.ident;
+			let variant_str = variant_name.to_string().to_lowercase();
+			quote! {
+					#name::#variant_name => write!(f, "{}", #variant_str)
+			}
+		});
+
+		let expanded = quote! {
+				impl std::fmt::Display for #name {
+						fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+								match self {
+										#( #cases, )*
+								}
+						}
+				}
+		};
+
+		TokenStream::from(expanded)
+	} else {
+		panic!("DisplayLowercase is only defined for enums");
+	}
 }
