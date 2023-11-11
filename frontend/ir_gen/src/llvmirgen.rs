@@ -4,7 +4,7 @@ use llvm::llvmop::Value;
 use llvm::llvmvar::VarType;
 use llvm::temp::Temp;
 use llvm::{func::LlvmFunc, llvmfuncemitter::LlvmFuncEmitter, LlvmProgram};
-use namer::namer::{SYMBOL_NUMBER, TYPE, COMPILE_CONST, COMPILE_CONST_INDEX, INDEX};
+use namer::namer::{SYMBOL_NUMBER, COMPILE_CONST, COMPILE_CONST_INDEX, INDEX};
 use namer::utils::DataFromNamer;
 use utils::SysycError;
 
@@ -75,7 +75,7 @@ impl Visitor for LlvmIrGen {
 	}
 	fn visit_var_def(&mut self, val_decl: &mut VarDef) -> Result<(), SysycError> {
 		let symbol = match val_decl.get_attr(SYMBOL_NUMBER) {
-			Some(Attr::UIntValue(id)) => &mut self.data.var_symbols[*id],
+			Some(Attr::VarSymbol(id)) => &mut self.data.var_symbols[*id],
 			_ => {
 				return Err(SysycError::LlvmSyntexError(format!(
 					"var def {} has no symbol",
@@ -83,64 +83,52 @@ impl Visitor for LlvmIrGen {
 				)))
 			}
 		};
+		let var_type = &symbol.tp;
 		// 分配空间与初始化
 		if let Some(_) = &mut val_decl.dim_list {
 			// 是数组
-			if let Some(Attr::Type(var_type)) = val_decl.get_attr(TYPE) {
-				let tp = match var_type.base_type {
-					ir_type::builtin_type::BaseType::Int => {
-						llvm::llvmvar::VarType::I32Ptr
-					}
-					ir_type::builtin_type::BaseType::Float => {
-						llvm::llvmvar::VarType::F32Ptr
-					}
-					ir_type::builtin_type::BaseType::Void => {
-						return Err(SysycError::LlvmSyntexError(format!(
-							"var def {} has void type",
-							val_decl.ident.clone()
-						)))
-					}
-				};
-				// TODO: 这里的Value里面应该是个usize还是个i32呢
-				let temp = self.funcemitter.as_mut().unwrap().visit_alloc_instr(tp, Value::Int(var_type.size() as i32));
-				symbol.temp = Some(temp);
-			} else {
-				return Err(SysycError::LlvmSyntexError(format!(
-					"var def {} has no type",
-					val_decl.ident.clone()
-				)));				
-			}
+			let tp = match var_type.base_type {
+				ir_type::builtin_type::BaseType::Int => {
+					llvm::llvmvar::VarType::I32Ptr
+				}
+				ir_type::builtin_type::BaseType::Float => {
+					llvm::llvmvar::VarType::F32Ptr
+				}
+				ir_type::builtin_type::BaseType::Void => {
+					return Err(SysycError::LlvmSyntexError(format!(
+						"var def {} has void type",
+						val_decl.ident.clone()
+					)))
+				}
+			};
+			// TODO: 这里的Value里面应该是个usize还是个i32呢
+			let temp = self.funcemitter.as_mut().unwrap().visit_alloc_instr(tp, Value::Int(var_type.size() as i32));
+			symbol.temp = Some(temp);
 			// 初始化
 			if let Some(init) = &mut val_decl.init {
 				// 这里应当是一个初始化列表，设置一个Attr告知正在对哪个数组做初始化
-				init.set_attr(SYMBOL_NUMBER, Attr::UIntValue(symbol.id));
+				init.set_attr(SYMBOL_NUMBER, Attr::VarSymbol(symbol.id));
 				init.accept(self)?;
 			}
 		} else {
 			// TODO: 是常量，这里也选择分配到栈上，为了保证SSA
-			if let Some(Attr::Type(var_type)) = val_decl.get_attr(TYPE) {
-				let tp = match var_type.base_type {
-					ir_type::builtin_type::BaseType::Int => {
-						llvm::llvmvar::VarType::I32
-					}
-					ir_type::builtin_type::BaseType::Float => {
-						llvm::llvmvar::VarType::F32
-					}
-					ir_type::builtin_type::BaseType::Void => {
-						return Err(SysycError::LlvmSyntexError(format!(
-							"var def {} has void type",
-							val_decl.ident.clone()
-						)))
-					}
-				};
-				let temp = self.funcemitter.as_mut().unwrap().visit_alloc_instr(tp, Value::Int(var_type.size() as i32));
-				symbol.temp = Some(temp);
-			} else {
-				return Err(SysycError::LlvmSyntexError(format!(
-					"var def {} has no type",
-					val_decl.ident.clone()
-				)));				
-			}
+			// 既然被分配到了栈上，临时变量的类型应当是指针
+			let tp = match var_type.base_type {
+				ir_type::builtin_type::BaseType::Int => {
+					llvm::llvmvar::VarType::I32Ptr
+				}
+				ir_type::builtin_type::BaseType::Float => {
+					llvm::llvmvar::VarType::F32Ptr
+				}
+				ir_type::builtin_type::BaseType::Void => {
+					return Err(SysycError::LlvmSyntexError(format!(
+						"var def {} has void type",
+						val_decl.ident.clone()
+					)))
+				}
+			};
+			let temp = self.funcemitter.as_mut().unwrap().visit_alloc_instr(tp, Value::Int(var_type.size() as i32));
+			symbol.temp = Some(temp);
 			// 初始化
 			// TODO: 这里应该从val_decl.init中获取值呢，还是从symbol.const_or_global_initial_value中获取值呢
 			if let Some(init) = &mut val_decl.init{
@@ -261,6 +249,25 @@ impl Visitor for LlvmIrGen {
 		&mut self,
 		val_decl: &mut UnaryExpr,
 	) -> Result<(), SysycError> {
+		// 检查是否有编译期常量
+		match val_decl.get_attr(COMPILE_CONST) {
+			Some(Attr::CompileConstValue(v)) => {
+				let v = match v {
+					CompileConstValue::Int(v) => llvm::llvmop::Value::Int(*v),
+					CompileConstValue::Float(v) => llvm::llvmop::Value::Float(*v),
+					_ => {
+						return Err(SysycError::LlvmSyntexError(format!(
+							"Compile const value in unary should not be {:?}",
+							v
+						)))
+					}
+				};
+				val_decl.set_attr(VALUE, Attr::Value(v));
+				return Ok(());
+			}
+			_ => {}
+		}
+		// 这里不检查rhs是否有编译期常量，因为如果是的话，UnaryExpr也一定是
 		val_decl.rhs.accept(self)?;
 		let expr_value = match val_decl.rhs.get_attr(VALUE) {
 			Some(Attr::Value(v)) => v.clone(),
@@ -298,23 +305,73 @@ impl Visitor for LlvmIrGen {
 		&mut self,
 		val_decl: &mut BinaryExpr,
 	) -> Result<(), SysycError> {
-		val_decl.lhs.accept(self)?;
-		val_decl.rhs.accept(self)?;
-		let lhs = match val_decl.lhs.get_attr(VALUE) {
-			Some(Attr::Value(v)) => v.clone(),
+		match val_decl.get_attr(COMPILE_CONST) {
+			Some(Attr::CompileConstValue(v)) => {
+				println!("{:#?}", v);
+				let v = match v {
+					CompileConstValue::Int(v) => llvm::llvmop::Value::Int(*v),
+					CompileConstValue::Float(v) => llvm::llvmop::Value::Float(*v),
+					_ => {
+						return Err(SysycError::LlvmSyntexError(format!(
+							"Compile const value in binary should not be {:?}",
+							v
+						)))
+					}
+				};
+				val_decl.set_attr(VALUE, Attr::Value(v));
+				return Ok(());
+			},
+			_ => {}
+		}
+		let lhs = match val_decl.lhs.get_attr(COMPILE_CONST) {
+			Some(Attr::CompileConstValue(v)) => {
+				let v = match v {
+					CompileConstValue::Int(v) => llvm::llvmop::Value::Int(*v),
+					CompileConstValue::Float(v) => llvm::llvmop::Value::Float(*v),
+					_ => {
+						return Err(SysycError::LlvmSyntexError(format!(
+							"Compile const value in binary should not be {:?}", v
+						)))
+					}
+				};
+				v
+			},
 			_ => {
-				return Err(SysycError::LlvmSyntexError(format!(
-					"lhs of binary expr has no value"
-				)))
-			}
+					val_decl.lhs.accept(self)?;
+					match val_decl.lhs.get_attr(VALUE) {
+						Some(Attr::Value(v)) => v.clone(),
+						_ => {
+							return Err(SysycError::LlvmSyntexError(format!(
+								"lhs of binary expr has no value"
+							)))
+						}
+					}
+				}
 		};
-		let rhs = match val_decl.rhs.get_attr(VALUE) {
-			Some(Attr::Value(v)) => v.clone(),
+		let rhs = match val_decl.rhs.get_attr(COMPILE_CONST) {
+			Some(Attr::CompileConstValue(v)) => {
+				let v = match v {
+					CompileConstValue::Int(v) => llvm::llvmop::Value::Int(*v),
+					CompileConstValue::Float(v) => llvm::llvmop::Value::Float(*v),
+					_ => {
+						return Err(SysycError::LlvmSyntexError(format!(
+							"Compile const value in binary should not be {:?}", v
+						)))
+					}
+				};
+				v
+			},
 			_ => {
-				return Err(SysycError::LlvmSyntexError(format!(
-					"rhs of binary expr has no value"
-				)))
-			}
+					val_decl.rhs.accept(self)?;
+					match val_decl.rhs.get_attr(VALUE) {
+						Some(Attr::Value(v)) => v.clone(),
+						_ => {
+							return Err(SysycError::LlvmSyntexError(format!(
+								"lhs of binary expr has no value"
+							)))
+						}
+					}
+				}
 		};
 		// TODO: 这里没有考虑void的情况，所以VarType为什么会包含Void啊
 		let is_float = lhs.get_type() == llvm::llvmvar::VarType::F32
@@ -529,7 +586,7 @@ impl Visitor for LlvmIrGen {
 	) -> Result<(), SysycError> {
 		// 这里的attr来自visit_var_def
 		let symbol_id = match val_decl.get_attr(SYMBOL_NUMBER) {
-			Some(Attr::UIntValue(id)) => *id,
+			Some(Attr::VarSymbol(id)) => *id,
 			_ => {
 				return Err(SysycError::LlvmSyntexError(format!(
 					"init val has no symbol"
@@ -539,7 +596,7 @@ impl Visitor for LlvmIrGen {
 		let symbol = self.data.var_symbols[symbol_id].clone();
 		for init_val in &mut val_decl.val_list {
 			// 需要递归地告诉内部的InitValList，这个InitValList是属于哪个数组的
-			init_val.set_attr(SYMBOL_NUMBER, Attr::UIntValue(symbol_id));
+			init_val.set_attr(SYMBOL_NUMBER, Attr::VarSymbol(symbol_id));
             init_val.accept(self)?;
             match init_val.get_attr(VALUE) {
                 // 有 Some 说明这个init_val不是一个InitValList
@@ -584,7 +641,7 @@ impl Visitor for LlvmIrGen {
 	}
 	fn visit_lval(&mut self, val_decl: &mut Lval) -> Result<(), SysycError> {
 		let id = match val_decl.get_attr(SYMBOL_NUMBER) {
-			Some(Attr::UIntValue(id)) => *id,
+			Some(Attr::VarSymbol(id)) => *id,
 			_ => {
 				return Err(SysycError::LlvmSyntexError(format!(
 					"lval {} has no symbol",
@@ -610,6 +667,7 @@ impl Visitor for LlvmIrGen {
 					)))
 				};
 				let target = self.funcemitter.as_mut().unwrap().visit_gep_instr(addr, Value::Int(index as i32));
+				// println!("{:#?}", target);
 				val_decl.set_attr(ADDRESS, Attr::Value(llvm::llvmop::Value::Temp(target.clone())));
 				let target_value = self.funcemitter.as_mut().unwrap().visit_load_instr(Value::Temp(target));
 				val_decl.set_attr(VALUE, Attr::Value(llvm::llvmop::Value::Temp(target_value)));

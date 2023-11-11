@@ -176,7 +176,7 @@ impl LlvmFuncEmitter {
 	}
 
 	pub fn visit_gep_instr(&mut self, addr: Value, offset: Value) -> Temp {
-		let var_type = ptr2type(addr.get_type());
+		let var_type = addr.get_type();
 		let target = self.temp_mgr.new_temp(var_type);
 		let instr = GEPInstr {
 			target: target.clone(),
