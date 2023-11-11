@@ -34,6 +34,10 @@ fn step_llvm(program: Program) -> Result<LlvmProgram> {
 	let mut namer: Namer = Namer::default();
 	let (program, data) = namer.transform(program)?;
 
+	// let mut writer: Box<dyn Write> = Box::new(io::stdout());
+	// let x = format!("{:#?}", program);
+	// write!(writer, "{}", trans_indent(&x, PARSER_INDENT))?;
+
 	println!("Data From Namer \n {:?}", data);
 
 	let mut generator: LlvmIrGen = LlvmIrGen {

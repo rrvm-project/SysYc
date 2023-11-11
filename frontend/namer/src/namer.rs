@@ -279,6 +279,7 @@ impl Visitor for Namer {
 			is_global: self.scope_stack.current_is_global(),
 			id: self.var_symbols.len(),
 			const_or_global_initial_value: init_value,
+			temp: None,
 		};
 
 		self.scope_stack.declare_var(&symbol);
@@ -634,6 +635,7 @@ impl Visitor for Namer {
 			is_global: false,
 			tp: param_type,
 			const_or_global_initial_value: None,
+			temp: None,
 		};
 
 		self.scope_stack.declare_var(&symbol);
