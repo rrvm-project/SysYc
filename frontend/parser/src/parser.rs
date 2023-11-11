@@ -1,7 +1,7 @@
 use std::{collections::HashMap, hash::Hash};
 
 use ast::{tree::*, BinaryOp, FuncType, UnaryOp, VarType};
-use pest::{iterators::Pair, Parser};
+use pest::{iterators::Pair, pratt_parser::PrattParser, Parser};
 use pest_derive::Parser;
 use utils::SysycError;
 
@@ -70,6 +70,22 @@ fn parse_dim_list(pair: Pair<Rule>, min_dims: usize) -> Option<NodeList> {
 	}
 }
 
+lazy_static::lazy_static! {
+	static ref PRATT_PARSER: PrattParser<Rule> = {
+		use pest::pratt_parser::{Assoc::*, Op};
+		PrattParser::new()
+			.op(Op::infix(Rule::Assign, Right))
+			.op(Op::infix(Rule::LOr, Left))
+			.op(Op::infix(Rule::LAnd, Left))
+			.op(Op::infix(Rule::EQ, Left) | Op::infix(Rule::NE, Left))
+			.op(Op::infix(Rule::LE, Left) | Op::infix(Rule::LT, Left)
+				| Op::infix(Rule::GE, Left) | Op::infix(Rule::GT, Left))
+			.op(Op::infix(Rule::Add, Left) | Op::infix(Rule::Sub, Left))
+			.op(Op::infix(Rule::Mul, Left) | Op::infix(Rule::Div, Left) | Op::infix(Rule::Mod, Left))
+			.op(Op::prefix(Rule::UnaryAdd) | Op::prefix(Rule::UnarySub) | Op::prefix(Rule::UnaryNot))
+	};
+}
+
 fn parse_func_call(pair: Pair<Rule>) -> Node {
 	let mut pairs = pair.into_inner();
 	let func_call = FuncCall {
@@ -107,39 +123,29 @@ fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 	}
 }
 
-fn parse_unary_expr(pair: Pair<Rule>) -> Node {
-	let mut pairs = pair.into_inner();
-	let x = pairs.next().unwrap();
-	if x.as_rule() == Rule::Primary {
-		parse_primary_expr(x.into_inner().next().unwrap())
-	} else {
-		let rhs = pairs.next().unwrap();
-		Box::new(UnaryExpr {
-			_attrs: HashMap::new(),
-			op: map_unary_op(&x),
-			rhs: parse_unary_expr(rhs),
-		})
-	}
+fn parse_binary_expr(lhs: Node, op: Pair<Rule>, rhs: Node) -> Node {
+	Box::new(BinaryExpr {
+		_attrs: HashMap::new(),
+		lhs,
+		op: map_binary_op(&op),
+		rhs,
+	})
+}
+
+fn parse_unary_expr(op: Pair<Rule>, rhs: Node) -> Node {
+	Box::new(UnaryExpr {
+		_attrs: HashMap::new(),
+		op: map_unary_op(&op),
+		rhs,
+	})
 }
 
 fn parse_expr(pair: Pair<Rule>) -> Node {
-	if pair.as_rule() == Rule::UnaryExpr {
-		return parse_unary_expr(pair);
-	}
-	let mut pairs = pair.into_inner();
-	let lhs = pairs.next();
-	let op = pairs.next();
-	let rhs = pairs.next();
-	if let Some(op) = op {
-		Box::new(BinaryExpr {
-			_attrs: HashMap::new(),
-			lhs: parse_expr(lhs.unwrap()),
-			op: map_binary_op(&op),
-			rhs: parse_expr(rhs.unwrap()),
-		})
-	} else {
-		parse_expr(lhs.unwrap())
-	}
+	PRATT_PARSER
+		.map_primary(|v| parse_primary_expr(v))
+		.map_infix(|lhs, op, rhs| parse_binary_expr(lhs, op, rhs))
+		.map_prefix(|op, rhs| parse_unary_expr(op, rhs))
+		.parse(pair.into_inner())
 }
 
 fn parse_init_val(pair: Pair<Rule>) -> Node {
@@ -166,7 +172,7 @@ fn parse_var_def(pair: Pair<Rule>) -> Node {
 		dim_list: None,
 		init: None,
 	};
-	for pair in pairs {
+	for pair in pairs.into_iter() {
 		match pair.as_rule() {
 			Rule::DimList => var_def.dim_list = parse_dim_list(pair, 1),
 			Rule::Expr => var_def.init = Some(parse_init_val(pair)),
@@ -185,7 +191,7 @@ fn parse_decl(pair: Pair<Rule>) -> Node {
 			_attrs: HashMap::new(),
 			is_const,
 			type_t: parse_var_type(pairs.next().unwrap()),
-			defs: pairs.map(parse_var_def).collect(),
+			defs: pairs.into_iter().map(parse_var_def).collect(),
 		}
 	}
 	match pair.as_rule() {
@@ -288,12 +294,15 @@ fn parse_comp_unit(pair: Pair<Rule>) -> Option<Node> {
 	}
 }
 
-#[allow(unused)]
 pub fn parse(str: &str) -> Result<Program, SysycError> {
 	let progam = SysycParser::parse(Rule::Program, str)
 		.map_err(|e| SysycError::DecafLexError(e.to_string()))?;
 	Ok(Program {
 		_attrs: HashMap::new(),
-		comp_units: progam.into_iter().filter_map(parse_comp_unit).collect(),
+		comp_units: progam
+			.into_iter()
+			.map(parse_comp_unit)
+			.filter_map(|x| x)
+			.collect(),
 	})
 }
