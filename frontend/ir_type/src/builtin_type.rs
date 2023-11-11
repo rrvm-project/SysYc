@@ -73,6 +73,10 @@ impl IRType {
 		self.dim_length() == 0
 	}
 
+	pub fn can_be_index(&self) -> bool {
+		self.dim_length() == 0 && self.base_type == BaseType::Int
+	}
+
 	pub fn get_index(&self, a: &Vec<usize>) -> usize {
 		let mut ans: usize = if !a.is_empty() { a[0] } else { 0 };
 
