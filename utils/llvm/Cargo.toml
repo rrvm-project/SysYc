@@ -9,3 +9,6 @@ edition = "2021"
 pest = "2.7.5"
 pest_derive = "2.7.5"
 utils = { path = ".." }
+serde="1.0.192"
+serde_derive="1.0.192"
+serde_json="1.0.108"

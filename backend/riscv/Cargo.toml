@@ -1,0 +1,9 @@
+[package]
+name = "riscv"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+serde="1.0.192"
+serde_derive="1.0.192"
+serde_json="1.0.108"
+llvm={path="../../utils/llvm"}

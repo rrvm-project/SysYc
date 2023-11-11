@@ -21,7 +21,8 @@ members = [
   "backend/func",
   "backend/program",
   "backend/instruction",
-  "backend/selection_dag"
+  "backend/selection_dag",
+  "backend/riscv"
 ]
 
 [dependencies]
@@ -37,3 +38,4 @@ rrvm_program = { path = "backend/program" }
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"
+serde="1.0.192"

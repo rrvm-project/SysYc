@@ -1,0 +1,197 @@
+[33mcommit 03c826524a94fcc340712542e8742618756e7321[m[33m ([m[1;36mHEAD -> [m[1;32mbackend[m[33m)[m
+Author: Xinyu Yu <xy-yu22@mails.tsinghua.edu.cn>
+Date:   Fri Nov 10 21:24:19 2023 +0800
+
+    build(cfg): build liveliness analysis
+
+[33mcommit cd0b93940662a3509ea89e902be33c01ffed797e[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Fri Nov 10 20:02:16 2023 +0800
+
+    build: basic pipeline of backend
+
+[33mcommit a005e6dd5e50813c07698b9e70eb594298e55c4d[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Fri Nov 10 18:47:01 2023 +0800
+
+    build: basic backend framework
+
+[33mcommit 75685d00a41142224430cd1e0f2f5b83f8f7ad53[m
+Author: Xinyu Yu <xy-yu22@mails.tsinghua.edu.cn>
+Date:   Fri Nov 10 13:38:51 2023 +0800
+
+    build(cfg,basicblock):completed basicblock devision and cfg build.
+
+[33mcommit 40bdf9b208c5d14a3b26c4d1556a827cd812fcbd[m[33m ([m[1;31morigin1/main[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: ChenghaoLi <lichenghaongyd@qq.com>
+Date:   Thu Nov 9 19:15:47 2023 +0000
+
+    chore(namer): 根据 cargo fmt 调整格式
+
+[33mcommit 2364cefdd5b02474db8571b5637b9ca4f7a8563f[m
+Author: ChenghaoLi <lichenghaongyd@qq.com>
+Date:   Thu Nov 9 19:14:26 2023 +0000
+
+    build(namer): 完成 namer 部分, 含常量传播
+
+[33mcommit fd4d89023f88a5376d061ca7dcc525ce61c0e694[m
+Author: ChenghaoLi <lichenghaongyd@qq.com>
+Date:   Wed Nov 8 07:46:28 2023 +0000
+
+    build(namer): 添加常量传播中对逻辑返回值和运算数返回值的区别
+
+[33mcommit 6a8334f9747314f628f1bbfd95e15e7e81242811[m
+Author: ChenghaoLi <lichenghaongyd@qq.com>
+Date:   Wed Nov 8 03:05:29 2023 +0000
+
+    build(namer): 常量传播(目前只有二元加法), 并在数组声明中检查是否为编译器常量
+
+[33mcommit 12bb8c6ae9544bb492d9c98f62e95023af5ee5fe[m
+Author: ChenghaoLi <lichenghaongyd@qq.com>
+Date:   Tue Nov 7 09:59:05 2023 +0000
+
+    build(type) : defined type
+
+[33mcommit 56d7ce0c55bd262153be0a760a70b3d9a49d4a34[m
+Author: ChenghaoLi <lichenghaongyd@qq.com>
+Date:   Tue Nov 7 08:59:24 2023 +0000
+
+    chore(type): rename to ir_type
+
+[33mcommit bbbfb554f9fcb248dd8e3cd1db26842aa7dac3b2[m
+Author: cyh2004 <chenying21@mails.tsinghua.edu.cn>
+Date:   Tue Nov 7 16:48:17 2023 +0800
+
+    feat(type): implement ir_type
+
+[33mcommit 79ad1e59cb2d722006ac197f4a396d381a92af9d[m
+Author: cyh2004 <chenying21@mails.tsinghua.edu.cn>
+Date:   Mon Nov 6 22:56:58 2023 +0800
+
+    feat(scope): implement scope and scopestack, failed to implement symbol and correct context for visitor
+
+[33mcommit 63545cdf6538505016a7eaa355fe05588ce49f30[m
+Author: cyh2004 <chenying21@mails.tsinghua.edu.cn>
+Date:   Sun Nov 5 14:08:46 2023 +0800
+
+    fix(namer): add default construction method for namer and add NamerError in utils::errors
+
+[33mcommit 0bdd9c2bdd75f42efce127254e844459335760d5[m
+Author: ChenghaoLi <lichenghaongyd@qq.com>
+Date:   Sun Nov 5 03:22:44 2023 +0000
+
+    build(frontend): namer framework
+
+[33mcommit 598e6cf4b381387cb07b88ab7f25c9380021f327[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Thu Nov 9 22:05:10 2023 +0800
+
+    feat(llvm): all instruction
+
+[33mcommit 0a295ac83d55a9f78bf91490102b0a2fa26ac013[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Thu Nov 9 20:02:31 2023 +0800
+
+    feat(llvm): alloc & load & store instruction
+
+[33mcommit b785d0ca9ca0280717a679ca7a4307625410e266[m
+Author: cyh2004 <chenying21@mails.tsinghua.edu.cn>
+Date:   Thu Nov 9 16:16:03 2023 +0800
+
+    chore: remove test.c
+
+[33mcommit 1a0abb1a7efd2f8c69c40a2b29fa560596f6d767[m
+Author: cyh2004 <chenying21@mails.tsinghua.edu.cn>
+Date:   Thu Nov 9 15:40:54 2023 +0800
+
+    chore(llvm): rename llvmgen to llvmfuncemitter and add a github action demo
+
+[33mcommit fd0d163b0c38b6c615d3191b6c94677fac91fac9[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Thu Nov 9 11:39:05 2023 +0800
+
+    feat(llvm): ret instruction
+
+[33mcommit d9cb1df3a51e3801bb0ff9e7fc70ddf3ed93aa81[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Thu Nov 9 10:49:25 2023 +0800
+
+    feat(llvm): jump & phi instruction
+
+[33mcommit c04daa308a82fd7627f09597fa805f57718cd5be[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Thu Nov 9 10:08:17 2023 +0800
+
+    feat(llvm): convert instruction
+
+[33mcommit ceb893782228e3fdd90da55585eee541519eb06f[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Thu Nov 9 09:46:08 2023 +0800
+
+    feat(llvm): compare & arithmetic instruction
+
+[33mcommit 8bb55105fa0336c4d6bbb978082840a69215b037[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Thu Nov 9 08:52:52 2023 +0800
+
+    build: llvm framework
+
+[33mcommit 1e34bb6d90806d036779d6c05fec840cc08b5aa4[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Wed Nov 8 19:38:50 2023 +0800
+
+    feat(utils): grammar file of IR
+
+[33mcommit 35f0677d604bc769ddaf6846175a22094a6ab71a[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Wed Nov 8 15:24:04 2023 +0800
+
+    refa(parser): remove pratt parser
+
+[33mcommit e2685a700c3371e6eaf12149a545ca9c0fac1979[m
+Author: ChenghaoLi <ch-li21@mails.tsinghua.edu.cn>
+Date:   Fri Nov 3 16:00:22 2023 +0000
+
+    chore: Translate readme into English.
+
+[33mcommit fcf369d18704ff0f0b88ea2ba031dda80a82542e[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Fri Nov 3 21:48:45 2023 +0800
+
+    fix(parser): float literal & call function
+
+[33mcommit e04d6ed40e06b2833e414df331fdec19ca4bdf32[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Fri Nov 3 19:26:55 2023 +0800
+
+    feat: parser
+
+[33mcommit dc6f1053ffcd4b9bbd3ad3bda695e1e4b0d93eea[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Fri Nov 3 15:09:30 2023 +0800
+
+    feat: parse exprssion
+
+[33mcommit a74a5da6e8836e71c5e76c1d2b5c89d95434b57c[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Fri Nov 3 14:26:11 2023 +0800
+
+    feat: parse var_decl & expr of numbers
+
+[33mcommit 09a424619edb884dc35e4086e9349d3e672a65d3[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Fri Nov 3 11:19:26 2023 +0800
+
+    build: parser & visitor framework
+
+[33mcommit 19d0c085fb9bc1ee3635ff5d593ffe8ef2f7d763[m
+Author: Fuyuki <3216214161@qq.com>
+Date:   Wed Nov 1 10:33:53 2023 +0800
+
+    build: initialize rust project
+
+[33mcommit 712a78cb993c0cb84a146c98a5774c51ee58caae[m
+Author: WEI CHENXUAN <53551103+Fuyuky@users.noreply.github.com>
+Date:   Tue Oct 31 23:21:54 2023 +0800
+
+    Initial commit
