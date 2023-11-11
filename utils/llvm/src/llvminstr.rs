@@ -50,9 +50,9 @@ pub struct CompInstr {
 pub struct ConvertInstr {
 	pub target: Temp,
 	pub op: ConvertOp,
-	pub var_type: VarType,
+	pub from_type: VarType,
 	pub lhs: Value,
-	pub rhs: Value,
+	pub to_type: VarType,
 }
 
 pub struct JumpInstr {

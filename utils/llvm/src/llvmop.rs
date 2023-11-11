@@ -207,7 +207,7 @@ impl Display for ConvertOp {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::Int2Float => write!(f, "sitofp"),
-			Self::Float2Int => write!(f, "fptpsi"),
+			Self::Float2Int => write!(f, "fptosi"),
 		}
 	}
 }
