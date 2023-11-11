@@ -693,11 +693,10 @@ impl Visitor for Namer {
 					dim_item.accept(self)?;
 
 					if let Some(Attr::Type(type_of_index)) = dim_item.get_attr(TYPE) {
-						if !type_of_index.is_scalar() {
-							return Err(SysycError::SyntaxError(
-								"Only scalar types are accepted as indexes of array!"
-									.to_string(),
-							));
+						if !type_of_index.can_be_index() {
+							return Err(SysycError::SyntaxError(format!(
+								"Type {:?} is not accepted as index of array {:?}", type_of_index, lval.ident
+							)));
 						}
 					}
 
