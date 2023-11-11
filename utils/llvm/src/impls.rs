@@ -73,24 +73,24 @@ impl Display for ConvertInstr {
 		write!(
 			f,
 			"  {} = {} {} {} to {}",
-			self.target, self.op, self.var_type, self.lhs, self.rhs
+			self.target, self.op, self.from_type, self.lhs, self.to_type
 		)
 	}
 }
 
 impl LlvmInstr for ConvertInstr {
 	fn get_read(&self) -> Vec<Temp> {
-		unwrap_values(vec![&self.lhs, &self.rhs])
+		unwrap_values(vec![&self.lhs])
 	}
 	fn get_write(&self) -> Vec<Temp> {
 		vec![self.target.clone()]
 	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[
-			&self.var_type,
+			&self.from_type,
 			&self.op.type_from(),
 			&self.lhs.get_type(),
-			&self.rhs.get_type(),
+			&self.to_type,
 		])
 	}
 }
@@ -112,7 +112,7 @@ impl Display for JumpCondInstr {
 		write!(
 			f,
 			"  br {} {}, label {}, label {}",
-			self.var_type, self.cond, self.target_true, self.target_true
+			self.var_type, self.cond, self.target_true, self.target_false
 		)
 	}
 }
