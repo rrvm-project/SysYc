@@ -43,6 +43,9 @@ Break = { "break" }
 Continue = { "continue" }
 Return = { "return" ~ Expr? }
 
+BinaryOp = _{
+  Assign | Add | Sub | Mul | Div | Mod | LE | LT | GE | GT | EQ | NE
+}
 UnaryOp = _{
   UnaryAdd | UnarySub | UnaryNot
 }
@@ -87,15 +90,8 @@ Stmt = {
 
 Lval = { Identifier ~ DimList }
 FuncCall = { Identifier ~ "(" ~ RealParams ~ ")"}
-Primary = { "(" ~ Expr ~ ")" | Number | FuncCall | Lval }
-UnaryExpr = { Primary | UnaryOp ~ UnaryExpr }
-MulExpr = { UnaryExpr ~ ((Mul | Div | Mod) ~ MulExpr)? }
-AddExpr = { MulExpr ~ ((Add | Sub) ~ AddExpr)? }
-RelExpr = { AddExpr ~ ((GE | GT | LE | LT) ~ RelExpr)? }
-EqExpr = { RelExpr ~ ((EQ | NE) ~ EqExpr)? }
-LAndExpr = { EqExpr ~ (LAnd ~ LAndExpr)? }
-LOrExpr = { LAndExpr ~ (LOr ~ LOrExpr)? }
-BinaryExpr = { LOrExpr ~ (Assign ~ BinaryExpr)? }
-Expr = { BinaryExpr | UnaryExpr }
+Primary = _{ "(" ~ Expr ~ ")" | Number | FuncCall | Lval }
+Atom = _{ UnaryOp? ~ Primary }
+Expr = { Atom ~ (BinaryOp ~ Atom)* }
 
 Program = _{ SOI ~ (CompUnit)* ~ EOI }
