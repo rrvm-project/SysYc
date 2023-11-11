@@ -1,5 +1,5 @@
 [package]
-name = "basicblock"
+name = "constants"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 llvm = { path = "../../utils/llvm" }
-constants = { path = "../constants" }

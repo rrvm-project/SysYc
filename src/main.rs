@@ -52,7 +52,8 @@ fn step_llvm(program: Program) -> Result<LlvmProgram> {
 fn step_riscv(program: LlvmProgram) -> Result<i32> {
 	let mut program = RrvmProgram::new(program);
 	program.solve_global();
-	program.funcs = program.funcs.into_iter().map(|v| v.transform()).collect();
+	program.funcs =
+		program.funcs.into_iter().map(instruction::transform).collect();
 	let code = program.alloc_regs();
 	Ok(code)
 }
