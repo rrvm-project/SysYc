@@ -14,6 +14,8 @@ pub struct LlvmFuncEmitter {
 	ret_type: VarType,
 	temp_mgr: TempManager,
 	label_mgr: LabelManager,
+	break_label: Vec<Label>,
+	continue_label: Vec<Label>,
 	func_body: Vec<Box<dyn LlvmInstr>>,
 }
 
@@ -25,12 +27,32 @@ impl LlvmFuncEmitter {
 			params,
 			temp_mgr: TempManager::new(),
 			label_mgr: LabelManager::new(),
+			break_label: Vec::new(),
+			continue_label: Vec::new(),
 			func_body: Vec::new(),
 		}
 	}
 
 	pub fn fresh_label(&mut self) -> Label {
 		self.label_mgr.new_label()
+	}
+
+	pub fn openloop(&mut self, break_label: Label, continue_label: Label) {
+		self.break_label.push(break_label);
+		self.continue_label.push(continue_label);
+	}
+
+	pub fn closeloop(&mut self) {
+		self.break_label.pop();
+		self.continue_label.pop();
+	}
+
+	pub fn get_break_label(&self) -> Label {
+		self.break_label.last().unwrap().clone()
+	}
+
+	pub fn get_continue_label(&self) -> Label {
+		self.continue_label.last().unwrap().clone()
 	}
 
 	pub fn visit_label(&mut self, label: Label) {
