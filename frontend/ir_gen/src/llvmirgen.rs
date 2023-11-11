@@ -37,7 +37,6 @@ impl LlvmIrGen {
 
 impl Visitor for LlvmIrGen {
 	fn visit_program(&mut self, program: &mut Program) -> Result<(), SysycError> {
-		// TODO: 这个 for 循环如果改成迭代器访问的话，不知道如何传出错误
 		for comp_unit in &mut program.comp_units {
 			comp_unit.accept(self)?;
 		}
@@ -61,6 +60,8 @@ impl Visitor for LlvmIrGen {
 			param.accept(self)?;
 		}
 		val_decl.block.accept(self)?;
+		self.funcs.push(self.funcemitter.take().unwrap().visit_end());
+		self.funcemitter = None;
 		Ok(())
 	}
 	fn visit_var_decl(

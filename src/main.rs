@@ -38,8 +38,6 @@ fn step_llvm(program: Program) -> Result<LlvmProgram> {
 	// let x = format!("{:#?}", program);
 	// write!(writer, "{}", trans_indent(&x, PARSER_INDENT))?;
 
-	println!("Data From Namer \n {:?}", data);
-
 	let mut generator: LlvmIrGen = LlvmIrGen {
 		data,
 		funcs: vec![],
