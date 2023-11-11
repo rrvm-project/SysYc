@@ -54,7 +54,7 @@ fn step_riscv(program: LlvmProgram) -> Result<i32> {
 	program.solve_global();
 	program.funcs =
 		program.funcs.into_iter().map(instruction::transform).collect();
-	let code = program.alloc_regs();
+	let code = program.alloc_reg();
 	Ok(code)
 }
 
