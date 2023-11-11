@@ -138,14 +138,13 @@ impl Visitor for Namer {
 
 		let mut dim_list: Vec<usize> = vec![];
 
-		for vec in val_def.dim_list.iter_mut() {
-			for item in vec {
+		// Reformed by cyh
+		if is_array {
+			for item in val_def.dim_list.as_mut().unwrap() {
 				item.accept(self)?;
 				let value = item.get_attr(COMPILE_CONST);
-				if let Some(Attr::CompileConstValue(CompileConstValue::Int(value))) =
-					value
-				{
-					if value > &0 {
+				if let Some(Attr::CompileConstValue(CompileConstValue::Int(value))) = value {
+					if *value > 0 {
 						dim_list.push(*value as usize);
 						continue;
 					}
@@ -247,7 +246,7 @@ impl Visitor for Namer {
 				self.init_list_context = None;
 			}
 		} else {
-			println!("{:?}", var_type);
+			// println!("{:?}", var_type);
 			init_value = match &mut val_def.init {
 				Some(value) => {
 					value.accept(self)?;
@@ -283,6 +282,8 @@ impl Visitor for Namer {
 		};
 
 		self.scope_stack.declare_var(&symbol);
+
+		val_def.set_attr(SYMBOL_NUMBER, Attr::VarSymbol(symbol.id));
 
 		self.var_symbols.push(symbol);
 
@@ -762,7 +763,9 @@ impl Visitor for Namer {
 			}
 		// It is legal when dim_list is none, such as passing the array as an argument
 		} else if let Some(value) = &symbol.const_or_global_initial_value {
-			lval.set_attr(COMPILE_CONST, Attr::CompileConstValue(value.clone()));
+			if symbol.tp.is_const {
+				lval.set_attr(COMPILE_CONST, Attr::CompileConstValue(value.clone()));
+			}
 		}
 
 		Ok(())
