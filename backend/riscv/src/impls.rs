@@ -57,8 +57,11 @@ impl Display for CallInstr {
 			match i.0{
                 Value::Imm(imm)=>{write!(f,"li {},{}",i.1,i.0).unwrap();}
                 Value::Float(flt)=>{
-                    write!()
-                }
+                   // write!()
+				   //TODO!
+                }_=>{
+					//TODO!
+				}
             }
 		}
 		write!(f, "call {}", self.func.name)
