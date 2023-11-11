@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 llvm = { path = "../../utils/llvm" }
+rrvm_func = { path = "../func" }
+basicblock = { path = "../basicblock" }
+constants = { path = "../constants" }

@@ -5,8 +5,8 @@ pub trait LlvmInstr: Display {
 	fn get_read(&self) -> Vec<Temp> {
 		Vec::new()
 	}
-	fn get_write(&self) -> Vec<Temp> {
-		Vec::new()
+	fn get_write(&self) -> Option<Temp> {
+		None
 	}
 	fn type_valid(&self) -> bool {
 		true

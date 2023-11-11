@@ -18,8 +18,8 @@ impl LlvmInstr for ArithInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
-	fn get_write(&self) -> Vec<Temp> {
-		vec![self.target.clone()]
+	fn get_write(&self) -> Option<Temp> {
+		Some(self.target.clone())
 	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[
@@ -57,8 +57,8 @@ impl LlvmInstr for CompInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
-	fn get_write(&self) -> Vec<Temp> {
-		vec![self.target.clone()]
+	fn get_write(&self) -> Option<Temp> {
+		Some(self.target.clone())
 	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[
@@ -84,8 +84,8 @@ impl LlvmInstr for ConvertInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.lhs])
 	}
-	fn get_write(&self) -> Vec<Temp> {
-		vec![self.target.clone()]
+	fn get_write(&self) -> Option<Temp> {
+		Some(self.target.clone())
 	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[
@@ -146,8 +146,8 @@ impl LlvmInstr for PhiInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		self.source.iter().flat_map(|(v, _)| v.unwrap_temp()).collect()
 	}
-	fn get_write(&self) -> Vec<Temp> {
-		vec![self.target.clone()]
+	fn get_write(&self) -> Option<Temp> {
+		Some(self.target.clone())
 	}
 	fn type_valid(&self) -> bool {
 		let mut v: Vec<_> = self.source.iter().map(|(v, _)| v.get_type()).collect();
@@ -199,8 +199,8 @@ impl LlvmInstr for AllocInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		vec![&self.length].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 	}
-	fn get_write(&self) -> Vec<Temp> {
-		vec![self.target.clone()]
+	fn get_write(&self) -> Option<Temp> {
+		Some(self.target.clone())
 	}
 	fn type_valid(&self) -> bool {
 		self.length.get_type() == VarType::I32
@@ -246,8 +246,8 @@ impl LlvmInstr for LoadInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		vec![&self.addr].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 	}
-	fn get_write(&self) -> Vec<Temp> {
-		vec![self.target.clone()]
+	fn get_write(&self) -> Option<Temp> {
+		Some(self.target.clone())
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.var_type, self.addr.get_type())
@@ -272,8 +272,8 @@ impl LlvmInstr for GEPInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.addr, &self.offset])
 	}
-	fn get_write(&self) -> Vec<Temp> {
-		vec![self.target.clone()]
+	fn get_write(&self) -> Option<Temp> {
+		Some(self.target.clone())
 	}
 	fn type_valid(&self) -> bool {
 		is_ptr(self.addr.get_type())
@@ -301,7 +301,7 @@ impl LlvmInstr for CallInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(self.params.iter().map(|(_, x)| x).collect())
 	}
-	fn get_write(&self) -> Vec<Temp> {
-		vec![self.target.clone()]
+	fn get_write(&self) -> Option<Temp> {
+		Some(self.target.clone())
 	}
 }

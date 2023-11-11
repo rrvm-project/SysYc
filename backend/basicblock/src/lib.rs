@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use basicblock::BasicBlock;
-use instruction::InstrSet;
+use constants::InstrSet;
 use llvm::func::LlvmFunc;
 
 pub mod basicblock;

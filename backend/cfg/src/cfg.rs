@@ -1,9 +1,9 @@
 use basicblock::basicblock::BasicBlock;
-use instruction::InstrSet;
+use constants::InstrSet;
 
 #[allow(unused)]
 pub struct CFG {
-	basic_blocks: Vec<BasicBlock>,
+	pub basic_blocks: Vec<BasicBlock>,
 }
 impl CFG {
 	pub fn new(basic_blocks: Vec<BasicBlock>) -> CFG {
@@ -17,8 +17,8 @@ impl CFG {
 				for itemp in i.get_read() {
 					bb.defs.insert(itemp);
 				}
-				for itemp in i.get_write() {
-					bb.defs.insert(itemp);
+				if let Some(target) = i.get_write() {
+					bb.defs.insert(target);
 				}
 			}
 		}
