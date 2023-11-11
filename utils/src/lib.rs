@@ -93,4 +93,4 @@ pub trait Attrs {
 	fn get_attr(&self, name: &str) -> Option<&Attr>;
 }
 
-// pub trait FuyukiDisplay
+// pub trait Fuyuki

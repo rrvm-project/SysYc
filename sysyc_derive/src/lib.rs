@@ -2,10 +2,7 @@ use inflector::Inflector;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{
-	parse2, parse_macro_input, parse_quote, Data, DataEnum, DeriveInput, Field,
-	FieldMutability, Fields, Ident, Visibility,
-};
+use syn::*;
 
 #[proc_macro_attribute]
 pub fn has_attrs(_: TokenStream, item: TokenStream) -> TokenStream {
@@ -56,17 +53,17 @@ pub fn ast_node_derive(input: TokenStream) -> TokenStream {
 	let visitor_fn_ident = syn::Ident::new(&visitor_fn_name, name.span());
 
 	let expanded = quote! {
-			impl AstNode for #name {
-					fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<(), SysycError> {
-							visitor.#visitor_fn_ident(self)
-					}
+		impl AstNode for #name {
+			fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<(), SysycError> {
+				visitor.#visitor_fn_ident(self)
 			}
+		}
 	};
 
 	TokenStream::from(expanded)
 }
 
-#[proc_macro_derive(FuyukiDisplay)]
+#[proc_macro_derive(Fuyuki, attributes(style))]
 pub fn display_lowercase(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DeriveInput);
 
@@ -75,19 +72,34 @@ pub fn display_lowercase(input: TokenStream) -> TokenStream {
 		let cases = variants.into_iter().map(|v| {
 			let variant_name = &v.ident;
 			let variant_str = variant_name.to_string().to_lowercase();
+			for attr in &v.attrs {
+				if attr.path().is_ident("style") {
+					if let Ok(lit_str) = attr.parse_args::<LitStr>() {
+						let val = lit_str.value();
+						return {
+							quote! {
+								#name::#variant_name => write!(f, "{}", #val)
+							}
+						};
+					} else {
+						return Error::new_spanned(attr, "Expected a string literal")
+							.to_compile_error();
+					}
+				}
+			}
 			quote! {
-					#name::#variant_name => write!(f, "{}", #variant_str)
+				#name::#variant_name => write!(f, "{}", #variant_str)
 			}
 		});
 
 		let expanded = quote! {
-				impl std::fmt::Display for #name {
-						fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-								match self {
-										#( #cases, )*
-								}
-						}
+			impl std::fmt::Display for #name {
+				fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+					match self {
+						#( #cases, )*
+					}
 				}
+			}
 		};
 
 		TokenStream::from(expanded)
