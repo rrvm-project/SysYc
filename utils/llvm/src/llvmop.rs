@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use sysyc_derive::FuyukiDisplay;
+use sysyc_derive::Fuyuki;
 
 use crate::{llvmvar::VarType, temp::Temp};
 
@@ -20,7 +20,7 @@ pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
 }
 
-#[derive(FuyukiDisplay)]
+#[derive(Fuyuki)]
 pub enum ArithOp {
 	Add,
 	Sub,
@@ -49,7 +49,7 @@ pub enum ArithOp {
 	Xor,
 }
 
-#[derive(FuyukiDisplay)]
+#[derive(Fuyuki)]
 pub enum CompOp {
 	EQ,
 	NE,
@@ -75,7 +75,7 @@ pub enum CompOp {
 	OLE,
 }
 
-#[derive(FuyukiDisplay)]
+#[derive(Fuyuki)]
 pub enum CompKind {
 	Icmp,
 	Fcmp,

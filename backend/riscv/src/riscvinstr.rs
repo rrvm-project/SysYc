@@ -1,4 +1,4 @@
-use crate::riscvop::*;
+use crate::{reg::RiscvReg, riscvop::*};
 
 use std::fmt::Display;
 pub trait RiscvInstr: Display {
@@ -8,4 +8,9 @@ pub trait RiscvInstr: Display {
 	fn get_read(&self) -> Vec<Value> {
 		Vec::new()
 	}
+}
+
+#[allow(unused)]
+pub struct RiscvInstrI {
+	op: ITypeOp,
 }
