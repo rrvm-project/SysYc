@@ -143,7 +143,9 @@ impl Visitor for Namer {
 			for item in val_def.dim_list.as_mut().unwrap() {
 				item.accept(self)?;
 				let value = item.get_attr(COMPILE_CONST);
-				if let Some(Attr::CompileConstValue(CompileConstValue::Int(value))) = value {
+				if let Some(Attr::CompileConstValue(CompileConstValue::Int(value))) =
+					value
+				{
 					if *value > 0 {
 						dim_list.push(*value as usize);
 						continue;
@@ -520,9 +522,8 @@ impl Visitor for Namer {
 		} else {
 			let r = binary_expr.rhs.get_attr(COMPILE_CONST);
 			let l = binary_expr.lhs.get_attr(COMPILE_CONST);
-			if r.is_some() && l.is_some() {
-				if let (Attr::CompileConstValue(l), Attr::CompileConstValue(r)) =
-					(l.unwrap(), r.unwrap())
+			if let (Some(r), Some(l)) = (r, l) {
+				if let (Attr::CompileConstValue(l), Attr::CompileConstValue(r)) = (l, r)
 				{
 					let result = evaluate_binary(l, &binary_expr.op, r)?;
 					binary_expr.set_attr(COMPILE_CONST, Attr::CompileConstValue(result));
