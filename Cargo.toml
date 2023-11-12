@@ -16,7 +16,7 @@ members = [
   "frontend/scope",
   "frontend/ir_type",
   "frontend/parser",
-  "utils/riscv"
+  "utils/riscv",
   "attr",
 ]
 

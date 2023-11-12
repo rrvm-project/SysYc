@@ -1,8 +1,13 @@
 use crate::basicblock::{BasicBlock, BlockType};
-use llvm::llvminstr::{JumpCondInstr, JumpInstr, RetInstr};
-use llvm::{func::LlvmFunc, label::Label, llvminstr::LlvmInstr};
-use std::any::Any;
-use std::collections::{BTreeMap, BTreeSet};
+use llvm::{
+	func::LlvmFunc,
+	label::Label,
+	llvminstr::{JumpCondInstr, JumpInstr, LlvmInstr, RetInstr},
+};
+use std::{
+	any::Any,
+	collections::{BTreeMap, BTreeSet},
+};
 struct FuncCfg {
 	label_id: BTreeMap<Label, i32>,
 	blocks: Vec<BasicBlock>,
@@ -105,4 +110,3 @@ impl FuncCfg {
 		return func_cfg;
 	}
 }
-
