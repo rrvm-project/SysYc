@@ -568,10 +568,7 @@ impl Visitor for Namer {
 	) -> Result<(), SysycError> {
 		if let Some(func_symbol) = self.scope_stack.lookup_func(&func_call.ident) {
 			// Add by cyh
-			func_call.set_attr(
-				TYPE,
-				Attr::Type(func_symbol.ret_t.clone()),
-			);
+			func_call.set_attr(TYPE, Attr::Type(func_symbol.ret_t.clone()));
 			// 给FuncCall绑定上一个FuncSymbol
 			func_call.set_attr(SYMBOL_NUMBER, Attr::FuncSymbol(func_symbol.id));
 			if func_call.params.len() != func_symbol.params.len() {
@@ -695,7 +692,8 @@ impl Visitor for Namer {
 					if let Some(Attr::Type(type_of_index)) = dim_item.get_attr(TYPE) {
 						if !type_of_index.can_be_index() {
 							return Err(SysycError::SyntaxError(format!(
-								"Type {:?} is not accepted as index of array {:?}", type_of_index, lval.ident
+								"Type {:?} is not accepted as index of array {:?}",
+								type_of_index, lval.ident
 							)));
 						}
 					}

@@ -103,8 +103,20 @@ impl IRType {
 
 	pub fn to_vartype(&self) -> VarType {
 		match self.base_type {
-			BaseType::Int => if self.is_array(){VarType::I32Ptr} else {VarType::I32},
-			BaseType::Float => if self.is_array(){VarType::F32Ptr} else {VarType::F32},
+			BaseType::Int => {
+				if self.is_array() {
+					VarType::I32Ptr
+				} else {
+					VarType::I32
+				}
+			}
+			BaseType::Float => {
+				if self.is_array() {
+					VarType::F32Ptr
+				} else {
+					VarType::F32
+				}
+			}
 			_ => unreachable!(),
 		}
 	}

@@ -142,7 +142,7 @@ fn parse_unary_expr(op: Pair<Rule>, rhs: Node) -> Node {
 
 fn parse_expr(pair: Pair<Rule>) -> Node {
 	PRATT_PARSER
-		.map_primary(|v| parse_primary_expr(v))
+		.map_primary(parse_primary_expr)
 		.map_infix(|lhs, op, rhs| parse_binary_expr(lhs, op, rhs))
 		.map_prefix(|op, rhs| parse_unary_expr(op, rhs))
 		.parse(pair.into_inner())
@@ -172,7 +172,7 @@ fn parse_var_def(pair: Pair<Rule>) -> Node {
 		dim_list: None,
 		init: None,
 	};
-	for pair in pairs.into_iter() {
+	for pair in pairs {
 		match pair.as_rule() {
 			Rule::DimList => var_def.dim_list = parse_dim_list(pair, 1),
 			Rule::Expr => var_def.init = Some(parse_init_val(pair)),
@@ -191,7 +191,7 @@ fn parse_decl(pair: Pair<Rule>) -> Node {
 			_attrs: HashMap::new(),
 			is_const,
 			type_t: parse_var_type(pairs.next().unwrap()),
-			defs: pairs.into_iter().map(parse_var_def).collect(),
+			defs: pairs.map(parse_var_def).collect(),
 		}
 	}
 	match pair.as_rule() {
@@ -299,10 +299,6 @@ pub fn parse(str: &str) -> Result<Program, SysycError> {
 		.map_err(|e| SysycError::DecafLexError(e.to_string()))?;
 	Ok(Program {
 		_attrs: HashMap::new(),
-		comp_units: progam
-			.into_iter()
-			.map(parse_comp_unit)
-			.filter_map(|x| x)
-			.collect(),
+		comp_units: progam.into_iter().filter_map(parse_comp_unit).collect(),
 	})
 }
