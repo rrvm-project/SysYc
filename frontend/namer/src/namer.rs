@@ -284,9 +284,7 @@ impl Visitor for Namer {
 		};
 
 		self.scope_stack.declare_var(&symbol);
-
 		val_def.set_attr(SYMBOL_NUMBER, Attr::VarSymbol(symbol.id));
-
 		self.var_symbols.push(symbol);
 
 		Ok(())

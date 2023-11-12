@@ -17,6 +17,7 @@ members = [
   "frontend/ir_type",
   "frontend/parser",
   "attr",
+  "utils/riscv"
 ]
 
 [dependencies]

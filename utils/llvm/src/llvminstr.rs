@@ -13,13 +13,15 @@ pub trait LlvmInstr: Display {
 	fn type_valid(&self) -> bool {
 		true
 	}
-	fn is_label(&self) -> bool {
-		false
+	fn is_label(&self) -> Option<Label> {
+		None
 	}
 	fn is_seq(&self) -> bool {
 		true
 	}
 	fn is_ret(&self) -> bool {
+		false
+	}fn is_phi(&self) -> bool {
 		false
 	}
 }

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::{llvminstr::*, llvmop::*, llvmvar::VarType, temp::Temp, utils::*};
-
+use crate::label::Label;
 impl Display for ArithInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(
@@ -36,8 +36,8 @@ impl Display for LabelInstr {
 }
 
 impl LlvmInstr for LabelInstr {
-	fn is_label(&self) -> bool {
-		true
+	fn is_label(&self) -> Option<Label> {
+	Some(self.label.clone())
 	}
 }
 
@@ -152,6 +152,8 @@ impl LlvmInstr for PhiInstr {
 		v.push(self.var_type);
 		v.push(self.target.var_type);
 		all_equal(&v)
+	}fn is_phi(&self) -> bool {
+		true
 	}
 }
 
