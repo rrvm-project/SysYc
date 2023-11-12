@@ -35,8 +35,7 @@ impl LlvmIrGen {
 	pub fn emit_program(self) -> LlvmProgram {
 		LlvmProgram {
 			funcs: self.funcs,
-			// funcs: vec![self.funcemitter.emit_func()],
-			global_vars: vec![],
+			global_vars: self.data.global_var_init_value,
 		}
 	}
 	fn convert(&mut self, to_type: VarType, value: Value) -> Value {

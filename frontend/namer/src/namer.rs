@@ -2,14 +2,14 @@ use crate::utils::{
 	array_init_for_backend, assert_is_convertable_to, DataFromNamer,
 };
 use ast::{tree::*, visitor::Visitor, BinaryOp, FuncType};
-use attr::{Attr, Attrs, CompileConstValue, InitValueItem};
+use attr::{Attr, Attrs, CompileConstValue};
 use ir_type::builtin_type::{BaseType, IRType};
 use scope::{
 	scope::ScopeStack,
 	symbol::{FuncSymbol, VarSymbol},
 };
 use std::{collections::HashMap, vec};
-use utils::SysycError;
+use utils::{InitValueItem, SysycError};
 
 use crate::complie_calculate::{
 	evaluate_binary, evaluate_unary, type_binary, type_unary,
@@ -81,7 +81,7 @@ impl Namer {
 				Some(CompileConstValue::FloatArray(value)) => {
 					array_init_for_backend(value, |x| InitValueItem::Float(*x))
 				}
-				_ => vec![],
+				_ => vec![InitValueItem::None(symbol.tp.array_length())],
 			};
 
 			global_var_init_value.insert(name.to_string(), value_to_backend);
@@ -284,9 +284,7 @@ impl Visitor for Namer {
 		};
 
 		self.scope_stack.declare_var(&symbol);
-
 		val_def.set_attr(SYMBOL_NUMBER, Attr::VarSymbol(symbol.id));
-
 		self.var_symbols.push(symbol);
 
 		Ok(())

@@ -72,11 +72,9 @@ impl IRType {
 	pub fn is_scalar(&self) -> bool {
 		self.dim_length() == 0
 	}
-
 	pub fn can_be_index(&self) -> bool {
 		self.dim_length() == 0 && self.base_type == BaseType::Int
 	}
-
 	pub fn get_index(&self, a: &Vec<usize>) -> usize {
 		let mut ans: usize = if !a.is_empty() { a[0] } else { 0 };
 
@@ -88,17 +86,20 @@ impl IRType {
 		ans
 	}
 
-	pub fn size(&self) -> usize {
-		let mut i = match self.base_type {
-			BaseType::Int => 4,
-			BaseType::Float => 4,
-			_ => unreachable!(),
-		};
-
+	pub fn array_length(&self) -> usize {
+		let mut i = 1;
 		for size in &self.dims {
 			i *= size
 		}
 		i
+	}
+
+	pub fn size(&self) -> usize {
+		match self.base_type {
+			BaseType::Int => 4 * self.array_length(),
+			BaseType::Float => 4 * self.array_length(),
+			_ => unreachable!(),
+		}
 	}
 
 	pub fn to_vartype(&self) -> VarType {
