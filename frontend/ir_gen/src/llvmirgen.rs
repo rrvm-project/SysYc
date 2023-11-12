@@ -1,6 +1,6 @@
 use ast::{tree::*, visitor::Visitor};
 use attr::{Attr, Attrs, CompileConstValue};
-use llvm::llvmop::{Value, ConvertOp};
+use llvm::llvmop::{ConvertOp, Value};
 use llvm::llvmvar::VarType;
 use llvm::temp::Temp;
 use llvm::{func::LlvmFunc, llvmfuncemitter::LlvmFuncEmitter, LlvmProgram};
@@ -44,27 +44,40 @@ impl LlvmIrGen {
 				} else {
 					unreachable!("Float can not be converted to ptr or void")
 				}
-			},
+			}
 			Value::Int(i) => {
 				if to_type == VarType::F32 {
 					Value::Float(*i as f32)
 				} else {
 					unreachable!("Int can not be converted to ptr or void")
 				}
-			},
+			}
 			Value::Temp(t) => {
 				let op = match t.var_type {
-					VarType::I32 => if to_type == VarType::F32 {ConvertOp::Int2Float} else {unreachable!("Int can not be converted to ptr or void")},
-					VarType::F32 => if to_type == VarType::I32 {ConvertOp::Float2Int} else {unreachable!("Float can not be converted to ptr or void")},
+					VarType::I32 => {
+						if to_type == VarType::F32 {
+							ConvertOp::Int2Float
+						} else {
+							unreachable!("Int can not be converted to ptr or void")
+						}
+					}
+					VarType::F32 => {
+						if to_type == VarType::I32 {
+							ConvertOp::Float2Int
+						} else {
+							unreachable!("Float can not be converted to ptr or void")
+						}
+					}
 					_ => unreachable!(),
 				};
-				Value::Temp(self.funcemitter.as_mut().unwrap().visit_convert_instr(
-					op,
-					t.var_type,
-					value,
-					to_type,
-				))
-			},
+				Value::Temp(
+					self
+						.funcemitter
+						.as_mut()
+						.unwrap()
+						.visit_convert_instr(op, t.var_type, value, to_type),
+				)
+			}
 
 			_ => unreachable!(),
 		}
@@ -229,12 +242,8 @@ impl Visitor for LlvmIrGen {
 		// TODO: 无论是标量还是数组，这里都选择分配到栈上，为了保证SSA
 		// 既然被分配到了栈上，临时变量的类型应当是指针
 		let var_type = match val_decl.type_t {
-			ast::VarType::Int => {
-				llvm::llvmvar::VarType::I32Ptr
-			}
-			ast::VarType::Float => {
-				llvm::llvmvar::VarType::F32Ptr
-			}
+			ast::VarType::Int => llvm::llvmvar::VarType::I32Ptr,
+			ast::VarType::Float => llvm::llvmvar::VarType::F32Ptr,
 		};
 		let tmp = self.funcemitter.as_mut().unwrap().visit_formal_param(var_type);
 		match val_decl.get_attr(SYMBOL_NUMBER) {
@@ -269,12 +278,18 @@ impl Visitor for LlvmIrGen {
 		};
 		let funcsymbol = self.data.func_symbols[funcsymbol_id].clone();
 		let mut params = vec![];
-		for (param, para_type) in val_decl.params.iter_mut().zip(funcsymbol.params.iter()) {
+		for (param, para_type) in
+			val_decl.params.iter_mut().zip(funcsymbol.params.iter())
+		{
 			param.accept(self)?;
 			if let Some(Attr::CompileConstValue(c)) = param.get_attr(COMPILE_CONST) {
 				params.push(match c {
-					CompileConstValue::Int(v) => self.convert(para_type.to_vartype(), Value::Int(*v)),
-					CompileConstValue::Float(v) => self.convert(para_type.to_vartype(), Value::Float(*v)),
+					CompileConstValue::Int(v) => {
+						self.convert(para_type.to_vartype(), Value::Int(*v))
+					}
+					CompileConstValue::Float(v) => {
+						self.convert(para_type.to_vartype(), Value::Float(*v))
+					}
 					_ => {
 						return Err(SysycError::LlvmSyntexError(format!(
 							"Compile const value in call should not be {:?}",
@@ -431,16 +446,14 @@ impl Visitor for LlvmIrGen {
 					)))
 				}
 			},
-			_ => {
-				match val_decl.lhs.get_attr(VALUE) {
-					Some(Attr::Value(v)) => v.clone(),
-					_ => {
-						return Err(SysycError::LlvmSyntexError(
-							"lhs of binary expr has no value".to_string(),
-						))
-					}
+			_ => match val_decl.lhs.get_attr(VALUE) {
+				Some(Attr::Value(v)) => v.clone(),
+				_ => {
+					return Err(SysycError::LlvmSyntexError(
+						"lhs of binary expr has no value".to_string(),
+					))
 				}
-			}
+			},
 		};
 		let rhs = match val_decl.rhs.get_attr(COMPILE_CONST) {
 			Some(Attr::CompileConstValue(v)) => match v {
@@ -453,16 +466,14 @@ impl Visitor for LlvmIrGen {
 					)))
 				}
 			},
-			_ => {
-				match val_decl.rhs.get_attr(VALUE) {
-					Some(Attr::Value(v)) => v.clone(),
-					_ => {
-						return Err(SysycError::LlvmSyntexError(
-							"lhs of binary expr has no value".to_string(),
-						))
-					}
+			_ => match val_decl.rhs.get_attr(VALUE) {
+				Some(Attr::Value(v)) => v.clone(),
+				_ => {
+					return Err(SysycError::LlvmSyntexError(
+						"lhs of binary expr has no value".to_string(),
+					))
 				}
-			}
+			},
 		};
 		// TODO: 这里没有考虑void的情况，所以VarType为什么会包含Void啊
 		let is_float = lhs.get_type() == llvm::llvmvar::VarType::F32
@@ -593,10 +604,14 @@ impl Visitor for LlvmIrGen {
 		let ret_type = self.funcemitter.as_mut().unwrap().ret_type;
 		if let Some(expr) = &mut val_decl.value {
 			expr.accept(self)?;
-			let value = if let Some(Attr::CompileConstValue(v)) = expr.get_attr(COMPILE_CONST) {
+			let value = if let Some(Attr::CompileConstValue(v)) =
+				expr.get_attr(COMPILE_CONST)
+			{
 				match v {
 					CompileConstValue::Int(v) => self.convert(ret_type, Value::Int(*v)),
-					CompileConstValue::Float(v) => self.convert(ret_type, Value::Float(*v)),
+					CompileConstValue::Float(v) => {
+						self.convert(ret_type, Value::Float(*v))
+					}
 					_ => {
 						return Err(SysycError::LlvmSyntexError(format!(
 							"Compile const value in return should not be {:?}",
@@ -604,7 +619,7 @@ impl Visitor for LlvmIrGen {
 						)));
 					}
 				}
-			} else {	
+			} else {
 				match expr.get_attr(VALUE) {
 					Some(Attr::Value(v)) => self.convert(ret_type, v.clone()),
 					_ => {

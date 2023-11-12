@@ -67,9 +67,7 @@ impl LlvmFuncEmitter {
 	) -> Temp {
 		if lhs.get_type() == VarType::F32 && rhs.get_type() == VarType::I32 {
 			rhs = match rhs {
-				Value::Int(v) => {
-					Value::Float(v as f32)
-				},
+				Value::Int(v) => Value::Float(v as f32),
 				Value::Temp(t) => {
 					let new_temp = self.temp_mgr.new_temp(VarType::F32);
 					let convert = ConvertInstr {
@@ -81,15 +79,13 @@ impl LlvmFuncEmitter {
 					};
 					self.func_body.push(Box::new(convert));
 					Value::Temp(new_temp)
-				},
+				}
 				_ => unreachable!(),
 			}
 		}
 		if lhs.get_type() == VarType::I32 && rhs.get_type() == VarType::F32 {
 			lhs = match lhs {
-				Value::Int(v) => {
-					Value::Float(v as f32)
-				},
+				Value::Int(v) => Value::Float(v as f32),
 				Value::Temp(t) => {
 					let new_temp = self.temp_mgr.new_temp(VarType::F32);
 					let convert = ConvertInstr {
@@ -101,7 +97,7 @@ impl LlvmFuncEmitter {
 					};
 					self.func_body.push(Box::new(convert));
 					Value::Temp(new_temp)
-				},
+				}
 				_ => unreachable!(),
 			}
 		}
@@ -125,9 +121,7 @@ impl LlvmFuncEmitter {
 	) -> Temp {
 		if lhs.get_type() == VarType::F32 && rhs.get_type() == VarType::I32 {
 			rhs = match rhs {
-				Value::Int(v) => {
-					Value::Float(v as f32)
-				},
+				Value::Int(v) => Value::Float(v as f32),
 				Value::Temp(t) => {
 					let new_temp = self.temp_mgr.new_temp(VarType::F32);
 					let convert = ConvertInstr {
@@ -139,15 +133,13 @@ impl LlvmFuncEmitter {
 					};
 					self.func_body.push(Box::new(convert));
 					Value::Temp(new_temp)
-				},
+				}
 				_ => unreachable!(),
 			}
 		}
 		if lhs.get_type() == VarType::I32 && rhs.get_type() == VarType::F32 {
 			lhs = match lhs {
-				Value::Int(v) => {
-					Value::Float(v as f32)
-				},
+				Value::Int(v) => Value::Float(v as f32),
 				Value::Temp(t) => {
 					let new_temp = self.temp_mgr.new_temp(VarType::F32);
 					let convert = ConvertInstr {
@@ -159,7 +151,7 @@ impl LlvmFuncEmitter {
 					};
 					self.func_body.push(Box::new(convert));
 					Value::Temp(new_temp)
-				},
+				}
 				_ => unreachable!(),
 			}
 		}
@@ -241,9 +233,7 @@ impl LlvmFuncEmitter {
 	pub fn visit_store_instr(&mut self, mut value: Value, addr: Value) {
 		if value.get_type() == VarType::F32 && addr.get_type() == VarType::I32Ptr {
 			value = match value {
-				Value::Float(v) => {
-					Value::Int(v as i32)
-				},
+				Value::Float(v) => Value::Int(v as i32),
 				Value::Temp(t) => {
 					let new_temp = self.temp_mgr.new_temp(VarType::I32);
 					let convert = ConvertInstr {
@@ -255,15 +245,13 @@ impl LlvmFuncEmitter {
 					};
 					self.func_body.push(Box::new(convert));
 					Value::Temp(new_temp)
-				},
+				}
 				_ => unreachable!(),
 			};
 		}
 		if value.get_type() == VarType::I32 && addr.get_type() == VarType::F32Ptr {
 			value = match value {
-				Value::Int(v) => {
-					Value::Float(v as f32)
-				},
+				Value::Int(v) => Value::Float(v as f32),
 				Value::Temp(t) => {
 					let new_temp = self.temp_mgr.new_temp(VarType::F32);
 					let convert = ConvertInstr {
@@ -275,7 +263,7 @@ impl LlvmFuncEmitter {
 					};
 					self.func_body.push(Box::new(convert));
 					Value::Temp(new_temp)
-				},
+				}
 				_ => unreachable!(),
 			};
 		}
