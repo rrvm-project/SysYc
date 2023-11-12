@@ -1,5 +1,5 @@
 use basicblock::basicblock::BasicBlock;
-use constants::InstrSet;
+use instruction::InstrSet;
 
 #[allow(unused)]
 pub struct CFG {

@@ -1,10 +1,21 @@
 use std::collections::HashMap;
 
 use basicblock::BasicBlock;
-use constants::InstrSet;
+use instruction::{
+	instr_dag::InstrDag, instr_schedule::instr_serialize, InstrSet,
+};
 use llvm::func::LlvmFunc;
 
 pub mod basicblock;
+
+pub fn transform_basicblock(block: BasicBlock) -> BasicBlock {
+	let mut instr_dag = InstrDag::new(block.instrs);
+	instr_dag.convert();
+	BasicBlock {
+		instrs: instr_serialize(instr_dag),
+		..block
+	}
+}
 
 pub fn build_from(func: LlvmFunc) -> Vec<BasicBlock> {
 	let mut cur_id = 0;

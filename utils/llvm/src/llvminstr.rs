@@ -1,4 +1,6 @@
-use crate::{label::Label, llvmop::*, llvmvar::VarType, temp::Temp};
+use crate::{
+	label::Label, llvmop::*, llvmvar::VarType, temp::Temp, LlvmInstrVariant,
+};
 use std::fmt::Display;
 
 pub trait LlvmInstr: Display {
@@ -26,6 +28,7 @@ pub trait LlvmInstr: Display {
 	fn get_succ(&self) -> Vec<Label> {
 		Vec::new()
 	}
+	fn get_variant(&self) -> LlvmInstrVariant;
 }
 
 pub struct ArithInstr {

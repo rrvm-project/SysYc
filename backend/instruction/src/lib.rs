@@ -1,23 +1,15 @@
-mod instr_dag;
-mod instr_schedule;
-mod transformer;
+pub mod instr_dag;
+pub mod instr_schedule;
+pub mod riscv;
+pub mod transformer;
 
-use crate::instr_dag::InstrDag;
-use basicblock::basicblock::BasicBlock;
-use instr_schedule::instr_serialize;
-use rrvm_func::rrvmfunc::RrvmFunc;
+use llvm::llvminstr::LlvmInstr;
+use riscv::riscvinstr::RiscvInstr;
 
-fn transform_basicblock(block: BasicBlock) -> BasicBlock {
-	let mut instr_dag = InstrDag::new(block.instrs);
-	instr_dag.convert();
-	BasicBlock {
-		instrs: instr_serialize(instr_dag),
-		..block
-	}
-}
+pub type LlvmInstrSet = Vec<Box<dyn LlvmInstr>>;
+pub type RiscvInstrSet = Vec<Box<dyn RiscvInstr>>;
 
-pub fn transform(mut func: RrvmFunc) -> RrvmFunc {
-	func.cfg.basic_blocks =
-		func.cfg.basic_blocks.into_iter().map(transform_basicblock).collect();
-	func
+pub enum InstrSet {
+	LlvmInstrSet(LlvmInstrSet),
+	RiscvInstrSet(RiscvInstrSet),
 }
