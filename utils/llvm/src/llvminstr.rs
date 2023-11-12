@@ -1,8 +1,6 @@
 use crate::{label::Label, llvmop::*, llvmvar::VarType, temp::Temp};
 use std::fmt::Display;
 
-pub struct GlobalVar {}
-
 pub trait LlvmInstr: Display {
 	fn get_read(&self) -> Vec<Temp> {
 		Vec::new()

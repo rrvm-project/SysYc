@@ -5,7 +5,7 @@ use crate::{
 	llvmop::*,
 	llvmvar::VarType,
 	temp::{Temp, TempManager},
-	utils::ptr2type,
+	utils_llvm::ptr2type,
 };
 
 pub struct LlvmFuncEmitter {

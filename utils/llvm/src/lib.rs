@@ -8,24 +8,26 @@ pub mod parser;
 pub mod temp;
 
 mod impls;
-mod utils;
+mod utils_llvm;
 
 use func::LlvmFunc;
-use llvminstr::GlobalVar;
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
+
+use utils::InitValueItem;
 
 #[allow(unused)]
 pub struct LlvmProgram {
 	pub funcs: Vec<LlvmFunc>,
-	pub global_vars: Vec<GlobalVar>,
+	pub global_vars: HashMap<String, Vec<InitValueItem>>,
 }
 
 impl Display for LlvmProgram {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		// TODO: 暂时不打印全局变量
-		// for global_var in &self.global_vars {
-		// 	writeln!(f, "{}", global_var)?;
-		// }
+		writeln!(f, "Global Vars:")?;
+		for global_var in &self.global_vars {
+			writeln!(f, "{:?}", global_var)?;
+		}
+		writeln!(f)?;
 		for func in &self.funcs {
 			writeln!(f, "{}", func)?;
 		}
