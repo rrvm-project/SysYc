@@ -124,7 +124,7 @@ impl Visitor for LlvmIrGen {
 		}
 		let var_type = &symbol.tp;
 		// 分配空间与初始化
-		if val_decl.dim_list.is_some() {
+		if var_type.is_array() {
 			// 是数组
 			let tp = match var_type.base_type {
 				ir_type::builtin_type::BaseType::Int => llvm::llvmvar::VarType::I32Ptr,
