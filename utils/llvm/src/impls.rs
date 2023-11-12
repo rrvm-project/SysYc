@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
 use crate::{
-	label::Label, llvminstr::*, llvmop::*, llvmvar::VarType, temp::Temp, utils::*,
+	label::Label, llvminstr::*, llvmop::*, llvmvar::VarType, temp::Temp,
+	utils_llvm::*,
 };
 impl Display for ArithInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

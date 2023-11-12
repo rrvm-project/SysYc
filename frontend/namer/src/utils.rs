@@ -1,6 +1,7 @@
 use ir_type::builtin_type::{BaseType, IRType};
 
-use attr::InitValueItem;
+use utils::InitValueItem;
+
 use scope::symbol::{FuncSymbol, VarSymbol};
 use std::{collections::HashMap, vec};
 use utils::SysycError;
