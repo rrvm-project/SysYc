@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use constants::InstrSet;
+use instruction::InstrSet;
 use llvm::{label::Label, temp::Temp};
 
 pub struct BasicBlock {

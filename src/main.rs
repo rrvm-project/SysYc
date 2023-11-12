@@ -53,7 +53,7 @@ fn step_riscv(program: LlvmProgram) -> Result<i32> {
 	let mut program = RrvmProgram::new(program);
 	program.solve_global();
 	program.funcs =
-		program.funcs.into_iter().map(instruction::transform).collect();
+		program.funcs.into_iter().map(rrvm_func::transform_riscv).collect();
 	let code = program.alloc_reg();
 	Ok(code)
 }

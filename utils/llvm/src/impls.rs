@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
 	label::Label, llvminstr::*, llvmop::*, llvmvar::VarType, temp::Temp,
-	utils_llvm::*,
+	utils::*, LlvmInstrVariant,
 };
 impl Display for ArithInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -15,6 +15,9 @@ impl Display for ArithInstr {
 }
 
 impl LlvmInstr for ArithInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::ArithInstr(self)
+	}
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
@@ -38,6 +41,9 @@ impl Display for LabelInstr {
 }
 
 impl LlvmInstr for LabelInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::LabelInstr(self)
+	}
 	fn get_label(&self) -> Option<Label> {
 		Some(self.label.clone())
 	}
@@ -54,6 +60,9 @@ impl Display for CompInstr {
 }
 
 impl LlvmInstr for CompInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::CompInstr(self)
+	}
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
@@ -81,6 +90,9 @@ impl Display for ConvertInstr {
 }
 
 impl LlvmInstr for ConvertInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::ConvertInstr(self)
+	}
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.lhs])
 	}
@@ -104,6 +116,9 @@ impl Display for JumpInstr {
 }
 
 impl LlvmInstr for JumpInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::JumpInstr(self)
+	}
 	fn is_seq(&self) -> bool {
 		false
 	}
@@ -120,6 +135,9 @@ impl Display for JumpCondInstr {
 }
 
 impl LlvmInstr for JumpCondInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::JumpCondInstr(self)
+	}
 	fn is_seq(&self) -> bool {
 		false
 	}
@@ -143,6 +161,9 @@ impl Display for PhiInstr {
 }
 
 impl LlvmInstr for PhiInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::PhiInstr(self)
+	}
 	fn get_read(&self) -> Vec<Temp> {
 		self.source.iter().flat_map(|(v, _)| v.unwrap_temp()).collect()
 	}
@@ -171,6 +192,9 @@ impl Display for RetInstr {
 }
 
 impl LlvmInstr for RetInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::RetInstr(self)
+	}
 	fn get_read(&self) -> Vec<Temp> {
 		vec![&self.value].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 	}
@@ -196,6 +220,9 @@ impl Display for AllocInstr {
 }
 
 impl LlvmInstr for AllocInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::AllocInstr(self)
+	}
 	fn get_read(&self) -> Vec<Temp> {
 		vec![&self.length].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 	}
@@ -221,6 +248,9 @@ impl Display for StoreInstr {
 }
 
 impl LlvmInstr for StoreInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::StoreInstr(self)
+	}
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.value, &self.addr])
 	}
@@ -243,6 +273,9 @@ impl Display for LoadInstr {
 }
 
 impl LlvmInstr for LoadInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::LoadInstr(self)
+	}
 	fn get_read(&self) -> Vec<Temp> {
 		vec![&self.addr].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 	}
@@ -269,6 +302,9 @@ impl Display for GEPInstr {
 }
 
 impl LlvmInstr for GEPInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::GEPInstr(self)
+	}
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.addr, &self.offset])
 	}
@@ -298,6 +334,9 @@ impl Display for CallInstr {
 }
 
 impl LlvmInstr for CallInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::CallInstr(self)
+	}
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(self.params.iter().map(|(_, x)| x).collect())
 	}

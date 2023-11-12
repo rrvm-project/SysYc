@@ -19,12 +19,9 @@ members = [
   "attr",
   "backend/basicblock",
   "backend/cfg",
-  "backend/constants",
   "backend/func",
   "backend/instruction",
   "backend/program",
-  "backend/selection_dag",
-  "backend/riscv"
 ]
 
 [dependencies]
@@ -34,8 +31,9 @@ llvm = { path = "utils/llvm" }
 ast = { path = "frontend/ast" }
 parser = { path = "frontend/parser" }
 namer = { path = "frontend/namer" }
-ir_gen = { path = "frontend/ir_gen"}
+ir_gen = { path = "frontend/ir_gen" }
 
+rrvm_func = { path = "backend/func" }
 rrvm_program = { path = "backend/program" }
 instruction = { path = "backend/instruction" }
 

@@ -11,9 +11,7 @@ mod impls;
 mod utils_llvm;
 
 use func::LlvmFunc;
-use std::{collections::HashMap, fmt::Display};
-
-use utils::InitValueItem;
+pub use llvminstr::*;
 
 #[allow(unused)]
 pub struct LlvmProgram {
@@ -33,4 +31,20 @@ impl Display for LlvmProgram {
 		}
 		Ok(())
 	}
+}
+
+pub enum LlvmInstrVariant<'a> {
+	ArithInstr(&'a ArithInstr),
+	LabelInstr(&'a LabelInstr),
+	CompInstr(&'a CompInstr),
+	ConvertInstr(&'a ConvertInstr),
+	JumpInstr(&'a JumpInstr),
+	JumpCondInstr(&'a JumpCondInstr),
+	PhiInstr(&'a PhiInstr),
+	RetInstr(&'a RetInstr),
+	AllocInstr(&'a AllocInstr),
+	StoreInstr(&'a StoreInstr),
+	LoadInstr(&'a LoadInstr),
+	GEPInstr(&'a GEPInstr),
+	CallInstr(&'a CallInstr),
 }

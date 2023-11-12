@@ -1,8 +1,6 @@
 use std::rc::Rc;
 
-use constants::InstrSet;
-
-use crate::instr_dag::InstrDag;
+use crate::{instr_dag::InstrDag, InstrSet};
 
 // TODO: construct InstrSet
 pub fn instr_serialize(dag: InstrDag) -> InstrSet {

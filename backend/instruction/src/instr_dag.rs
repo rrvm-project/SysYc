@@ -1,9 +1,8 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use constants::InstrSet;
 use llvm::{llvminstr::LlvmInstr, temp::TempManager};
 
-use crate::transformer::to_riscv;
+use crate::{transformer::to_riscv, InstrSet};
 
 type Node = Rc<RefCell<InstrNode>>;
 
@@ -18,15 +17,14 @@ pub struct InstrDag {
 }
 
 impl InstrNode {
-	fn new(instr: Box<dyn LlvmInstr>, succ: Vec<Node>) -> InstrNode {
+	pub fn new(instr: Box<dyn LlvmInstr>, succ: Vec<Node>) -> InstrNode {
 		InstrNode {
 			in_deg: instr.get_read().len(),
 			instr: InstrSet::LlvmInstrSet(vec![instr]),
 			succ,
 		}
 	}
-	// TODO: convert to riscv instruction
-	fn convert(&mut self, mgr: &mut TempManager) {
+	pub fn convert(&mut self, mgr: &mut TempManager) {
 		to_riscv(&mut self.instr, mgr);
 	}
 }
