@@ -11,7 +11,7 @@
 //     fn name(&self) -> String;
 //     fn dims(&self) -> Vec<u32>;
 // }
-
+use llvm::llvmvar::VarType;
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum BaseType {
 	Int,
@@ -99,5 +99,13 @@ impl IRType {
 			i *= size
 		}
 		i
+	}
+
+	pub fn to_vartype(&self) -> VarType {
+		match self.base_type {
+			BaseType::Int => if self.is_array(){VarType::I32Ptr} else {VarType::I32},
+			BaseType::Float => if self.is_array(){VarType::F32Ptr} else {VarType::F32},
+			_ => unreachable!(),
+		}
 	}
 }

@@ -11,7 +11,7 @@ use crate::{
 pub struct LlvmFuncEmitter {
 	label: Label,
 	params: Vec<Temp>,
-	ret_type: VarType,
+	pub ret_type: VarType,
 	temp_mgr: TempManager,
 	label_mgr: LabelManager,
 	break_label: Vec<Label>,
