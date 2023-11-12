@@ -1,6 +1,6 @@
 use ast::{tree::*, visitor::Visitor};
 use attr::{Attr, Attrs, CompileConstValue};
-use llvm::llvmop::Value;
+use llvm::llvmop::{Value, ConvertOp};
 use llvm::llvmvar::VarType;
 use llvm::temp::Temp;
 use llvm::{func::LlvmFunc, llvmfuncemitter::LlvmFuncEmitter, LlvmProgram};
@@ -31,6 +31,42 @@ impl LlvmIrGen {
 			funcs: self.funcs,
 			// funcs: vec![self.funcemitter.emit_func()],
 			global_vars: vec![],
+		}
+	}
+	fn convert(&mut self, to_type: VarType, value: Value) -> Value {
+		if value.get_type() == to_type {
+			return value;
+		}
+		match &value {
+			Value::Float(f) => {
+				if to_type == VarType::I32 {
+					Value::Int(*f as i32)
+				} else {
+					unreachable!("Float can not be converted to ptr or void")
+				}
+			},
+			Value::Int(i) => {
+				if to_type == VarType::F32 {
+					Value::Float(*i as f32)
+				} else {
+					unreachable!("Int can not be converted to ptr or void")
+				}
+			},
+			Value::Temp(t) => {
+				let op = match t.var_type {
+					VarType::I32 => if to_type == VarType::F32 {ConvertOp::Int2Float} else {unreachable!("Int can not be converted to ptr or void")},
+					VarType::F32 => if to_type == VarType::I32 {ConvertOp::Float2Int} else {unreachable!("Float can not be converted to ptr or void")},
+					_ => unreachable!(),
+				};
+				Value::Temp(self.funcemitter.as_mut().unwrap().visit_convert_instr(
+					op,
+					t.var_type,
+					value,
+					to_type,
+				))
+			},
+
+			_ => unreachable!(),
 		}
 	}
 }
@@ -222,18 +258,6 @@ impl Visitor for LlvmIrGen {
 		&mut self,
 		val_decl: &mut FuncCall,
 	) -> Result<(), SysycError> {
-		let mut params = vec![];
-		for param in &mut val_decl.params {
-			param.accept(self)?;
-			if let Some(Attr::Value(v)) = param.get_attr(VALUE) {
-				params.push(v.clone());
-			} else {
-				return Err(SysycError::LlvmSyntexError(format!(
-					"param of call {} has no value",
-					val_decl.ident.clone()
-				)));
-			}
-		}
 		let funcsymbol_id = match val_decl.get_attr(SYMBOL_NUMBER) {
 			Some(Attr::FuncSymbol(id)) => *id,
 			_ => {
@@ -243,7 +267,32 @@ impl Visitor for LlvmIrGen {
 				)))
 			}
 		};
-		let funcsymbol = &self.data.func_symbols[funcsymbol_id];
+		let funcsymbol = self.data.func_symbols[funcsymbol_id].clone();
+		let mut params = vec![];
+		for (param, para_type) in val_decl.params.iter_mut().zip(funcsymbol.params.iter()) {
+			param.accept(self)?;
+			if let Some(Attr::CompileConstValue(c)) = param.get_attr(COMPILE_CONST) {
+				params.push(match c {
+					CompileConstValue::Int(v) => self.convert(para_type.to_vartype(), Value::Int(*v)),
+					CompileConstValue::Float(v) => self.convert(para_type.to_vartype(), Value::Float(*v)),
+					_ => {
+						return Err(SysycError::LlvmSyntexError(format!(
+							"Compile const value in call should not be {:?}",
+							c
+						)))
+					}
+				});
+				continue;
+			}
+			if let Some(Attr::Value(v)) = param.get_attr(VALUE) {
+				params.push(self.convert(para_type.to_vartype(), v.clone()));
+			} else {
+				return Err(SysycError::LlvmSyntexError(format!(
+					"param of call {} has no value",
+					val_decl.ident.clone()
+				)));
+			}
+		}
 		let var_type = match funcsymbol.ret_t.base_type {
 			ir_type::builtin_type::BaseType::Int => {
 				if funcsymbol.ret_t.dims.is_empty() {
@@ -541,19 +590,34 @@ impl Visitor for LlvmIrGen {
 		Ok(())
 	}
 	fn visit_return(&mut self, val_decl: &mut Return) -> Result<(), SysycError> {
+		let ret_type = self.funcemitter.as_mut().unwrap().ret_type;
 		if let Some(expr) = &mut val_decl.value {
 			expr.accept(self)?;
-			let value = match expr.get_attr(VALUE) {
-				Some(Attr::Value(v)) => v.clone(),
-				_ => {
-					return Err(SysycError::LlvmSyntexError(
-						"return expr has no value".to_string(),
-					))
+			let value = if let Some(Attr::CompileConstValue(v)) = expr.get_attr(COMPILE_CONST) {
+				match v {
+					CompileConstValue::Int(v) => self.convert(ret_type, Value::Int(*v)),
+					CompileConstValue::Float(v) => self.convert(ret_type, Value::Float(*v)),
+					_ => {
+						return Err(SysycError::LlvmSyntexError(format!(
+							"Compile const value in return should not be {:?}",
+							v
+						)));
+					}
+				}
+			} else {	
+				match expr.get_attr(VALUE) {
+					Some(Attr::Value(v)) => self.convert(ret_type, v.clone()),
+					_ => {
+						return Err(SysycError::LlvmSyntexError(
+							"return expr has no value".to_string(),
+						))
+					}
 				}
 			};
 			self.funcemitter.as_mut().unwrap().visit_ret(value);
 		} else {
-			self.funcemitter.as_mut().unwrap().visit_ret(llvm::llvmop::Value::Void);
+			let value = self.convert(ret_type, Value::Void);
+			self.funcemitter.as_mut().unwrap().visit_ret(value);
 		}
 		Ok(())
 	}
