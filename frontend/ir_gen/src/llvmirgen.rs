@@ -1,11 +1,17 @@
 use ast::{tree::*, visitor::Visitor};
 use attr::{Attr, Attrs, CompileConstValue};
-use llvm::llvmop::{ConvertOp, Value};
-use llvm::llvmvar::VarType;
-use llvm::temp::Temp;
-use llvm::{func::LlvmFunc, llvmfuncemitter::LlvmFuncEmitter, LlvmProgram};
-use namer::namer::{COMPILE_CONST, COMPILE_CONST_INDEX, INDEX, SYMBOL_NUMBER};
-use namer::utils::DataFromNamer;
+use llvm::{
+	func::LlvmFunc,
+	llvmfuncemitter::LlvmFuncEmitter,
+	llvmop::{ConvertOp, Value},
+	llvmvar::VarType,
+	temp::Temp,
+	LlvmProgram,
+};
+use namer::{
+	namer::{COMPILE_CONST, COMPILE_CONST_INDEX, INDEX, SYMBOL_NUMBER},
+	utils::DataFromNamer,
+};
 use utils::SysycError;
 
 static VALUE: &str = "value";
