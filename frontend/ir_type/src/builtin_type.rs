@@ -86,18 +86,22 @@ impl IRType {
 		ans
 	}
 
-	pub fn size(&self) -> usize {
-		let mut i = match self.base_type {
-			BaseType::Int => 4,
-			BaseType::Float => 4,
-			_ => unreachable!(),
-		};
-
+	pub fn array_length(&self) -> usize {
+		let mut i = 1;
 		for size in &self.dims {
 			i *= size
 		}
 		i
 	}
+
+	pub fn size(&self) -> usize {
+		match self.base_type {
+			BaseType::Int => 4 * self.array_length(),
+			BaseType::Float => 4 * self.array_length(),
+			_ => unreachable!(),
+		}
+	}
+
 	pub fn to_vartype(&self) -> VarType {
 		match self.base_type {
 			BaseType::Int => {

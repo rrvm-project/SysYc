@@ -81,7 +81,7 @@ impl Namer {
 				Some(CompileConstValue::FloatArray(value)) => {
 					array_init_for_backend(value, |x| InitValueItem::Float(*x))
 				}
-				_ => vec![],
+				_ => vec![InitValueItem::None(symbol.tp.array_length())],
 			};
 
 			global_var_init_value.insert(name.to_string(), value_to_backend);
@@ -92,6 +92,8 @@ impl Namer {
 			var_symbols: std::mem::take(&mut self.var_symbols),
 			func_symbols: std::mem::take(&mut self.func_symbols),
 		};
+
+		println!("{:?}", data.global_var_init_value);
 
 		Ok((program, data))
 	}
