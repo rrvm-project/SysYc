@@ -9,5 +9,5 @@ edition = "2021"
 
 ir_type = {path = "../ir_type"}
 utils = {path = "../../utils"}
-attr = { path = "../../attr" }
+attr = { path = "../attr" }
 llvm = {path = "../../utils/llvm"}

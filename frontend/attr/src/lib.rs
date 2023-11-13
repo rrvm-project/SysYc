@@ -3,7 +3,7 @@ use llvm::llvmop::Value;
 use std::collections::HashMap;
 use utils::SysycError;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Attr {
 	CompileConstValue(CompileConstValue),
 	FuncSymbol(usize),
@@ -11,7 +11,6 @@ pub enum Attr {
 	Type(IRType),
 	UIntValue(usize),
 	IntValue(i32),
-
 	// used in llvmgen
 	Value(Value),
 }

@@ -1,8 +1,13 @@
 use std::fmt::Display;
 
 use crate::{
-	label::Label, llvminstr::*, llvmop::*, llvmvar::VarType, temp::Temp,
-	utils::*, LlvmInstrVariant,
+	label::Label,
+	llvminstr::*,
+	llvmop::*,
+	llvmvar::VarType,
+	temp::Temp,
+	utils_llvm::{all_equal, is_ptr, type_match_ptr, unwrap_values},
+	LlvmInstrVariant,
 };
 impl Display for ArithInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
