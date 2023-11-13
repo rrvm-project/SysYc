@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-llvm = { path = "../utils/llvm" }
-utils = { path = "../utils" }
-ir_type = { path = "../frontend/ir_type" }
+llvm = { path = "../../utils/llvm" }
+utils = { path = "../../utils" }
+ir_type = { path = "../ir_type" }

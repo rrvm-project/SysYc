@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 utils = { path = "../../utils"}
 sysyc_derive = { path = "../../sysyc_derive" }
-attr = { path = "../../attr" }
+attr = { path = "../attr" }

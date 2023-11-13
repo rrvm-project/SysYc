@@ -83,8 +83,6 @@ impl LlvmIrGen {
 						.visit_convert_instr(op, t.var_type, value, to_type),
 				)
 			}
-
-			_ => unreachable!(),
 		}
 	}
 }
@@ -436,7 +434,7 @@ impl Visitor for LlvmIrGen {
 						))
 					}
 				};
-				self.funcemitter.as_mut().unwrap().visit_store_instr(rhs.clone(), addr);
+				self.funcemitter.as_mut().unwrap().visit_store_instr(rhs, addr);
 			}
 			return Ok(());
 		}
@@ -512,13 +510,7 @@ impl Visitor for LlvmIrGen {
 					Some(llvm::llvmop::ArithOp::Div)
 				}
 			}
-			ast::BinaryOp::Mod => {
-				if is_float {
-					Some(llvm::llvmop::ArithOp::Frem)
-				} else {
-					Some(llvm::llvmop::ArithOp::Rem)
-				}
-			}
+			ast::BinaryOp::Mod => Some(llvm::llvmop::ArithOp::Rem),
 			ast::BinaryOp::Assign => {
 				// 不能使用 lhs attrs中的VALUE，应当使用ADDRESS
 				let addr = match val_decl.lhs.get_attr(ADDRESS) {
@@ -529,7 +521,7 @@ impl Visitor for LlvmIrGen {
 						))
 					}
 				};
-				self.funcemitter.as_mut().unwrap().visit_store_instr(rhs.clone(), addr);
+				self.funcemitter.as_mut().unwrap().visit_store_instr(rhs, addr);
 				return Ok(()); // 这里直接返回，不需要再visit了
 			}
 			_ => None,
@@ -634,10 +626,9 @@ impl Visitor for LlvmIrGen {
 					}
 				}
 			};
-			self.funcemitter.as_mut().unwrap().visit_ret(value);
+			self.funcemitter.as_mut().unwrap().visit_ret(Some(value));
 		} else {
-			let value = self.convert(ret_type, Value::Void);
-			self.funcemitter.as_mut().unwrap().visit_ret(value);
+			self.funcemitter.as_mut().unwrap().visit_ret(None);
 		}
 		Ok(())
 	}
@@ -659,18 +650,18 @@ impl Visitor for LlvmIrGen {
 			beginlabel.clone(),
 			skiplabel.clone(),
 		);
-		self.funcemitter.as_mut().unwrap().visit_label(beginlabel.clone());
+		self.funcemitter.as_mut().unwrap().visit_label(beginlabel);
 		val_decl.body.accept(self)?;
 		match val_decl.then {
 			Some(ref mut then_block) => {
 				self.funcemitter.as_mut().unwrap().visit_jump_instr(exitlabel.clone());
-				self.funcemitter.as_mut().unwrap().visit_label(skiplabel.clone());
+				self.funcemitter.as_mut().unwrap().visit_label(skiplabel);
 				then_block.accept(self)?;
-				self.funcemitter.as_mut().unwrap().visit_label(exitlabel.clone());
+				self.funcemitter.as_mut().unwrap().visit_label(exitlabel);
 				Ok(())
 			}
 			None => {
-				self.funcemitter.as_mut().unwrap().visit_label(skiplabel.clone());
+				self.funcemitter.as_mut().unwrap().visit_label(skiplabel);
 				Ok(())
 			}
 		}
@@ -705,11 +696,11 @@ impl Visitor for LlvmIrGen {
 			.funcemitter
 			.as_mut()
 			.unwrap()
-			.visit_label(beginlabel_for_jump_cond_instr.clone());
+			.visit_label(beginlabel_for_jump_cond_instr);
 		val_decl.body.accept(self)?;
-		self.funcemitter.as_mut().unwrap().visit_label(looplabel.clone());
-		self.funcemitter.as_mut().unwrap().visit_jump_instr(beginlabel.clone());
-		self.funcemitter.as_mut().unwrap().visit_label(breaklabel.clone());
+		self.funcemitter.as_mut().unwrap().visit_label(looplabel);
+		self.funcemitter.as_mut().unwrap().visit_jump_instr(beginlabel);
+		self.funcemitter.as_mut().unwrap().visit_label(breaklabel);
 		Ok(())
 	}
 	fn visit_init_val_list(

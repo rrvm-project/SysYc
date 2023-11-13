@@ -4,11 +4,7 @@ use sysyc_derive::Fuyuki;
 
 use crate::{llvmvar::VarType, temp::Temp};
 
-use sysyc_derive::FuyukiDisplay;
-
-use crate::{llvmvar::VarType, temp::Temp};
-
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum Value {
 	Int(i32),
 	Float(f32),

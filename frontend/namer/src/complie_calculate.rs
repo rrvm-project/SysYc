@@ -1,13 +1,9 @@
 use ast::{BinaryOp, UnaryOp};
 use attr::CompileConstValue;
 use ir_type::builtin_type::{BaseType, IRType};
-use utils::{
-	CompileConstValue,
-	SysycError::{self, SyntaxError},
-};
+use utils::SysycError::{self, SyntaxError};
 
 use std::collections::HashMap;
-use utils::SysycError;
 
 pub fn get_value() {}
 

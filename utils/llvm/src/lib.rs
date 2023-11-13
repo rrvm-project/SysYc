@@ -10,14 +10,17 @@ pub mod temp;
 mod impls;
 mod utils_llvm;
 
+use std::{collections::HashMap, fmt::Display};
+
 use func::LlvmFunc;
 pub use llvminstr::*;
 pub use temp::*;
+use utils::InitValueItem;
 
 #[allow(unused)]
 pub struct LlvmProgram {
 	pub funcs: Vec<LlvmFunc>,
-	pub global_vars: HashMap<String, Vec<InitValueItem>>,
+	pub global_vars: HashMap<String, Vec<InitValueItem>>, // this is awful
 }
 
 impl Display for LlvmProgram {

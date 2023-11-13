@@ -81,7 +81,7 @@ fn main() -> Result<()> {
 		return Ok(());
 	}
 
-	let riscv = step_riscv(1)?;
+	let riscv = step_riscv(llvm)?;
 	if args.riscv {
 		write!(writer, "{:?}", riscv)?;
 		return Ok(());

@@ -4,10 +4,7 @@ use utils::InitValueItem;
 
 use scope::symbol::{FuncSymbol, VarSymbol};
 use std::{collections::HashMap, vec};
-use utils::{
-	InitValueItem,
-	SysycError::{self, SyntaxError},
-};
+use utils::SysycError::{self, SyntaxError};
 
 pub fn assert_is_convertable_to(
 	this: &IRType,
