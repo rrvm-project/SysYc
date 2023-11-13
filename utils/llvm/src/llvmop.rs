@@ -13,7 +13,6 @@ pub enum Value {
 	Int(i32),
 	Float(f32),
 	Temp(Temp),
-	Void,
 }
 
 pub trait LlvmOp: Display {
@@ -36,9 +35,6 @@ pub enum ArithOp {
 	Fdiv,
 	// Float mul
 	Fmul,
-	// Float modulo
-	Frem,
-	// shift left
 	Shl,
 	// logical shift right
 	Lshr,
@@ -91,9 +87,11 @@ impl Value {
 		match self {
 			Self::Int(_) => VarType::I32,
 			Self::Float(_) => VarType::F32,
-			Self::Void => VarType::Void,
 			Self::Temp(v) => v.var_type,
 		}
+	}
+	pub fn is_num(&self) -> bool {
+		matches!(self, Self::Temp(_))
 	}
 }
 
@@ -103,7 +101,6 @@ impl Display for Value {
 			Self::Int(v) => write!(f, "{}", v),
 			Self::Float(v) => write!(f, "{}", v),
 			Self::Temp(v) => write!(f, "{}", v),
-			Self::Void => write!(f, "void"),
 		}
 	}
 }
@@ -120,7 +117,6 @@ impl LlvmOp for ArithOp {
 			Self::Fsub => VarType::F32,
 			Self::Fdiv => VarType::F32,
 			Self::Fmul => VarType::F32,
-			Self::Frem => VarType::F32,
 			Self::Shl => VarType::I32,
 			Self::Lshr => VarType::I32,
 			Self::Ashr => VarType::I32,

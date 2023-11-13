@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 llvm = { path = "../../utils/llvm" }
 instruction = { path = "../instruction" }
+
+utils = { path = "../../utils" }

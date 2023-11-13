@@ -12,6 +12,7 @@ mod utils_llvm;
 
 use func::LlvmFunc;
 pub use llvminstr::*;
+pub use temp::*;
 
 #[allow(unused)]
 pub struct LlvmProgram {

@@ -1,21 +1,25 @@
 use std::fmt::Display;
 
-use super::{reg::RiscvReg, riscvop::*, value::Value};
+use super::{riscvop::*, value::*};
 
-pub trait RiscvInstr: Display {
-	fn get_write(&self) -> Value {
-		Value::Reg(RiscvReg::X0)
-	}
-	fn get_read(&self) -> Vec<Value> {
-		Vec::new()
-	}
+pub trait RiscvInstr: Display {}
+
+pub struct RTriInstr {
+	pub op: RTriInstrOp,
+	pub rd: RiscvTemp,
+	pub rs1: RiscvTemp,
+	pub rs2: RiscvTemp,
 }
 
-pub struct RiscvTriInstr {
-	pub op: TriInstrOp,
-	pub target: Value,
-	pub lhs: Value,
-	pub rhs: Value,
+pub struct ITriInstr {
+	pub op: ITriInstrOp,
+	pub rd: RiscvTemp,
+	pub rs1: RiscvTemp,
+	pub rs2: RiscvImm,
 }
 
-// pub struct
+pub struct ILoadInstr {
+	pub op: BiLoadImmOp,
+	pub rd: RiscvTemp,
+	pub rs1: RiscvImm,
+}

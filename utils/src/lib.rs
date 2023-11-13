@@ -43,8 +43,8 @@ impl CompileConstValue {
 		match self {
 			CompileConstValue::Int(v) => Ok(*v),
 			CompileConstValue::Float(v) => Ok(*v as i32),
-			CompileConstValue::IntArray(_) => Err(SysycError::SyntaxError(err)),
-			CompileConstValue::FloatArray(_) => Err(SysycError::SyntaxError(err)),
+			CompileConstValue::IntArray(_) => Err(SyntaxError(err)),
+			CompileConstValue::FloatArray(_) => Err(SyntaxError(err)),
 		}
 	}
 
@@ -53,8 +53,8 @@ impl CompileConstValue {
 		match self {
 			CompileConstValue::Int(v) => Ok(*v as f32),
 			CompileConstValue::Float(v) => Ok(*v),
-			CompileConstValue::IntArray(_) => Err(SysycError::SyntaxError(err)),
-			CompileConstValue::FloatArray(_) => Err(SysycError::SyntaxError(err)),
+			CompileConstValue::IntArray(_) => Err(SyntaxError(err)),
+			CompileConstValue::FloatArray(_) => Err(SyntaxError(err)),
 		}
 	}
 }

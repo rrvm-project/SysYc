@@ -9,7 +9,10 @@ use scope::{
 	symbol::{FuncSymbol, VarSymbol},
 };
 use std::{collections::HashMap, vec};
-use utils::{InitValueItem, SysycError};
+use utils::{
+	InitValueItem,
+	SysycError::{self, SyntaxError},
+};
 
 use crate::complie_calculate::{
 	evaluate_binary, evaluate_unary, type_binary, type_unary,
@@ -105,19 +108,15 @@ impl Visitor for Namer {
 
 		if let Some(f) = &self.scope_stack.lookup_func("main") {
 			if f.ret_t.base_type != BaseType::Int {
-				return Err(SysycError::SyntaxError(
-					"main function should return int".to_string(),
-				));
+				return Err(SyntaxError("main function should return int".to_string()));
 			}
 			if !f.params.is_empty() {
-				return Err(SysycError::SyntaxError(
+				return Err(SyntaxError(
 					"main function should not have any parameter".to_string(),
 				));
 			}
 		} else {
-			return Err(SysycError::SyntaxError(
-				"main function not found".to_string(),
-			));
+			return Err(SyntaxError("main function not found".to_string()));
 		}
 		Ok(())
 	}
@@ -151,9 +150,7 @@ impl Visitor for Namer {
 						continue;
 					}
 				}
-				return Err(SysycError::SyntaxError(
-					"Illegal length for array".to_string(),
-				));
+				return Err(SyntaxError("Illegal length for array".to_string()));
 			}
 		}
 
@@ -186,7 +183,7 @@ impl Visitor for Namer {
 							Some(CompileConstValue::FloatArray(HashMap::new()))
 						}
 						_ => {
-							return Err(SysycError::SyntaxError(format!(
+							return Err(SyntaxError(format!(
 								"{:?} is not a valid base type for array",
 								var_type.base_type
 							)))
@@ -200,7 +197,7 @@ impl Visitor for Namer {
 					for (key, value) in init_value_from_context.into_iter() {
 						match (var_type.base_type, &value) {
 							(_, InitValueItem::None(_)) => {
-								return Err(SysycError::SyntaxError(
+								return Err(SyntaxError(
 									"Not compile time const in a global or const array"
 										.to_string(),
 								));
@@ -236,7 +233,7 @@ impl Visitor for Namer {
 							}
 
 							(_, _) => {
-								return Err(SysycError::SyntaxError(format!(
+								return Err(SyntaxError(format!(
 									"{:?} found in a {:?} array",
 									value, var_type.base_type
 								)))
@@ -329,14 +326,14 @@ impl Visitor for Namer {
 				.lookup_var(func_decl.ident.as_str())
 				.is_some()
 		{
-			return Err(SysycError::SyntaxError(format!(
+			return Err(SyntaxError(format!(
 				"Identifier {} already declared",
 				func_decl.ident
 			)));
 		}
 
 		if !self.scope_stack.current_is_global() {
-			return Err(SysycError::SyntaxError(format!(
+			return Err(SyntaxError(format!(
 				"Function {} is not defined globally",
 				func_decl.ident
 			)));
@@ -504,7 +501,7 @@ impl Visitor for Namer {
 				Attr::Type(type_binary(type_l, &binary_expr.op, type_r)?),
 			);
 		} else {
-			return Err(SysycError::SyntaxError(format!(
+			return Err(SyntaxError(format!(
 				"Failed to determain type of the assignment {:?}",
 				binary_expr
 			)));
@@ -542,7 +539,7 @@ impl Visitor for Namer {
 			unary_expr
 				.set_attr(TYPE, Attr::Type(type_unary(&unary_expr.op, type_r)?));
 		} else {
-			return Err(SysycError::SyntaxError(format!(
+			return Err(SyntaxError(format!(
 				"Failed to determain type of the assignment {:?}",
 				unary_expr
 			)));
@@ -570,7 +567,7 @@ impl Visitor for Namer {
 			// 给FuncCall绑定上一个FuncSymbol
 			func_call.set_attr(SYMBOL_NUMBER, Attr::FuncSymbol(func_symbol.id));
 			if func_call.params.len() != func_symbol.params.len() {
-				return Err(SysycError::SyntaxError(format!(
+				return Err(SyntaxError(format!(
 					"In correct argument list length when calling {}",
 					func_symbol.name
 				)));
@@ -585,7 +582,7 @@ impl Visitor for Namer {
 				}
 			}
 		} else {
-			return Err(SysycError::SyntaxError(format!(
+			return Err(SyntaxError(format!(
 				"Unknown func symbol {:?}",
 				func_call.ident
 			)));
@@ -612,14 +609,14 @@ impl Visitor for Namer {
 					item.get_attr(COMPILE_CONST)
 				{
 					if *value < 0 {
-						return Err(SysycError::SyntaxError(format!(
+						return Err(SyntaxError(format!(
 							"Error in {}'s dim list. Need to be non-negative",
 							formal_param.ident
 						)));
 					}
 					dim_list.push(*value as usize);
 				} else {
-					return Err(SysycError::SyntaxError(format!("Error in {}'s dim list. Only compile time const integer is allowed",formal_param.ident )));
+					return Err(SyntaxError(format!("Error in {}'s dim list. Only compile time const integer is allowed",formal_param.ident )));
 				}
 			}
 		}
@@ -651,9 +648,7 @@ impl Visitor for Namer {
 	fn visit_lval(&mut self, lval: &mut Lval) -> Result<(), SysycError> {
 		let symbol = self.scope_stack.lookup_var(&lval.ident);
 		if symbol.is_none() {
-			return Err(SysycError::SyntaxError(
-				"undefined variable ".to_string() + &lval.ident,
-			));
+			return Err(SyntaxError("undefined variable ".to_string() + &lval.ident));
 		}
 		let symbol = symbol.unwrap();
 		let symbol_id = symbol.id;
@@ -673,7 +668,7 @@ impl Visitor for Namer {
 		if symbol.tp.is_array() {
 			if let Some(dim_list) = lval.dim_list.as_mut() {
 				if dim_list.len() != symbol.tp.dims.len() {
-					return Err(SysycError::SyntaxError(format!(
+					return Err(SyntaxError(format!(
 						"{:?} has {:?} dims, not {:?} dims",
 						symbol.name,
 						symbol.tp.dims.len(),
@@ -705,7 +700,7 @@ impl Visitor for Namer {
 							_ => unreachable!(),
 						};
 						if index < 0 {
-							return Err(SysycError::SyntaxError(
+							return Err(SyntaxError(
 								"Index of array must be non-negative!".to_string(),
 							));
 						}
@@ -753,7 +748,7 @@ impl Visitor for Namer {
 									};
 								}
 								_ => {
-									return Err(SysycError::SyntaxError(
+									return Err(SyntaxError(
 										"scalar type can not be indexed".to_string(),
 									))
 								}

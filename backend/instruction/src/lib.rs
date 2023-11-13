@@ -1,6 +1,7 @@
 pub mod instr_dag;
 pub mod instr_schedule;
 pub mod riscv;
+mod temp;
 pub mod transformer;
 
 use llvm::llvminstr::LlvmInstr;

@@ -3,7 +3,7 @@ use std::{collections::HashMap, hash::Hash};
 use ast::{tree::*, BinaryOp, FuncType, UnaryOp, VarType};
 use pest::{iterators::Pair, pratt_parser::PrattParser, Parser};
 use pest_derive::Parser;
-use utils::SysycError;
+use utils::SysycError::{self, DecafLexError};
 
 #[derive(Parser)]
 #[grammar = "sysy2022.pest"]
@@ -296,7 +296,7 @@ fn parse_comp_unit(pair: Pair<Rule>) -> Option<Node> {
 
 pub fn parse(str: &str) -> Result<Program, SysycError> {
 	let progam = SysycParser::parse(Rule::Program, str)
-		.map_err(|e| SysycError::DecafLexError(e.to_string()))?;
+		.map_err(|e| DecafLexError(e.to_string()))?;
 	Ok(Program {
 		_attrs: HashMap::new(),
 		comp_units: progam.into_iter().filter_map(parse_comp_unit).collect(),
