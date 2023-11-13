@@ -1,8 +1,9 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use llvm::{llvminstr::LlvmInstr, temp::TempManager};
+use llvm::llvminstr::LlvmInstr;
+use utils::SysycError;
 
-use crate::{transformer::to_riscv, InstrSet};
+use crate::{temp::TempManager, transformer::to_riscv, InstrSet};
 
 type Node = Rc<RefCell<InstrNode>>;
 
@@ -24,8 +25,9 @@ impl InstrNode {
 			succ,
 		}
 	}
-	pub fn convert(&mut self, mgr: &mut TempManager) {
-		to_riscv(&mut self.instr, mgr);
+	pub fn convert(&mut self, mgr: &mut TempManager) -> Result<(), SysycError> {
+		to_riscv(&mut self.instr, mgr)?;
+		Ok(())
 	}
 }
 
@@ -52,10 +54,11 @@ impl InstrDag {
 		}
 		InstrDag { nodes }
 	}
-	pub fn convert(&mut self) {
+	pub fn convert(&mut self) -> Result<(), SysycError> {
 		let mut mgr = TempManager::new();
 		for node in self.nodes.iter_mut() {
-			node.borrow_mut().convert(&mut mgr);
+			node.borrow_mut().convert(&mut mgr)?;
 		}
+		Ok(())
 	}
 }

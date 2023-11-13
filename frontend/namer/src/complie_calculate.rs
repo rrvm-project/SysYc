@@ -1,6 +1,11 @@
 use ast::{BinaryOp, UnaryOp};
 use attr::CompileConstValue;
 use ir_type::builtin_type::{BaseType, IRType};
+use utils::{
+	CompileConstValue,
+	SysycError::{self, SyntaxError},
+};
+
 use std::collections::HashMap;
 use utils::SysycError;
 
@@ -21,7 +26,7 @@ fn get_type_mock(x: &IRType) -> Result<CompileConstValue, SysycError> {
 		(BaseType::Int, _) => Ok(CompileConstValue::IntArray(HashMap::new())),
 		(BaseType::Float, 0) => Ok(CompileConstValue::Float(1.0)),
 		(BaseType::Float, _) => Ok(CompileConstValue::FloatArray(HashMap::new())),
-		_ => Err(SysycError::SyntaxError(format!(
+		_ => Err(SyntaxError(format!(
 			"type {:?} is not available in expressions",
 			x
 		))),
@@ -69,9 +74,8 @@ fn x_op_y(
 		return Ok(CompileConstValue::Int(int_op(*x, *y)));
 	}
 	let err_msg = error_binary_op(lhs, op_name, rhs);
-	let x =
-		value_unwarp_f32(lhs).ok_or(SysycError::SyntaxError(err_msg.clone()))?;
-	let y = value_unwarp_f32(rhs).ok_or(SysycError::SyntaxError(err_msg))?;
+	let x = value_unwarp_f32(lhs).ok_or(SyntaxError(err_msg.clone()))?;
+	let y = value_unwarp_f32(rhs).ok_or(SyntaxError(err_msg))?;
 	if logical {
 		if float_op(x, y) == 0.0 {
 			Ok(CompileConstValue::Int(0))
@@ -103,7 +107,7 @@ fn op_y(
 			Ok(CompileConstValue::Float(float_op(*x)))
 		}
 	} else {
-		Err(SysycError::SyntaxError(error_unary_op(op_name, rhs)))
+		Err(SyntaxError(error_unary_op(op_name, rhs)))
 	}
 }
 
@@ -245,7 +249,7 @@ pub fn type_unary(op: &UnaryOp, rhs: &IRType) -> Result<IRType, SysycError> {
 			dims: vec![],
 			is_const: false,
 		}),
-		_ => Err(SysycError::SyntaxError(
+		_ => Err(SyntaxError(
 			"Result of unary operation must be scalar!".to_string(),
 		)),
 	}
@@ -270,7 +274,7 @@ pub fn type_binary(
 			dims: vec![],
 			is_const: false,
 		}),
-		_ => Err(SysycError::SyntaxError(
+		_ => Err(SyntaxError(
 			"Result of binary operation must be scalar!".to_string(),
 		)),
 	}

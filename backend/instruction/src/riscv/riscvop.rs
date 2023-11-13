@@ -1,26 +1,8 @@
-use std::fmt::Display;
-
 use sysyc_derive::Fuyuki;
 
-use super::value::Value;
-
-// trait
-
-// type Reg = Box<dyn >
-// type OffsetReg = (i32, )
-
-impl Display for Value {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::Imm(v) => write!(f, "{}", v),
-			Self::Temp(v) => write!(f, "{}", v),
-			Self::Reg(v) => write!(f, "{}", v),
-		}
-	}
-}
-
+/// op rd, rs1, imm
 #[derive(Fuyuki)]
-pub enum TriInstrOp {
+pub enum ITriInstrOp {
 	Addi,
 	Subi,
 	Muli,
@@ -34,7 +16,11 @@ pub enum TriInstrOp {
 	Slli,
 	Srli,
 	Srai,
+}
 
+/// op rd, rs1, rs2
+#[derive(Fuyuki)]
+pub enum RTriInstrOp {
 	Add,
 	Sub,
 	Mul,
@@ -57,4 +43,18 @@ pub enum TriInstrOp {
 	Fmul,
 	#[style("fdiv.s")]
 	Fdiv,
+}
+
+/// op rd, imm
+#[derive(Fuyuki)]
+pub enum BiLoadImmOp {
+	Li,
+	Lui,
+}
+
+#[derive(Fuyuki)]
+pub enum UnInstrOp {
+	Li,
+	Lb,
+	Lh,
 }

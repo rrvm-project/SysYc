@@ -1,8 +1,12 @@
-use llvm::{temp::TempManager, LlvmInstrVariant};
+use llvm::LlvmInstrVariant;
+use utils::SysycError;
 
-use crate::{riscv::convert::*, InstrSet};
+use crate::{riscv::convert::*, temp::TempManager, InstrSet};
 
-pub fn to_riscv(src: &mut InstrSet, mgr: &mut TempManager) {
+pub fn to_riscv(
+	src: &mut InstrSet,
+	mgr: &mut TempManager,
+) -> Result<(), SysycError> {
 	let instr = match src {
 		InstrSet::LlvmInstrSet(v) => v,
 		_ => unreachable!(),
@@ -23,5 +27,6 @@ pub fn to_riscv(src: &mut InstrSet, mgr: &mut TempManager) {
 		LlvmInstrVariant::LoadInstr(v) => riscv_load(v, mgr),
 		LlvmInstrVariant::GEPInstr(v) => riscv_gep(v, mgr),
 		LlvmInstrVariant::CallInstr(v) => riscv_call(v, mgr),
-	}
+	}?;
+	Ok(())
 }

@@ -4,37 +4,38 @@ use utils::InitValueItem;
 
 use scope::symbol::{FuncSymbol, VarSymbol};
 use std::{collections::HashMap, vec};
-use utils::SysycError;
+use utils::{
+	InitValueItem,
+	SysycError::{self, SyntaxError},
+};
 
 pub fn assert_is_convertable_to(
 	this: &IRType,
 	other: &IRType,
 ) -> Result<(), SysycError> {
 	if this.is_const && !other.is_const {
-		return Err(SysycError::SyntaxError(
+		return Err(SyntaxError(
 			"can not convert const into nonconst".to_string(),
 		));
 	}
 
 	if this.is_array() != other.is_array() {
-		return Err(SysycError::SyntaxError(
+		return Err(SyntaxError(
 			"can not convert between scalar and array".to_string(),
 		));
 	}
 	if this.base_type == BaseType::Void || other.base_type == BaseType::Void {
-		return Err(SysycError::SyntaxError(
-			"can not convert Void type".to_string(),
-		));
+		return Err(SyntaxError("can not convert Void type".to_string()));
 	}
 	if this.dim_length() != other.dim_length() {
-		return Err(SysycError::SyntaxError(
+		return Err(SyntaxError(
 			"can not convert between arrays of different dims".to_string(),
 		));
 	}
 
 	for i in 1..this.dim_length() {
 		if this.dims[i] != other.dims[i] {
-			return  Err(SysycError::SyntaxError(format!("can not convert between arrays of different size. At dim {}, try convert {} to {}",i, this.dims[i], other.dims[i])));
+			return  Err(SyntaxError(format!("can not convert between arrays of different size. At dim {}, try convert {} to {}",i, this.dims[i], other.dims[i])));
 		}
 	}
 	Ok(())

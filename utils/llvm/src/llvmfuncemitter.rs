@@ -210,7 +210,7 @@ impl LlvmFuncEmitter {
 		target
 	}
 
-	pub fn visit_ret(&mut self, value: Value) {
+	pub fn visit_ret(&mut self, value: Option<Value>) {
 		let instr = RetInstr { value };
 		self.func_body.push(Box::new(instr));
 	}
@@ -340,11 +340,11 @@ impl LlvmFuncEmitter {
 	}
 
 	pub fn visit_end(mut self) -> LlvmFunc {
-		fn get_default_value(ret_type: VarType) -> Value {
+		fn get_default_value(ret_type: VarType) -> Option<Value> {
 			match ret_type {
-				VarType::F32 => Value::Float(0.0),
-				VarType::I32 => Value::Int(0),
-				VarType::Void => Value::Void,
+				VarType::F32 => Some(Value::Float(0.0)),
+				VarType::I32 => Some(Value::Int(0)),
+				VarType::Void => None,
 				_ => unreachable!(),
 			}
 		}

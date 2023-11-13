@@ -1,5 +1,5 @@
 use crate::{
-	label::Label, llvmop::*, llvmvar::VarType, temp::Temp, LlvmInstrVariant,
+	label::Label, llvmop::*, llvmvar::VarType, LlvmInstrVariant, Temp,
 };
 use std::fmt::Display;
 
@@ -78,7 +78,7 @@ pub struct PhiInstr {
 }
 
 pub struct RetInstr {
-	pub value: Value,
+	pub value: Option<Value>,
 }
 
 pub struct AllocInstr {

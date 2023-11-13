@@ -183,10 +183,10 @@ impl LlvmInstr for PhiInstr {
 
 impl Display for RetInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		if let Value::Void = self.value {
-			write!(f, "  ret void")
+		if let Some(value) = self.value.as_ref() {
+			write!(f, "  ret {} {}", value.get_type(), value)
 		} else {
-			write!(f, "  ret {} {}", self.value.get_type(), self.value)
+			write!(f, "  ret void")
 		}
 	}
 }
@@ -196,7 +196,9 @@ impl LlvmInstr for RetInstr {
 		LlvmInstrVariant::RetInstr(self)
 	}
 	fn get_read(&self) -> Vec<Temp> {
-		vec![&self.value].into_iter().flat_map(|v| v.unwrap_temp()).collect()
+		self.value.as_ref().map_or(Vec::new(), |v| {
+			vec![&v].into_iter().flat_map(|v| v.unwrap_temp()).collect()
+		})
 	}
 	fn is_seq(&self) -> bool {
 		false

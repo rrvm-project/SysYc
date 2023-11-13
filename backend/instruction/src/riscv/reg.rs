@@ -1,6 +1,6 @@
 use sysyc_derive::Fuyuki;
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, Clone, Copy)]
 pub enum RiscvReg {
 	X0, // always zero
 	RA, // return address

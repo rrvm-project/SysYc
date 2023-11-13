@@ -51,9 +51,10 @@ fn step_llvm(program: Program) -> Result<LlvmProgram> {
 #[allow(unused_variables)]
 fn step_riscv(program: LlvmProgram) -> Result<i32> {
 	let mut program = RrvmProgram::new(program);
-	program.solve_global();
-	program.funcs =
+	program.solve_global()?;
+	let funcs: Result<Vec<_>, _> =
 		program.funcs.into_iter().map(rrvm_func::transform_riscv).collect();
+	program.funcs = funcs?;
 	let code = program.alloc_reg();
 	Ok(code)
 }
