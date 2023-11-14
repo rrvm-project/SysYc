@@ -34,7 +34,7 @@ impl From<RiscvReg> for RiscvTemp {
 pub enum RiscvImm {
 	Int(i32),
 	Label(utils::Label),
-	OffsetReg(i32, RiscvReg),
+	OffsetReg(i32, RiscvTemp),
 }
 
 impl Display for RiscvTemp {
@@ -68,8 +68,8 @@ impl From<utils::Label> for RiscvImm {
 	}
 }
 
-impl From<(i32, RiscvReg)> for RiscvImm {
-	fn from(x: (i32, RiscvReg)) -> Self {
+impl From<(i32, RiscvTemp)> for RiscvImm {
+	fn from(x: (i32, RiscvTemp)) -> Self {
 		RiscvImm::OffsetReg(x.0, x.1)
 	}
 }

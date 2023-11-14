@@ -39,7 +39,7 @@ jobs:
         run: cargo install clippy-sarif sarif-fmt
 
       - name: Run cargo build
-        run: cargo build --deny warnings
+        run: cargo build --workspace
 
       - name: Run rust-clippy
         run:
