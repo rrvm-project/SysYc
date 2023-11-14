@@ -19,12 +19,29 @@ pub struct ITriInstr {
 	pub rs2: RiscvImm,
 }
 
-pub struct ILoadInstr {
-	pub op: BiLoadImmOp,
+pub struct IBinInstr {
+	pub op: IBinInstrOp,
 	pub rd: RiscvTemp,
 	pub rs1: RiscvImm,
 }
 
+pub struct RBinInstr {
+	pub op: RBinInstrOp,
+	pub rd: RiscvTemp,
+	pub rs1: RiscvTemp,
+}
+
 pub struct LabelInstr {
 	pub label: Label,
+}
+
+pub struct BranInstr {
+	pub op: BranInstrOp,
+	pub rs1: RiscvTemp,
+	pub rs2: RiscvTemp,
+	pub to: RiscvImm,
+}
+
+pub struct NoArgInstr {
+	pub op: NoArgInstrOp,
 }

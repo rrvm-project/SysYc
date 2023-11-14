@@ -93,7 +93,7 @@ impl Value {
 		}
 	}
 	pub fn is_num(&self) -> bool {
-		matches!(self, Self::Temp(_))
+		!matches!(self, Self::Temp(_))
 	}
 }
 

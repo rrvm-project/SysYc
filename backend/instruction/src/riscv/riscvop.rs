@@ -1,24 +1,25 @@
 use llvm::llvmop::ArithOp;
 use sysyc_derive::Fuyuki;
 
-pub use BiLoadImmOp::*;
+pub use BranInstrOp::*;
+pub use IBinInstrOp::*;
 pub use ITriInstrOp::*;
+pub use NoArgInstrOp::*;
+pub use RBinInstrOp::*;
 pub use RTriInstrOp::*;
 
 /// op rd, rs1, imm
 #[derive(Fuyuki)]
 pub enum ITriInstrOp {
 	Addi,
-	Subi,
-	Muli,
-	Remi,
-	Divi,
+
 	Xori,
 	Ori,
 	Andi,
 	Slli,
 	Srli,
 	Srai,
+
 	Slti,
 	Sltiu,
 }
@@ -59,9 +60,25 @@ pub enum RTriInstrOp {
 
 /// op rd, imm
 #[derive(Fuyuki)]
-pub enum BiLoadImmOp {
+pub enum IBinInstrOp {
 	Li,
 	Lui,
+	LD,
+	LW,
+	LWU,
+	SB,
+	SH,
+	SW,
+	SD,
+}
+
+/// op rd, imm
+#[derive(Fuyuki)]
+pub enum RBinInstrOp {
+	#[style("fcvt.s.w")]
+	Int2Float,
+	#[style("fcvt.w.s")]
+	Float2Int,
 }
 
 #[derive(Fuyuki)]
@@ -71,13 +88,43 @@ pub enum UnInstrOp {
 	Lh,
 }
 
+#[derive(Fuyuki)]
+pub enum BranInstrOp {
+	#[style("BEQ")]
+	BEQ,
+	#[style("BNE")]
+	BNE,
+	#[style("BLT")]
+	BLT,
+	#[style("BGE")]
+	BGE,
+	#[style("BLTU")]
+	BLTU,
+	#[style("BGEU")]
+	BGEU,
+}
+
+#[derive(Fuyuki)]
+pub enum NoArgInstrOp {
+	Ret,
+}
+
+pub fn can_to_iop(op: &ArithOp) -> bool {
+	matches!(
+		op,
+		ArithOp::Add
+			| ArithOp::Shl
+			| ArithOp::Lshr
+			| ArithOp::Ashr
+			| ArithOp::And
+			| ArithOp::Or
+			| ArithOp::Xor
+	)
+}
+
 pub fn to_iop(op: &ArithOp) -> ITriInstrOp {
 	match op {
 		ArithOp::Add => Addi,
-		ArithOp::Sub => Subi,
-		ArithOp::Mul => Muli,
-		ArithOp::Div => Divi,
-		ArithOp::Rem => Remi,
 		ArithOp::Shl => Slli,
 		ArithOp::Lshr => Srli,
 		ArithOp::Ashr => Srai,
