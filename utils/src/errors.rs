@@ -16,6 +16,8 @@ pub enum SysycError {
 	RiscvGenError(String),
 }
 
+pub type Result<T, E = SysycError> = core::result::Result<T, E>;
+
 pub fn map_sys_err(e: std::io::Error) -> SysycError {
 	SystemError(e.to_string())
 }

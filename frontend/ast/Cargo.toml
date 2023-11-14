@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+attr = { path = "../attr" }
 utils = { path = "../../utils"}
 sysyc_derive = { path = "../../sysyc_derive" }
-attr = { path = "../attr" }

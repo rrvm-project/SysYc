@@ -13,9 +13,7 @@ use anyhow::Result;
 use ast::tree::Program;
 use clap::Parser;
 use cli::Args;
-use ir_gen::llvmirgen::LlvmIrGen;
 use llvm::LlvmProgram;
-use namer::namer::Namer;
 use parser::parser::parse;
 use rrvm_program::rrvmprogram::RrvmProgram;
 use utils::{fatal_error, map_sys_err};
@@ -32,20 +30,7 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 
 #[allow(unused_variables)]
 fn step_llvm(program: Program) -> Result<LlvmProgram> {
-	let mut namer: Namer = Namer::default();
-	let (program, data) = namer.transform(program)?;
-
-	// let mut writer: Box<dyn Write> = Box::new(io::stdout());
-	// let x = format!("{:#?}", program);
-	// write!(writer, "{}", trans_indent(&x, PARSER_INDENT))?;
-
-	let mut generator: LlvmIrGen = LlvmIrGen {
-		data,
-		funcs: vec![],
-		funcemitter: None,
-	};
-	generator.transform(program)?;
-	Ok(generator.emit_program())
+	todo!()
 }
 
 #[allow(unused_variables)]

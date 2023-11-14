@@ -1,12 +1,12 @@
 use attr::{Attr, Attrs};
 use std::fmt::Debug;
 use sysyc_derive::{has_attrs, AstNode};
-use utils::SysycError;
+use utils::errors::Result;
 
 use crate::{visitor::Visitor, BinaryOp, FuncType, UnaryOp, VarType};
 
 pub trait AstNode: Debug + Attrs {
-	fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<(), SysycError>;
+	fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<()>;
 }
 
 pub type Node = Box<dyn AstNode>;

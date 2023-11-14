@@ -5,13 +5,11 @@ use instruction::{
 	instr_dag::InstrDag, instr_schedule::instr_serialize, InstrSet,
 };
 use llvm::func::LlvmFunc;
-use utils::SysycError;
+use utils::errors::Result;
 
 pub mod basicblock;
 
-pub fn transform_basicblock(
-	block: BasicBlock,
-) -> Result<BasicBlock, SysycError> {
+pub fn transform_basicblock(block: BasicBlock) -> Result<BasicBlock> {
 	let mut instr_dag = InstrDag::new(block.instrs);
 	instr_dag.convert()?;
 	Ok(BasicBlock {
