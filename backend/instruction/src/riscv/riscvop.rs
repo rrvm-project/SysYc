@@ -8,7 +8,6 @@ pub use NoArgInstrOp::*;
 pub use RBinInstrOp::*;
 pub use RTriInstrOp::*;
 
-/// op rd, rs1, imm
 #[derive(Fuyuki)]
 pub enum ITriInstrOp {
 	Addi,
@@ -24,7 +23,6 @@ pub enum ITriInstrOp {
 	Sltiu,
 }
 
-/// op rd, rs1, rs2
 #[derive(Fuyuki)]
 pub enum RTriInstrOp {
 	Add,
@@ -58,7 +56,6 @@ pub enum RTriInstrOp {
 	Fle,
 }
 
-/// op rd, imm
 #[derive(Fuyuki)]
 pub enum IBinInstrOp {
 	Li,
@@ -72,7 +69,6 @@ pub enum IBinInstrOp {
 	SD,
 }
 
-/// op rd, imm
 #[derive(Fuyuki)]
 pub enum RBinInstrOp {
 	#[style("fcvt.s.w")]

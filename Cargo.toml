@@ -10,12 +10,8 @@ members = [
   "sysyc_derive",
   "utils",
   "utils/llvm",
-  "frontend/attr",
   "frontend/ast",
   "frontend/scope",
-  "frontend/ir_gen",
-  "frontend/scope",
-  "frontend/ir_type",
   "frontend/parser",
   "backend/basicblock",
   "backend/cfg",
@@ -30,8 +26,6 @@ llvm = { path = "utils/llvm" }
 
 ast = { path = "frontend/ast" }
 parser = { path = "frontend/parser" }
-namer = { path = "frontend/namer" }
-ir_gen = { path = "frontend/ir_gen" }
 
 rrvm_func = { path = "backend/func" }
 rrvm_program = { path = "backend/program" }

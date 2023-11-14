@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use llvm::llvminstr::LlvmInstr;
-use utils::SysycError;
+use utils::errors::Result;
 
 use crate::{temp::TempManager, transformer::to_riscv, InstrSet};
 
@@ -25,7 +25,7 @@ impl InstrNode {
 			succ,
 		}
 	}
-	pub fn convert(&mut self, mgr: &mut TempManager) -> Result<(), SysycError> {
+	pub fn convert(&mut self, mgr: &mut TempManager) -> Result<()> {
 		to_riscv(&mut self.instr, mgr)?;
 		Ok(())
 	}
@@ -54,7 +54,7 @@ impl InstrDag {
 		}
 		InstrDag { nodes }
 	}
-	pub fn convert(&mut self) -> Result<(), SysycError> {
+	pub fn convert(&mut self) -> Result<()> {
 		let mut mgr = TempManager::new();
 		for node in self.nodes.iter_mut() {
 			node.borrow_mut().convert(&mut mgr)?;

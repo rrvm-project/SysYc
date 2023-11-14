@@ -1,11 +1,11 @@
 use std::rc::Rc;
 
-use utils::SysycError;
+use utils::errors::Result;
 
 use crate::{instr_dag::InstrDag, InstrSet};
 
 // TODO: construct InstrSet
-pub fn instr_serialize(dag: InstrDag) -> Result<InstrSet, SysycError> {
+pub fn instr_serialize(dag: InstrDag) -> Result<InstrSet> {
 	let mut can_alloc = Vec::new();
 	// let mut instrs = Vec::new();
 	for node in dag.nodes {

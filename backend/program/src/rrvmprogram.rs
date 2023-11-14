@@ -1,6 +1,6 @@
 use llvm::LlvmProgram;
 use rrvm_func::rrvmfunc::RrvmFunc;
-use utils::SysycError;
+use utils::errors::Result;
 
 pub struct RrvmProgram {
 	pub funcs: Vec<RrvmFunc>,
@@ -11,7 +11,7 @@ impl RrvmProgram {
 	pub fn new(program: LlvmProgram) -> RrvmProgram {
 		todo!()
 	}
-	pub fn solve_global(&mut self) -> Result<(), SysycError> {
+	pub fn solve_global(&mut self) -> Result<()> {
 		todo!()
 	}
 	pub fn alloc_reg(&mut self) -> i32 {
