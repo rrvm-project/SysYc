@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
+use utils::Label;
+
 use crate::{
-	label::Label,
 	llvminstr::*,
 	llvmop::*,
 	llvmvar::VarType,

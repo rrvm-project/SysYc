@@ -1,6 +1,7 @@
+use utils::{Label, LabelManager};
+
 use crate::{
 	func::LlvmFunc,
-	label::{Label, LabelManager},
 	llvminstr::*,
 	llvmop::*,
 	llvmvar::VarType,

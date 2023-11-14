@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 
 use instruction::InstrSet;
-use llvm::{label::Label, temp::Temp};
+use llvm::temp::Temp;
+use utils::Label;
 
 pub struct BasicBlock {
 	pub id: usize,

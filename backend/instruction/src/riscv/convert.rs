@@ -4,7 +4,7 @@ use llvm::llvmop::*;
 use utils::SysycError::{self, RiscvGenError};
 
 use crate::{
-	riscv::{reg::RiscvReg, riscvinstr::*, riscvop::*, value::*},
+	riscv::{reg::*, riscvinstr::*, riscvop::*, value::*},
 	temp::TempManager,
 	InstrSet, RiscvInstrSet,
 };
@@ -16,10 +16,10 @@ fn i32_to_reg(
 ) -> RiscvTemp {
 	let rd = mgr.new_temp();
 	if is_lower(num) {
-		instrs.push(ILoadInstr::new(BiLoadImmOp::Li, rd, Int(num)));
+		instrs.push(ILoadInstr::new(Li, rd, Int(num)));
 	} else {
-		instrs.push(ILoadInstr::new(BiLoadImmOp::Lui, rd, Int(num >> 12)));
-		instrs.push(ITriInstr::new(ITriInstrOp::Addi, rd, rd, Int(num & 0xFFF)));
+		instrs.push(ILoadInstr::new(Lui, rd, Int(num >> 12)));
+		instrs.push(ITriInstr::new(Addi, rd, rd, Int(num & 0xFFF)));
 	}
 	rd
 }
@@ -51,56 +51,40 @@ fn into_reg(
 	}
 }
 
+fn get_arith(
+	rd: RiscvTemp,
+	op: ArithOp,
+	lhs: &Value,
+	rhs: &Value,
+	instrs: &mut RiscvInstrSet,
+	mgr: &mut TempManager,
+) {
+	match end_num(lhs) {
+		Some(num) if is_commutative(&op) => {
+			let rhs = into_reg(lhs, instrs, mgr);
+			instrs.push(ITriInstr::new(to_iop(&op), rd, rhs, num.into()));
+		}
+		_ => {
+			if let Some(num) = end_num(rhs) {
+				let lhs = into_reg(lhs, instrs, mgr);
+				instrs.push(ITriInstr::new(to_iop(&op), rd, lhs, num.into()));
+			} else {
+				let lhs = into_reg(lhs, instrs, mgr);
+				let rhs = into_reg(rhs, instrs, mgr);
+				instrs.push(RTriInstr::new(to_rop(&op), rd, lhs, rhs));
+			}
+		}
+	}
+}
+
 pub fn riscv_arith(
 	instr: &llvm::llvminstr::ArithInstr,
 	mgr: &mut TempManager,
 ) -> Result<InstrSet, SysycError> {
 	let mut instrs: RiscvInstrSet = Vec::new();
-	let (lhs, rhs) = if instr.lhs.is_num() {
-		(&instr.rhs, &instr.lhs)
-	} else {
-		(&instr.lhs, &instr.rhs)
-	};
-	let lhs = into_reg(lhs, &mut instrs, mgr);
-	if let Some(num) = end_num(&instr.rhs) {
-		let op = match &instr.op {
-			ArithOp::Add => ITriInstrOp::Addi,
-			ArithOp::Sub => ITriInstrOp::Subi,
-			ArithOp::Mul => ITriInstrOp::Muli,
-			ArithOp::Div => ITriInstrOp::Divi,
-			ArithOp::Rem => ITriInstrOp::Remi,
-			ArithOp::And => ITriInstrOp::Andi,
-			ArithOp::Or => ITriInstrOp::Ori,
-			ArithOp::Xor => ITriInstrOp::Xori,
-			ArithOp::Shl => ITriInstrOp::Slli,
-			ArithOp::Lshr => ITriInstrOp::Srli,
-			ArithOp::Ashr => ITriInstrOp::Srai,
-			_ => Err(RiscvGenError("use float op with integer".to_string()))?,
-		};
-		let rd = mgr.new_temp();
-		instrs.push(ITriInstr::new(op, rd, lhs, RiscvImm::Int(num)));
-	} else {
-		let op = match &instr.op {
-			ArithOp::Add => RTriInstrOp::Add,
-			ArithOp::Sub => RTriInstrOp::Sub,
-			ArithOp::Mul => RTriInstrOp::Mul,
-			ArithOp::Div => RTriInstrOp::Div,
-			ArithOp::Rem => RTriInstrOp::Rem,
-			ArithOp::And => RTriInstrOp::And,
-			ArithOp::Or => RTriInstrOp::Or,
-			ArithOp::Xor => RTriInstrOp::Xor,
-			ArithOp::Shl => RTriInstrOp::Sll,
-			ArithOp::Lshr => RTriInstrOp::Srl,
-			ArithOp::Ashr => RTriInstrOp::Sra,
-			ArithOp::Fadd => RTriInstrOp::Fadd,
-			ArithOp::Fsub => RTriInstrOp::Fsub,
-			ArithOp::Fmul => RTriInstrOp::Fmul,
-			ArithOp::Fdiv => RTriInstrOp::Fdiv,
-		};
-		let rhs = into_reg(rhs, &mut instrs, mgr);
-		let rd = mgr.new_temp();
-		instrs.push(RTriInstr::new(op, rd, lhs, rhs));
-	}
+	let (lhs, rhs) = (&instr.lhs, &instr.rhs);
+	let target = mgr.get(&instr.target);
+	get_arith(target, instr.op, lhs, rhs, &mut instrs, mgr);
 	Ok(InstrSet::RiscvInstrSet(instrs))
 }
 
@@ -108,14 +92,61 @@ pub fn riscv_label(
 	instr: &llvm::llvminstr::LabelInstr,
 	mgr: &mut TempManager,
 ) -> Result<InstrSet, SysycError> {
-	todo!()
+	Ok(InstrSet::RiscvInstrSet(vec![LabelInstr::new(
+		instr.label.clone(),
+	)]))
+}
+
+fn get_slt(
+	rd: RiscvTemp,
+	lhs: &Value,
+	rhs: &Value,
+	instrs: &mut RiscvInstrSet,
+	mgr: &mut TempManager,
+) {
+	let lhs = into_reg(lhs, instrs, mgr);
+	if let Some(num) = end_num(rhs) {
+		instrs.push(ITriInstr::new(Slti, rd, lhs, num.into()));
+	} else {
+		let rhs = into_reg(rhs, instrs, mgr);
+		instrs.push(RTriInstr::new(Slt, rd, lhs, rhs));
+	}
 }
 
 pub fn riscv_comp(
 	instr: &llvm::llvminstr::CompInstr,
 	mgr: &mut TempManager,
 ) -> Result<InstrSet, SysycError> {
-	todo!()
+	let mut instrs: RiscvInstrSet = Vec::new();
+	let (lhs, rhs) = (&instr.lhs, &instr.rhs);
+	let target = mgr.get(&instr.target);
+	match &instr.op {
+		CompOp::EQ | CompOp::OEQ => {
+			let tmp = mgr.new_temp();
+			get_arith(tmp, ArithOp::Xor, lhs, rhs, &mut instrs, mgr);
+			instrs.push(ITriInstr::new(Sltiu, target, tmp, 1.into()));
+		}
+		CompOp::NE | CompOp::ONE => {
+			let tmp = mgr.new_temp();
+			get_arith(tmp, ArithOp::Xor, lhs, rhs, &mut instrs, mgr);
+			instrs.push(RTriInstr::new(Sltu, target, X0.into(), tmp));
+		}
+		CompOp::SLT | CompOp::OLT => {
+			get_slt(target, lhs, rhs, &mut instrs, mgr);
+		}
+		CompOp::SLE | CompOp::OLE => {
+			get_slt(target, rhs, lhs, &mut instrs, mgr);
+			instrs.push(ITriInstr::new(Xori, target, target, 1.into()));
+		}
+		CompOp::SGT | CompOp::OGT => {
+			get_slt(target, rhs, lhs, &mut instrs, mgr);
+		}
+		CompOp::SGE | CompOp::OGE => {
+			get_slt(target, lhs, rhs, &mut instrs, mgr);
+			instrs.push(ITriInstr::new(Xori, target, target, 1.into()));
+		}
+	}
+	Ok(InstrSet::RiscvInstrSet(instrs))
 }
 
 pub fn riscv_convert(

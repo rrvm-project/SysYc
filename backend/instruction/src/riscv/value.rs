@@ -19,9 +19,21 @@ pub enum RiscvTemp {
 	PhysReg(RiscvReg),
 }
 
+impl From<Temp> for RiscvTemp {
+	fn from(x: Temp) -> Self {
+		RiscvTemp::VirtReg(x)
+	}
+}
+
+impl From<RiscvReg> for RiscvTemp {
+	fn from(x: RiscvReg) -> Self {
+		RiscvTemp::PhysReg(x)
+	}
+}
+
 pub enum RiscvImm {
 	Int(i32),
-	Label(llvm::label::Label),
+	Label(utils::Label),
 	OffsetReg(i32, RiscvReg),
 }
 
@@ -41,5 +53,23 @@ impl Display for RiscvImm {
 			Self::Label(v) => write!(f, "{}", v),
 			Self::OffsetReg(offset, base) => write!(f, "{}({})", offset, base),
 		}
+	}
+}
+
+impl From<i32> for RiscvImm {
+	fn from(x: i32) -> Self {
+		RiscvImm::Int(x)
+	}
+}
+
+impl From<utils::Label> for RiscvImm {
+	fn from(x: utils::Label) -> Self {
+		RiscvImm::Label(x)
+	}
+}
+
+impl From<(i32, RiscvReg)> for RiscvImm {
+	fn from(x: (i32, RiscvReg)) -> Self {
+		RiscvImm::OffsetReg(x.0, x.1)
 	}
 }

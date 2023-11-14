@@ -1,4 +1,5 @@
 use sysyc_derive::Fuyuki;
+pub use RiscvReg::*;
 
 #[derive(Fuyuki, Clone, Copy)]
 pub enum RiscvReg {

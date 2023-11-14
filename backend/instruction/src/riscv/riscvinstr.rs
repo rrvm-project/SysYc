@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use utils::Label;
 
 use super::{riscvop::*, value::*};
 
@@ -22,4 +23,8 @@ pub struct ILoadInstr {
 	pub op: BiLoadImmOp,
 	pub rd: RiscvTemp,
 	pub rs1: RiscvImm,
+}
+
+pub struct LabelInstr {
+	pub label: Label,
 }
