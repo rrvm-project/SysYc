@@ -1,7 +1,6 @@
 use crate::tree::*;
 use utils::errors::Result;
 
-// TODO：这里实现泛型很困难，考虑将ctx实现成全局变量
 pub trait Visitor {
 	fn visit_program(&mut self, program: &mut Program) -> Result<()>;
 	fn visit_var_def(&mut self, val_decl: &mut VarDef) -> Result<()>;
@@ -14,7 +13,7 @@ pub trait Visitor {
 	fn visit_unary_expr(&mut self, val_decl: &mut UnaryExpr) -> Result<()>;
 	fn visit_func_call(&mut self, val_decl: &mut FuncCall) -> Result<()>;
 	fn visit_formal_param(&mut self, val_decl: &mut FormalParam) -> Result<()>;
-	fn visit_lval(&mut self, val_decl: &mut Lval) -> Result<()>;
+	fn visit_variable(&mut self, val_decl: &mut Variable) -> Result<()>;
 	fn visit_block(&mut self, val_decl: &mut Block) -> Result<()>;
 	fn visit_if(&mut self, val_decl: &mut If) -> Result<()>;
 	fn visit_while(&mut self, val_decl: &mut While) -> Result<()>;

@@ -54,9 +54,8 @@ pub struct LiteralFloat {
 
 #[derive(Debug, AstNode)]
 #[has_attrs]
-pub struct Lval {
+pub struct Variable {
 	pub ident: String,
-	pub dim_list: Option<NodeList>,
 }
 
 #[derive(Debug, AstNode)]

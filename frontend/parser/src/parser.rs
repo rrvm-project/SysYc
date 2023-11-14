@@ -36,7 +36,6 @@ fn map_unary_op(pair: &Pair<Rule>) -> UnaryOp {
 	}
 }
 
-// TODO: 把这个改成 &str
 fn parse_identifier(pair: Pair<Rule>) -> String {
 	match pair.as_rule() {
 		Rule::Identifier => String::from(pair.as_str()),
@@ -98,12 +97,20 @@ fn parse_func_call(pair: Pair<Rule>) -> Node {
 
 fn parse_lval(pair: Pair<Rule>) -> Node {
 	let mut pairs = pair.into_inner();
-	let lval = Lval {
+	let mut var: Node = Box::new(Variable {
 		_attrs: HashMap::new(),
 		ident: parse_identifier(pairs.next().unwrap()),
-		dim_list: parse_dim_list(pairs.next().unwrap(), 1),
-	};
-	Box::new(lval)
+	});
+	let pairs = pairs.next().unwrap().into_inner();
+	for v in pairs {
+		var = Box::new(BinaryExpr {
+			_attrs: HashMap::new(),
+			lhs: var,
+			op: BinaryOp::IDX,
+			rhs: parse_expr(v),
+		});
+	}
+	var
 }
 
 fn parse_primary_expr(pair: Pair<Rule>) -> Node {
