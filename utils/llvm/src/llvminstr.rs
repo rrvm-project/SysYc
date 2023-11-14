@@ -1,6 +1,6 @@
-use crate::{
-	label::Label, llvmop::*, llvmvar::VarType, LlvmInstrVariant, Temp,
-};
+use utils::Label;
+
+use crate::{llvmop::*, llvmvar::VarType, LlvmInstrVariant, Temp};
 use std::fmt::Display;
 
 pub trait LlvmInstr: Display {

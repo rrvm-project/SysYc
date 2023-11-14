@@ -15,27 +15,20 @@ pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
 }
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, Clone, Copy)]
 pub enum ArithOp {
 	Add,
 	Sub,
 	Div,
 	Mul,
-	// modulo
-	Rem,
-	// Float add
-	Fadd,
-	// Float sub
-	Fsub,
-	// Float div
-	Fdiv,
-	// Float mul
-	Fmul,
+	Rem,  // modulo
+	Fadd, // Float add
+	Fsub, // Float sub
+	Fdiv, // Float div
+	Fmul, // Float mul
 	Shl,
-	// logical shift right
-	Lshr,
-	// arithmetic shift right
-	Ashr,
+	Lshr, // logical shift right
+	Ashr, // arithmetic shift right
 	And,
 	Or,
 	Xor,
@@ -65,6 +58,19 @@ pub enum CompOp {
 	OLT,
 	// ordered and less or equal
 	OLE,
+}
+
+pub fn is_commutative(op: &ArithOp) -> bool {
+	matches!(
+		op,
+		ArithOp::Add
+			| ArithOp::Mul
+			| ArithOp::And
+			| ArithOp::Or
+			| ArithOp::Xor
+			| ArithOp::Fadd
+			| ArithOp::Fmul
+	)
 }
 
 #[derive(Fuyuki)]

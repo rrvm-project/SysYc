@@ -1,4 +1,6 @@
-use crate::{label::Label, llvminstr::LlvmInstr, llvmvar::VarType, temp::Temp};
+use utils::Label;
+
+use crate::{llvminstr::LlvmInstr, llvmvar::VarType, temp::Temp};
 use std::fmt::Display;
 
 pub struct LlvmFunc {

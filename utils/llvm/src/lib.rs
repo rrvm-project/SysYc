@@ -1,5 +1,4 @@
 pub mod func;
-pub mod label;
 pub mod llvmfuncemitter;
 pub mod llvminstr;
 pub mod llvmop;

@@ -1,4 +1,9 @@
+use llvm::llvmop::ArithOp;
 use sysyc_derive::Fuyuki;
+
+pub use BiLoadImmOp::*;
+pub use ITriInstrOp::*;
+pub use RTriInstrOp::*;
 
 /// op rd, rs1, imm
 #[derive(Fuyuki)]
@@ -8,14 +13,14 @@ pub enum ITriInstrOp {
 	Muli,
 	Remi,
 	Divi,
-	Slti,
-	Sltiu,
 	Xori,
 	Ori,
 	Andi,
 	Slli,
 	Srli,
 	Srai,
+	Slti,
+	Sltiu,
 }
 
 /// op rd, rs1, rs2
@@ -26,14 +31,14 @@ pub enum RTriInstrOp {
 	Mul,
 	Rem,
 	Div,
-	Slt,
-	Sltu,
 	Xor,
 	Or,
 	And,
 	Sll,
 	Srl,
 	Sra,
+	Slt,
+	Sltu,
 
 	#[style("fadd.s")]
 	Fadd,
@@ -43,6 +48,13 @@ pub enum RTriInstrOp {
 	Fmul,
 	#[style("fdiv.s")]
 	Fdiv,
+
+	#[style("feq.s")]
+	Feq,
+	#[style("flt.s")]
+	Flt,
+	#[style("fle.s")]
+	Fle,
 }
 
 /// op rd, imm
@@ -57,4 +69,41 @@ pub enum UnInstrOp {
 	Li,
 	Lb,
 	Lh,
+}
+
+pub fn to_iop(op: &ArithOp) -> ITriInstrOp {
+	match op {
+		ArithOp::Add => Addi,
+		ArithOp::Sub => Subi,
+		ArithOp::Mul => Muli,
+		ArithOp::Div => Divi,
+		ArithOp::Rem => Remi,
+		ArithOp::Shl => Slli,
+		ArithOp::Lshr => Srli,
+		ArithOp::Ashr => Srai,
+		ArithOp::And => Andi,
+		ArithOp::Or => Ori,
+		ArithOp::Xor => Xori,
+		_ => unreachable!("float operation must use reg"),
+	}
+}
+
+pub fn to_rop(op: &ArithOp) -> RTriInstrOp {
+	match op {
+		ArithOp::Add => Add,
+		ArithOp::Sub => Sub,
+		ArithOp::Mul => Mul,
+		ArithOp::Div => Div,
+		ArithOp::Rem => Rem,
+		ArithOp::Shl => Sll,
+		ArithOp::Lshr => Srl,
+		ArithOp::Ashr => Sra,
+		ArithOp::Fadd => Fadd,
+		ArithOp::Fsub => Fsub,
+		ArithOp::Fmul => Fmul,
+		ArithOp::Fdiv => Fdiv,
+		ArithOp::And => And,
+		ArithOp::Or => Or,
+		ArithOp::Xor => Xor,
+	}
 }

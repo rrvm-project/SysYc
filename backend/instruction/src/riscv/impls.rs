@@ -2,6 +2,8 @@
 
 use std::fmt::Display;
 
+use utils::Label;
+
 use super::{riscvinstr::*, riscvop::*, value::*};
 
 impl Display for RTriInstr {
@@ -57,5 +59,19 @@ impl ILoadInstr {
 		rs1: RiscvImm,
 	) -> Box<dyn RiscvInstr> {
 		Box::new(Self { op, rs1, rd })
+	}
+}
+
+impl Display for LabelInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "{}:", self.label)
+	}
+}
+
+impl RiscvInstr for LabelInstr {}
+
+impl LabelInstr {
+	pub fn new(label: Label) -> Box<dyn RiscvInstr> {
+		Box::new(Self { label })
 	}
 }
