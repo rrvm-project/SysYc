@@ -6,7 +6,6 @@ pub enum Attr {
 	VarSymbol(usize),
 	UIntValue(usize),
 	IntValue(i32),
-	// used in llvmgen
 	Value(Value),
 }
 

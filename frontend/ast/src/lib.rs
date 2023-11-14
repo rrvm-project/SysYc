@@ -29,6 +29,7 @@ pub enum BinaryOp {
 	GT,
 	EQ,
 	NE,
+	IDX,
 }
 
 #[derive(Debug)]
