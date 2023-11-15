@@ -15,6 +15,7 @@ members = [
   "frontend/symbol",
   "frontend/namer",
   "frontend/scope",
+  "frontend/value",
   "frontend/parser",
   "backend/basicblock",
   "backend/cfg",

@@ -1,9 +1,12 @@
 #![allow(unused)]
 
+use std::collections::HashMap;
+
 use ast::{tree::*, Visitor};
 use rrvm_symbol::{manager::SymbolManager, Symbol};
-use scope::stack::ScopeStack;
+use scope::{scope::Scope, stack::ScopeStack};
 use utils::errors::Result;
+use value::Value;
 pub struct Namer {
 	mgr: SymbolManager,
 	ctx: ScopeStack,
@@ -28,58 +31,73 @@ impl Namer {
 }
 
 impl Visitor for Namer {
-	fn visit_program(&mut self, program: &mut Program) -> Result<()> {
+	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
+		self.ctx.push();
+		for v in node.comp_units.iter_mut() {
+			v.accept(self)?
+		}
+		Ok(())
+	}
+	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<()> {
+		for param in node.formal_params.iter_mut() {
+			param.accept(self)?
+		}
+		// let v = HashMap::new();
+		// let val= Value::FloatPtr(Vec::new(), v);
+		// let func_type = node.formal_params.iter().map(|v| v.get_attr(name));
+
+		// node.formal_params.iter_mut().for_each(|v| v.accept(self));
+		// node.func_type;
+		// node.formal_params.
+		Ok(())
+		// todo!()
+	}
+	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		todo!()
 	}
-	fn visit_var_def(&mut self, val_decl: &mut VarDef) -> Result<()> {
+	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<()> {
 		todo!()
 	}
-	fn visit_var_decl(&mut self, val_decl: &mut VarDecl) -> Result<()> {
+	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
 		todo!()
 	}
-	fn visit_func_decl(&mut self, val_decl: &mut FuncDecl) -> Result<()> {
+	fn visit_literal_int(&mut self, node: &mut LiteralInt) -> Result<()> {
 		todo!()
 	}
-	fn visit_init_val_list(&mut self, val_decl: &mut InitValList) -> Result<()> {
+	fn visit_literal_float(&mut self, node: &mut LiteralFloat) -> Result<()> {
 		todo!()
 	}
-	fn visit_literal_int(&mut self, val_decl: &mut LiteralInt) -> Result<()> {
+	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<()> {
 		todo!()
 	}
-	fn visit_literal_float(&mut self, val_decl: &mut LiteralFloat) -> Result<()> {
+	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<()> {
 		todo!()
 	}
-	fn visit_binary_expr(&mut self, val_decl: &mut BinaryExpr) -> Result<()> {
+	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<()> {
 		todo!()
 	}
-	fn visit_unary_expr(&mut self, val_decl: &mut UnaryExpr) -> Result<()> {
+	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		todo!()
 	}
-	fn visit_func_call(&mut self, val_decl: &mut FuncCall) -> Result<()> {
+	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		todo!()
 	}
-	fn visit_formal_param(&mut self, val_decl: &mut FormalParam) -> Result<()> {
+	fn visit_block(&mut self, node: &mut Block) -> Result<()> {
 		todo!()
 	}
-	fn visit_variable(&mut self, val_decl: &mut Variable) -> Result<()> {
+	fn visit_if(&mut self, node: &mut If) -> Result<()> {
 		todo!()
 	}
-	fn visit_block(&mut self, val_decl: &mut Block) -> Result<()> {
+	fn visit_while(&mut self, node: &mut While) -> Result<()> {
 		todo!()
 	}
-	fn visit_if(&mut self, val_decl: &mut If) -> Result<()> {
+	fn visit_continue(&mut self, node: &mut Continue) -> Result<()> {
 		todo!()
 	}
-	fn visit_while(&mut self, val_decl: &mut While) -> Result<()> {
+	fn visit_break(&mut self, node: &mut Break) -> Result<()> {
 		todo!()
 	}
-	fn visit_continue(&mut self, val_decl: &mut Continue) -> Result<()> {
-		todo!()
-	}
-	fn visit_break(&mut self, val_decl: &mut Break) -> Result<()> {
-		todo!()
-	}
-	fn visit_return(&mut self, val_decl: &mut Return) -> Result<()> {
+	fn visit_return(&mut self, node: &mut Return) -> Result<()> {
 		todo!()
 	}
 }

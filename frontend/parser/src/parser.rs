@@ -1,9 +1,10 @@
 use std::{collections::HashMap, hash::Hash};
 
-use ast::{tree::*, BinaryOp, FuncType, UnaryOp, VarType};
+use ast::{tree::*, *};
 use pest::{iterators::Pair, pratt_parser::PrattParser, Parser};
 use pest_derive::Parser;
 use utils::{errors::Result, SysycError::LexError};
+use value::{BinaryOp, UnaryOp};
 
 #[derive(Parser)]
 #[grammar = "sysy2022.pest"]
@@ -51,11 +52,11 @@ fn parse_var_type(pair: Pair<Rule>) -> VarType {
 	}
 }
 
-fn parse_func_type(pair: Pair<Rule>) -> FuncType {
+fn parse_func_type(pair: Pair<Rule>) -> FuncRetType {
 	match pair.as_rule() {
-		Rule::int_t => FuncType::Int,
-		Rule::float_t => FuncType::Float,
-		Rule::void_t => FuncType::Void,
+		Rule::int_t => FuncRetType::Int,
+		Rule::float_t => FuncRetType::Float,
+		Rule::void_t => FuncRetType::Void,
 		_ => unreachable!(),
 	}
 }

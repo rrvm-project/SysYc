@@ -1,5 +1,5 @@
 [package]
-name = "attr"
+name = "value"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 utils = { path = "../../utils" }
-value = { path = "../value" }
+llvm = { path = "../../utils/llvm" }
