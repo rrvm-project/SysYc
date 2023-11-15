@@ -8,6 +8,9 @@ edition = "2021"
 [dependencies]
 pest = "2.7.5"
 pest_derive = "2.7.5"
-utils = { path = "../../utils" }
-ast = { path = "../ast" }
 lazy_static = "1.4.0"
+
+utils = { path = "../../utils" }
+
+ast = { path = "../ast" }
+value = { path = "../value" }

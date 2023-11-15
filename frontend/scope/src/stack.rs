@@ -1,9 +1,10 @@
 use crate::scope::Scope;
-use rrvm_symbol::{FuncSymbol, FuncType, VarSymbol, VarType};
+use rrvm_symbol::{FuncSymbol, VarSymbol};
 use utils::{
 	errors::Result,
 	SysycError::{FatalError, SyntaxError},
 };
+use value::{FuncType, VarType};
 
 pub struct ScopeStack {
 	func_scope: Scope<FuncType>,

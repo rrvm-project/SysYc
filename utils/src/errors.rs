@@ -8,6 +8,8 @@ pub enum SysycError {
 	LexError(String),
 	#[error("Syntax Error : {0}")]
 	SyntaxError(String),
+	#[error("Type Error : {0}")]
+	TypeError(String),
 	#[error("System error: {0}")]
 	SystemError(String),
 	#[error("Fatal error: {0}")]
