@@ -11,6 +11,9 @@ members = [
   "utils",
   "utils/llvm",
   "frontend/ast",
+  "frontend/attr",
+  "frontend/symbol",
+  "frontend/namer",
   "frontend/scope",
   "frontend/parser",
   "backend/basicblock",
@@ -26,6 +29,7 @@ llvm = { path = "utils/llvm" }
 
 ast = { path = "frontend/ast" }
 parser = { path = "frontend/parser" }
+namer = { path = "frontend/namer" }
 
 rrvm_func = { path = "backend/func" }
 rrvm_program = { path = "backend/program" }
