@@ -3,7 +3,7 @@ use std::{collections::HashMap, hash::Hash};
 use ast::{tree::*, BinaryOp, FuncType, UnaryOp, VarType};
 use pest::{iterators::Pair, pratt_parser::PrattParser, Parser};
 use pest_derive::Parser;
-use utils::{errors::Result, SysycError::DecafLexError};
+use utils::{errors::Result, SysycError::LexError};
 
 #[derive(Parser)]
 #[grammar = "sysy2022.pest"]
@@ -60,13 +60,8 @@ fn parse_func_type(pair: Pair<Rule>) -> FuncType {
 	}
 }
 
-fn parse_dim_list(pair: Pair<Rule>, min_dims: usize) -> Option<NodeList> {
-	let dim_list: NodeList = pair.into_inner().map(parse_expr).collect();
-	if dim_list.len() >= min_dims {
-		Some(dim_list)
-	} else {
-		None
-	}
+fn parse_dim_list(pair: Pair<Rule>) -> NodeList {
+	pair.into_inner().map(parse_expr).collect()
 }
 
 lazy_static::lazy_static! {
@@ -176,12 +171,12 @@ fn parse_var_def(pair: Pair<Rule>) -> Node {
 	let mut var_def = VarDef {
 		_attrs: HashMap::new(),
 		ident: parse_identifier(pairs.next().unwrap()),
-		dim_list: None,
+		dim_list: Vec::new(),
 		init: None,
 	};
 	for pair in pairs {
 		match pair.as_rule() {
-			Rule::DimList => var_def.dim_list = parse_dim_list(pair, 1),
+			Rule::DimList => var_def.dim_list = parse_dim_list(pair),
 			Rule::Expr => var_def.init = Some(parse_init_val(pair)),
 			Rule::InitValList => var_def.init = Some(parse_init_val(pair)),
 			_ => unreachable!(),
@@ -215,7 +210,7 @@ fn parse_formal_params(pair: Pair<Rule>) -> NodeList {
 			_attrs: HashMap::new(),
 			type_t: parse_var_type(pairs.next().unwrap()),
 			ident: parse_identifier(pairs.next().unwrap()),
-			dim_list: pairs.next().and_then(|v| parse_dim_list(v, 0)),
+			dim_list: parse_dim_list(pairs.next().unwrap()),
 		};
 		Box::new(formal_param)
 	}
@@ -303,7 +298,7 @@ fn parse_comp_unit(pair: Pair<Rule>) -> Option<Node> {
 
 pub fn parse(str: &str) -> Result<Program> {
 	let progam = SysycParser::parse(Rule::Program, str)
-		.map_err(|e| DecafLexError(e.to_string()))?;
+		.map_err(|e| LexError(e.to_string()))?;
 	Ok(Program {
 		_attrs: HashMap::new(),
 		comp_units: progam.into_iter().filter_map(parse_comp_unit).collect(),

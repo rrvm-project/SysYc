@@ -22,7 +22,7 @@ pub struct Program {
 #[has_attrs]
 pub struct VarDef {
 	pub ident: String,
-	pub dim_list: Option<NodeList>,
+	pub dim_list: NodeList,
 	pub init: Option<Node>,
 }
 
@@ -94,7 +94,7 @@ pub struct FuncDecl {
 pub struct FormalParam {
 	pub type_t: VarType,
 	pub ident: String,
-	pub dim_list: Option<NodeList>,
+	pub dim_list: NodeList,
 }
 
 #[derive(Debug, AstNode)]

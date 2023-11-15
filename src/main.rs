@@ -14,6 +14,7 @@ use ast::tree::Program;
 use clap::Parser;
 use cli::Args;
 use llvm::LlvmProgram;
+use namer::visitor::Namer;
 use parser::parser::parse;
 use rrvm_program::rrvmprogram::RrvmProgram;
 use utils::{fatal_error, map_sys_err};
@@ -29,7 +30,9 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 }
 
 #[allow(unused_variables)]
-fn step_llvm(program: Program) -> Result<LlvmProgram> {
+fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
+	let mut namer = Namer::new();
+	namer.transform(&mut program)?;
 	todo!()
 }
 
