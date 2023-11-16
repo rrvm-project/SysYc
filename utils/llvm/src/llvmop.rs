@@ -38,26 +38,16 @@ pub enum ArithOp {
 pub enum CompOp {
 	EQ,
 	NE,
-	// signed greater than
-	SGT,
-	// signed greater or equal
-	SGE,
-	// signed less than
-	SLT,
-	// signed less or equal
-	SLE,
-	// ordered and equal
-	OEQ,
-	// ordered and not equal
-	ONE,
-	// ordered and greater than
-	OGT,
-	// ordered and greater or equal
-	OGE,
-	// ordered and less than
-	OLT,
-	// ordered and less or equal
-	OLE,
+	SGT, // signed greater than
+	SGE, // signed greater or equal
+	SLT, // signed less than
+	SLE, // signed less or equal
+	OEQ, // ordered and equal
+	ONE, // ordered and not equal
+	OGT, // ordered and greater than
+	OGE, // ordered and greater or equal
+	OLT, // ordered and less than
+	OLE, // ordered and less or equal
 }
 
 pub fn is_commutative(op: &ArithOp) -> bool {

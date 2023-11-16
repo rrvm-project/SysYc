@@ -2,9 +2,9 @@ use attr::{Attr, Attrs};
 use std::fmt::Debug;
 use sysyc_derive::{has_attrs, AstNode};
 use utils::errors::Result;
-use value::{BinaryOp, UnaryOp};
+use value::{BType, BinaryOp, FuncRetType, UnaryOp};
 
-use crate::{visitor::Visitor, FuncRetType, VarType};
+use crate::visitor::Visitor;
 
 pub trait AstNode: Debug + Attrs {
 	fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<()>;
@@ -31,7 +31,7 @@ pub struct VarDef {
 #[has_attrs]
 pub struct VarDecl {
 	pub is_const: bool,
-	pub type_t: VarType,
+	pub type_t: BType,
 	pub defs: NodeList,
 }
 
@@ -84,7 +84,7 @@ pub struct FuncCall {
 #[derive(Debug, AstNode)]
 #[has_attrs]
 pub struct FuncDecl {
-	pub func_type: FuncRetType,
+	pub ret_type: FuncRetType,
 	pub ident: String,
 	pub formal_params: NodeList,
 	pub block: Node,
@@ -93,7 +93,7 @@ pub struct FuncDecl {
 #[derive(Debug, AstNode)]
 #[has_attrs]
 pub struct FormalParam {
-	pub type_t: VarType,
+	pub type_t: BType,
 	pub ident: String,
 	pub dim_list: NodeList,
 }

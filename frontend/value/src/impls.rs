@@ -1,4 +1,5 @@
-use crate::{Array, Value};
+use crate::{FloatPtr, IntPtr, Value};
+use utils::{errors::Result, SysycError::TypeError};
 
 impl From<i32> for Value {
 	fn from(value: i32) -> Self {
@@ -12,16 +13,31 @@ impl From<f32> for Value {
 	}
 }
 
-impl From<(Vec<usize>, Array<i32>)> for Value {
-	fn from(value: (Vec<usize>, Array<i32>)) -> Self {
-		let (index, array) = value;
-		Value::IntPtr(index, array)
+impl From<IntPtr> for Value {
+	fn from(value: IntPtr) -> Self {
+		Value::IntPtr(value)
 	}
 }
 
-impl From<(Vec<usize>, Array<f32>)> for Value {
-	fn from(value: (Vec<usize>, Array<f32>)) -> Self {
-		let (index, array) = value;
-		Value::FloatPtr(index, array)
+impl From<FloatPtr> for Value {
+	fn from(value: FloatPtr) -> Self {
+		Value::FloatPtr(value)
+	}
+}
+
+impl Value {
+	pub fn to_int(&self) -> Result<i32> {
+		match self {
+			Self::Int(v) => Ok(*v),
+			Self::Float(v) => Ok(*v as i32),
+			_ => Err(TypeError("try to convert pointer to int".to_string())),
+		}
+	}
+	pub fn to_float(&self) -> Result<f32> {
+		match self {
+			Self::Int(v) => Ok(*v as f32),
+			Self::Float(v) => Ok(*v),
+			_ => Err(TypeError("try to convert pointer to float".to_string())),
+		}
 	}
 }
