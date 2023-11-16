@@ -1,10 +1,10 @@
 use std::{collections::HashMap, hash::Hash};
 
-use ast::{tree::*, *};
+use ast::tree::*;
 use pest::{iterators::Pair, pratt_parser::PrattParser, Parser};
 use pest_derive::Parser;
 use utils::{errors::Result, SysycError::LexError};
-use value::{BinaryOp, UnaryOp};
+use value::{BType, BinaryOp, FuncRetType, UnaryOp};
 
 #[derive(Parser)]
 #[grammar = "sysy2022.pest"]
@@ -44,10 +44,10 @@ fn parse_identifier(pair: Pair<Rule>) -> String {
 	}
 }
 
-fn parse_var_type(pair: Pair<Rule>) -> VarType {
+fn parse_var_type(pair: Pair<Rule>) -> BType {
 	match pair.as_rule() {
-		Rule::int_t => VarType::Int,
-		Rule::float_t => VarType::Float,
+		Rule::int_t => BType::Int,
+		Rule::float_t => BType::Float,
 		_ => unreachable!(),
 	}
 }
@@ -280,7 +280,7 @@ fn parse_func_decl(pair: Pair<Rule>) -> Node {
 	let mut pairs = pair.into_inner();
 	let func_decl = FuncDecl {
 		_attrs: HashMap::new(),
-		func_type: parse_func_type(pairs.next().unwrap()),
+		ret_type: parse_func_type(pairs.next().unwrap()),
 		ident: parse_identifier(pairs.next().unwrap()),
 		formal_params: parse_formal_params(pairs.next().unwrap()),
 		block: parse_block(pairs.next().unwrap()),

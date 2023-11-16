@@ -1,7 +1,12 @@
+mod impls;
+
+use rrvm_symbol::{FuncSymbol, VarSymbol};
 use value::{Value, VarType};
 
 #[derive(Clone, Debug)]
 pub enum Attr {
+	FuncSymbol(FuncSymbol),
+	VarSymbol(VarSymbol),
 	VarType(VarType),
 	Value(Value),
 }
@@ -9,21 +14,4 @@ pub enum Attr {
 pub trait Attrs {
 	fn set_attr(&mut self, name: &str, attr: Attr);
 	fn get_attr(&self, name: &str) -> Option<&Attr>;
-}
-
-impl Attr {
-	pub fn to_type(self) -> VarType {
-		if let Attr::VarType(v) = self {
-			v
-		} else {
-			unreachable!("Don't downcast if you do not zhe shi shenma leixing")
-		}
-	}
-	pub fn to_value(self) -> Value {
-		if let Attr::Value(v) = self {
-			v
-		} else {
-			unreachable!("Don't downcast if you do not zhe shi shenma leixing")
-		}
-	}
 }

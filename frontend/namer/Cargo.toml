@@ -9,6 +9,7 @@ edition = "2021"
 utils = { path = "../../utils"}
 
 ast = { path = "../ast" }
+attr = { path = "../attr" }
 scope = { path = "../scope" }
 value = { path = "../value" }
 rrvm_symbol = { path = "../symbol" }

@@ -8,35 +8,32 @@ fn bin_calc<Foo, Bar>(
 	y: &Value,
 	on_int: Foo,
 	on_float: Bar,
-) -> Result<Option<Value>>
+) -> Result<Value>
 where
 	Foo: Fn(i32, i32) -> i32,
 	Bar: Fn(f32, f32) -> f32,
 {
 	if x.get_type() == VarType::I32 || y.get_type() == VarType::I32 {
-		Ok(Some(Value::Int(on_int(x.to_int()?, y.to_int()?))))
+		Ok(Value::Int(on_int(x.to_int()?, y.to_int()?)))
 	} else {
-		Ok(Some(Value::Float(on_float(x.to_float()?, y.to_float()?))))
+		Ok(Value::Float(on_float(x.to_float()?, y.to_float()?)))
 	}
 }
 
-// TODO: this is awful
 fn bin_comp<Foo, Bar>(
 	x: &Value,
 	y: &Value,
 	on_int: Foo,
 	on_float: Bar,
-) -> Result<Option<Value>>
+) -> Result<Value>
 where
 	Foo: Fn(i32, i32) -> bool,
 	Bar: Fn(f32, f32) -> bool,
 {
 	if x.get_type() == VarType::I32 || y.get_type() == VarType::I32 {
-		Ok(Some(Value::Int(on_int(x.to_int()?, y.to_int()?) as i32)))
+		Ok(Value::Int(on_int(x.to_int()?, y.to_int()?) as i32))
 	} else {
-		Ok(Some(Value::Int(
-			on_float(x.to_float()?, y.to_float()?) as i32
-		)))
+		Ok(Value::Int(on_float(x.to_float()?, y.to_float()?) as i32))
 	}
 }
 
@@ -56,9 +53,8 @@ where
 	}
 }
 
-// TODO: solve panic
 #[rustfmt::skip]
-pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Option<Value>> {
+pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Value> {
 	match op {
 		BinaryOp::IDX => {
 			let pos = match y {
@@ -66,8 +62,8 @@ pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Option<Value>
 				_ => Err(TypeError("array can only be indexed by int".to_string())),
 			}?;
 			match x {
-				Value::IntPtr(index, arr) => Ok(Some(get_index(index, arr, pos))),
-				Value::FloatPtr(index, arr) => Ok(Some(get_index(index, arr, pos))),
+				Value::IntPtr((index, arr)) => Ok(get_index(index, arr, pos)),
+				Value::FloatPtr((index, arr)) => Ok(get_index(index, arr, pos)),
 				_ => Err(TypeError("only array can be indexed".to_string())),
 			}
 		}
@@ -82,7 +78,7 @@ pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Option<Value>
 		BinaryOp::GE => bin_comp(x, y, |x, y| -> bool {x >= y}, |x, y| -> bool {x >= y}),
 		BinaryOp::EQ => bin_comp(x, y, |x, y| -> bool {x == y}, |x, y| -> bool {x == y}),
 		BinaryOp::NE => bin_comp(x, y, |x, y| -> bool {x != y}, |x, y| -> bool {x != y}),
-    _ => Ok(None)
+    BinaryOp::Assign => unreachable!(),
 	}
 }
 
@@ -104,25 +100,5 @@ pub fn exec_unaryop(op: UnaryOp, x: &Value) -> Result<Value> {
 	  UnaryOp::Plus => una_calc(x, |x|-> i32 {x} ,|x|-> f32 {x}),
 	  UnaryOp::Neg => una_calc(x, |x|-> i32 {-x} ,|x|-> f32 {-x}),
 	  UnaryOp::Not => una_calc(x, |x|-> i32 {!x} ,|_|-> f32 {unreachable!()}),
-	}
-}
-
-impl Value {
-	pub fn to_int(&self) -> Result<i32> {
-		match self {
-			Self::Int(v) => Ok(*v),
-			Self::Float(v) => Ok(*v as i32),
-			_ => Err(TypeError("try to convert pointer to int".to_string())),
-		}
-	}
-}
-
-impl Value {
-	pub fn to_float(&self) -> Result<f32> {
-		match self {
-			Self::Int(v) => Ok(*v as f32),
-			Self::Float(v) => Ok(*v),
-			_ => Err(TypeError("try to convert pointer to float".to_string())),
-		}
 	}
 }
