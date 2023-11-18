@@ -17,6 +17,7 @@ members = [
   "frontend/scope",
   "frontend/value",
   "frontend/parser",
+  "frontend/irgen",
   "backend/basicblock",
   "backend/cfg",
   "backend/func",

@@ -9,6 +9,7 @@ pub enum Attr {
 	VarSymbol(VarSymbol),
 	VarType(VarType),
 	Value(Value),
+	IRValue(llvm::llvmop::Value),
 }
 
 pub trait Attrs {
