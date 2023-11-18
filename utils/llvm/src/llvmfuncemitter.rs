@@ -6,7 +6,7 @@ use crate::{
 	llvmop::*,
 	llvmvar::VarType,
 	temp::{Temp, TempManager},
-	utils_llvm::ptr2type,
+	utils_llvm::ptr2type, cfg::CFG, basicblock::BasicBlock,
 };
 
 pub struct LlvmFuncEmitter {
@@ -17,11 +17,13 @@ pub struct LlvmFuncEmitter {
 	label_mgr: LabelManager,
 	break_label: Vec<Label>,
 	continue_label: Vec<Label>,
-	func_body: Vec<Box<dyn LlvmInstr>>,
+	cfg: CFG,
+	cur_basicblock: usize,
+	// func_body: Vec<Box<dyn LlvmInstr>>,
 }
 
 impl LlvmFuncEmitter {
-	pub fn new(name: String, ret_type: VarType, params: Vec<Temp>) -> Self {
+	pub fn new(name: String, ret_type: VarType, params: Vec<Temp>, entry: BasicBlock) -> Self {
 		LlvmFuncEmitter {
 			label: Label::new(format!("Function<{}>", name)),
 			ret_type,
@@ -30,12 +32,27 @@ impl LlvmFuncEmitter {
 			label_mgr: LabelManager::new(),
 			break_label: Vec::new(),
 			continue_label: Vec::new(),
-			func_body: Vec::new(),
+			cur_basicblock: entry.id,
+			cfg: CFG::new(entry),
 		}
+	}
+
+	pub fn new_basicblock(&mut self, label: Label){
+		let new_basicblock = BasicBlock::new(self.cfg.basic_blocks.len(), label, Vec::new());
+		self.cur_basicblock = new_basicblock.id;
+		self.cfg.basic_blocks.push(new_basicblock);
+	}
+
+	pub fn get_cur_basicblock(&mut self) -> &mut BasicBlock {
+		self.cfg.basic_blocks.get_mut(self.cur_basicblock).unwrap()
 	}
 
 	pub fn fresh_label(&mut self) -> Label {
 		self.label_mgr.new_label()
+	}
+
+	pub fn fresh_temp(&mut self, var_type: VarType) -> Temp {
+		self.temp_mgr.new_temp(var_type)
 	}
 
 	pub fn openloop(&mut self, break_label: Label, continue_label: Label) {
@@ -57,7 +74,7 @@ impl LlvmFuncEmitter {
 	}
 
 	pub fn visit_label(&mut self, label: Label) {
-		self.func_body.push(Box::new(LabelInstr { label }))
+		self.get_cur_basicblock().add(Box::new(LabelInstr { label }))
 	}
 
 	pub fn visit_arith_instr(
@@ -78,7 +95,7 @@ impl LlvmFuncEmitter {
 						lhs: Value::Temp(t),
 						to_type: VarType::F32,
 					};
-					self.func_body.push(Box::new(convert));
+					self.get_cur_basicblock().add(Box::new(convert));
 					Value::Temp(new_temp)
 				}
 				_ => unreachable!(),
@@ -96,7 +113,7 @@ impl LlvmFuncEmitter {
 						lhs: Value::Temp(t),
 						to_type: VarType::F32,
 					};
-					self.func_body.push(Box::new(convert));
+					self.get_cur_basicblock().add(Box::new(convert));
 					Value::Temp(new_temp)
 				}
 				_ => unreachable!(),
@@ -110,8 +127,23 @@ impl LlvmFuncEmitter {
 			op,
 			rhs,
 		};
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 		target
+	}
+
+	pub fn visit_assign_instr(
+		&mut self,
+		target: Temp,
+		value: Value,
+	) {
+		let instr = ArithInstr { 
+			target: target.clone(),
+			var_type: VarType::I32,
+			lhs: value,
+			op: ArithOp::Add,
+			rhs: Value::Int(0),
+		 };
+		self.get_cur_basicblock().add(Box::new(instr));
 	}
 
 	pub fn visit_comp_instr(
@@ -132,7 +164,7 @@ impl LlvmFuncEmitter {
 						lhs: Value::Temp(t),
 						to_type: VarType::F32,
 					};
-					self.func_body.push(Box::new(convert));
+					self.get_cur_basicblock().add(Box::new(convert));
 					Value::Temp(new_temp)
 				}
 				_ => unreachable!(),
@@ -150,7 +182,7 @@ impl LlvmFuncEmitter {
 						lhs: Value::Temp(t),
 						to_type: VarType::F32,
 					};
-					self.func_body.push(Box::new(convert));
+					self.get_cur_basicblock().add(Box::new(convert));
 					Value::Temp(new_temp)
 				}
 				_ => unreachable!(),
@@ -172,13 +204,13 @@ impl LlvmFuncEmitter {
 			op,
 			rhs,
 		};
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 		target
 	}
 
 	pub fn visit_jump_instr(&mut self, target: Label) {
 		let instr = JumpInstr { target };
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 	}
 
 	pub fn visit_jump_cond_instr(
@@ -193,7 +225,7 @@ impl LlvmFuncEmitter {
 			target_true,
 			target_false,
 		};
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 	}
 
 	pub fn visit_phi_instr(
@@ -207,13 +239,13 @@ impl LlvmFuncEmitter {
 			var_type,
 			source,
 		};
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 		target
 	}
 
 	pub fn visit_ret(&mut self, value: Option<Value>) {
 		let instr = RetInstr { value };
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 	}
 
 	pub fn visit_alloc_instr(
@@ -227,7 +259,7 @@ impl LlvmFuncEmitter {
 			var_type,
 			length,
 		};
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 		target
 	}
 
@@ -244,7 +276,7 @@ impl LlvmFuncEmitter {
 						lhs: Value::Temp(t),
 						to_type: VarType::I32,
 					};
-					self.func_body.push(Box::new(convert));
+					self.get_cur_basicblock().add(Box::new(convert));
 					Value::Temp(new_temp)
 				}
 				_ => unreachable!(),
@@ -262,14 +294,14 @@ impl LlvmFuncEmitter {
 						lhs: Value::Temp(t),
 						to_type: VarType::F32,
 					};
-					self.func_body.push(Box::new(convert));
+					self.get_cur_basicblock().add(Box::new(convert));
 					Value::Temp(new_temp)
 				}
 				_ => unreachable!(),
 			};
 		}
 		let instr = StoreInstr { value, addr };
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 	}
 
 	pub fn visit_load_instr(&mut self, addr: Value) -> Temp {
@@ -280,7 +312,7 @@ impl LlvmFuncEmitter {
 			var_type,
 			addr,
 		};
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 		target
 	}
 
@@ -293,7 +325,7 @@ impl LlvmFuncEmitter {
 			addr,
 			offset,
 		};
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 		target
 	}
 
@@ -311,7 +343,7 @@ impl LlvmFuncEmitter {
 			func: func_label,
 			params: params.into_iter().map(|v| (v.get_type(), v)).collect(),
 		};
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 		target
 	}
 
@@ -336,27 +368,29 @@ impl LlvmFuncEmitter {
 			lhs: value,
 			to_type,
 		};
-		self.func_body.push(Box::new(instr));
+		self.get_cur_basicblock().add(Box::new(instr));
 		target
 	}
 
-	pub fn visit_end(mut self) -> LlvmFunc {
-		fn get_default_value(ret_type: VarType) -> Option<Value> {
-			match ret_type {
-				VarType::F32 => Some(Value::Float(0.0)),
-				VarType::I32 => Some(Value::Int(0)),
-				VarType::Void => None,
-				_ => unreachable!(),
-			}
-		}
-		if self.func_body.last().map_or(true, |v| !v.is_ret()) {
-			self.visit_ret(get_default_value(self.ret_type));
-		}
+	pub fn visit_end(self) -> LlvmFunc {
+		// fn get_default_value(ret_type: VarType) -> Option<Value> {
+		// 	match ret_type {
+		// 		VarType::F32 => Some(Value::Float(0.0)),
+		// 		VarType::I32 => Some(Value::Int(0)),
+		// 		VarType::Void => None,
+		// 		_ => unreachable!(),
+		// 	}
+		// }
+		// if self.func_body.last().map_or(true, |v| !v.is_ret()) {
+		// 	self.visit_ret(get_default_value(self.ret_type));
+		// }
 		LlvmFunc {
 			label: self.label,
 			params: self.params,
 			ret_type: self.ret_type,
-			body: self.func_body,
+			// body: self.func_body,
+			body: Vec::new(),
+			cfg: self.cfg,
 		}
 	}
 }
