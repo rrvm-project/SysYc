@@ -1,6 +1,6 @@
 use utils::Label;
 
-use crate::{llvminstr::LlvmInstr, llvmvar::VarType, temp::Temp};
+use crate::{llvminstr::LlvmInstr, llvmvar::VarType, temp::Temp, cfg::CFG};
 use std::fmt::Display;
 
 pub struct LlvmFunc {
@@ -8,6 +8,7 @@ pub struct LlvmFunc {
 	pub ret_type: VarType,
 	pub params: Vec<Temp>,
 	pub body: Vec<Box<dyn LlvmInstr>>,
+	pub cfg: CFG,
 }
 
 impl Display for LlvmFunc {
