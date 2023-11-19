@@ -120,7 +120,6 @@ impl Visitor for Namer {
 				node.set_attr("value", value.into());
 			}
 		}
-		println!("{:?}", node.get_attr("value"));
 		Ok(())
 	}
 	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<()> {

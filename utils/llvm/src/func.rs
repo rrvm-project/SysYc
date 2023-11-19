@@ -1,6 +1,6 @@
 use utils::Label;
 
-use crate::{llvminstr::LlvmInstr, llvmvar::VarType, temp::Temp, cfg::CFG};
+use crate::{cfg::CFG, llvminstr::LlvmInstr, llvmvar::VarType, temp::Temp};
 use std::fmt::Display;
 
 pub struct LlvmFunc {
@@ -21,9 +21,10 @@ impl Display for LlvmFunc {
 			write!(f, "{} {}", param.var_type, param)?;
 		}
 		writeln!(f, ") {{")?;
-		for instr in &self.body {
-			writeln!(f, "{}", instr)?;
-		}
+		// for instr in &self.body {
+		// 	writeln!(f, "{}", instr)?;
+		// }
+		write!(f, "{}", self.cfg)?;
 		writeln!(f, "}}")
 	}
 }
