@@ -32,6 +32,7 @@ llvm = { path = "utils/llvm" }
 ast = { path = "frontend/ast" }
 parser = { path = "frontend/parser" }
 namer = { path = "frontend/namer" }
+irgen = { path = "frontend/irgen" }
 
 rrvm_func = { path = "backend/func" }
 rrvm_program = { path = "backend/program" }

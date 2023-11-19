@@ -13,6 +13,7 @@ use anyhow::Result;
 use ast::tree::Program;
 use clap::Parser;
 use cli::Args;
+use irgen::irgen::LlvmIrGen;
 use llvm::LlvmProgram;
 use namer::visitor::Namer;
 use parser::parser::parse;
@@ -33,6 +34,12 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
 	let mut namer = Namer::new();
 	namer.transform(&mut program)?;
+	let mut irgen = LlvmIrGen {
+		funcemitter: None,
+		funcs: vec![],
+	};
+	irgen.transform(program)?;
+	println!("{}", irgen.emit_program());
 	todo!()
 }
 

@@ -23,7 +23,7 @@ pub type FuncType = (FuncRetType, Vec<VarType>);
 pub type IntPtr = (Vec<usize>, Array<i32>);
 pub type FloatPtr = (Vec<usize>, Array<f32>);
 
-pub fn to_llvmVarType(t: &VarType) -> llvmvar::VarType{
+pub fn to_llvm_var_type(t: &VarType) -> llvmvar::VarType {
 	match (t.1, t.2.len()) {
 		(BType::Int, 0) => llvmvar::VarType::I32,
 		(BType::Int, _) => llvmvar::VarType::I32Ptr,
