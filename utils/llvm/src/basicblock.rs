@@ -1,4 +1,7 @@
-use std::collections::HashSet;
+use std::{
+	collections::{HashMap, HashSet},
+	fmt::Display,
+};
 use utils::Label;
 
 use crate::{LlvmInstr, Temp};
@@ -13,10 +16,16 @@ pub struct BasicBlock {
 	pub live_in: HashSet<Temp>,
 	pub live_out: HashSet<Temp>,
 	pub instrs: Vec<Box<dyn LlvmInstr>>,
+	pub symbol2temp: HashMap<usize, Temp>,
+	pub phi_instrs: HashMap<Temp, Vec<(Label, Temp)>>,
 }
 
 impl BasicBlock {
-	pub fn new(id: usize, label: Label, instrs: Vec<Box<dyn LlvmInstr>>) -> BasicBlock {
+	pub fn new(
+		id: usize,
+		label: Label,
+		instrs: Vec<Box<dyn LlvmInstr>>,
+	) -> BasicBlock {
 		BasicBlock {
 			id,
 			label,
@@ -27,9 +36,24 @@ impl BasicBlock {
 			uses: HashSet::new(),
 			live_in: HashSet::new(),
 			live_out: HashSet::new(),
+			symbol2temp: HashMap::new(),
+			phi_instrs: HashMap::new(),
 		}
 	}
 	pub fn add(&mut self, instr: Box<dyn LlvmInstr>) {
 		self.instrs.push(instr);
+	}
+}
+
+impl Display for BasicBlock {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Basicblock id: {} ", self.id)?;
+		write!(f, "pred: {:?} ", self.pred)?;
+		writeln!(f, "succ: {:?}", self.succ)?;
+		writeln!(f, "{}:", self.label)?;
+		for instr in &self.instrs {
+			writeln!(f, "{}", instr)?;
+		}
+		Ok(())
 	}
 }

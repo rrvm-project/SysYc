@@ -1,3 +1,5 @@
+pub mod basicblock;
+pub mod cfg;
 pub mod func;
 pub mod llvmfuncemitter;
 pub mod llvminstr;
@@ -5,8 +7,6 @@ pub mod llvmop;
 pub mod llvmvar;
 pub mod parser;
 pub mod temp;
-pub mod cfg;
-pub mod basicblock;
 
 mod impls;
 mod utils_llvm;

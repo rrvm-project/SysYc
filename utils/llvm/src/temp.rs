@@ -15,7 +15,7 @@ impl Display for Temp {
 }
 
 impl Temp {
-	fn new(id: u32, var_type: VarType) -> Self {
+	pub fn new(id: u32, var_type: VarType) -> Self {
 		Self {
 			name: id.to_string(),
 			var_type,
@@ -44,5 +44,11 @@ impl TempManager {
 	pub fn new_temp(&mut self, var_type: VarType) -> Temp {
 		self.total += 1;
 		Temp::new(self.total, var_type)
+	}
+	pub fn cur_total(&self) -> u32 {
+		self.total
+	}
+	pub fn set_total(&mut self, total: u32) {
+		self.total = total;
 	}
 }
