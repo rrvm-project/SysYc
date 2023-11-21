@@ -6,7 +6,7 @@ use llvm::{
 	basicblock::BasicBlock,
 	func::LlvmFunc,
 	llvmfuncemitter::LlvmFuncEmitter,
-	llvmop::{ConvertOp, Value},
+	llvmop::{ArithOp, ConvertOp, Value},
 	llvmvar::VarType,
 	LlvmProgram, Temp,
 };
@@ -15,19 +15,12 @@ use rrvm_symbol::VarSymbol;
 // 	namer::{COMPILE_CONST, COMPILE_CONST_INDEX, INDEX, SYMBOL_NUMBER},
 // 	utils::DataFromNamer,
 // };
+use crate::{
+	utils::get_value, CUR_SYMBOL, FUNC_SYMBOL, GLOBAL_VALUE, INDEX, IRVALUE,
+	SYMBOL, VALUE,
+};
 use utils::{errors::Result, InitValueItem, Label, SysycError};
-use value::{BType, FuncRetType};
-
-static VALUE: &str = "value";
-
-// 意思是 irgen 过程中会给节点挂上的 attribute，内容是llvm::llvmop::Value, 名字可能名不副实
-static IRVALUE: &str = "irvalue";
-static FUNC_SYMBOL: &str = "func_symbol";
-static SYMBOL: &str = "symbol";
-static CUR_SYMBOL: &str = "cur_symbol";
-// 数组初始化列表中每一项在数组中的位置
-static INDEX: &str = "init_value_index";
-static GLOBAL_VALUE: &str = "global_value";
+use value::{to_llvm_var_type, BType, FuncRetType};
 
 pub struct LlvmIrGen {
 	pub funcemitter: Option<LlvmFuncEmitter>,
@@ -169,13 +162,10 @@ impl Visitor for LlvmIrGen {
 			.into();
 
 		let var_type = symbol.var_type.clone();
+		let tp = to_llvm_var_type(&var_type);
 		// 分配空间与初始化
 		if !var_type.2.is_empty() {
 			// 是数组
-			let tp = match var_type.1 {
-				BType::Int => llvm::llvmvar::VarType::I32Ptr,
-				BType::Float => llvm::llvmvar::VarType::F32Ptr,
-			};
 			// TODO: 这里的Value里面应该是个usize还是个i32呢
 			let mut size = 4;
 			for i in var_type.2 {
@@ -201,11 +191,6 @@ impl Visitor for LlvmIrGen {
 			}
 		} else {
 			// 是标量
-			let tp = match var_type.1 {
-				BType::Int => llvm::llvmvar::VarType::I32,
-				BType::Float => llvm::llvmvar::VarType::F32,
-			};
-			// 初始化
 			let temp = self.funcemitter.as_mut().unwrap().fresh_temp(tp);
 			self
 				.funcemitter
@@ -214,47 +199,16 @@ impl Visitor for LlvmIrGen {
 				.get_cur_basicblock()
 				.symbol2temp
 				.insert(symbol.id as usize, temp.clone());
+
+			// 初始化
 			if let Some(init) = &mut val_decl.init {
 				init.accept(self)?;
-				if let Some(Attr::Value(const_value)) = init.get_attr(VALUE) {
-					match const_value {
-						value::Value::Int(v) => {
-							self
-								.funcemitter
-								.as_mut()
-								.unwrap()
-								.visit_assign_instr(temp, Value::Int(*v));
-						}
-						value::Value::Float(v) => {
-							self
-								.funcemitter
-								.as_mut()
-								.unwrap()
-								.visit_assign_instr(temp, Value::Float(*v));
-						}
-						_ => {
-							return Err(SysycError::LlvmSyntexError(format!(
-								"const value for {} should not be other than float and int",
-								val_decl.ident.clone()
-							)))
-						}
-					}
-				} else {
-					let init_value = match init.get_attr(IRVALUE) {
-						Some(Attr::IRValue(v)) => v.clone(),
-						_ => {
-							return Err(SysycError::LlvmSyntexError(format!(
-								"init value for {} has no value",
-								val_decl.ident.clone()
-							)))
-						}
-					};
-					self
-						.funcemitter
-						.as_mut()
-						.unwrap()
-						.visit_assign_instr(temp, init_value);
-				}
+
+				self
+					.funcemitter
+					.as_mut()
+					.unwrap()
+					.visit_assign_instr(temp, get_value(init)?);
 			}
 		}
 		Ok(())
@@ -305,32 +259,9 @@ impl Visitor for LlvmIrGen {
 			val_decl.params.iter_mut().zip(funcsymbol.var_type.1)
 		{
 			param.accept(self)?;
-			if let Some(Attr::Value(const_value)) = param.get_attr(VALUE) {
-				params.push(match const_value {
-					value::Value::Int(v) => {
-						self.convert(value::to_llvm_var_type(&para_type), Value::Int(*v))
-					}
-					value::Value::Float(v) => {
-						self.convert(value::to_llvm_var_type(&para_type), Value::Float(*v))
-					}
-					_ => {
-						return Err(SysycError::LlvmSyntexError(format!(
-							"Compile const value in call should not be {:?}",
-							const_value
-						)))
-					}
-				});
-				continue;
-			}
-			if let Some(Attr::IRValue(v)) = param.get_attr(IRVALUE) {
-				params
-					.push(self.convert(value::to_llvm_var_type(&para_type), v.clone()));
-			} else {
-				return Err(SysycError::LlvmSyntexError(format!(
-					"param of call {} has no value",
-					val_decl.ident.clone()
-				)));
-			}
+			params.push(
+				self.convert(value::to_llvm_var_type(&para_type), get_value(param)?),
+			);
 		}
 		let var_type = match funcsymbol.var_type.0 {
 			FuncRetType::Int => VarType::I32,
@@ -363,24 +294,16 @@ impl Visitor for LlvmIrGen {
 			val_decl.set_attr(IRVALUE, Attr::IRValue(v));
 			return Ok(());
 		}
-		// 这里不检查rhs是否有编译期常量，因为如果是的话，UnaryExpr也一定是
-		let expr_value = match val_decl.rhs.get_attr(IRVALUE) {
-			Some(Attr::IRValue(v)) => v.clone(),
-			_ => {
-				return Err(SysycError::LlvmSyntexError(
-					"unary expr has no value".to_string(),
-				))
-			}
-		};
+		let expr_value = get_value(&val_decl.rhs)?;
 		let op = match val_decl.op {
 			value::UnaryOp::Neg => {
-				if expr_value.get_type() == llvm::llvmvar::VarType::F32 {
-					Some(llvm::llvmop::ArithOp::Fsub)
+				if expr_value.get_type() == VarType::F32 {
+					Some(ArithOp::Fsub)
 				} else {
-					Some(llvm::llvmop::ArithOp::Sub)
+					Some(ArithOp::Sub)
 				}
 			}
-			value::UnaryOp::Not => Some(llvm::llvmop::ArithOp::Xor),
+			value::UnaryOp::Not => Some(ArithOp::Xor),
 			// 不做运算
 			value::UnaryOp::Plus => None,
 		};
@@ -390,8 +313,7 @@ impl Visitor for LlvmIrGen {
 				o,
 				expr_value,
 			);
-			val_decl
-				.set_attr(IRVALUE, Attr::IRValue(llvm::llvmop::Value::Temp(target)));
+			val_decl.set_attr(IRVALUE, Attr::IRValue(Value::Temp(target)));
 		} else {
 			val_decl.set_attr(IRVALUE, Attr::IRValue(expr_value));
 		}
@@ -445,46 +367,8 @@ impl Visitor for LlvmIrGen {
 			}
 			return Ok(());
 		}
-		let lhs = match val_decl.lhs.get_attr(VALUE) {
-			Some(Attr::Value(v)) => match v {
-				value::Value::Int(v) => llvm::llvmop::Value::Int(*v),
-				value::Value::Float(v) => llvm::llvmop::Value::Float(*v),
-				_ => {
-					return Err(SysycError::LlvmSyntexError(format!(
-						"Compile const value in binary should not be {:?}",
-						v
-					)))
-				}
-			},
-			_ => match val_decl.lhs.get_attr(IRVALUE) {
-				Some(Attr::IRValue(v)) => v.clone(),
-				_ => {
-					return Err(SysycError::LlvmSyntexError(
-						"lhs of binary expr has no value".to_string(),
-					))
-				}
-			},
-		};
-		let rhs = match val_decl.rhs.get_attr(VALUE) {
-			Some(Attr::Value(v)) => match v {
-				value::Value::Int(v) => llvm::llvmop::Value::Int(*v),
-				value::Value::Float(v) => llvm::llvmop::Value::Float(*v),
-				_ => {
-					return Err(SysycError::LlvmSyntexError(format!(
-						"Compile const value in binary should not be {:?}",
-						v
-					)))
-				}
-			},
-			_ => match val_decl.rhs.get_attr(IRVALUE) {
-				Some(Attr::IRValue(v)) => v.clone(),
-				_ => {
-					return Err(SysycError::LlvmSyntexError(
-						"lhs of binary expr has no value".to_string(),
-					))
-				}
-			},
-		};
+		let lhs = get_value(&val_decl.lhs)?;
+		let rhs = get_value(&val_decl.rhs)?;
 		// TODO: 这里没有考虑void的情况，所以VarType为什么会包含Void啊
 		let is_float = (lhs.get_type() == llvm::llvmvar::VarType::F32)
 			|| (rhs.get_type() == llvm::llvmvar::VarType::F32);
@@ -653,27 +537,7 @@ impl Visitor for LlvmIrGen {
 		let ret_type = self.funcemitter.as_mut().unwrap().ret_type;
 		if let Some(expr) = &mut val_decl.value {
 			expr.accept(self)?;
-			let value = if let Some(Attr::Value(v)) = expr.get_attr(VALUE) {
-				match v {
-					value::Value::Int(v) => self.convert(ret_type, Value::Int(*v)),
-					value::Value::Float(v) => self.convert(ret_type, Value::Float(*v)),
-					_ => {
-						return Err(SysycError::LlvmSyntexError(format!(
-							"Compile const value in return should not be {:?}",
-							v
-						)));
-					}
-				}
-			} else {
-				match expr.get_attr(IRVALUE) {
-					Some(Attr::IRValue(v)) => self.convert(ret_type, v.clone()),
-					_ => {
-						return Err(SysycError::LlvmSyntexError(
-							"return expr has no value".to_string(),
-						))
-					}
-				}
-			};
+			let value = self.convert(ret_type, get_value(expr)?);
 			self.funcemitter.as_mut().unwrap().visit_ret(Some(value));
 		} else {
 			self.funcemitter.as_mut().unwrap().visit_ret(None);
@@ -685,6 +549,7 @@ impl Visitor for LlvmIrGen {
 	}
 	fn visit_if(&mut self, val_decl: &mut If) -> Result<()> {
 		val_decl.cond.accept(self)?;
+		// TODO: cond没有检测有没有默认值
 		let cond_value = match val_decl.cond.get_attr(IRVALUE) {
 			Some(Attr::IRValue(v)) => v.clone(),
 			_ => {
@@ -772,6 +637,7 @@ impl Visitor for LlvmIrGen {
 
 		self.funcemitter.as_mut().unwrap().visit_label(beginlabel_id);
 		val_decl.cond.accept(self)?;
+		// TODO: cond没有检测有没有默认值
 		let cond_value = match val_decl.cond.get_attr(IRVALUE) {
 			Some(Attr::IRValue(v)) => v.clone(),
 			_ => {
