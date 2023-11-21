@@ -63,4 +63,12 @@ impl ScopeStack {
 	pub fn is_global(&self) -> bool {
 		self.scopes.len() == 1
 	}
+	pub fn report_all_global(&self) -> Vec<(String, VarSymbol)> {
+		let mut result = vec![];
+		for (name, symbol) in &self.scopes[0].symbols {
+			result.push((name.clone(), symbol.clone()));
+		}
+
+		result
+	}
 }

@@ -4,6 +4,8 @@ use std::collections::HashMap;
 
 use utils::Result;
 
+use utils::InitValueItem;
+
 fn flat_to_indexes(flat: usize, dim_list: &Vec<usize>) -> Vec<usize> {
 	let mut alignment = vec![];
 	alignment.push(1);
@@ -58,6 +60,40 @@ pub fn get_zero(tp: BType) -> Value {
 		BType::Int => Value::Int(0),
 		BType::Float => Value::Float(0.0),
 	}
+}
+
+pub fn get_global_init_value(
+	value_map: &HashMap<usize, Value>,
+	size: usize,
+) -> Vec<InitValueItem> {
+	let mut index: Vec<usize> = value_map.keys().cloned().collect();
+	index.sort();
+
+	let mut result = vec![];
+	let mut last = 0;
+
+	for i in index {
+		if result.is_empty() && i > 0 {
+			result.push(InitValueItem::None(i));
+		} else if i > last + 1 {
+			result.push(InitValueItem::None(i - last - 1))
+		}
+
+		result.push(match value_map.get(&i).unwrap() {
+			Value::Float(v) => InitValueItem::Float(*v),
+			Value::Int(v) => InitValueItem::Int(*v),
+			_ => unreachable!("初值只可能是int 或 float"),
+		});
+		last = i;
+	}
+
+	if result.is_empty() && size > 0 {
+		result.push(InitValueItem::None(size));
+	} else if size > last + 1 {
+		result.push(InitValueItem::None(size - last - 1))
+	}
+
+	result
 }
 
 // mod tests {
