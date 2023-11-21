@@ -20,6 +20,8 @@ struct InitListContext {
 	pub dims_alignment: Vec<usize>,
 	pub used_space: usize,
 	pub init_values: HashMap<usize, Value>,
+	pub expect_const: bool,
+	pub target_type: BType,
 }
 
 pub struct Namer {
@@ -101,16 +103,18 @@ impl Visitor for Namer {
 			alignment.push(alignment[i - 1] * current_size);
 		}
 
+		let (is_const, btype) = self.cur_type.unwrap();
+		let var_type = (is_const, btype, dim_list);
+		let symbol = self.mgr.new_symbol(None, var_type.clone());
+
 		self.init_list_context = InitListContext {
 			dims_alignment: alignment,
 			used_space: 0,
 			init_values: HashMap::new(),
+			expect_const: is_const || self.ctx.is_global(),
+			target_type: btype,
 		}
 		.into();
-
-		let (is_const, btype) = self.cur_type.unwrap();
-		let var_type = (is_const, btype, dim_list);
-		let symbol = self.mgr.new_symbol(None, var_type.clone());
 
 		self.ctx.set_val(&node.ident, symbol.clone());
 		node.set_attr("type", var_type.into());
@@ -118,9 +122,9 @@ impl Visitor for Namer {
 		node.set_attr("symbol", symbol.into());
 
 		if let Some(init_value) = &mut node.init {
-			init_value.accept(self);
+			init_value.accept(self)?;
 			if is_array {
-				init_value.accept(self);
+				init_value.accept(self)?;
 			} else if let Some(attr::Attr::Value(value)) =
 				init_value.get_attr("value")
 			{
@@ -129,7 +133,7 @@ impl Visitor for Namer {
 					.as_mut()
 					.unwrap()
 					.init_values
-					.insert(0, value.clone());
+					.insert(0, value.to_target_btype(btype)?);
 			}
 		}
 
@@ -155,7 +159,7 @@ impl Visitor for Namer {
 		self.cur_type = None;
 		Ok(())
 	}
-	//TODO: Constant Propagation
+
 	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
 		if self.init_list_context.is_none() {
 			unreachable!("init list must in a var_decl of array");
@@ -197,13 +201,21 @@ impl Visitor for Namer {
 						self.init_list_context.as_mut().unwrap().used_space =
 							position + alignment;
 
+						let target_type =
+							self.init_list_context.as_ref().unwrap().target_type;
+
 						if let Some(attr::Attr::Value(v)) = item.get_attr("value") {
 							self
 								.init_list_context
 								.as_mut()
 								.unwrap()
 								.init_values
-								.insert(position, v.clone());
+								.insert(position, v.to_target_btype(target_type)?);
+						} else if self.init_list_context.as_ref().unwrap().expect_const {
+							dbg!(&item);
+							return Err(utils::SysycError::SyntaxError(
+								"failed to get const value of above for array init".to_string(),
+							));
 						}
 					} else {
 						self.init_list_context.as_mut().unwrap().used_space = position;
@@ -240,8 +252,8 @@ impl Visitor for Namer {
 		Ok(())
 	}
 	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<()> {
-		node.lhs.accept(self);
-		node.rhs.accept(self);
+		node.lhs.accept(self)?;
+		node.rhs.accept(self)?;
 		if node.op != BinaryOp::Assign {
 			let lhs = node.lhs.get_attr("value");
 			let rhs = node.rhs.get_attr("value");
@@ -268,7 +280,7 @@ impl Visitor for Namer {
 		Ok(())
 	}
 	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<()> {
-		node.rhs.accept(self);
+		node.rhs.accept(self)?;
 		if let Some(rhs) = node.rhs.get_attr("value") {
 			let value = exec_unaryop(node.op, &rhs.into())?;
 			node.set_attr("value", value.into());
