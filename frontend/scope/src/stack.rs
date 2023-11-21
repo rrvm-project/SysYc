@@ -60,4 +60,7 @@ impl ScopeStack {
 			.get_symbol(ident)
 			.ok_or(SyntaxError(format!("{} is not found", ident)))
 	}
+	pub fn is_global(&self) -> bool {
+		self.scopes.len() == 1
+	}
 }

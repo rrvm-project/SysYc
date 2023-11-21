@@ -1,5 +1,6 @@
 pub mod calc;
 pub mod impls;
+pub mod typer;
 pub mod utils;
 use std::collections::HashMap;
 

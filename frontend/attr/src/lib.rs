@@ -10,9 +10,12 @@ pub enum Attr {
 	VarType(VarType),
 	Value(Value),
 	IRValue(llvm::llvmop::Value),
+	InitListHeight(usize),
+	InitListPosition(usize),
 }
 
 pub trait Attrs {
 	fn set_attr(&mut self, name: &str, attr: Attr);
 	fn get_attr(&self, name: &str) -> Option<&Attr>;
+	fn get_name(&self) -> String;
 }

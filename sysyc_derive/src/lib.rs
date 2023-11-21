@@ -38,6 +38,10 @@ pub fn has_attrs(_: TokenStream, item: TokenStream) -> TokenStream {
 			fn get_attr(&self, name: &str) -> Option<&Attr> {
 				self._attrs.get(name)
 			}
+
+			fn get_name(&self) -> String {
+				stringify!(#name).to_string()
+			}
 		}
 	}
 	.into()
