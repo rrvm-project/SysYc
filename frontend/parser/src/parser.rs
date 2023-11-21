@@ -211,7 +211,7 @@ fn parse_formal_params(pair: Pair<Rule>) -> NodeList {
 			_attrs: HashMap::new(),
 			type_t: parse_var_type(pairs.next().unwrap()),
 			ident: parse_identifier(pairs.next().unwrap()),
-			dim_list: parse_dim_list(pairs.next().unwrap()),
+			dim_list: pairs.next().map(parse_dim_list).unwrap_or_default(),
 		};
 		Box::new(formal_param)
 	}
