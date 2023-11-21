@@ -492,6 +492,12 @@ impl Visitor for LlvmIrGen {
 				}
 			}
 			value::BinaryOp::Mod => Some(llvm::llvmop::ArithOp::Rem),
+			value::BinaryOp::IDX => {
+				let temp = self.funcemitter.as_mut().unwrap().visit_gep_instr(lhs, rhs);
+				val_decl
+					.set_attr(IRVALUE, Attr::IRValue(llvm::llvmop::Value::Temp(temp)));
+				return Ok(()); // 这里直接返回，不需要再visit了
+			}
 			value::BinaryOp::Assign => {
 				// lhs 如果有一个叫SYMBOL的attr，说明是一个变量，需要开一个新的Temp
 				if let Some(Attr::VarSymbol(symbol)) = val_decl.lhs.get_attr(SYMBOL) {
@@ -708,6 +714,13 @@ impl Visitor for LlvmIrGen {
 			}
 			None => {
 				self.funcemitter.as_mut().unwrap().visit_jump_instr(skiplabel);
+
+				self
+					.funcemitter
+					.as_mut()
+					.unwrap()
+					.add_succ_to_cur_basicblock(skiplabel_id);
+
 				self.funcemitter.as_mut().unwrap().visit_label(skiplabel_id);
 				Ok(())
 			}
@@ -787,20 +800,19 @@ impl Visitor for LlvmIrGen {
 
 	#[allow(unused_variables)]
 	fn visit_init_val_list(&mut self, val_decl: &mut InitValList) -> Result<()> {
-		todo!()
 		// 这里的attr来自visit_var_def
-		// let symbol_id = match val_decl.get_attr(SYMBOL_NUMBER) {
-		// 	Some(Attr::VarSymbol(id)) => *id,
-		// 	_ => {
-		// 		return Err(SysycError::LlvmSyntexError(
-		// 			"init val has no symbol".to_string(),
-		// 		))
-		// 	}
-		// };
-		// let symbol = self.data.var_symbols[symbol_id].clone();
+		let symbol = match val_decl.get_attr(SYMBOL) {
+			Some(Attr::VarSymbol(s)) => s.clone(),
+			_ => {
+				return Err(SysycError::LlvmSyntexError(
+					"init val has no symbol".to_string(),
+				))
+			}
+		};
+		todo!()
 		// for init_val in &mut val_decl.val_list {
 		// 	// 需要递归地告诉内部的InitValList，这个InitValList是属于哪个数组的
-		// 	init_val.set_attr(SYMBOL_NUMBER, Attr::VarSymbol(symbol_id));
+		// 	init_val.set_attr(SYMBOL, Attr::VarSymbol(symbol.clone()));
 		// 	init_val.accept(self)?;
 		// 	match init_val.get_attr(VALUE) {
 		// 		// 有 Some 说明这个init_val不是一个InitValList
