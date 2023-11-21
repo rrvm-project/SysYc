@@ -3,6 +3,7 @@ mod config;
 mod printer;
 
 use std::{
+	collections::HashMap,
 	fs::{self, File},
 	io,
 	io::Write,
@@ -37,6 +38,7 @@ fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
 	let mut irgen = LlvmIrGen {
 		funcemitter: None,
 		funcs: vec![],
+		global_vars: HashMap::new(),
 	};
 	irgen.transform(program)?;
 	println!("{}", irgen.emit_program());

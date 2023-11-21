@@ -1,6 +1,7 @@
 mod impls;
 
 use rrvm_symbol::{FuncSymbol, VarSymbol};
+use utils::InitValueItem;
 use value::{Value, VarType};
 
 #[derive(Clone, Debug)]
@@ -12,6 +13,7 @@ pub enum Attr {
 	IRValue(llvm::llvmop::Value),
 	InitListHeight(usize),
 	InitListPosition(usize),
+	GlobalValue(Vec<InitValueItem>),
 }
 
 pub trait Attrs {
