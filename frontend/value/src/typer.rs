@@ -49,7 +49,6 @@ pub fn type_for_binary(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::collections::HashMap;
 
 	#[test]
 	fn internal() {

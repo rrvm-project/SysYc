@@ -1,6 +1,6 @@
 use llvm::llvmvar::VarType;
 
-use crate::Value;
+use crate::{BType, Value};
 
 use utils::errors::Result;
 
@@ -31,6 +31,13 @@ impl Value {
 			_ => Err(utils::SysycError::SyntaxError(
 				"prt can not be converted into f32".to_string(),
 			)),
+		}
+	}
+
+	pub fn to_target_btype(&self, tp: BType) -> Result<Value> {
+		match tp {
+			BType::Float => Ok(Value::Float(self.get_f32_value()?)),
+			BType::Int => Ok(Value::Int(self.get_i32_value()?)),
 		}
 	}
 }
