@@ -22,6 +22,7 @@ struct InitListContext {
 	pub init_values: HashMap<usize, Value>,
 	pub expect_const: bool,
 	pub target_type: BType,
+	pub total_size: usize,
 }
 
 pub struct Namer {
@@ -30,6 +31,7 @@ pub struct Namer {
 	cur_type: Option<(bool, BType)>,
 	init_list_context: Option<InitListContext>,
 	init_value_list: HashMap<i32, HashMap<usize, Value>>,
+	global_value_list: Vec<(String, Vec<init_value_item::InitValueItem>)>,
 }
 
 impl Default for Namer {
@@ -46,6 +48,7 @@ impl Namer {
 			cur_type: None,
 			init_list_context: None,
 			init_value_list: HashMap::new(),
+			global_value_list: vec![],
 		}
 	}
 	pub fn transform(&mut self, program: &mut Program) -> Result<()> {
@@ -76,11 +79,29 @@ impl Visitor for Namer {
 		for v in node.comp_units.iter_mut() {
 			v.accept(self)?
 		}
+
+		println!("init values at end{:?}", self.init_value_list);
+
+		for (name, symbol) in self.ctx.report_all_global() {
+			let mut size = 1;
+
+			for item in &symbol.var_type.2 {
+				size *= *item;
+			}
+
+			let value_map = self.init_value_list.get(&symbol.id).unwrap();
+			self
+				.global_value_list
+				.push((name.clone(), get_global_init_value(value_map, size)))
+		}
+
+		println!("global_var{:?}", self.global_value_list);
+
 		self.ctx.pop();
+
 		Ok(())
 	}
 	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<()> {
-		self.ctx.push();
 		let mut func_type = Vec::new();
 		for param in node.formal_params.iter_mut() {
 			param.accept(self)?;
@@ -89,7 +110,9 @@ impl Visitor for Namer {
 		let func_type: FuncType = (node.ret_type, func_type);
 		let symbol = self.mgr.new_symbol(Some(node.ident.clone()), func_type);
 		self.ctx.set_func(&node.ident, symbol)?;
-		node.block.accept(self)
+		self.ctx.push();
+		node.block.accept(self);
+		self.ctx.pop()
 	}
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
@@ -103,9 +126,16 @@ impl Visitor for Namer {
 			alignment.push(alignment[i - 1] * current_size);
 		}
 
+		let total_size = if is_array {
+			alignment[alignment.len() - 1] * dim_list[0]
+		} else {
+			1
+		};
+
 		let (is_const, btype) = self.cur_type.unwrap();
 		let var_type = (is_const, btype, dim_list);
-		let symbol = self.mgr.new_symbol(None, var_type.clone());
+		let symbol =
+			self.mgr.new_symbol(Some(node.ident.clone()), var_type.clone());
 
 		self.init_list_context = InitListContext {
 			dims_alignment: alignment,
@@ -113,6 +143,7 @@ impl Visitor for Namer {
 			init_values: HashMap::new(),
 			expect_const: is_const || self.ctx.is_global(),
 			target_type: btype,
+			total_size,
 		}
 		.into();
 
@@ -193,6 +224,7 @@ impl Visitor for Namer {
 				{
 					let alignment =
 						self.init_list_context.as_ref().unwrap().dims_alignment[*height];
+					let total_size = self.init_list_context.as_ref().unwrap().total_size;
 					let used = self.init_list_context.as_ref().unwrap().used_space;
 					let blank = used % alignment;
 					let position = used + if blank == 0 { 0 } else { alignment - blank };
@@ -222,6 +254,12 @@ impl Visitor for Namer {
 					}
 					item
 						.set_attr("init_value_index", attr::Attr::InitListHeight(position));
+
+					if (position >= total_size) {
+						return Err(utils::SysycError::SyntaxError(
+							"too many init value".to_string(),
+						));
+					}
 
 					item.accept(self)?;
 
@@ -355,6 +393,7 @@ impl Visitor for Namer {
 		for stmt in node.stmts.iter_mut() {
 			stmt.accept(self)?;
 		}
+		self.ctx.pop()?;
 		Ok(())
 	}
 	fn visit_if(&mut self, node: &mut If) -> Result<()> {

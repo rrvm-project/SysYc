@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use rrvm_symbol::Symbol;
 use utils::{errors::Result, SysycError::SyntaxError};
 
+#[derive(Debug)]
 pub struct Scope<T> {
-	symbols: HashMap<String, Symbol<T>>,
+	pub symbols: HashMap<String, Symbol<T>>,
 }
 
 impl<T> Default for Scope<T> {
