@@ -50,9 +50,9 @@ impl Display for BasicBlock {
 		write!(f, "Basicblock id: {} ", self.id)?;
 		write!(f, "pred: {:?} ", self.pred)?;
 		writeln!(f, "succ: {:?}", self.succ)?;
-		writeln!(f, "{}:", self.label)?;
+		writeln!(f, "  {}:", self.label)?;
 		for instr in &self.instrs {
-			writeln!(f, "{}", instr)?;
+			writeln!(f, "  {}", instr)?;
 		}
 		Ok(())
 	}
