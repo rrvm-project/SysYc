@@ -3,7 +3,7 @@
 use std::{collections::HashMap, process::exit};
 
 use ast::{tree::*, Visitor};
-use attr::Attrs;
+use attr::{Attr, Attrs};
 use rrvm_symbol::{manager::SymbolManager, FuncSymbol, Symbol, VarSymbol};
 use scope::{scope::Scope, stack::ScopeStack};
 use utils::{errors::Result, init_value_item, SysycError::TypeError};
@@ -80,7 +80,7 @@ impl Visitor for Namer {
 			v.accept(self)?
 		}
 
-		println!("init values at end{:?}", self.init_value_list);
+		// println!("init values at end{:?}", self.init_value_list);
 
 		for (name, symbol) in self.ctx.report_all_global() {
 			let mut size = 1;
@@ -95,7 +95,7 @@ impl Visitor for Namer {
 				.push((name.clone(), get_global_init_value(value_map, size)))
 		}
 
-		println!("global_var{:?}", self.global_value_list);
+		// println!("global_var{:?}", self.global_value_list);
 
 		self.ctx.pop();
 
@@ -134,8 +134,10 @@ impl Visitor for Namer {
 
 		let (is_const, btype) = self.cur_type.unwrap();
 		let var_type = (is_const, btype, dim_list);
-		let symbol =
+		let var_type_size = var_type.2.iter().product::<usize>();
+		let mut symbol =
 			self.mgr.new_symbol(Some(node.ident.clone()), var_type.clone());
+		symbol.is_global = self.ctx.is_global();
 
 		self.init_list_context = InitListContext {
 			dims_alignment: alignment,
@@ -169,16 +171,25 @@ impl Visitor for Namer {
 		}
 
 		if self.ctx.is_global() || is_const {
+			// Add by cyh
+			if self.ctx.is_global() {
+				node.set_attr(
+					"global_value",
+					Attr::GlobalValue(get_global_init_value(
+						&self.init_list_context.as_mut().unwrap().init_values,
+						var_type_size,
+					)),
+				)
+			}
+			// Reformed by cyh
 			self.init_value_list.insert(
 				symbol_id,
-				std::mem::take(
-					&mut self.init_list_context.as_mut().unwrap().init_values,
-				),
+				self.init_list_context.take().unwrap().init_values,
 			);
 		}
 
-		println!("init values{:?}", self.init_value_list);
-		self.init_list_context = None;
+		// println!("init values{:?}", self.init_value_list);
+		// self.init_list_context = None;
 
 		Ok(())
 	}
@@ -252,8 +263,10 @@ impl Visitor for Namer {
 					} else {
 						self.init_list_context.as_mut().unwrap().used_space = position;
 					}
-					item
-						.set_attr("init_value_index", attr::Attr::InitListHeight(position));
+					item.set_attr(
+						"init_value_index",
+						attr::Attr::InitListPosition(position),
+					);
 
 					if (position >= total_size) {
 						return Err(utils::SysycError::SyntaxError(
