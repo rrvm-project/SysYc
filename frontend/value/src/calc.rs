@@ -10,13 +10,13 @@ fn bin_calc<Foo, Bar>(
 	on_float: Bar,
 ) -> Result<Value>
 where
-	Foo: Fn(i32, i32) -> i32,
-	Bar: Fn(f32, f32) -> f32,
+	Foo: Fn(i32, i32) -> Result<i32>,
+	Bar: Fn(f32, f32) -> Result<f32>,
 {
-	if x.get_type() == VarType::I32 || y.get_type() == VarType::I32 {
-		Ok(Value::Int(on_int(x.to_int()?, y.to_int()?)))
+	if x.get_type() == VarType::I32 && y.get_type() == VarType::I32 {
+		Ok(Value::Int(on_int(x.to_int()?, y.to_int()?)?))
 	} else {
-		Ok(Value::Float(on_float(x.to_float()?, y.to_float()?)))
+		Ok(Value::Float(on_float(x.to_float()?, y.to_float()?)?))
 	}
 }
 
@@ -27,13 +27,13 @@ fn bin_comp<Foo, Bar>(
 	on_float: Bar,
 ) -> Result<Value>
 where
-	Foo: Fn(i32, i32) -> bool,
-	Bar: Fn(f32, f32) -> bool,
+	Foo: Fn(i32, i32) -> Result<bool>,
+	Bar: Fn(f32, f32) -> Result<bool>,
 {
-	if x.get_type() == VarType::I32 || y.get_type() == VarType::I32 {
-		Ok(Value::Int(on_int(x.to_int()?, y.to_int()?) as i32))
+	if x.get_type() == VarType::I32 && y.get_type() == VarType::I32 {
+		Ok(Value::Int(on_int(x.to_int()?, y.to_int()?)? as i32))
 	} else {
-		Ok(Value::Int(on_float(x.to_float()?, y.to_float()?) as i32))
+		Ok(Value::Int(on_float(x.to_float()?, y.to_float()?)? as i32))
 	}
 }
 
@@ -67,38 +67,126 @@ pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Value> {
 				_ => Err(TypeError("only array can be indexed".to_string())),
 			}
 		}
-		BinaryOp::Add => bin_calc(x, y, |x, y| -> i32 {x.wrapping_add(y)}, |x, y| -> f32 {x + y}),
-		BinaryOp::Sub => bin_calc(x, y, |x, y| -> i32 {x.wrapping_sub(y)}, |x, y| -> f32 {x - y}),
-		BinaryOp::Mul => bin_calc(x, y, |x, y| -> i32 {x.wrapping_mul(y)}, |x, y| -> f32 {x * y}),
-		BinaryOp::Div => bin_calc(x, y, |x, y| -> i32 {x.wrapping_div(y)}, |x, y| -> f32 {x / y}),
-		BinaryOp::Mod => bin_calc(x, y, |x, y| -> i32 {x.wrapping_rem(y)}, |_, _| -> f32 {unreachable!()}),
-		BinaryOp::LT => bin_comp(x, y, |x, y| -> bool {x < y}, |x, y| -> bool {x < y}),
-		BinaryOp::LE => bin_comp(x, y, |x, y| -> bool {x <= y}, |x, y| -> bool {x <= y}),
-		BinaryOp::GT => bin_comp(x, y, |x, y| -> bool {x > y}, |x, y| -> bool {x > y}),
-		BinaryOp::GE => bin_comp(x, y, |x, y| -> bool {x >= y}, |x, y| -> bool {x >= y}),
-		BinaryOp::EQ => bin_comp(x, y, |x, y| -> bool {x == y}, |x, y| -> bool {x == y}),
-		BinaryOp::NE => bin_comp(x, y, |x, y| -> bool {x != y}, |x, y| -> bool {x != y}),
+		BinaryOp::Add => bin_calc(x, y, |x, y| -> Result<i32> {Ok(x.wrapping_add(y))}, |x, y| -> Result<f32> {Ok(x + y)}),
+		BinaryOp::Sub => bin_calc(x, y, |x, y| -> Result<i32> {Ok(x.wrapping_sub(y))}, |x, y| -> Result<f32> {Ok(x - y)}),
+		BinaryOp::Mul => bin_calc(x, y, |x, y| -> Result<i32> {Ok(x.wrapping_mul(y))}, |x, y| -> Result<f32> {Ok(x * y)}),
+		BinaryOp::Div => bin_calc(x, y, |x, y| -> Result<i32> {Ok(x.wrapping_div(y))}, |x, y| -> Result<f32> {Ok(x / y)}),
+		BinaryOp::Mod => bin_calc(x, y, |x, y| -> Result<i32> {Ok(x.wrapping_rem(y))}, |_, _| -> Result<f32> {Err(TypeError("float number can not be used in mod".to_string()))}),
+		BinaryOp::LT => bin_comp(x, y, |x, y| -> Result<bool> {Ok(x < y)}, |x, y| -> Result<bool> {Ok(x < y)}),
+		BinaryOp::LE => bin_comp(x, y, |x, y| -> Result<bool> {Ok(x <= y)}, |x, y| -> Result<bool> {Ok(x <= y)}),
+		BinaryOp::GT => bin_comp(x, y, |x, y| -> Result<bool> {Ok(x > y)}, |x, y| -> Result<bool> {Ok(x > y)}),
+		BinaryOp::GE => bin_comp(x, y, |x, y| -> Result<bool> {Ok(x >= y)}, |x, y| -> Result<bool> {Ok(x >= y)}),
+		BinaryOp::EQ => bin_comp(x, y, |x, y| -> Result<bool> {Ok(x == y)}, |x, y| -> Result<bool> {Ok(x == y)}),
+		BinaryOp::NE => bin_comp(x, y, |x, y| -> Result<bool> {Ok(x != y)}, |x, y| -> Result<bool> {Ok(x != y)}),
     BinaryOp::Assign => unreachable!(),
 	}
 }
 
 fn una_calc<Foo, Bar>(x: &Value, on_int: Foo, on_float: Bar) -> Result<Value>
 where
-	Foo: Fn(i32) -> i32,
-	Bar: Fn(f32) -> f32,
+	Foo: Fn(i32) -> Result<i32>,
+	Bar: Fn(f32) -> Result<f32>,
 {
 	if x.get_type() == VarType::I32 {
-		Ok(Value::Int(on_int(x.to_int()?)))
+		Ok(Value::Int(on_int(x.to_int()?)?))
 	} else {
-		Ok(Value::Float(on_float(x.to_float()?)))
+		Ok(Value::Float(on_float(x.to_float()?)?))
 	}
 }
 
 #[rustfmt::skip]
 pub fn exec_unaryop(op: UnaryOp, x: &Value) -> Result<Value> {
 	match op {
-	  UnaryOp::Plus => una_calc(x, |x|-> i32 {x} ,|x|-> f32 {x}),
-	  UnaryOp::Neg => una_calc(x, |x|-> i32 {-x} ,|x|-> f32 {-x}),
-	  UnaryOp::Not => una_calc(x, |x|-> i32 {!x} ,|_|-> f32 {unreachable!()}),
+	  UnaryOp::Plus => una_calc(x, |x|-> Result<i32> {Ok(x)} ,|x|-> Result<f32> {Ok(x)}),
+	  UnaryOp::Neg => una_calc(x, |x|-> Result<i32> {Ok(-x)} ,|x|-> Result<f32> {Ok(-x)}),
+	  UnaryOp::Not => una_calc(x, |x|-> Result<i32> {Ok(!x)} ,|_|-> Result<f32> {Err(TypeError("NOT operation is only for int".to_string()))}),
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn internal() {
+		println!(
+			"{:?}",
+			exec_binaryop(
+				&Value::IntPtr((
+					vec![],
+					(
+						3,
+						[(vec![3, 10, 1], 1), (vec![3, 10, 2], 2)]
+							.iter()
+							.cloned()
+							.collect()
+					)
+				)),
+				BinaryOp::IDX,
+				&Value::Int(1)
+			)
+		);
+
+		println!(
+			"{:?}",
+			exec_binaryop(
+				&Value::IntPtr((
+					vec![1],
+					(
+						3,
+						[(vec![3, 10, 1], 1), (vec![3, 10, 2], 2)]
+							.iter()
+							.cloned()
+							.collect()
+					)
+				)),
+				BinaryOp::IDX,
+				&Value::Int(1)
+			)
+		);
+
+		println!(
+			"{:?}",
+			exec_binaryop(
+				&Value::IntPtr((
+					vec![1, 2],
+					(
+						3,
+						[(vec![3, 10, 1], 1), (vec![3, 10, 2], 2)]
+							.iter()
+							.cloned()
+							.collect()
+					)
+				)),
+				BinaryOp::IDX,
+				&Value::Int(1)
+			)
+		);
+
+		println!(
+			"{:?}",
+			exec_binaryop(&Value::Float(9.8), BinaryOp::Add, &Value::Int(1))
+		);
+
+		assert_eq!(
+			format!(
+				"{:?}",
+				exec_binaryop(
+					&Value::IntPtr((
+						vec![3, 10],
+						(
+							3,
+							[(vec![3, 10, 1], 1), (vec![3, 10, 2], 2)]
+								.iter()
+								.cloned()
+								.collect()
+						)
+					)),
+					BinaryOp::IDX,
+					&Value::Int(1)
+				)
+			),
+			"Ok(Int(1))"
+		)
 	}
 }
