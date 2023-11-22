@@ -16,8 +16,8 @@ use rrvm_symbol::VarSymbol;
 // 	utils::DataFromNamer,
 // };
 use crate::{
-	utils::get_value, CUR_SYMBOL, FUNC_SYMBOL, GLOBAL_VALUE, INDEX, IRVALUE,
-	SYMBOL, VALUE,
+	utils::get_value, CUR_SYMBOL, FUNC_SYMBOL, GLOBAL_VALUE, IGNORE_FOLLOWS,
+	INDEX, IRVALUE, SYMBOL, VALUE,
 };
 use utils::{errors::Result, InitValueItem, Label, SysycError};
 use value::{to_llvm_var_type, BType, FuncRetType};
@@ -241,6 +241,10 @@ impl Visitor for LlvmIrGen {
 	fn visit_block(&mut self, val_decl: &mut Block) -> Result<(), SysycError> {
 		for stmt in &mut val_decl.stmts {
 			stmt.accept(self)?;
+			// 如果这个stmt有一个叫IGNORE_FOLLOWS的attr，说明这个stmt后面的stmt都应该被忽略
+			if stmt.get_attr(IGNORE_FOLLOWS).is_some() {
+				break;
+			}
 		}
 		Ok(())
 	}
@@ -508,11 +512,15 @@ impl Visitor for LlvmIrGen {
 			.label
 			.clone();
 
-		self.funcemitter.as_mut().unwrap().visit_jump_instr(target_label);
+		self
+			.funcemitter
+			.as_mut()
+			.unwrap()
+			.visit_jump_instr(target_label, target_bb_id);
 
-		self.funcemitter.as_mut().unwrap().add_succ_to_cur_basicblock(target_bb_id);
-
-		self.funcemitter.as_mut().unwrap().new_basicblock();
+		// 挂一个 attributes 告诉 block 出现了continue，break，return，忽略紧随其后的语句
+		// 这里的Value是什么不重要，只要有这个属性就行
+		val_decl.set_attr(IGNORE_FOLLOWS, Attr::Value(value::Value::Int(1)));
 		Ok(())
 	}
 	#[allow(unused_variables)]
@@ -526,11 +534,17 @@ impl Visitor for LlvmIrGen {
 			.label
 			.clone();
 
-		self.funcemitter.as_mut().unwrap().visit_jump_instr(target_label);
+		self
+			.funcemitter
+			.as_mut()
+			.unwrap()
+			.visit_jump_instr(target_label, target_bb_id);
 
-		self.funcemitter.as_mut().unwrap().add_succ_to_cur_basicblock(target_bb_id);
+		// 挂一个 attributes 告诉 block 出现了continue，break，return，忽略紧随其后的语句
+		// 这里的Value是什么不重要，只要有这个属性就行
+		val_decl.set_attr(IGNORE_FOLLOWS, Attr::Value(value::Value::Int(1)));
 
-		self.funcemitter.as_mut().unwrap().new_basicblock();
+		// self.funcemitter.as_mut().unwrap().new_basicblock();
 		Ok(())
 	}
 	fn visit_return(&mut self, val_decl: &mut Return) -> Result<(), SysycError> {
@@ -542,9 +556,9 @@ impl Visitor for LlvmIrGen {
 		} else {
 			self.funcemitter.as_mut().unwrap().visit_ret(None);
 		}
-		// exit basicblock的id是1
-		self.funcemitter.as_mut().unwrap().add_succ_to_cur_basicblock(1);
-		self.funcemitter.as_mut().unwrap().new_basicblock();
+		// 挂一个 attributes 告诉 block 出现了continue，break，return，忽略紧随其后的语句
+		// 这里的Value是什么不重要，只要有这个属性就行
+		val_decl.set_attr(IGNORE_FOLLOWS, Attr::Value(value::Value::Int(1)));
 		Ok(())
 	}
 	fn visit_if(&mut self, val_decl: &mut If) -> Result<()> {
@@ -568,49 +582,38 @@ impl Visitor for LlvmIrGen {
 			cond_value,
 			beginlabel.clone(),
 			skiplabel.clone(),
+			beginlabel_id,
+			skiplabel_id,
 		);
-		// 这里给CFG加了边，意味着symbol与temp的对应关系也随之流传过去
-		self
-			.funcemitter
-			.as_mut()
-			.unwrap()
-			.add_succ_to_cur_basicblock(beginlabel_id);
-		self.funcemitter.as_mut().unwrap().add_succ_to_cur_basicblock(skiplabel_id);
 		// visitlabel时会切换basicblock
 		self.funcemitter.as_mut().unwrap().visit_label(beginlabel_id);
 		val_decl.body.accept(self)?;
 		match val_decl.then {
 			Some(ref mut then_block) => {
-				self.funcemitter.as_mut().unwrap().visit_jump_instr(exitlabel.clone());
-
 				self
 					.funcemitter
 					.as_mut()
 					.unwrap()
-					.add_succ_to_cur_basicblock(exitlabel_id);
+					.visit_jump_instr(exitlabel.clone(), exitlabel_id);
 
 				self.funcemitter.as_mut().unwrap().visit_label(skiplabel_id);
 				then_block.accept(self)?;
 
-				self.funcemitter.as_mut().unwrap().visit_jump_instr(exitlabel.clone());
-
 				self
 					.funcemitter
 					.as_mut()
 					.unwrap()
-					.add_succ_to_cur_basicblock(exitlabel_id);
+					.visit_jump_instr(exitlabel.clone(), exitlabel_id);
 
 				self.funcemitter.as_mut().unwrap().visit_label(exitlabel_id);
 				Ok(())
 			}
 			None => {
-				self.funcemitter.as_mut().unwrap().visit_jump_instr(skiplabel);
-
 				self
 					.funcemitter
 					.as_mut()
 					.unwrap()
-					.add_succ_to_cur_basicblock(skiplabel_id);
+					.visit_jump_instr(skiplabel, skiplabel_id);
 
 				self.funcemitter.as_mut().unwrap().visit_label(skiplabel_id);
 				Ok(())
@@ -627,17 +630,15 @@ impl Visitor for LlvmIrGen {
 			self.funcemitter.as_mut().unwrap().fresh_label();
 		self.funcemitter.as_mut().unwrap().openloop(breaklabel_id, looplabel_id);
 
-		self.funcemitter.as_mut().unwrap().visit_jump_instr(beginlabel.clone());
-
 		self
 			.funcemitter
 			.as_mut()
 			.unwrap()
-			.add_succ_to_cur_basicblock(beginlabel_id);
+			.visit_jump_instr(beginlabel.clone(), beginlabel_id);
 
 		self.funcemitter.as_mut().unwrap().visit_label(beginlabel_id);
 		val_decl.cond.accept(self)?;
-		// TODO: cond没有检测有没有默认值
+		// TODO: cond没有检测有没有值
 		let cond_value = match val_decl.cond.get_attr(IRVALUE) {
 			Some(Attr::IRValue(v)) => v.clone(),
 			_ => {
@@ -653,38 +654,30 @@ impl Visitor for LlvmIrGen {
 			cond_value,
 			beginlabel_for_jump_cond_instr.clone(),
 			breaklabel.clone(),
+			beginlabel_for_jump_cond_instr_id,
+			breaklabel_id,
 		);
 
 		self
 			.funcemitter
 			.as_mut()
 			.unwrap()
-			.add_succ_to_cur_basicblock(beginlabel_for_jump_cond_instr_id);
-
-		self
-			.funcemitter
-			.as_mut()
-			.unwrap()
-			.add_succ_to_cur_basicblock(breaklabel_id);
-
-		self
-			.funcemitter
-			.as_mut()
-			.unwrap()
 			.visit_label(beginlabel_for_jump_cond_instr_id);
-		val_decl.body.accept(self)?;
-		self.funcemitter.as_mut().unwrap().visit_jump_instr(looplabel);
 
-		self.funcemitter.as_mut().unwrap().add_succ_to_cur_basicblock(looplabel_id);
+		val_decl.body.accept(self)?;
+
+		self
+			.funcemitter
+			.as_mut()
+			.unwrap()
+			.visit_jump_instr(looplabel, looplabel_id);
 
 		self.funcemitter.as_mut().unwrap().visit_label(looplabel_id);
-		self.funcemitter.as_mut().unwrap().visit_jump_instr(beginlabel);
-
 		self
 			.funcemitter
 			.as_mut()
 			.unwrap()
-			.add_succ_to_cur_basicblock(beginlabel_id);
+			.visit_jump_instr(beginlabel, beginlabel_id);
 
 		self.funcemitter.as_mut().unwrap().visit_label(breaklabel_id);
 		Ok(())
