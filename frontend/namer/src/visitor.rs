@@ -83,12 +83,14 @@ impl Visitor for Namer {
 		// println!("init values at end{:?}", self.init_value_list);
 
 		for (name, symbol) in self.ctx.report_all_global() {
+			if ! symbol.is_global {
+				continue;
+			}
 			let mut size = 1;
 
 			for item in &symbol.var_type.2 {
 				size *= *item;
 			}
-
 			let value_map = self.init_value_list.get(&symbol.id).unwrap();
 			self
 				.global_value_list
@@ -365,8 +367,10 @@ impl Visitor for Namer {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let var_type = (false, node.type_t, dim_list);
 		let symbol = self.mgr.new_symbol(None, var_type.clone());
-		self.ctx.set_val(&node.ident, symbol);
+		self.ctx.set_val(&node.ident, symbol.clone());
+		node.set_attr("symbol", symbol.into());
 		node.set_attr("type", var_type.into());
+		// if node.dim_list.
 		Ok(())
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
