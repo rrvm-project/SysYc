@@ -21,6 +21,8 @@ use parser::parser::parse;
 use rrvm_program::rrvmprogram::RrvmProgram;
 use utils::{fatal_error, map_sys_err};
 
+use middleend::optimizer::MiddleOptimizer;
+
 fn step_parse(name: Option<String>) -> Result<Program> {
 	if name.is_none() {
 		fatal_error("no input files");
@@ -41,7 +43,12 @@ fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
 		global_vars: HashMap::new(),
 	};
 	irgen.transform(program)?;
-	println!("{}", irgen.emit_program());
+
+	let optimizer: MiddleOptimizer = MiddleOptimizer {};
+	let mut program = irgen.emit_program();
+	let program = optimizer.optimize(&mut program);
+	println!("{}", program);
+
 	todo!()
 }
 

@@ -13,7 +13,7 @@ mod utils_llvm;
 
 use std::{collections::HashMap, fmt::Display};
 
-use func::LlvmFunc;
+pub use func::LlvmFunc;
 pub use llvminstr::*;
 pub use temp::*;
 use utils::InitValueItem;
