@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, hash::Hash, iter::once};
 
 use ast::tree::*;
 use pest::{iterators::Pair, pratt_parser::PrattParser, Parser};
@@ -211,7 +211,10 @@ fn parse_formal_params(pair: Pair<Rule>) -> NodeList {
 			_attrs: HashMap::new(),
 			type_t: parse_var_type(pairs.next().unwrap()),
 			ident: parse_identifier(pairs.next().unwrap()),
-			dim_list: pairs.next().map(parse_dim_list).unwrap_or_default(),
+			dim_list: pairs
+				.next()
+				.map(|v| once(LiteralInt::node(0)).chain(parse_dim_list(v)).collect())
+				.unwrap_or_default(),
 		};
 		Box::new(formal_param)
 	}
