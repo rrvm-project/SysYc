@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::tree::{Break, Continue};
+use crate::tree::{Break, Continue, LiteralInt, Node};
 
 impl Continue {
 	pub fn new() -> Continue {
@@ -27,5 +27,14 @@ impl Break {
 impl Default for Break {
 	fn default() -> Self {
 		Self::new()
+	}
+}
+
+impl LiteralInt {
+	pub fn node(value: i32) -> Node {
+		Box::new(Self {
+			_attrs: HashMap::new(),
+			value,
+		})
 	}
 }
