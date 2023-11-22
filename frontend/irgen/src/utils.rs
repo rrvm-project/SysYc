@@ -21,3 +21,11 @@ pub fn get_value(node: &Node) -> Result<Value> {
 		Err(SysycError::LlvmSyntexError("node has no value".to_string()))
 	}
 }
+
+pub fn get_bool_value(v: &Value) -> Option<bool> {
+	match v {
+		Value::Int(v) => Some(*v != 0),
+		Value::Float(v) => Some(*v != 0.0),
+		_ => None,
+	}
+}

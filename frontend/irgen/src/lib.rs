@@ -10,3 +10,4 @@ const CUR_SYMBOL: &str = "cur_symbol";
 // 数组初始化列表中每一项在数组中的位置
 const INDEX: &str = "init_value_index";
 const GLOBAL_VALUE: &str = "global_value";
+const IGNORE_FOLLOWS: &str = "ignore_follows";

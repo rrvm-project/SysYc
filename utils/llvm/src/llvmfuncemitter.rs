@@ -52,7 +52,7 @@ impl LlvmFuncEmitter {
 			Vec::new(),
 		);
 		new_basicblock.symbol2temp = self.get_cur_basicblock().symbol2temp.clone();
-		new_basicblock.phi_instrs = self.get_cur_basicblock().phi_instrs.clone();
+		// new_basicblock.phi_instrs = self.get_cur_basicblock().phi_instrs.clone();
 		self.cur_basicblock = new_basicblock.id;
 		self.cfg.basic_blocks.push(new_basicblock);
 	}
@@ -61,7 +61,7 @@ impl LlvmFuncEmitter {
 		self.cfg.basic_blocks.get_mut(self.cur_basicblock).unwrap()
 	}
 
-	// 这里可能需要创建temp，返回创建后新的temp total
+	// 这里可能需要创建temp，将新的temp total更新到 temp manager
 	// 传usize是因为succ已经在cfg内了
 	pub fn add_succ_to_cur_basicblock(&mut self, succ_id: usize) {
 		let symbol2temp = self.get_cur_basicblock().symbol2temp.clone();
@@ -268,9 +268,17 @@ impl LlvmFuncEmitter {
 		target
 	}
 
-	pub fn visit_jump_instr(&mut self, target: Label) {
+	pub fn visit_jump_instr(&mut self, target: Label, id: usize) {
+		// 如果当前基本块最后一条语句已经是跳转了，则不添加跳转语句
+		// TODO: is_seq() == false 就一定是跳转语句嘛？
+		if self.get_cur_basicblock().instrs.last().map_or(false, |v| !v.is_seq()) {
+			return;
+		}
+		// 否则添加
 		let instr = JumpInstr { target };
 		self.get_cur_basicblock().add(Box::new(instr));
+
+		self.add_succ_to_cur_basicblock(id);
 	}
 
 	pub fn visit_jump_cond_instr(
@@ -278,7 +286,13 @@ impl LlvmFuncEmitter {
 		cond: Value,
 		target_true: Label,
 		target_false: Label,
+		target_true_id: usize,
+		target_false_id: usize,
 	) {
+		if self.get_cur_basicblock().instrs.last().map_or(false, |v| !v.is_seq()) {
+			return;
+		}
+
 		let instr = JumpCondInstr {
 			var_type: VarType::I32,
 			cond,
@@ -286,6 +300,9 @@ impl LlvmFuncEmitter {
 			target_false,
 		};
 		self.get_cur_basicblock().add(Box::new(instr));
+
+		self.add_succ_to_cur_basicblock(target_true_id);
+		self.add_succ_to_cur_basicblock(target_false_id);
 	}
 
 	pub fn visit_phi_instr(
@@ -304,8 +321,14 @@ impl LlvmFuncEmitter {
 	}
 
 	pub fn visit_ret(&mut self, value: Option<Value>) {
+		if self.get_cur_basicblock().instrs.last().map_or(false, |v| !v.is_seq()) {
+			return;
+		}
+
 		let instr = RetInstr { value };
 		self.get_cur_basicblock().add(Box::new(instr));
+		// exit basicblock 的 id 固定为 1
+		self.add_succ_to_cur_basicblock(1);
 	}
 
 	pub fn visit_alloc_instr(
