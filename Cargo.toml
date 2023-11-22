@@ -22,7 +22,7 @@ members = [
   "backend/cfg",
   "backend/func",
   "backend/instruction",
-  "backend/program",
+  "backend/program", "middleend",
 ]
 
 [dependencies]
@@ -37,6 +37,8 @@ irgen = { path = "frontend/irgen" }
 rrvm_func = { path = "backend/func" }
 rrvm_program = { path = "backend/program" }
 instruction = { path = "backend/instruction" }
+
+middleend = {path = "middleend"}
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"
