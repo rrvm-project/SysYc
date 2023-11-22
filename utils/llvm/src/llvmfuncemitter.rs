@@ -45,20 +45,8 @@ impl LlvmFuncEmitter {
 		}
 	}
 
-	pub fn new_basicblock(&mut self) {
-		let mut new_basicblock = BasicBlock::new(
-			self.cfg.basic_blocks.len(),
-			self.label_mgr.new_label(),
-			Vec::new(),
-		);
-		new_basicblock.symbol2temp = self.get_cur_basicblock().symbol2temp.clone();
-		// new_basicblock.phi_instrs = self.get_cur_basicblock().phi_instrs.clone();
-		self.cur_basicblock = new_basicblock.id;
-		self.cfg.basic_blocks.push(new_basicblock);
-	}
-
 	pub fn get_cur_basicblock(&mut self) -> &mut BasicBlock {
-		self.cfg.basic_blocks.get_mut(self.cur_basicblock).unwrap()
+		self.cfg.basic_blocks.get_mut(&self.cur_basicblock).unwrap()
 	}
 
 	// 这里可能需要创建temp，将新的temp total更新到 temp manager
@@ -94,7 +82,7 @@ impl LlvmFuncEmitter {
 	}
 
 	pub fn get_basicblock(&mut self, id: usize) -> &mut BasicBlock {
-		self.cfg.basic_blocks.get_mut(id).unwrap()
+		self.cfg.basic_blocks.get_mut(&id).unwrap()
 	}
 
 	// 一个label对应一个BasicBlock，所以这里创建一个新的BasicBlock
@@ -102,7 +90,10 @@ impl LlvmFuncEmitter {
 	pub fn fresh_label(&mut self) -> (usize, Label) {
 		let label = self.label_mgr.new_label();
 		let id = self.cfg.basic_blocks.len();
-		self.cfg.basic_blocks.push(BasicBlock::new(id, label.clone(), Vec::new()));
+		self
+			.cfg
+			.basic_blocks
+			.insert(id, BasicBlock::new(id, label.clone(), Vec::new()));
 		(id, label)
 	}
 
@@ -468,7 +459,7 @@ impl LlvmFuncEmitter {
 		// 	self.visit_ret(get_default_value(self.ret_type));
 		// }
 		// 给每一个 basicblock 添上 phi 语句
-		for basicblock in &mut self.cfg.basic_blocks {
+		for basicblock in self.cfg.basic_blocks.values_mut() {
 			for (k, v) in basicblock.phi_instrs.iter() {
 				let phi = PhiInstr {
 					target: k.clone(),
