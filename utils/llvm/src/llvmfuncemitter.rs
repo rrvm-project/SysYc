@@ -447,17 +447,17 @@ impl LlvmFuncEmitter {
 	}
 
 	pub fn visit_end(mut self) -> LlvmFunc {
-		// fn get_default_value(ret_type: VarType) -> Option<Value> {
-		// 	match ret_type {
-		// 		VarType::F32 => Some(Value::Float(0.0)),
-		// 		VarType::I32 => Some(Value::Int(0)),
-		// 		VarType::Void => None,
-		// 		_ => unreachable!(),
-		// 	}
-		// }
-		// if self.func_body.last().map_or(true, |v| !v.is_ret()) {
-		// 	self.visit_ret(get_default_value(self.ret_type));
-		// }
+		fn get_default_value(ret_type: VarType) -> Option<Value> {
+			match ret_type {
+				VarType::F32 => Some(Value::Float(0.0)),
+				VarType::I32 => Some(Value::Int(0)),
+				VarType::Void => None,
+				_ => unreachable!(),
+			}
+		}
+		if self.get_cur_basicblock().instrs.last().map_or(true, |v| !v.is_ret()) {
+			self.visit_ret(get_default_value(self.ret_type));
+		}
 		// 给每一个 basicblock 添上 phi 语句
 		for basicblock in self.cfg.basic_blocks.values_mut() {
 			for (k, v) in basicblock.phi_instrs.iter() {
