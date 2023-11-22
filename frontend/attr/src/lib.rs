@@ -11,6 +11,7 @@ pub enum Attr {
 	VarType(VarType),
 	Value(Value),
 	IRValue(llvm::llvmop::Value),
+	DimList(Vec<usize>),
 	InitListHeight(usize),
 	InitListPosition(usize),
 	GlobalValue(Vec<InitValueItem>),

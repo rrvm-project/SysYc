@@ -7,6 +7,7 @@ const IRVALUE: &str = "irvalue";
 const FUNC_SYMBOL: &str = "func_symbol";
 const SYMBOL: &str = "symbol";
 const CUR_SYMBOL: &str = "cur_symbol";
+const DIM_LIST: &str = "dim_list";
 // 数组初始化列表中每一项在数组中的位置
 const INDEX: &str = "init_value_index";
 const GLOBAL_VALUE: &str = "global_value";

@@ -14,8 +14,12 @@ pub enum SysycError {
 	SystemError(String),
 	#[error("Fatal error: {0}")]
 	FatalError(String),
-	#[error("Llvm syntex error: {0}")]
-	LlvmSyntexError(String),
+	#[error("Llvm syntax error: {0}")]
+	LlvmSyntaxError(String),
+	#[error("Llvm no value error: {0}")]
+	LlvmNoValueError(String),
+	#[error("Llvm no symbol error: {0}")]
+	LlvmNoSymbolError(String),
 	#[error("Riscv generating error: {0}")]
 	RiscvGenError(String),
 }
