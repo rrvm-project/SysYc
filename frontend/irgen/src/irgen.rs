@@ -16,8 +16,8 @@ use rrvm_symbol::VarSymbol;
 // 	utils::DataFromNamer,
 // };
 use crate::{
-	utils::get_value, CUR_SYMBOL, FUNC_SYMBOL, GLOBAL_VALUE, IGNORE_FOLLOWS,
-	INDEX, IRVALUE, SYMBOL, VALUE,
+	CUR_SYMBOL, DIM_LIST, FUNC_SYMBOL, GLOBAL_VALUE, IGNORE_FOLLOWS, INDEX,
+	IRVALUE, SYMBOL, VALUE,
 };
 use utils::{errors::Result, InitValueItem, Label, SysycError};
 use value::{to_llvm_var_type, BType, FuncRetType};
@@ -154,7 +154,7 @@ impl Visitor for LlvmIrGen {
 		let symbol: VarSymbol = val_decl
 			.get_attr(SYMBOL)
 			.ok_or_else(|| {
-				SysycError::LlvmSyntexError(format!(
+				SysycError::LlvmSyntaxError(format!(
 					"var def {} has no symbol",
 					val_decl.ident.clone()
 				))
@@ -204,11 +204,8 @@ impl Visitor for LlvmIrGen {
 			if let Some(init) = &mut val_decl.init {
 				init.accept(self)?;
 
-				self
-					.funcemitter
-					.as_mut()
-					.unwrap()
-					.visit_assign_instr(temp, get_value(init)?);
+				let v = self.get_value(init)?;
+				self.funcemitter.as_mut().unwrap().visit_assign_instr(temp, v);
 			}
 		}
 		Ok(())
@@ -230,7 +227,7 @@ impl Visitor for LlvmIrGen {
 				.symbol2temp
 				.insert(symbol.id as usize, tmp),
 			_ => {
-				return Err(SysycError::LlvmSyntexError(format!(
+				return Err(SysycError::LlvmSyntaxError(format!(
 					"param {} has no symbol",
 					val_decl.ident.clone()
 				)))
@@ -252,7 +249,7 @@ impl Visitor for LlvmIrGen {
 		let funcsymbol = match val_decl.get_attr(FUNC_SYMBOL) {
 			Some(Attr::FuncSymbol(symbol)) => symbol.clone(),
 			_ => {
-				return Err(SysycError::LlvmSyntexError(format!(
+				return Err(SysycError::LlvmSyntaxError(format!(
 					"call {} has no funcsymbol",
 					val_decl.ident.clone()
 				)))
@@ -263,9 +260,8 @@ impl Visitor for LlvmIrGen {
 			val_decl.params.iter_mut().zip(funcsymbol.var_type.1)
 		{
 			param.accept(self)?;
-			params.push(
-				self.convert(value::to_llvm_var_type(&para_type), get_value(param)?),
-			);
+			let v = self.get_value(param)?;
+			params.push(self.convert(value::to_llvm_var_type(&para_type), v));
 		}
 		let var_type = match funcsymbol.var_type.0 {
 			FuncRetType::Int => VarType::I32,
@@ -289,7 +285,7 @@ impl Visitor for LlvmIrGen {
 				value::Value::Int(v) => llvm::llvmop::Value::Int(*v),
 				value::Value::Float(v) => llvm::llvmop::Value::Float(*v),
 				_ => {
-					return Err(SysycError::LlvmSyntexError(format!(
+					return Err(SysycError::LlvmSyntaxError(format!(
 						"Compile const value in unary should not be {:?}",
 						const_value
 					)))
@@ -298,7 +294,7 @@ impl Visitor for LlvmIrGen {
 			val_decl.set_attr(IRVALUE, Attr::IRValue(v));
 			return Ok(());
 		}
-		let expr_value = get_value(&val_decl.rhs)?;
+		let expr_value = self.get_value(&val_decl.rhs)?;
 		let op = match val_decl.op {
 			value::UnaryOp::Neg => {
 				if expr_value.get_type() == VarType::F32 {
@@ -326,93 +322,32 @@ impl Visitor for LlvmIrGen {
 	fn visit_binary_expr(&mut self, val_decl: &mut BinaryExpr) -> Result<()> {
 		val_decl.lhs.accept(self)?;
 		val_decl.rhs.accept(self)?;
+
+		let mut rhs = self.get_value(&val_decl.rhs)?;
 		// 编译期常量
 		if let Some(Attr::Value(v)) = val_decl.get_attr(VALUE) {
 			let v = match v {
 				value::Value::Int(v) => llvm::llvmop::Value::Int(*v),
 				value::Value::Float(v) => llvm::llvmop::Value::Float(*v),
 				_ => {
-					return Err(SysycError::LlvmSyntexError(format!(
+					return Err(SysycError::LlvmSyntaxError(format!(
 						"Compile const value in binary should not be {:?}",
 						v
 					)))
 				}
 			};
 			val_decl.set_attr(IRVALUE, Attr::IRValue(v.clone()));
+
 			if let value::BinaryOp::Assign = val_decl.op {
-				// lhs 如果有一个叫SYMBOL的attr，说明是一个变量，需要开一个新的Temp
-				if let Some(Attr::VarSymbol(symbol)) = val_decl.lhs.get_attr(SYMBOL) {
-					let temp = self
-						.funcemitter
-						.as_mut()
-						.unwrap()
-						.fresh_temp(value::to_llvm_var_type(&symbol.var_type));
-					self
-						.funcemitter
-						.as_mut()
-						.unwrap()
-						.visit_assign_instr(temp.clone(), v);
-					self
-						.funcemitter
-						.as_mut()
-						.unwrap()
-						.get_cur_basicblock()
-						.symbol2temp
-						.insert(symbol.id as usize, temp);
-				} else if let Some(Attr::IRValue(Value::Temp(t))) =
-					val_decl.lhs.get_attr(IRVALUE)
+				// 重新获得一次 lhs
+				let lhs = self.get_lhs_value(&val_decl.lhs)?;
+				// 如果 lhs 是一个指针，则应该调用 store
+				if lhs.get_type() == llvm::llvmvar::VarType::I32Ptr
+					|| lhs.get_type() == llvm::llvmvar::VarType::F32Ptr
 				{
-					self.funcemitter.as_mut().unwrap().visit_assign_instr(t.clone(), v);
-				} else {
-					return Err(SysycError::LlvmSyntexError(
-						"lhs of assign has no temp".to_string(),
-					));
+					self.funcemitter.as_mut().unwrap().visit_store_instr(rhs, lhs);
+					return Ok(());
 				}
-			}
-			return Ok(());
-		}
-		let lhs = get_value(&val_decl.lhs)?;
-		let rhs = get_value(&val_decl.rhs)?;
-		// TODO: 这里没有考虑void的情况，所以VarType为什么会包含Void啊
-		let is_float = (lhs.get_type() == llvm::llvmvar::VarType::F32)
-			|| (rhs.get_type() == llvm::llvmvar::VarType::F32);
-		let op = match val_decl.op {
-			value::BinaryOp::Add => {
-				if is_float {
-					Some(llvm::llvmop::ArithOp::Fadd)
-				} else {
-					Some(llvm::llvmop::ArithOp::Add)
-				}
-			}
-			value::BinaryOp::Sub => {
-				if is_float {
-					Some(llvm::llvmop::ArithOp::Fsub)
-				} else {
-					Some(llvm::llvmop::ArithOp::Sub)
-				}
-			}
-			value::BinaryOp::Mul => {
-				if is_float {
-					Some(llvm::llvmop::ArithOp::Fmul)
-				} else {
-					Some(llvm::llvmop::ArithOp::Mul)
-				}
-			}
-			value::BinaryOp::Div => {
-				if is_float {
-					Some(llvm::llvmop::ArithOp::Fdiv)
-				} else {
-					Some(llvm::llvmop::ArithOp::Div)
-				}
-			}
-			value::BinaryOp::Mod => Some(llvm::llvmop::ArithOp::Rem),
-			value::BinaryOp::IDX => {
-				let temp = self.funcemitter.as_mut().unwrap().visit_gep_instr(lhs, rhs);
-				val_decl
-					.set_attr(IRVALUE, Attr::IRValue(llvm::llvmop::Value::Temp(temp)));
-				return Ok(()); // 这里直接返回，不需要再visit了
-			}
-			value::BinaryOp::Assign => {
 				// lhs 如果有一个叫SYMBOL的attr，说明是一个变量，需要开一个新的Temp
 				if let Some(Attr::VarSymbol(symbol)) = val_decl.lhs.get_attr(SYMBOL) {
 					let temp = self
@@ -432,15 +367,118 @@ impl Visitor for LlvmIrGen {
 						.get_cur_basicblock()
 						.symbol2temp
 						.insert(symbol.id as usize, temp);
-				} else if let Value::Temp(t) = lhs {
-					self.funcemitter.as_mut().unwrap().visit_assign_instr(t.clone(), rhs);
 				} else {
-					return Err(SysycError::LlvmSyntexError(
+					return Err(SysycError::LlvmSyntaxError(
 						"lhs of assign has no temp".to_string(),
 					));
 				}
-				return Ok(()); // 这里直接返回，不需要再visit了
 			}
+			return Ok(());
+		}
+		if val_decl.op == value::BinaryOp::IDX {
+			// 重新获得一次 lhs
+			let lhs = self.get_lhs_value(&val_decl.lhs)?;
+			let dim_list = match val_decl.lhs.get_attr(DIM_LIST) {
+				Some(Attr::DimList(dim_list)) => dim_list[1..].to_vec().clone(),
+				_ => {
+					return Err(SysycError::LlvmSyntaxError(
+						"lhs of idx has no dim_list".to_string(),
+					))
+				}
+			};
+
+			let offset_multiplier = dim_list.iter().product::<usize>() as i32;
+			rhs = match rhs {
+				Value::Int(i) => Value::Int(i * offset_multiplier),
+				Value::Float(f) => Value::Int(f as i32 * offset_multiplier),
+				Value::Temp(t) => {
+					if offset_multiplier > 1 {
+						let temp = self.funcemitter.as_mut().unwrap().visit_arith_instr(
+							Value::Int(offset_multiplier),
+							ArithOp::Mul,
+							Value::Temp(t),
+						);
+						Value::Temp(temp)
+					} else {
+						Value::Temp(t)
+					}
+				}
+			};
+			let temp = self.funcemitter.as_mut().unwrap().visit_gep_instr(lhs, rhs);
+			val_decl.set_attr(IRVALUE, Attr::IRValue(Value::Temp(temp)));
+			val_decl.set_attr(DIM_LIST, Attr::DimList(dim_list));
+			return Ok(()); // 这里直接返回，不需要再visit了
+		} else if val_decl.op == value::BinaryOp::Assign {
+			// 重新获得一次 lhs
+			let lhs = self.get_lhs_value(&val_decl.lhs)?;
+			// 如果 lhs 是一个指针，则应该调用 store
+			if lhs.get_type() == llvm::llvmvar::VarType::I32Ptr
+				|| lhs.get_type() == llvm::llvmvar::VarType::F32Ptr
+			{
+				self.funcemitter.as_mut().unwrap().visit_store_instr(rhs, lhs);
+				return Ok(());
+			}
+			// lhs 如果有一个叫SYMBOL的attr，说明是一个变量，需要开一个新的Temp
+			if let Some(Attr::VarSymbol(symbol)) = val_decl.lhs.get_attr(SYMBOL) {
+				let temp = self
+					.funcemitter
+					.as_mut()
+					.unwrap()
+					.fresh_temp(value::to_llvm_var_type(&symbol.var_type));
+				self
+					.funcemitter
+					.as_mut()
+					.unwrap()
+					.visit_assign_instr(temp.clone(), rhs);
+				self
+					.funcemitter
+					.as_mut()
+					.unwrap()
+					.get_cur_basicblock()
+					.symbol2temp
+					.insert(symbol.id as usize, temp);
+			} else {
+				return Err(SysycError::LlvmSyntaxError(
+					"lhs of assign has no temp".to_string(),
+				));
+			}
+			return Ok(()); // 这里直接返回，不需要再visit了
+		}
+
+		let lhs = self.get_value(&val_decl.lhs)?;
+		// TODO: 这里没有考虑void的情况，所以VarType为什么会包含Void啊
+		let is_float = (lhs.get_type() == llvm::llvmvar::VarType::F32)
+			|| (rhs.get_type() == llvm::llvmvar::VarType::F32);
+		let op = match val_decl.op {
+			value::BinaryOp::Add => {
+				if is_float {
+					Some(ArithOp::Fadd)
+				} else {
+					Some(ArithOp::Add)
+				}
+			}
+			value::BinaryOp::Sub => {
+				if is_float {
+					Some(ArithOp::Fsub)
+				} else {
+					Some(ArithOp::Sub)
+				}
+			}
+			value::BinaryOp::Mul => {
+				if is_float {
+					Some(ArithOp::Fmul)
+				} else {
+					Some(ArithOp::Mul)
+				}
+			}
+			value::BinaryOp::Div => {
+				if is_float {
+					Some(ArithOp::Fdiv)
+				} else {
+					Some(ArithOp::Div)
+				}
+			}
+			value::BinaryOp::Mod => Some(ArithOp::Rem),
 			_ => None,
 		};
 		if let Some(o) = op {
@@ -551,7 +589,8 @@ impl Visitor for LlvmIrGen {
 		let ret_type = self.funcemitter.as_mut().unwrap().ret_type;
 		if let Some(expr) = &mut val_decl.value {
 			expr.accept(self)?;
-			let value = self.convert(ret_type, get_value(expr)?);
+			let v = self.get_value(expr)?;
+			let value = self.convert(ret_type, v);
 			self.funcemitter.as_mut().unwrap().visit_ret(Some(value));
 		} else {
 			self.funcemitter.as_mut().unwrap().visit_ret(None);
@@ -567,7 +606,7 @@ impl Visitor for LlvmIrGen {
 		let cond_value = match val_decl.cond.get_attr(IRVALUE) {
 			Some(Attr::IRValue(v)) => v.clone(),
 			_ => {
-				return Err(SysycError::LlvmSyntexError(
+				return Err(SysycError::LlvmSyntaxError(
 					"if cond has no value".to_string(),
 				))
 			}
@@ -642,7 +681,7 @@ impl Visitor for LlvmIrGen {
 		let cond_value = match val_decl.cond.get_attr(IRVALUE) {
 			Some(Attr::IRValue(v)) => v.clone(),
 			_ => {
-				return Err(SysycError::LlvmSyntexError(
+				return Err(SysycError::LlvmSyntaxError(
 					"while cond has no value".to_string(),
 				))
 			}
@@ -689,7 +728,7 @@ impl Visitor for LlvmIrGen {
 		let symbol = match val_decl.get_attr(CUR_SYMBOL) {
 			Some(Attr::VarSymbol(s)) => s.clone(),
 			_ => {
-				return Err(SysycError::LlvmSyntexError(
+				return Err(SysycError::LlvmSyntaxError(
 					"init val has no symbol".to_string(),
 				))
 			}
@@ -698,68 +737,37 @@ impl Visitor for LlvmIrGen {
 			// 需要递归地告诉内部的InitValList，这个InitValList是属于哪个数组的
 			init_val.set_attr(CUR_SYMBOL, Attr::VarSymbol(symbol.clone()));
 			init_val.accept(self)?;
-			// 检查 init_val 是否是常量
-			if let Some(Attr::Value(v)) = init_val.get_attr(VALUE) {
-				let addr = match init_val.get_attr(INDEX) {
-					Some(Attr::InitListPosition(index)) => {
-						llvm::llvmop::Value::Int(*index as i32)
-					}
-					_ => {
-						return Err(SysycError::LlvmSyntexError(
-							"init val has no index".to_string(),
-						))
-					}
-				};
-				let symbol_temp =
-					self.funcemitter.as_mut().unwrap().get_cur_basicblock().symbol2temp
-						[&(symbol.id as usize)]
-						.clone();
-				let temp = self
-					.funcemitter
-					.as_mut()
-					.unwrap()
-					.visit_gep_instr(Value::Temp(symbol_temp), addr);
-				let llvm_value = match v {
-					value::Value::Int(v) => Value::Int(*v),
-					value::Value::Float(v) => Value::Float(*v),
-					_ => {
-						return Err(SysycError::LlvmSyntexError(format!(
-							"Compile const value in init val should not be {:?}",
-							v
-						)))
-					}
-				};
-				self
-					.funcemitter
-					.as_mut()
-					.unwrap()
-					.visit_store_instr(llvm_value, Value::Temp(temp));
-			} else if let Some(Attr::IRValue(v)) = init_val.get_attr(IRVALUE) {
-				let addr = match init_val.get_attr(INDEX) {
-					Some(Attr::InitListPosition(index)) => {
-						llvm::llvmop::Value::Int(*index as i32)
-					}
-					_ => {
-						return Err(SysycError::LlvmSyntexError(
-							"init val has no index".to_string(),
-						))
-					}
-				};
-				let symbol_temp =
-					self.funcemitter.as_mut().unwrap().get_cur_basicblock().symbol2temp
-						[&(symbol.id as usize)]
-						.clone();
-				let temp = self
-					.funcemitter
-					.as_mut()
-					.unwrap()
-					.visit_gep_instr(Value::Temp(symbol_temp), addr);
-				self
-					.funcemitter
-					.as_mut()
-					.unwrap()
-					.visit_store_instr(v.clone(), Value::Temp(temp));
-			}
+			// 这里如果没有取得 value， 应当跳过，闭包函数执行不了 continue，所以没写 or_else()
+			let llvm_value = match self.get_value(init_val) {
+				Ok(v) => v,
+				Err(SysycError::LlvmNoValueError(_)) => continue,
+				Err(e) => return Err(e),
+			};
+			let addr = match init_val.get_attr(INDEX) {
+				Some(Attr::InitListPosition(index)) => {
+					llvm::llvmop::Value::Int(*index as i32)
+				}
+				_ => {
+					return Err(SysycError::LlvmSyntaxError(
+						"init val has no index".to_string(),
+					))
+				}
+			};
+			let symbol_temp =
+				self.funcemitter.as_mut().unwrap().get_cur_basicblock().symbol2temp
+					[&(symbol.id as usize)]
+					.clone();
+			let temp = self
+				.funcemitter
+				.as_mut()
+				.unwrap()
+				.visit_gep_instr(Value::Temp(symbol_temp), addr);
+
+			self
+				.funcemitter
+				.as_mut()
+				.unwrap()
+				.visit_store_instr(llvm_value, Value::Temp(temp));
 		}
 		Ok(())
 	}
@@ -773,17 +781,21 @@ impl Visitor for LlvmIrGen {
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		if let Attr::VarSymbol(symbol) = node.get_attr(SYMBOL).ok_or_else(|| {
-			SysycError::LlvmSyntexError(format!(
+			SysycError::LlvmSyntaxError(format!(
 				"var {} has no symbol",
 				node.ident.clone()
 			))
 		})? {
 			if !symbol.is_global {
+				let id = symbol.id as usize;
+				if !symbol.var_type.2.is_empty() {
+					node.set_attr(DIM_LIST, Attr::DimList(symbol.var_type.2.clone()));
+				}
 				node.set_attr(
 					IRVALUE,
 					Attr::IRValue(Value::Temp(
 						self.funcemitter.as_mut().unwrap().get_cur_basicblock().symbol2temp
-							[&(symbol.id as usize)]
+							[&id]
 							.clone(),
 					)),
 				);
@@ -792,7 +804,7 @@ impl Visitor for LlvmIrGen {
 					IRVALUE,
 					Attr::IRValue(Value::Temp(Temp::new_global(
 						symbol.ident.clone(),
-						value::to_llvm_var_type(&symbol.var_type),
+						value::to_llvm_var_ptr(&symbol.var_type),
 					))),
 				);
 			}

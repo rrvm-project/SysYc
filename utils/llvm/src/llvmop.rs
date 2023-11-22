@@ -85,6 +85,9 @@ impl Value {
 	pub fn is_num(&self) -> bool {
 		!matches!(self, Self::Temp(_))
 	}
+	pub fn is_ptr(&self) -> bool {
+		matches!(self, Self::Temp(v) if v.is_ptr())
+	}
 }
 
 impl Display for Value {

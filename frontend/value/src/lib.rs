@@ -33,6 +33,13 @@ pub fn to_llvm_var_type(t: &VarType) -> llvmvar::VarType {
 	}
 }
 
+pub fn to_llvm_var_ptr(t: &VarType) -> llvmvar::VarType {
+	match (t.1, t.2.len()) {
+		(BType::Int, _) => llvmvar::VarType::I32Ptr,
+		(BType::Float, _) => llvmvar::VarType::F32Ptr,
+	}
+}
+
 #[derive(Clone, Debug)]
 pub enum Value {
 	Int(i32),

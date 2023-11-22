@@ -34,6 +34,9 @@ impl Temp {
 			is_global: true,
 		}
 	}
+	pub fn is_ptr(&self) -> bool {
+		self.var_type == VarType::I32Ptr || self.var_type == VarType::F32Ptr
+	}
 }
 
 impl Value {
