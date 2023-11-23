@@ -41,7 +41,10 @@ fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
 		global_vars: HashMap::new(),
 	};
 	irgen.transform(program)?;
-	println!("{}", irgen.emit_program());
+	let mut prog = irgen.emit_program();
+	println!("{}", prog);
+	prog = middleend::optimize::optimize(prog);
+	println!("{}", prog);
 	todo!()
 }
 
