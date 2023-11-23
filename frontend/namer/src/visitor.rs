@@ -113,7 +113,7 @@ impl Visitor for Namer {
 		let symbol = self.mgr.new_symbol(Some(node.ident.clone()), func_type);
 		self.ctx.set_func(&node.ident, symbol)?;
 		self.ctx.push();
-		node.block.accept(self);
+		node.block.accept(self)?;
 		self.ctx.pop()
 	}
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
