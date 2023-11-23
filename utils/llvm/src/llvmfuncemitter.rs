@@ -189,10 +189,18 @@ impl LlvmFuncEmitter {
 	pub fn visit_assign_instr(&mut self, target: Temp, value: Value) {
 		let instr = ArithInstr {
 			target: target.clone(),
-			var_type: VarType::I32,
+			var_type: target.var_type,
 			lhs: value,
-			op: ArithOp::Add,
-			rhs: Value::Int(0),
+			op: if target.var_type == VarType::I32 {
+				ArithOp::Add
+			} else {
+				ArithOp::Fadd
+			},
+			rhs: if target.var_type == VarType::I32 {
+				Value::Int(0)
+			} else {
+				Value::Float(0.0)
+			},
 		};
 		self.get_cur_basicblock().add(Box::new(instr));
 	}
