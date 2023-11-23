@@ -1,4 +1,4 @@
-use crate::{irgen::LlvmIrGen, IRVALUE, SYMBOL, VALUE};
+use crate::{irgen::LlvmIrGen, DIM_LIST, IRVALUE, SYMBOL, VALUE};
 use ast::tree::Node;
 use attr::Attr;
 use llvm::llvmop::Value;
@@ -20,7 +20,14 @@ impl LlvmIrGen {
 				))),
 			}
 		} else if let Some(Attr::IRValue(ir_value)) = node.get_attr(IRVALUE) {
-			if ir_value.is_ptr() {
+			if ir_value.is_ptr()
+				&& node.get_attr(DIM_LIST).map_or(true, |v| {
+					if let Attr::DimList(dim_list) = v {
+						dim_list.is_empty()
+					} else {
+						true
+					}
+				}) {
 				Ok(Value::Temp(
 					self.funcemitter.as_mut().unwrap().visit_load_instr(ir_value.clone()),
 				))

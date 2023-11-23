@@ -83,7 +83,7 @@ impl Visitor for Namer {
 		// println!("init values at end{:?}", self.init_value_list);
 
 		for (name, symbol) in self.ctx.report_all_global() {
-			if ! symbol.is_global {
+			if !symbol.is_global {
 				continue;
 			}
 			let mut size = 1;
