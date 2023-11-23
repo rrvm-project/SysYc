@@ -29,6 +29,7 @@ pub trait LlvmInstr: Display {
 		Vec::new()
 	}
 	fn get_variant(&self) -> LlvmInstrVariant;
+	fn swap_temp(&mut self, old: Temp, new: Temp);
 }
 
 pub struct ArithInstr {

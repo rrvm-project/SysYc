@@ -38,6 +38,14 @@ impl LlvmInstr for ArithInstr {
 			&self.rhs.get_type(),
 		])
 	}
+	fn swap_temp(&mut self, old: Temp, new: Temp) {
+		if self.lhs.unwrap_temp().map_or(false, |t| t == old) {
+			self.lhs = Value::Temp(new.clone());
+		}
+		if self.rhs.unwrap_temp().map_or(false, |t| t == old) {
+			self.rhs = Value::Temp(new.clone());
+		}
+	}
 }
 
 impl Display for LabelInstr {
@@ -52,6 +60,9 @@ impl LlvmInstr for LabelInstr {
 	}
 	fn get_label(&self) -> Option<Label> {
 		Some(self.label.clone())
+	}
+	fn swap_temp(&mut self, _old: Temp, _new: Temp) {
+		// do nothing
 	}
 }
 
@@ -83,6 +94,14 @@ impl LlvmInstr for CompInstr {
 			&self.rhs.get_type(),
 		])
 	}
+	fn swap_temp(&mut self, old: Temp, new: Temp) {
+		if self.lhs.unwrap_temp().map_or(false, |t| t == old) {
+			self.lhs = Value::Temp(new.clone());
+		}
+		if self.rhs.unwrap_temp().map_or(false, |t| t == old) {
+			self.rhs = Value::Temp(new.clone());
+		}
+	}
 }
 
 impl Display for ConvertInstr {
@@ -113,6 +132,12 @@ impl LlvmInstr for ConvertInstr {
 			&self.to_type,
 		])
 	}
+	fn swap_temp(&mut self, old: Temp, new: Temp) {
+		// omit target
+		if self.lhs.unwrap_temp().map_or(false, |t| t == old) {
+			self.lhs = Value::Temp(new.clone());
+		}
+	}
 }
 
 impl Display for JumpInstr {
@@ -127,6 +152,9 @@ impl LlvmInstr for JumpInstr {
 	}
 	fn is_seq(&self) -> bool {
 		false
+	}
+	fn swap_temp(&mut self, _old: Temp, _new: Temp) {
+		// do nothing
 	}
 }
 
@@ -149,6 +177,11 @@ impl LlvmInstr for JumpCondInstr {
 	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[&self.cond.get_type(), &self.var_type, &VarType::I32])
+	}
+	fn swap_temp(&mut self, old: Temp, new: Temp) {
+		if self.cond.unwrap_temp().map_or(false, |t| t == old) {
+			self.cond = Value::Temp(new.clone());
+		}
 	}
 }
 
@@ -185,6 +218,9 @@ impl LlvmInstr for PhiInstr {
 	fn is_phi(&self) -> bool {
 		true
 	}
+	fn swap_temp(&mut self, _old: Temp, _new: Temp) {
+		// do nothing
+	}
 }
 
 impl Display for RetInstr {
@@ -211,6 +247,15 @@ impl LlvmInstr for RetInstr {
 	}
 	fn is_ret(&self) -> bool {
 		true
+	}
+	fn swap_temp(&mut self, old: Temp, new: Temp) {
+		if self
+			.value
+			.clone()
+			.map_or(false, |v| v.unwrap_temp().map_or(false, |t| t == old))
+		{
+			self.value = Some(Value::Temp(new.clone()));
+		}
 	}
 }
 
@@ -240,6 +285,11 @@ impl LlvmInstr for AllocInstr {
 	fn type_valid(&self) -> bool {
 		self.length.get_type() == VarType::I32
 	}
+	fn swap_temp(&mut self, old: Temp, new: Temp) {
+		if self.length.unwrap_temp().map_or(false, |t| t == old) {
+			self.length = Value::Temp(new.clone());
+		}
+	}
 }
 
 impl Display for StoreInstr {
@@ -264,6 +314,14 @@ impl LlvmInstr for StoreInstr {
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.value.get_type(), self.addr.get_type())
+	}
+	fn swap_temp(&mut self, old: Temp, new: Temp) {
+		if self.value.unwrap_temp().map_or(false, |t| t == old) {
+			self.value = Value::Temp(new.clone());
+		}
+		if self.addr.unwrap_temp().map_or(false, |t| t == old) {
+			self.addr = Value::Temp(new.clone());
+		}
 	}
 }
 
@@ -292,6 +350,11 @@ impl LlvmInstr for LoadInstr {
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.var_type, self.addr.get_type())
+	}
+	fn swap_temp(&mut self, old: Temp, new: Temp) {
+		if self.addr.unwrap_temp().map_or(false, |t| t == old) {
+			self.addr = Value::Temp(new.clone());
+		}
 	}
 }
 
@@ -324,6 +387,14 @@ impl LlvmInstr for GEPInstr {
 			&& self.offset.get_type() == VarType::I32
 			&& type_match_ptr(self.var_type, self.addr.get_type())
 	}
+	fn swap_temp(&mut self, old: Temp, new: Temp) {
+		if self.addr.unwrap_temp().map_or(false, |t| t == old) {
+			self.addr = Value::Temp(new.clone());
+		}
+		if self.offset.unwrap_temp().map_or(false, |t| t == old) {
+			self.offset = Value::Temp(new.clone());
+		}
+	}
 }
 
 impl Display for CallInstr {
@@ -350,5 +421,12 @@ impl LlvmInstr for CallInstr {
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+	fn swap_temp(&mut self, old: Temp, new: Temp) {
+		for (_, v) in &mut self.params {
+			if v.unwrap_temp().map_or(false, |t| t == old) {
+				*v = Value::Temp(new.clone());
+			}
+		}
 	}
 }
