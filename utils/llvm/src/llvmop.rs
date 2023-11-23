@@ -11,6 +11,57 @@ pub enum Value {
 	Temp(Temp),
 }
 
+impl PartialEq for Value {
+	fn eq(&self, other: &Value) -> bool {
+		match &self {
+			Value::Int(v1) => {
+				if let Value::Int(v2) = other {
+					v1 == v2
+				} else {
+					false
+				}
+			}
+			Value::Float(v1) => {
+				if let Value::Float(v2) = other {
+					(v1.is_nan() && v2.is_nan()) || (v1 == v2)
+				} else {
+					false
+				}
+			}
+			Value::Temp(v1) => {
+				if let Value::Temp(v2) = other {
+					v1 == v2
+				} else {
+					false
+				}
+			}
+		}
+	}
+}
+
+impl std::hash::Hash for Value {
+	fn hash_slice<H: std::hash::Hasher>(data: &[Self], state: &mut H)
+	where
+		Self: Sized,
+	{
+		for piece in data {
+			if let Value::Float(value) = piece {
+				if value.is_nan() {
+					6122876.hash(state)
+				} else {
+					value.to_bits().hash(state)
+				}
+			} else {
+				piece.hash(state)
+			}
+		}
+	}
+
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		core::mem::discriminant(self).hash(state);
+	}
+}
+
 pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
 	fn oprand_num(&self) -> usize; // For lvn!
@@ -122,25 +173,26 @@ impl LlvmOp for ArithOp {
 		}
 	}
 
-fn oprand_num(&self) -> usize {
-        100 + match &self {
-            ArithOp::Add => 0,
-            ArithOp::Sub => 1,
-            ArithOp::Div => 2,
-            ArithOp::Mul => 3,
-            ArithOp::Rem => 4,
-            ArithOp::Fadd => 5,
-            ArithOp::Fsub => 6,
-            ArithOp::Fdiv => 7,
-            ArithOp::Fmul => 8,
-            ArithOp::Shl => 9,
-            ArithOp::Lshr => 10,
-            ArithOp::Ashr => 11,
-            ArithOp::And => 12,
-            ArithOp::Or => 13,
-            ArithOp::Xor => 14,
-        }
-    }
+	fn oprand_num(&self) -> usize {
+		100
+			+ match &self {
+				ArithOp::Add => 0,
+				ArithOp::Sub => 1,
+				ArithOp::Div => 2,
+				ArithOp::Mul => 3,
+				ArithOp::Rem => 4,
+				ArithOp::Fadd => 5,
+				ArithOp::Fsub => 6,
+				ArithOp::Fdiv => 7,
+				ArithOp::Fmul => 8,
+				ArithOp::Shl => 9,
+				ArithOp::Lshr => 10,
+				ArithOp::Ashr => 11,
+				ArithOp::And => 12,
+				ArithOp::Or => 13,
+				ArithOp::Xor => 14,
+			}
+	}
 }
 
 impl LlvmOp for CompOp {
@@ -161,22 +213,23 @@ impl LlvmOp for CompOp {
 		}
 	}
 
-fn oprand_num(&self) -> usize {
-        200 + match &self {
-			Self::EQ => 1,
-			Self::NE => 2,
-			Self::SGT => 3,
-			Self::SGE => 4,
-			Self::SLT => 5,
-			Self::SLE => 6,
-			Self::OEQ => 7,
-			Self::ONE => 8,
-			Self::OGT => 9,
-			Self::OGE => 10,
-			Self::OLT => 11,
-			Self::OLE => 12,
-		}
-    }
+	fn oprand_num(&self) -> usize {
+		200
+			+ match &self {
+				Self::EQ => 1,
+				Self::NE => 2,
+				Self::SGT => 3,
+				Self::SGE => 4,
+				Self::SLT => 5,
+				Self::SLE => 6,
+				Self::OEQ => 7,
+				Self::ONE => 8,
+				Self::OGT => 9,
+				Self::OGE => 10,
+				Self::OLT => 11,
+				Self::OLE => 12,
+			}
+	}
 }
 
 impl LlvmOp for CompKind {
@@ -188,10 +241,11 @@ impl LlvmOp for CompKind {
 	}
 
 	fn oprand_num(&self) -> usize {
-		300 + match &self {
-			Self::Fcmp => 1,
-			Self::Icmp => 1
-		}
+		300
+			+ match &self {
+				Self::Fcmp => 1,
+				Self::Icmp => 1,
+			}
 	}
 }
 

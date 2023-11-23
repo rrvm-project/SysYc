@@ -6,7 +6,7 @@ impl MiddleOptimizer {
 	pub fn optimize(self, program: &mut LlvmProgram) -> &mut LlvmProgram {
 		let mut context: IRPassContext = IRPassContext {};
 
-		let mut svn: Svn = Svn {};
+		let mut svn: Svn = Svn::new();
 
 		svn.pass(program, &mut context);
 
