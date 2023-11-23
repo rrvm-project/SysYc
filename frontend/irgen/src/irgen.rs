@@ -203,8 +203,8 @@ impl Visitor for LlvmIrGen {
 			// 初始化
 			if let Some(init) = &mut val_decl.init {
 				init.accept(self)?;
-
-				let v = self.get_value(init)?;
+				let mut v = self.get_value(init)?;
+				v = self.convert(tp, v);
 				self.funcemitter.as_mut().unwrap().visit_assign_instr(temp, v);
 			}
 		}
@@ -345,6 +345,7 @@ impl Visitor for LlvmIrGen {
 				if lhs.get_type() == llvm::llvmvar::VarType::I32Ptr
 					|| lhs.get_type() == llvm::llvmvar::VarType::F32Ptr
 				{
+					rhs = self.convert(lhs.get_type().to_value(), rhs);
 					self.funcemitter.as_mut().unwrap().visit_store_instr(rhs, lhs);
 					return Ok(());
 				}
@@ -355,6 +356,7 @@ impl Visitor for LlvmIrGen {
 						.as_mut()
 						.unwrap()
 						.fresh_temp(value::to_llvm_var_type(&symbol.var_type));
+					rhs = self.convert(temp.var_type, rhs);
 					self
 						.funcemitter
 						.as_mut()
@@ -404,6 +406,7 @@ impl Visitor for LlvmIrGen {
 					}
 				}
 			};
+			rhs = self.convert(VarType::I32, rhs);
 			let temp = self.funcemitter.as_mut().unwrap().visit_gep_instr(lhs, rhs);
 			val_decl.set_attr(IRVALUE, Attr::IRValue(Value::Temp(temp)));
 			val_decl.set_attr(DIM_LIST, Attr::DimList(dim_list));
@@ -415,6 +418,7 @@ impl Visitor for LlvmIrGen {
 			if lhs.get_type() == llvm::llvmvar::VarType::I32Ptr
 				|| lhs.get_type() == llvm::llvmvar::VarType::F32Ptr
 			{
+				rhs = self.convert(lhs.get_type().to_value(), rhs);
 				self.funcemitter.as_mut().unwrap().visit_store_instr(rhs, lhs);
 				return Ok(());
 			}
@@ -425,6 +429,7 @@ impl Visitor for LlvmIrGen {
 					.as_mut()
 					.unwrap()
 					.fresh_temp(value::to_llvm_var_type(&symbol.var_type));
+				rhs = self.convert(temp.var_type, rhs);
 				self
 					.funcemitter
 					.as_mut()
@@ -445,10 +450,15 @@ impl Visitor for LlvmIrGen {
 			return Ok(()); // 这里直接返回，不需要再visit了
 		}
 
-		let lhs = self.get_value(&val_decl.lhs)?;
+		let mut lhs = self.get_value(&val_decl.lhs)?;
 		// TODO: 这里没有考虑void的情况，所以VarType为什么会包含Void啊
-		let is_float = (lhs.get_type() == llvm::llvmvar::VarType::F32)
-			|| (rhs.get_type() == llvm::llvmvar::VarType::F32);
+		let is_float =
+			(lhs.get_type() == VarType::F32) || (rhs.get_type() == VarType::F32);
+		if lhs.get_type() == VarType::F32 {
+			rhs = self.convert(VarType::F32, rhs);
+		} else if rhs.get_type() == VarType::F32 {
+			lhs = self.convert(VarType::F32, lhs);
+		}
 		let op = match val_decl.op {
 			value::BinaryOp::Add => {
 				if is_float {
@@ -534,8 +544,7 @@ impl Visitor for LlvmIrGen {
 			};
 			let target =
 				self.funcemitter.as_mut().unwrap().visit_comp_instr(lhs, cmp_op, rhs);
-			val_decl
-				.set_attr(IRVALUE, Attr::IRValue(llvm::llvmop::Value::Temp(target)));
+			val_decl.set_attr(IRVALUE, Attr::IRValue(Value::Temp(target)));
 		}
 		Ok(())
 	}
@@ -738,7 +747,7 @@ impl Visitor for LlvmIrGen {
 			init_val.set_attr(CUR_SYMBOL, Attr::VarSymbol(symbol.clone()));
 			init_val.accept(self)?;
 			// 这里如果没有取得 value， 应当跳过，闭包函数执行不了 continue，所以没写 or_else()
-			let llvm_value = match self.get_value(init_val) {
+			let mut llvm_value = match self.get_value(init_val) {
 				Ok(v) => v,
 				Err(SysycError::LlvmNoValueError(_)) => continue,
 				Err(e) => return Err(e),
@@ -762,6 +771,8 @@ impl Visitor for LlvmIrGen {
 				.as_mut()
 				.unwrap()
 				.visit_gep_instr(Value::Temp(symbol_temp), addr);
+
+			llvm_value = self.convert(temp.var_type.to_value(), llvm_value);
 
 			self
 				.funcemitter
