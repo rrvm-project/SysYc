@@ -466,9 +466,15 @@ impl LlvmFuncEmitter {
 		if self.get_cur_basicblock().instrs.last().map_or(true, |v| !v.is_ret()) {
 			self.visit_ret(get_default_value(self.ret_type));
 		}
-		// 给每一个 basicblock 添上 phi 语句
+		// 给每一个 basicblock 添上 phi 语句, 去掉只有一项的 phi 语句
 		for basicblock in self.cfg.basic_blocks.values_mut() {
 			for (k, v) in basicblock.phi_instrs.iter() {
+				if v.len() == 1 {
+					for instr in &mut basicblock.instrs {
+						instr.swap_temp(k.clone(), v[0].1.clone());
+					}
+					continue;
+				}
 				let phi = PhiInstr {
 					target: k.clone(),
 					var_type: k.var_type,
