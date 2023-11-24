@@ -32,6 +32,7 @@ pub trait LlvmInstr: Display {
 	fn swap_temp(&mut self, old: Temp, new: Temp);
 }
 
+#[derive(Debug)]
 pub struct ArithInstr {
 	pub target: Temp,
 	pub op: ArithOp,
