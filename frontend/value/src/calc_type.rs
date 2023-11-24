@@ -68,3 +68,10 @@ pub fn type_binaryop(x: &VarType, op: BinaryOp, y: &VarType) -> Result<VarType> 
 		BinaryOp::NE => to_bool(x, y),
 	}
 }
+
+pub fn to_rval(type_t: &VarType) -> VarType {
+	VarType {
+		is_lval: false,
+		..type_t.clone()
+	}
+}

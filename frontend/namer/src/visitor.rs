@@ -72,7 +72,9 @@ impl Visitor for Namer {
 		let func_type: FuncType = (node.ret_type, func_type);
 		let symbol = self.mgr.new_symbol(Some(node.ident.clone()), func_type);
 		self.ctx.set_func(&node.ident, symbol)?;
-		node.block.accept(self)
+		node.block.accept(self)?;
+		self.ctx.pop();
+		Ok(())
 	}
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
@@ -133,6 +135,10 @@ impl Visitor for Namer {
 	}
 	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<()> {
 		let symbol = self.ctx.find_func(&node.ident)?.clone();
+		let v: Option<VarType> = symbol.var_type.0.into();
+		if let Some(v) = v {
+			node.set_attr("type", v.into());
+		}
 		node.set_attr("func_symbol", symbol.into());
 		for param in node.params.iter_mut() {
 			param.accept(self)?;
@@ -149,7 +155,8 @@ impl Visitor for Namer {
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let symbol = self.ctx.find_val(&node.ident)?.clone();
-		node.set_attr("symbol", symbol.into());
+		node.set_attr("symbol", symbol.clone().into());
+		node.set_attr("type", symbol.var_type.into());
 		Ok(())
 	}
 	fn visit_block(&mut self, node: &mut Block) -> Result<()> {
@@ -157,6 +164,7 @@ impl Visitor for Namer {
 		for stmt in node.stmts.iter_mut() {
 			stmt.accept(self)?;
 		}
+		self.ctx.pop();
 		Ok(())
 	}
 	fn visit_if(&mut self, node: &mut If) -> Result<()> {

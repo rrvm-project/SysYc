@@ -17,6 +17,7 @@ members = [
   "frontend/attr",
   "frontend/symbol",
   "frontend/namer",
+  "frontend/typer",
   "frontend/scope",
   "frontend/value",
   "frontend/parser",
@@ -32,6 +33,7 @@ instruction = { path = "utils/instruction" }
 ast = { path = "frontend/ast" }
 parser = { path = "frontend/parser" }
 namer = { path = "frontend/namer" }
+typer = { path = "frontend/typer" }
 
 rrvm_func = { path = "backend/func" }
 rrvm_program = { path = "backend/program" }
