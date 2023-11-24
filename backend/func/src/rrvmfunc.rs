@@ -1,5 +1,5 @@
-use cfg::cfg::CFG;
+// use cfg::cfg::CFG;
 
-pub struct RrvmFunc {
-	pub cfg: CFG,
-}
+// pub struct RrvmFunc {
+// 	pub cfg: CFG,
+// }

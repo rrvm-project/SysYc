@@ -9,7 +9,10 @@ edition = "2021"
 members = [
   "sysyc_derive",
   "utils",
+  "utils/cfg",
   "utils/llvm",
+  "utils/basicblock",
+  "utils/instruction",
   "frontend/ast",
   "frontend/attr",
   "frontend/symbol",
@@ -17,16 +20,14 @@ members = [
   "frontend/scope",
   "frontend/value",
   "frontend/parser",
-  "backend/basicblock",
-  "backend/cfg",
   "backend/func",
-  "backend/instruction",
   "backend/program",
 ]
 
 [dependencies]
 utils = { path = "utils" }
 llvm = { path = "utils/llvm" }
+instruction = { path = "utils/instruction" }
 
 ast = { path = "frontend/ast" }
 parser = { path = "frontend/parser" }
@@ -34,7 +35,6 @@ namer = { path = "frontend/namer" }
 
 rrvm_func = { path = "backend/func" }
 rrvm_program = { path = "backend/program" }
-instruction = { path = "backend/instruction" }
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"

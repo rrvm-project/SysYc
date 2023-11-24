@@ -16,14 +16,17 @@ pub fn has_attrs(_: TokenStream, item: TokenStream) -> TokenStream {
 		panic!("made, struct li mian zen me neng shi mei name de");
 	};
 
-	fields.named.push(Field {
-		attrs: Vec::new(),
-		vis: Visibility::Public(parse_quote!(pub)),
-		mutability: FieldMutability::None,
-		ident: Some(Ident::new("_attrs", Span::call_site())),
-		colon_token: None,
-		ty: parse2(quote!(::std::collections::HashMap<String, Attr>)).unwrap(),
-	});
+	fields.named.insert(
+		0,
+		Field {
+			attrs: Vec::new(),
+			vis: Visibility::Public(parse_quote!(pub)),
+			mutability: FieldMutability::None,
+			ident: Some(Ident::new("_attrs", Span::call_site())),
+			colon_token: None,
+			ty: parse2(quote!(::std::collections::HashMap<String, Attr>)).unwrap(),
+		},
+	);
 
 	let name = &input.ident;
 
