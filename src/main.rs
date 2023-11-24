@@ -16,7 +16,6 @@ use cli::Args;
 use llvm::LlvmProgram;
 use namer::visitor::Namer;
 use parser::parser::parse;
-use rrvm_program::rrvmprogram::RrvmProgram;
 use utils::{fatal_error, map_sys_err};
 
 fn step_parse(name: Option<String>) -> Result<Program> {
@@ -33,18 +32,21 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
 	let mut namer = Namer::new();
 	namer.transform(&mut program)?;
+	let x = format!("{:#?}", program);
+	println!("{}", trans_indent(&x, PARSER_INDENT));
 	todo!()
 }
 
 #[allow(unused_variables)]
 fn step_riscv(program: LlvmProgram) -> Result<i32> {
-	let mut program = RrvmProgram::new(program);
-	program.solve_global()?;
-	let funcs: Result<Vec<_>, _> =
-		program.funcs.into_iter().map(rrvm_func::transform_riscv).collect();
-	program.funcs = funcs?;
-	let code = program.alloc_reg();
-	Ok(code)
+	todo!()
+	// let mut program = RrvmProgram::new(program);
+	// program.solve_global()?;
+	// let funcs: Result<Vec<_>, _> =
+	// 	program.funcs.into_iter().map(rrvm_func::transform_riscv).collect();
+	// program.funcs = funcs?;
+	// let code = program.alloc_reg();
+	// Ok(code)
 }
 
 fn main() -> Result<()> {
