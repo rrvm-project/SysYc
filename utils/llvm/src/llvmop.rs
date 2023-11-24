@@ -39,6 +39,8 @@ impl PartialEq for Value {
 	}
 }
 
+impl Eq for Value {}
+
 impl std::hash::Hash for Value {
 	fn hash_slice<H: std::hash::Hasher>(data: &[Self], state: &mut H)
 	where
@@ -64,10 +66,9 @@ impl std::hash::Hash for Value {
 
 pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
-	fn oprand_num(&self) -> usize; // For lvn!
 }
 
-#[derive(Fuyuki, Clone, Copy)]
+#[derive(Fuyuki, Clone, Copy, Debug)]
 pub enum ArithOp {
 	Add,
 	Sub,
@@ -86,7 +87,7 @@ pub enum ArithOp {
 	Xor,
 }
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, Debug)]
 pub enum CompOp {
 	EQ,
 	NE,
@@ -172,27 +173,6 @@ impl LlvmOp for ArithOp {
 			Self::Xor => VarType::I32,
 		}
 	}
-
-	fn oprand_num(&self) -> usize {
-		100
-			+ match &self {
-				ArithOp::Add => 0,
-				ArithOp::Sub => 1,
-				ArithOp::Div => 2,
-				ArithOp::Mul => 3,
-				ArithOp::Rem => 4,
-				ArithOp::Fadd => 5,
-				ArithOp::Fsub => 6,
-				ArithOp::Fdiv => 7,
-				ArithOp::Fmul => 8,
-				ArithOp::Shl => 9,
-				ArithOp::Lshr => 10,
-				ArithOp::Ashr => 11,
-				ArithOp::And => 12,
-				ArithOp::Or => 13,
-				ArithOp::Xor => 14,
-			}
-	}
 }
 
 impl LlvmOp for CompOp {
@@ -212,24 +192,6 @@ impl LlvmOp for CompOp {
 			Self::OLE => VarType::F32,
 		}
 	}
-
-	fn oprand_num(&self) -> usize {
-		200
-			+ match &self {
-				Self::EQ => 1,
-				Self::NE => 2,
-				Self::SGT => 3,
-				Self::SGE => 4,
-				Self::SLT => 5,
-				Self::SLE => 6,
-				Self::OEQ => 7,
-				Self::ONE => 8,
-				Self::OGT => 9,
-				Self::OGE => 10,
-				Self::OLT => 11,
-				Self::OLE => 12,
-			}
-	}
 }
 
 impl LlvmOp for CompKind {
@@ -238,14 +200,6 @@ impl LlvmOp for CompKind {
 			Self::Icmp => VarType::I32,
 			Self::Fcmp => VarType::F32,
 		}
-	}
-
-	fn oprand_num(&self) -> usize {
-		300
-			+ match &self {
-				Self::Fcmp => 1,
-				Self::Icmp => 1,
-			}
 	}
 }
 
