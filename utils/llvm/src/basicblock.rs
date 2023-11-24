@@ -6,6 +6,8 @@ use utils::Label;
 
 use crate::{LlvmInstr, Temp};
 
+use std::env;
+
 pub struct BasicBlock {
 	pub id: usize,
 	pub pred: Vec<usize>,
@@ -47,9 +49,14 @@ impl BasicBlock {
 
 impl Display for BasicBlock {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "Basicblock id: {} ", self.id)?;
-		write!(f, "pred: {:?} ", self.pred)?;
-		writeln!(f, "succ: {:?}", self.succ)?;
+		if let Ok(v) = env::var("debugmiddle") {
+			if v == "1" {
+				write!(f, "Basicblock id: {} ", self.id)?;
+				write!(f, "pred: {:?} ", self.pred)?;
+				writeln!(f, "succ: {:?}", self.succ)?;
+			}
+		}
+
 		writeln!(f, "  {}:", self.label)?;
 		for instr in &self.instrs {
 			writeln!(f, "  {}", instr)?;
