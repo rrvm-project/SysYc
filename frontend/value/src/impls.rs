@@ -1,4 +1,4 @@
-use crate::{BType, FloatPtr, IntPtr, Value, VarType};
+use crate::{BType, FloatPtr, FuncRetType, IntPtr, Value, VarType};
 use utils::{errors::Result, SysycError::TypeError};
 
 impl From<i32> for Value {
@@ -49,6 +49,33 @@ impl From<(bool, BType, Vec<usize>)> for VarType {
 			is_lval,
 			type_t,
 			dims,
+		}
+	}
+}
+
+impl From<FuncRetType> for Option<VarType> {
+	fn from(value: FuncRetType) -> Self {
+		match value {
+			FuncRetType::Int => Some(VarType::new_int()),
+			FuncRetType::Float => Some(VarType::new_float()),
+			_ => None,
+		}
+	}
+}
+
+impl VarType {
+	pub fn new_int() -> Self {
+		Self {
+			is_lval: false,
+			type_t: BType::Int,
+			dims: Vec::new(),
+		}
+	}
+	pub fn new_float() -> Self {
+		Self {
+			is_lval: false,
+			type_t: BType::Float,
+			dims: Vec::new(),
 		}
 	}
 }

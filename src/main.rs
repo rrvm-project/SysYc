@@ -16,6 +16,7 @@ use cli::Args;
 use llvm::LlvmProgram;
 use namer::visitor::Namer;
 use parser::parser::parse;
+use typer::visitor::Typer;
 use utils::{fatal_error, map_sys_err};
 
 fn step_parse(name: Option<String>) -> Result<Program> {
@@ -30,8 +31,8 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 
 #[allow(unused_variables)]
 fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
-	let mut namer = Namer::new();
-	namer.transform(&mut program)?;
+	Namer::new().transform(&mut program)?;
+	Typer::new().transform(&mut program)?;
 	let x = format!("{:#?}", program);
 	println!("{}", trans_indent(&x, PARSER_INDENT));
 	todo!()
