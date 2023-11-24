@@ -1,9 +1,9 @@
 pub mod calc;
+pub mod calc_type;
 pub mod impls;
 pub mod utils;
-use std::collections::HashMap;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BType {
 	Int,
 	Float,
@@ -16,10 +16,16 @@ pub enum FuncRetType {
 	Void,
 }
 
-pub type VarType = (bool, BType, Vec<usize>);
+#[derive(Clone, Debug)]
+pub struct VarType {
+	pub is_lval: bool,
+	pub type_t: BType,
+	pub dims: Vec<usize>,
+}
+
 pub type FuncType = (FuncRetType, Vec<VarType>);
-pub type IntPtr = (Vec<usize>, Array<i32>);
-pub type FloatPtr = (Vec<usize>, Array<f32>);
+pub type IntPtr = (Vec<usize>, Vec<i32>);
+pub type FloatPtr = (Vec<usize>, Vec<f32>);
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -28,8 +34,6 @@ pub enum Value {
 	IntPtr(IntPtr),
 	FloatPtr(FloatPtr),
 }
-
-pub type Array<T> = (usize, HashMap<Vec<usize>, T>);
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BinaryOp {

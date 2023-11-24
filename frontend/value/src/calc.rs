@@ -1,7 +1,6 @@
-use llvm::llvmvar::VarType;
 use utils::{errors::Result, SysycError::*};
 
-use crate::{Array, BinaryOp, UnaryOp, Value};
+use crate::{BType, BinaryOp, UnaryOp, Value};
 
 fn bin_calc<Foo, Bar>(
 	x: &Value,
@@ -13,7 +12,7 @@ where
 	Foo: Fn(i32, i32) -> i32,
 	Bar: Fn(f32, f32) -> f32,
 {
-	if x.get_type() == VarType::I32 || y.get_type() == VarType::I32 {
+	if x.get_type() == BType::Int || y.get_type() == BType::Int {
 		Ok(Value::Int(on_int(x.to_int()?, y.to_int()?)))
 	} else {
 		Ok(Value::Float(on_float(x.to_float()?, y.to_float()?)))
@@ -30,26 +29,33 @@ where
 	Foo: Fn(i32, i32) -> bool,
 	Bar: Fn(f32, f32) -> bool,
 {
-	if x.get_type() == VarType::I32 || y.get_type() == VarType::I32 {
+	if x.get_type() == BType::Int || y.get_type() == BType::Int {
 		Ok(Value::Int(on_int(x.to_int()?, y.to_int()?) as i32))
 	} else {
 		Ok(Value::Int(on_float(x.to_float()?, y.to_float()?) as i32))
 	}
 }
 
-fn get_index<T>(index: &[usize], x: &Array<T>, pos: i32) -> Value
+fn get_index<T: Into<Value>>(
+	index: &[usize],
+	x: &[T],
+	pos: usize,
+) -> Result<Value>
 where
 	T: Into<Value> + Default + Copy,
-	(Vec<usize>, Array<T>): Into<Value>,
+	(Vec<usize>, Vec<T>): Into<Value>,
 {
-	let (len, map) = x;
-	let mut index = index.to_owned();
-	index.push(pos as usize);
-	if index.len() == *len {
-		// UB may lead to any situation occurring, including receiving default values
-		map.get(&index).copied().unwrap_or_default().into()
+	let v = index
+		.first()
+		.ok_or(TypeError("Try to deref a non-pointer value".to_string()))?;
+	let len: usize = index[1..].iter().product();
+	if pos > *v {
+		return Err(TypeError("Index out of bounds".to_string()));
+	}
+	if index.len() == 1 {
+		Ok(x.get(pos).unwrap().to_owned().into())
 	} else {
-		(index, (*len, map.clone())).into()
+		Ok((index[1..].to_vec(), x[pos * len..(pos + 1) * len].to_vec()).into())
 	}
 }
 
@@ -62,8 +68,8 @@ pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Value> {
 				_ => Err(TypeError("array can only be indexed by int".to_string())),
 			}?;
 			match x {
-				Value::IntPtr((index, arr)) => Ok(get_index(index, arr, pos)),
-				Value::FloatPtr((index, arr)) => Ok(get_index(index, arr, pos)),
+				Value::IntPtr((index, arr)) => get_index(index, arr, pos as usize),
+				Value::FloatPtr((index, arr)) => get_index(index, arr, pos as usize),
 				_ => Err(TypeError("only array can be indexed".to_string())),
 			}
 		}
@@ -87,7 +93,7 @@ where
 	Foo: Fn(i32) -> i32,
 	Bar: Fn(f32) -> f32,
 {
-	if x.get_type() == VarType::I32 {
+	if x.get_type() == BType::Int {
 		Ok(Value::Int(on_int(x.to_int()?)))
 	} else {
 		Ok(Value::Float(on_float(x.to_float()?)))

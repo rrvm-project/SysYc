@@ -1,4 +1,4 @@
-use crate::{FloatPtr, IntPtr, Value};
+use crate::{BType, FloatPtr, IntPtr, Value, VarType};
 use utils::{errors::Result, SysycError::TypeError};
 
 impl From<i32> for Value {
@@ -38,6 +38,17 @@ impl Value {
 			Self::Int(v) => Ok(*v as f32),
 			Self::Float(v) => Ok(*v),
 			_ => Err(TypeError("try to convert pointer to float".to_string())),
+		}
+	}
+}
+
+impl From<(bool, BType, Vec<usize>)> for VarType {
+	fn from(value: (bool, BType, Vec<usize>)) -> Self {
+		let (is_lval, type_t, dims) = value;
+		Self {
+			is_lval,
+			type_t,
+			dims,
 		}
 	}
 }

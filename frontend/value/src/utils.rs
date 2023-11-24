@@ -1,14 +1,11 @@
-use llvm::llvmvar::VarType;
-
-use crate::Value;
+use crate::{BType, Value};
 
 impl Value {
-	pub fn get_type(&self) -> VarType {
+	pub fn get_type(&self) -> BType {
 		match &self {
-			Self::Int(_) => VarType::I32,
-			Self::Float(_) => VarType::F32,
-			Self::IntPtr(_) => VarType::I32Ptr,
-			Self::FloatPtr(_) => VarType::F32Ptr,
+			Self::Int(_) => BType::Int,
+			Self::Float(_) => BType::Float,
+			_ => unreachable!(),
 		}
 	}
 }

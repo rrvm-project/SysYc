@@ -77,11 +77,12 @@ impl Visitor for Namer {
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let (is_const, btype) = self.cur_type.unwrap();
-		let var_type = (is_const, btype, dim_list);
+		let var_type: VarType = (is_const, btype, dim_list).into();
 		let symbol = self.mgr.new_symbol(None, var_type.clone());
 		self.ctx.set_val(&node.ident, symbol.clone());
 		node.set_attr("type", var_type.into());
 		node.set_attr("symbol", symbol.into());
+		node.init.as_mut().map(|v| v.accept(self));
 		Ok(())
 	}
 	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<()> {
@@ -140,7 +141,7 @@ impl Visitor for Namer {
 	}
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
-		let var_type = (false, node.type_t, dim_list);
+		let var_type: VarType = (false, node.type_t, dim_list).into();
 		let symbol = self.mgr.new_symbol(None, var_type.clone());
 		self.ctx.set_val(&node.ident, symbol);
 		node.set_attr("type", var_type.into());
