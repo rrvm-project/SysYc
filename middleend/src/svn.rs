@@ -29,7 +29,6 @@ impl IRPass for Svn {
 	fn pass(&mut self, program: &mut LlvmProgram, context: &mut IRPassContext) {
 		for item in &mut program.funcs {
 			let cfg = &mut item.cfg;
-			println!("\n\nfor function {}", item.label);
 			self.traverse_cfg(cfg, context);
 		}
 	}
@@ -251,7 +250,6 @@ impl Svn {
 				to_visit_next.push(*succ);
 			} else if !visited.contains(succ) {
 				work_list.push(*succ);
-				println!("pushed into worklist {}", *succ);
 			}
 		}
 
@@ -280,10 +278,8 @@ impl Svn {
 				match item.get_variant() {
 					llvm::LlvmInstrVariant::ArithInstr(instr) => {
 						if let Some(value_on_right) = identity_arithinstr_detect(instr) {
-							println!("Marked as assign: {:#}", instr);
 							let value_number_for_right =
 								self.look_up_value_for_value_number(&value_on_right, lvn_data);
-							println!("right value number {}", value_number_for_right);
 							if let Some(old) = self.link_value_number_to_value(
 								lvn_data,
 								Value::Temp(instr.target.clone()),
@@ -321,7 +317,6 @@ impl Svn {
 							}
 						} else {
 							let op_name = instr.op.to_string();
-							println!("Marked as normal: {:#}", instr);
 							let (value_number_l, value_number_r) = (
 								self.look_up_value_for_value_number(&instr.lhs, lvn_data),
 								self.look_up_value_for_value_number(&instr.rhs, lvn_data),
@@ -368,10 +363,6 @@ impl Svn {
 									value_number_for_expression,
 								);
 							} else {
-								println!(
-									"value_number {} not found ",
-									value_number_for_expression
-								);
 								self.link_value_number_to_value(
 									lvn_data,
 									Value::Temp(instr.target.clone()),
@@ -382,7 +373,6 @@ impl Svn {
 									instr.target.clone(),
 									value_number_for_expression,
 								);
-								println!("{:?}", &lvn_data);
 								new_instrs.push(Box::new(llvm::ArithInstr {
 									target: instr.target.clone(),
 									op: instr.op,
