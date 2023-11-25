@@ -27,8 +27,10 @@ impl CFG {
 
 impl Display for CFG {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self.basic_blocks.get(&0).unwrap())?;
 		for (id, bb) in &self.basic_blocks {
-			if *id == 1 {
+			if *id <= 1 {
+				// 0 for entry and 1 for exit
 				continue;
 			}
 			writeln!(f, "{}", bb)?;
