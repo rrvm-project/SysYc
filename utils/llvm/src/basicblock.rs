@@ -18,6 +18,7 @@ pub struct BasicBlock {
 	pub live_in: HashSet<Temp>,
 	pub live_out: HashSet<Temp>,
 	pub instrs: Vec<Box<dyn LlvmInstr>>,
+	pub phi_instrs_vec: Vec<Box<dyn LlvmInstr>>,
 	pub symbol2temp: HashMap<usize, Temp>,
 	pub phi_instrs: HashMap<Temp, Vec<(Label, Temp)>>,
 }
@@ -40,6 +41,7 @@ impl BasicBlock {
 			live_out: HashSet::new(),
 			symbol2temp: HashMap::new(),
 			phi_instrs: HashMap::new(),
+			phi_instrs_vec: Vec::new(),
 		}
 	}
 	pub fn add(&mut self, instr: Box<dyn LlvmInstr>) {
@@ -58,6 +60,9 @@ impl Display for BasicBlock {
 		}
 
 		writeln!(f, "  {}:", self.label)?;
+		for instr in &self.phi_instrs_vec {
+			writeln!(f, "  {}", instr)?;
+		}
 		for instr in &self.instrs {
 			writeln!(f, "  {}", instr)?;
 		}
