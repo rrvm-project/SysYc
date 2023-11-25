@@ -9,12 +9,14 @@ use std::collections::{HashMap, HashSet};
 
 pub struct Svn {
 	last_value_number: usize,
+	temp_reduced: HashMap<Temp, Value>,
 }
 
 impl Svn {
 	pub fn new() -> Self {
 		Svn {
 			last_value_number: 0,
+			temp_reduced: HashMap::new(),
 		}
 	}
 }
@@ -273,8 +275,10 @@ impl Svn {
 			let instrs = std::mem::take(&mut basicblock.instrs);
 			let mut new_instrs: Vec<Box<dyn LlvmInstr>> = Vec::new();
 
-			for item in instrs {
+			for mut item in instrs {
 				let mut do_nothing = false;
+				item.replace_temp(&self.temp_reduced);
+
 				match item.get_variant() {
 					llvm::LlvmInstrVariant::ArithInstr(instr) => {
 						if let Some(value_on_right) = identity_arithinstr_detect(instr) {
@@ -294,27 +298,28 @@ impl Svn {
 							} else {
 								value_on_right
 							};
-							match instr.target.var_type {
-								llvm::llvmvar::VarType::I32 => {
-									new_instrs.push(Box::new(llvm::ArithInstr {
-										target: instr.target.clone(),
-										op: ArithOp::Add,
-										var_type: llvm::llvmvar::VarType::I32,
-										lhs: value_to_assign,
-										rhs: Value::Int(0),
-									}))
-								}
-								llvm::llvmvar::VarType::F32 => {
-									new_instrs.push(Box::new(llvm::ArithInstr {
-										target: instr.target.clone(),
-										op: ArithOp::Fadd,
-										var_type: llvm::llvmvar::VarType::F32,
-										lhs: value_to_assign,
-										rhs: Value::Float(0.0),
-									}))
-								}
-								_ => do_nothing = true,
-							}
+							self.temp_reduced.insert(instr.target.clone(), value_to_assign);
+						// match instr.target.var_type {
+						// 	llvm::llvmvar::VarType::I32 => {
+						// 		new_instrs.push(Box::new(llvm::ArithInstr {
+						// 			target: instr.target.clone(),
+						// 			op: ArithOp::Add,
+						// 			var_type: llvm::llvmvar::VarType::I32,
+						// 			lhs: value_to_assign,
+						// 			rhs: Value::Int(0),
+						// 		}))
+						// 	}
+						// 	llvm::llvmvar::VarType::F32 => {
+						// 		new_instrs.push(Box::new(llvm::ArithInstr {
+						// 			target: instr.target.clone(),
+						// 			op: ArithOp::Fadd,
+						// 			var_type: llvm::llvmvar::VarType::F32,
+						// 			lhs: value_to_assign,
+						// 			rhs: Value::Float(0.0),
+						// 		}))
+						// 	}
+						// 	_ => do_nothing = true,
+						// }
 						} else {
 							let op_name = instr.op.to_string();
 							let (value_number_l, value_number_r) = (
@@ -336,32 +341,33 @@ impl Svn {
 								lvn_data,
 								value_number_for_expression,
 							) {
-								match instr.target.var_type {
-									llvm::llvmvar::VarType::I32 => {
-										new_instrs.push(Box::new(llvm::ArithInstr {
-											target: instr.target.clone(),
-											op: ArithOp::Add,
-											var_type: llvm::llvmvar::VarType::I32,
-											lhs: value_to_assign,
-											rhs: Value::Int(0),
-										}))
-									}
-									llvm::llvmvar::VarType::F32 => {
-										new_instrs.push(Box::new(llvm::ArithInstr {
-											target: instr.target.clone(),
-											op: ArithOp::Fadd,
-											var_type: llvm::llvmvar::VarType::F32,
-											lhs: value_to_assign,
-											rhs: Value::Float(0.0),
-										}))
-									}
-									_ => do_nothing = true,
-								}
-								self.link_value_number_to_value(
-									lvn_data,
-									Value::Temp(instr.target.clone()),
-									value_number_for_expression,
-								);
+								// match instr.target.var_type {
+								// 	llvm::llvmvar::VarType::I32 => {
+								// 		new_instrs.push(Box::new(llvm::ArithInstr {
+								// 			target: instr.target.clone(),
+								// 			op: ArithOp::Add,
+								// 			var_type: llvm::llvmvar::VarType::I32,
+								// 			lhs: value_to_assign,
+								// 			rhs: Value::Int(0),
+								// 		}))
+								// 	}
+								// 	llvm::llvmvar::VarType::F32 => {
+								// 		new_instrs.push(Box::new(llvm::ArithInstr {
+								// 			target: instr.target.clone(),
+								// 			op: ArithOp::Fadd,
+								// 			var_type: llvm::llvmvar::VarType::F32,
+								// 			lhs: value_to_assign,
+								// 			rhs: Value::Float(0.0),
+								// 		}))
+								// 	}
+								// 	_ => do_nothing = true,
+								// }
+								// self.link_value_number_to_value(
+								// 	lvn_data,
+								// 	Value::Temp(instr.target.clone()),
+								// 	value_number_for_expression,
+								// );
+								self.temp_reduced.insert(instr.target.clone(), value_to_assign);
 							} else {
 								self.link_value_number_to_value(
 									lvn_data,
@@ -419,6 +425,22 @@ impl Svn {
 			// instrs.push(Box::new(llvm::ArithInstr{ target: Temp::new(114515, llvm::llvmvar::VarType::F32), op: ArithOp::Fadd, var_type: llvm::llvmvar::VarType::F32, lhs: Value::Float(0.3), rhs: Value::Float(7.66) }));
 
 			basicblock.instrs = new_instrs;
+
+			for item in &basicblock.succ {
+				if *item == id {
+					for phi_instr in &mut basicblock.phi_instrs_vec {
+						phi_instr.replace_temp(&self.temp_reduced);
+					}
+					continue;
+				}
+				if let Some(mut succ_block) = cfg.basic_blocks.remove(item) {
+					for phi_instr in &mut succ_block.phi_instrs_vec {
+						phi_instr.replace_temp(&self.temp_reduced);
+					}
+					cfg.basic_blocks.insert(*item, succ_block);
+				}
+			}
+
 			cfg.basic_blocks.insert(id, basicblock);
 		}
 	}
