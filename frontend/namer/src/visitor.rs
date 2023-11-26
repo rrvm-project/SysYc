@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use ast::{
+	shirink,
 	tree::{AstRetType::Empty, *},
 	Visitor,
 };
@@ -50,6 +51,7 @@ impl Namer {
 					"The length of array must be constant integer".to_string(),
 				))?
 				.into();
+			shirink(dim);
 			dim_list.push(value.to_int()? as usize);
 		}
 		Ok(dim_list)
@@ -96,7 +98,7 @@ impl Visitor for Namer {
 		self.cur_type = None;
 		Ok(Empty)
 	}
-	//TODO: Constant Propagation
+	//TODO: solve init value list
 	fn visit_init_val_list(
 		&mut self,
 		node: &mut InitValList,
@@ -120,8 +122,10 @@ impl Visitor for Namer {
 		Ok(Empty)
 	}
 	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<AstRetType> {
-		node.lhs.accept(self);
-		node.rhs.accept(self);
+		node.lhs.accept(self)?;
+		node.rhs.accept(self)?;
+		shirink(&mut node.lhs);
+		shirink(&mut node.rhs);
 		if node.op != BinaryOp::Assign {
 			let lhs = node.lhs.get_attr("value");
 			let rhs = node.rhs.get_attr("value");
@@ -133,7 +137,8 @@ impl Visitor for Namer {
 		Ok(Empty)
 	}
 	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<AstRetType> {
-		node.rhs.accept(self);
+		node.rhs.accept(self)?;
+		shirink(&mut node.rhs);
 		if let Some(rhs) = node.rhs.get_attr("value") {
 			let value = exec_unaryop(node.op, &rhs.into())?;
 			node.set_attr("value", value.into());
@@ -149,6 +154,7 @@ impl Visitor for Namer {
 		node.set_attr("func_symbol", symbol.into());
 		for param in node.params.iter_mut() {
 			param.accept(self)?;
+			shirink(param);
 		}
 		Ok(Empty)
 	}
@@ -179,6 +185,7 @@ impl Visitor for Namer {
 	}
 	fn visit_if(&mut self, node: &mut If) -> Result<AstRetType> {
 		node.cond.accept(self)?;
+		shirink(&mut node.cond);
 		node.body.accept(self)?;
 		if let Some(then) = &mut node.then {
 			then.accept(self)?;
@@ -187,6 +194,7 @@ impl Visitor for Namer {
 	}
 	fn visit_while(&mut self, node: &mut While) -> Result<AstRetType> {
 		node.cond.accept(self)?;
+		shirink(&mut node.cond);
 		node.body.accept(self)
 	}
 	fn visit_continue(&mut self, node: &mut Continue) -> Result<AstRetType> {
@@ -198,6 +206,7 @@ impl Visitor for Namer {
 	fn visit_return(&mut self, node: &mut Return) -> Result<AstRetType> {
 		if let Some(val) = &mut node.value {
 			val.accept(self)?;
+			shirink(val);
 		}
 		Ok(Empty)
 	}
