@@ -45,7 +45,7 @@ pub fn type_binaryop(x: &VarType, op: BinaryOp, y: &VarType) -> Result<VarType> 
       })
 		}
     BinaryOp::Assign => {
-      if x.is_lval {
+      if !x.is_lval {
         Err(TypeError("Only lvalue can be assigned".to_string()))
       }
       else if !x.dims.is_empty() || !y.dims.is_empty() {

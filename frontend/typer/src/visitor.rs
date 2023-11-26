@@ -85,6 +85,25 @@ impl Visitor for Typer {
 		Ok(())
 	}
 	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<()> {
+		let symbol: FuncSymbol = node.get_attr("func_symbol").unwrap().into();
+		let (_, params) = symbol.var_type;
+		if node.params.len() != params.len() {
+			return Err(TypeError(format!(
+				"unmatch numbers of params for function {}",
+				node.ident
+			)));
+		}
+
+		for (x_t, y) in params.iter().zip(node.params.iter()) {
+			let y_t: VarType = y.get_attr("type").unwrap().into();
+			let err_msg =
+				format!("expected `{}` but argument is of type `{}`", x_t, y_t);
+			if x_t.dims.len() != y_t.dims.iter().len()
+				|| x_t.dims.iter().skip(1).ne(y_t.dims.iter().skip(1))
+			{
+				return Err(TypeError(err_msg));
+			}
+		}
 		Ok(())
 	}
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {

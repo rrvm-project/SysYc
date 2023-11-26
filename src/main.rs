@@ -13,7 +13,6 @@ use anyhow::Result;
 use ast::tree::Program;
 use clap::Parser;
 use cli::Args;
-use llvm::LlvmProgram;
 use namer::visitor::Namer;
 use parser::parser::parse;
 use typer::visitor::Typer;
@@ -29,8 +28,7 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 	Ok(parse(&code)?)
 }
 
-#[allow(unused_variables)]
-fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
+fn step_llvm(mut program: Program) -> Result<i32> {
 	Namer::new().transform(&mut program)?;
 	Typer::new().transform(&mut program)?;
 	let x = format!("{:#?}", program);
@@ -39,7 +37,7 @@ fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
 }
 
 #[allow(unused_variables)]
-fn step_riscv(program: LlvmProgram) -> Result<i32> {
+fn step_riscv(program: i32) -> Result<i32> {
 	todo!()
 	// let mut program = RrvmProgram::new(program);
 	// program.solve_global()?;

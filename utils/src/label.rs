@@ -30,6 +30,6 @@ impl LabelManager {
 	}
 	pub fn new_label(&mut self) -> Label {
 		self.total += 1;
-		Label::new("L".to_string() + self.total.to_string().as_str())
+		Label::new("B".to_string() + self.total.to_string().as_str())
 	}
 }

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{BType, FloatPtr, FuncRetType, IntPtr, Value, VarType};
 use utils::{errors::Result, SysycError::TypeError};
 
@@ -76,6 +78,23 @@ impl VarType {
 			is_lval: false,
 			type_t: BType::Float,
 			dims: Vec::new(),
+		}
+	}
+}
+
+impl Display for VarType {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		if self.dims.is_empty() {
+			write!(f, "{:?}", self.type_t)
+		} else {
+			let v = self
+				.dims
+				.iter()
+				.skip(1)
+				.map(|v| format!("[{}]", v))
+				.collect::<Vec<_>>()
+				.join("");
+			write!(f, "{:?} (*){}", self.type_t, v)
 		}
 	}
 }

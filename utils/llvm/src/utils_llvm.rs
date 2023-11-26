@@ -16,16 +16,7 @@ pub fn type2ptr(var_type: VarType) -> VarType {
 	}
 }
 
-pub fn ptr2type(var_type: VarType) -> VarType {
-	match var_type {
-		VarType::F32Ptr => VarType::F32,
-		VarType::I32Ptr => VarType::I32,
-		_ => unreachable!(),
-	}
-}
-
 pub fn is_ptr(var_type: VarType) -> bool {
-	// reformed by cyh due to clippy
 	matches!(var_type, VarType::F32Ptr | VarType::I32Ptr)
 }
 
