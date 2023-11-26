@@ -18,3 +18,9 @@ impl CFG {
 		self.blocks.append(&mut other.blocks);
 	}
 }
+
+impl Default for CFG {
+	fn default() -> Self {
+		Self::new()
+	}
+}

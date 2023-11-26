@@ -11,3 +11,5 @@ sysyc_derive = { path = "../../sysyc_derive" }
 
 attr = { path = "../attr" }
 value = { path = "../value" }
+
+rrvm = { path = "../../utils/rrvm" }
