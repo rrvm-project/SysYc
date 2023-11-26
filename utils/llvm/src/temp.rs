@@ -5,6 +5,7 @@ use crate::{llvmop::Value, llvmvar::VarType};
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Temp {
 	pub name: String,
+	pub is_global: bool,
 	pub var_type: VarType,
 }
 
@@ -15,10 +16,11 @@ impl Display for Temp {
 }
 
 impl Temp {
-	fn new(id: u32, var_type: VarType) -> Self {
+	fn new(id: u32, var_type: VarType, is_global: bool) -> Self {
 		Self {
 			name: id.to_string(),
 			var_type,
+			is_global,
 		}
 	}
 }
@@ -41,8 +43,8 @@ impl TempManager {
 	pub fn new() -> Self {
 		Self::default()
 	}
-	pub fn new_temp(&mut self, var_type: VarType) -> Temp {
+	pub fn new_temp(&mut self, var_type: VarType, is_global: bool) -> Temp {
 		self.total += 1;
-		Temp::new(self.total, var_type)
+		Temp::new(self.total, var_type, is_global)
 	}
 }

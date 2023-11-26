@@ -11,18 +11,7 @@ pub struct LlvmFunc {
 }
 
 impl Display for LlvmFunc {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "define {} {}(", self.ret_type, self.label)?;
-		for (i, param) in self.params.iter().enumerate() {
-			if i != 0 {
-				write!(f, ", ")?;
-			}
-			write!(f, "{} {}", param.var_type, param)?;
-		}
-		writeln!(f, ") {{")?;
-		for instr in &self.body {
-			writeln!(f, "{}", instr)?;
-		}
-		writeln!(f, "}}")
+	fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		todo!()
 	}
 }
