@@ -93,8 +93,13 @@ impl Visitor for Typer {
 		Ok(Empty)
 	}
 	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<AstRetType> {
+		for param in node.params.iter_mut() {
+			param.accept(self)?;
+		}
+
 		let symbol: FuncSymbol = node.get_attr("func_symbol").unwrap().into();
 		let (_, params) = symbol.var_type;
+
 		if node.params.len() != params.len() {
 			return Err(TypeError(format!(
 				"unmatch numbers of params for function {}",
