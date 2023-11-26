@@ -5,6 +5,7 @@ use utils::errors::Result;
 pub mod basicblock;
 pub mod cfg;
 pub mod func;
+pub mod program;
 
 pub fn transform_basicblock(block: BasicBlock) -> Result<BasicBlock> {
 	let mut instr_dag = InstrDag::new(block.instrs);

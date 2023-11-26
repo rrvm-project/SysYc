@@ -1,4 +1,5 @@
 use attr::{Attr, Attrs};
+use rrvm::cfg::CFG;
 use std::fmt::Debug;
 use sysyc_derive::{has_attrs, AstNode};
 use utils::errors::Result;
@@ -6,8 +7,13 @@ use value::{BType, BinaryOp, FuncRetType, UnaryOp};
 
 use crate::visitor::Visitor;
 
+pub enum AstRetType {
+	Empty,
+	Cfg(CFG),
+}
+
 pub trait AstNode: Debug + Attrs {
-	fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<()>;
+	fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<AstRetType>;
 }
 
 pub type Node = Box<dyn AstNode>;

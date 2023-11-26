@@ -11,7 +11,11 @@ pub struct Temp {
 
 impl Display for Temp {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "%{}", self.name)
+		if self.is_global {
+			write!(f, "@{}", self.name)
+		} else {
+			write!(f, "%{}", self.name)
+		}
 	}
 }
 

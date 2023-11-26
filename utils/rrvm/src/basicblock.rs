@@ -40,6 +40,10 @@ impl BasicBlock {
 			_ => Label::new(format!("B{}", self.id - 2)),
 		}
 	}
+	pub fn clear(&mut self) {
+		self.prev.clear();
+		self.succ.clear();
+	}
 }
 
 #[cfg(not(feature = "debug"))]
