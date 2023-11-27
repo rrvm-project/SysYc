@@ -64,7 +64,7 @@ impl Visitor for Namer {
 		for v in node.comp_units.iter_mut() {
 			v.accept(self)?;
 		}
-		self.ctx.pop();
+		self.ctx.pop()?;
 		Ok(Empty)
 	}
 	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<AstRetType> {
@@ -78,7 +78,7 @@ impl Visitor for Namer {
 		let symbol = self.mgr.new_symbol(Some(node.ident.clone()), func_type);
 		self.ctx.set_func(&node.ident, symbol)?;
 		node.block.accept(self)?;
-		self.ctx.pop();
+		self.ctx.pop()?;
 		Ok(Empty)
 	}
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<AstRetType> {
@@ -86,8 +86,10 @@ impl Visitor for Namer {
 		let (is_const, btype) = self.cur_type.unwrap();
 		let var_type: VarType = (!is_const, btype, dim_list).into();
 		let symbol = self.mgr.new_symbol(None, var_type);
-		self.ctx.set_val(&node.ident, symbol);
-		node.init.as_mut().map(|v| v.accept(self));
+		self.ctx.set_val(&node.ident, symbol)?;
+		if let Some(init) = node.init.as_mut() {
+			init.accept(self)?;
+		}
 		Ok(Empty)
 	}
 	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<AstRetType> {
@@ -165,7 +167,7 @@ impl Visitor for Namer {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let var_type: VarType = (false, node.type_t, dim_list).into();
 		let symbol = self.mgr.new_symbol(None, var_type.clone());
-		self.ctx.set_val(&node.ident, symbol);
+		self.ctx.set_val(&node.ident, symbol)?;
 		node.set_attr("type", var_type.into());
 		Ok(Empty)
 	}
@@ -180,7 +182,7 @@ impl Visitor for Namer {
 		for stmt in node.stmts.iter_mut() {
 			stmt.accept(self)?;
 		}
-		self.ctx.pop();
+		self.ctx.pop()?;
 		Ok(Empty)
 	}
 	fn visit_if(&mut self, node: &mut If) -> Result<AstRetType> {

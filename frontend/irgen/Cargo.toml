@@ -1,0 +1,16 @@
+[package]
+name = "irgen"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+utils = { path = "../../utils" }
+llvm = { path = "../../utils/llvm" }
+rrvm = { path = "../../utils/rrvm" }
+
+ast = { path = "../ast" }
+attr = { path = "../attr" }
+value = { path = "../value" }
+rrvm_symbol = { path = "../symbol" }
