@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 
-use crate::tree::{Break, Continue, LiteralFloat, LiteralInt, Node};
+use rrvm::cfg::CFG;
+
+use crate::{
+	tree::{Break, Continue, LiteralFloat, LiteralInt, Node},
+	AstRetType,
+};
 
 impl Continue {
 	pub fn new() -> Continue {
@@ -45,5 +50,14 @@ impl LiteralFloat {
 			_attrs: HashMap::new(),
 			value,
 		})
+	}
+}
+
+impl AstRetType {
+	pub fn unwarp_cfg(self) -> CFG {
+		match self {
+			Self::Cfg(v) => v,
+			_ => unreachable!(),
+		}
 	}
 }

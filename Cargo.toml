@@ -15,6 +15,7 @@ members = [
   "frontend/ast",
   "frontend/attr",
   "frontend/symbol",
+  "frontend/irgen",
   "frontend/namer",
   "frontend/typer",
   "frontend/scope",
