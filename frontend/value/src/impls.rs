@@ -80,6 +80,12 @@ impl VarType {
 			dims: Vec::new(),
 		}
 	}
+	pub fn is_array(&self) -> bool {
+		!self.dims.is_empty()
+	}
+	pub fn size(&self) -> i32 {
+		self.dims.iter().map(|v| *v as i32).product::<i32>() * self.type_t.size()
+	}
 }
 
 impl Display for VarType {
@@ -95,6 +101,15 @@ impl Display for VarType {
 				.collect::<Vec<_>>()
 				.join("");
 			write!(f, "{:?} (*){}", self.type_t, v)
+		}
+	}
+}
+
+impl BType {
+	pub fn size(&self) -> i32 {
+		match self {
+			Self::Int => 4,
+			Self::Float => 4,
 		}
 	}
 }

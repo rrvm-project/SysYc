@@ -20,9 +20,9 @@ impl Display for Temp {
 }
 
 impl Temp {
-	fn new(id: u32, var_type: VarType, is_global: bool) -> Self {
+	fn new(name: impl ToString, var_type: VarType, is_global: bool) -> Self {
 		Self {
-			name: id.to_string(),
+			name: name.to_string(),
 			var_type,
 			is_global,
 		}

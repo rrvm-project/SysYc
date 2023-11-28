@@ -6,8 +6,6 @@ pub use tree::*;
 use value::Value;
 pub use visitor::*;
 
-pub use tree::AstRetType::*;
-
 pub fn val_2_node(value: &Value) -> Node {
 	match value {
 		Value::Int(v) => LiteralInt::node(*v),

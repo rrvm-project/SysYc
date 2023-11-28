@@ -29,15 +29,17 @@ members = [
 [dependencies]
 utils = { path = "utils" }
 llvm = { path = "utils/llvm" }
+rrvm = { path = "utils/rrvm" }
 instruction = { path = "utils/instruction" }
 
 ast = { path = "frontend/ast" }
 parser = { path = "frontend/parser" }
 namer = { path = "frontend/namer" }
 typer = { path = "frontend/typer" }
+irgen = { path = "frontend/irgen" }
 
-rrvm_func = { path = "backend/func" }
-rrvm_program = { path = "backend/program" }
+# rrvm_func = { path = "backend/func" }
+# rrvm_program = { path = "backend/program" }
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"

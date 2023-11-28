@@ -18,6 +18,8 @@ pub enum SysycError {
 	LlvmSyntexError(String),
 	#[error("Riscv generating error: {0}")]
 	RiscvGenError(String),
+	#[error("Llvm generating error: {0}")]
+	LlvmvGenError(String),
 }
 
 pub type Result<T, E = SysycError> = core::result::Result<T, E>;

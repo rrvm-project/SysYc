@@ -1,7 +1,5 @@
 use std::fmt::Display;
 
-use utils::Label;
-
 use crate::{
 	llvminstr::*,
 	llvmop::*,
@@ -10,6 +8,25 @@ use crate::{
 	utils_llvm::{all_equal, is_ptr, type_match_ptr, unwrap_values},
 	LlvmInstrVariant,
 };
+
+impl From<Temp> for Value {
+	fn from(value: Temp) -> Self {
+		Value::Temp(value)
+	}
+}
+
+impl From<i32> for Value {
+	fn from(value: i32) -> Self {
+		Value::Int(value)
+	}
+}
+
+impl From<f32> for Value {
+	fn from(value: f32) -> Self {
+		Value::Float(value)
+	}
+}
+
 impl Display for ArithInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(
@@ -20,7 +37,7 @@ impl Display for ArithInstr {
 	}
 }
 
-impl LlvmInstr for ArithInstr {
+impl LlvmInstrTrait for ArithInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::ArithInstr(self)
 	}
@@ -40,21 +57,6 @@ impl LlvmInstr for ArithInstr {
 	}
 }
 
-impl Display for LabelInstr {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "{}:", self.label.name)
-	}
-}
-
-impl LlvmInstr for LabelInstr {
-	fn get_variant(&self) -> LlvmInstrVariant {
-		LlvmInstrVariant::LabelInstr(self)
-	}
-	fn get_label(&self) -> Option<Label> {
-		Some(self.label.clone())
-	}
-}
-
 impl Display for CompInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(
@@ -65,7 +67,7 @@ impl Display for CompInstr {
 	}
 }
 
-impl LlvmInstr for CompInstr {
+impl LlvmInstrTrait for CompInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::CompInstr(self)
 	}
@@ -95,7 +97,7 @@ impl Display for ConvertInstr {
 	}
 }
 
-impl LlvmInstr for ConvertInstr {
+impl LlvmInstrTrait for ConvertInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::ConvertInstr(self)
 	}
@@ -117,11 +119,11 @@ impl LlvmInstr for ConvertInstr {
 
 impl Display for JumpInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "  br label {}", self.target)
+		write!(f, "  br label %{}", self.target)
 	}
 }
 
-impl LlvmInstr for JumpInstr {
+impl LlvmInstrTrait for JumpInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::JumpInstr(self)
 	}
@@ -134,13 +136,13 @@ impl Display for JumpCondInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(
 			f,
-			"  br {} {}, label {}, label {}",
+			"  br {} {}, label %{}, label %{}",
 			self.var_type, self.cond, self.target_true, self.target_false
 		)
 	}
 }
 
-impl LlvmInstr for JumpCondInstr {
+impl LlvmInstrTrait for JumpCondInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::JumpCondInstr(self)
 	}
@@ -154,8 +156,11 @@ impl LlvmInstr for JumpCondInstr {
 
 impl Display for PhiInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		let ctx: Vec<_> =
-			self.source.iter().map(|(a, b)| format!("[{}, {}]", a, b)).collect();
+		let ctx: Vec<_> = self
+			.source
+			.iter()
+			.map(|(a, b)| format!("[{}, label %{}]", a, b))
+			.collect();
 		write!(
 			f,
 			"  {} = phi {} {}",
@@ -166,7 +171,7 @@ impl Display for PhiInstr {
 	}
 }
 
-impl LlvmInstr for PhiInstr {
+impl LlvmInstrTrait for PhiInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::PhiInstr(self)
 	}
@@ -197,7 +202,7 @@ impl Display for RetInstr {
 	}
 }
 
-impl LlvmInstr for RetInstr {
+impl LlvmInstrTrait for RetInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::RetInstr(self)
 	}
@@ -227,7 +232,7 @@ impl Display for AllocInstr {
 	}
 }
 
-impl LlvmInstr for AllocInstr {
+impl LlvmInstrTrait for AllocInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::AllocInstr(self)
 	}
@@ -255,7 +260,7 @@ impl Display for StoreInstr {
 	}
 }
 
-impl LlvmInstr for StoreInstr {
+impl LlvmInstrTrait for StoreInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::StoreInstr(self)
 	}
@@ -280,7 +285,7 @@ impl Display for LoadInstr {
 	}
 }
 
-impl LlvmInstr for LoadInstr {
+impl LlvmInstrTrait for LoadInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::LoadInstr(self)
 	}
@@ -309,7 +314,7 @@ impl Display for GEPInstr {
 	}
 }
 
-impl LlvmInstr for GEPInstr {
+impl LlvmInstrTrait for GEPInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::GEPInstr(self)
 	}
@@ -332,7 +337,7 @@ impl Display for CallInstr {
 			self.params.iter().map(|(a, b)| format!("{} {}", a, b)).collect();
 		write!(
 			f,
-			"  {} = call {} {}({})",
+			"  {} = call {} @{}({})",
 			self.target,
 			self.var_type,
 			self.func,
@@ -341,7 +346,7 @@ impl Display for CallInstr {
 	}
 }
 
-impl LlvmInstr for CallInstr {
+impl LlvmInstrTrait for CallInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::CallInstr(self)
 	}

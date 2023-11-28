@@ -12,7 +12,7 @@ impl Display for RTriInstr {
 	}
 }
 
-impl RiscvInstr for RTriInstr {}
+impl RiscvInstrTrait for RTriInstr {}
 
 impl RTriInstr {
 	pub fn new(
@@ -20,7 +20,7 @@ impl RTriInstr {
 		rd: RiscvTemp,
 		rs1: RiscvTemp,
 		rs2: RiscvTemp,
-	) -> Box<dyn RiscvInstr> {
+	) -> Box<dyn RiscvInstrTrait> {
 		Box::new(Self { op, rs1, rs2, rd })
 	}
 }
@@ -31,7 +31,7 @@ impl Display for ITriInstr {
 	}
 }
 
-impl RiscvInstr for ITriInstr {}
+impl RiscvInstrTrait for ITriInstr {}
 
 impl ITriInstr {
 	pub fn new(
@@ -39,7 +39,7 @@ impl ITriInstr {
 		rd: RiscvTemp,
 		rs1: RiscvTemp,
 		rs2: RiscvImm,
-	) -> Box<dyn RiscvInstr> {
+	) -> Box<dyn RiscvInstrTrait> {
 		Box::new(Self { op, rs1, rs2, rd })
 	}
 }
@@ -50,14 +50,14 @@ impl Display for IBinInstr {
 	}
 }
 
-impl RiscvInstr for IBinInstr {}
+impl RiscvInstrTrait for IBinInstr {}
 
 impl IBinInstr {
 	pub fn new(
 		op: IBinInstrOp,
 		rd: RiscvTemp,
 		rs1: RiscvImm,
-	) -> Box<dyn RiscvInstr> {
+	) -> Box<dyn RiscvInstrTrait> {
 		Box::new(Self { op, rs1, rd })
 	}
 }
@@ -68,10 +68,10 @@ impl Display for LabelInstr {
 	}
 }
 
-impl RiscvInstr for LabelInstr {}
+impl RiscvInstrTrait for LabelInstr {}
 
 impl LabelInstr {
-	pub fn new(label: Label) -> Box<dyn RiscvInstr> {
+	pub fn new(label: Label) -> Box<dyn RiscvInstrTrait> {
 		Box::new(Self { label })
 	}
 }
@@ -82,14 +82,14 @@ impl Display for RBinInstr {
 	}
 }
 
-impl RiscvInstr for RBinInstr {}
+impl RiscvInstrTrait for RBinInstr {}
 
 impl RBinInstr {
 	pub fn new(
 		op: RBinInstrOp,
 		rd: RiscvTemp,
 		rs1: RiscvTemp,
-	) -> Box<dyn RiscvInstr> {
+	) -> Box<dyn RiscvInstrTrait> {
 		Box::new(Self { op, rs1, rd })
 	}
 }
@@ -100,7 +100,7 @@ impl Display for BranInstr {
 	}
 }
 
-impl RiscvInstr for BranInstr {}
+impl RiscvInstrTrait for BranInstr {}
 
 impl BranInstr {
 	pub fn new(
@@ -108,7 +108,7 @@ impl BranInstr {
 		rs1: RiscvTemp,
 		rs2: RiscvTemp,
 		to: RiscvImm,
-	) -> Box<dyn RiscvInstr> {
+	) -> Box<dyn RiscvInstrTrait> {
 		Box::new(Self { op, rs1, rs2, to })
 	}
 }
@@ -119,10 +119,10 @@ impl Display for NoArgInstr {
 	}
 }
 
-impl RiscvInstr for NoArgInstr {}
+impl RiscvInstrTrait for NoArgInstr {}
 
 impl NoArgInstr {
-	pub fn new(op: NoArgInstrOp) -> Box<dyn RiscvInstr> {
+	pub fn new(op: NoArgInstrOp) -> Box<dyn RiscvInstrTrait> {
 		Box::new(Self { op })
 	}
 }

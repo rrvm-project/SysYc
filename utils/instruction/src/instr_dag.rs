@@ -18,7 +18,7 @@ pub struct InstrDag {
 }
 
 impl InstrNode {
-	pub fn new(instr: Box<dyn LlvmInstr>, succ: Vec<Node>) -> InstrNode {
+	pub fn new(instr: LlvmInstr, succ: Vec<Node>) -> InstrNode {
 		InstrNode {
 			in_deg: instr.get_read().len(),
 			instr: InstrSet::LlvmInstrSet(vec![instr]),

@@ -44,7 +44,7 @@ Continue = { "continue" }
 Return = { "return" ~ Expr? }
 
 BinaryOp = _{
-  Add | Sub | Mul | Div | Mod | LE | LT | GE | GT | EQ | NE | Assign
+  Add | Sub | Mul | Div | Mod | LE | LT | GE | GT | EQ | NE | LOr | LAnd | Assign
 }
 UnaryOp = _{
   UnaryAdd | UnarySub | UnaryNot

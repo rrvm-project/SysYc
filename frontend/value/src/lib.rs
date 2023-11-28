@@ -49,10 +49,12 @@ pub enum BinaryOp {
 	GT,
 	EQ,
 	NE,
+	LOr,
+	LAnd,
 	IDX,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
 	Plus,
 	Neg,

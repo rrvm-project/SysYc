@@ -10,5 +10,7 @@ utils = { path = ".." }
 llvm = { path = "../llvm" }
 instruction = { path = "../instruction" }
 
+sysyc_derive = { path = "../../sysyc_derive" }
+
 [features]
 debug = []

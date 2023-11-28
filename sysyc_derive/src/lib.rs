@@ -57,7 +57,7 @@ pub fn ast_node_derive(input: TokenStream) -> TokenStream {
 
 	let expanded = quote! {
 		impl AstNode for #name {
-			fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<AstRetType> {
+			fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<()> {
 				visitor.#visitor_fn_ident(self)
 			}
 		}

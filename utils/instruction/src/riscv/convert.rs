@@ -94,15 +94,6 @@ pub fn riscv_arith(
 	Ok(InstrSet::RiscvInstrSet(instrs))
 }
 
-pub fn riscv_label(
-	instr: &llvm::llvminstr::LabelInstr,
-	mgr: &mut TempManager,
-) -> Result<InstrSet> {
-	Ok(InstrSet::RiscvInstrSet(vec![LabelInstr::new(
-		instr.label.clone(),
-	)]))
-}
-
 fn get_slt(
 	rd: RiscvTemp,
 	lhs: &Value,

@@ -3,7 +3,9 @@ use utils::Label;
 use crate::{llvmop::*, llvmvar::VarType, LlvmInstrVariant, Temp};
 use std::fmt::Display;
 
-pub trait LlvmInstr: Display {
+pub type LlvmInstr = Box<dyn LlvmInstrTrait>;
+
+pub trait LlvmInstrTrait: Display {
 	fn get_read(&self) -> Vec<Temp> {
 		Vec::new()
 	}
@@ -29,6 +31,7 @@ pub trait LlvmInstr: Display {
 		Vec::new()
 	}
 	fn get_variant(&self) -> LlvmInstrVariant;
+	fn add_label(&mut self, _delta: i32) {}
 }
 
 pub struct ArithInstr {
@@ -37,10 +40,6 @@ pub struct ArithInstr {
 	pub var_type: VarType,
 	pub lhs: Value,
 	pub rhs: Value,
-}
-
-pub struct LabelInstr {
-	pub label: Label,
 }
 
 pub struct CompInstr {
