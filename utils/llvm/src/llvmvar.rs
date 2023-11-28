@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::Value;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VarType {
 	I32,
@@ -19,5 +21,15 @@ impl Display for VarType {
 			Self::Void => "void",
 		};
 		write!(f, "{}", type_str)
+	}
+}
+
+impl VarType {
+	pub fn default_value(&self) -> Value {
+		match self {
+			Self::I32 => 0.into(),
+			Self::F32 => 0.0.into(),
+			_ => unreachable!(),
+		}
 	}
 }

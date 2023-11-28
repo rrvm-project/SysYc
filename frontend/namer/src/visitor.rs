@@ -2,11 +2,7 @@
 
 use std::collections::HashMap;
 
-use ast::{
-	shirink,
-	tree::{AstRetType::Empty, *},
-	Visitor,
-};
+use ast::{shirink, tree::*, Visitor};
 use attr::Attrs;
 use rrvm_symbol::{manager::SymbolManager, FuncSymbol, Symbol, VarSymbol};
 use scope::{scope::Scope, stack::ScopeStack};
@@ -35,7 +31,7 @@ impl Namer {
 			cur_type: None,
 		}
 	}
-	pub fn transform(&mut self, program: &mut Program) -> Result<AstRetType> {
+	pub fn transform(&mut self, program: &mut Program) -> Result<()> {
 		program.accept(self)
 	}
 }
@@ -59,15 +55,16 @@ impl Namer {
 }
 
 impl Visitor for Namer {
-	fn visit_program(&mut self, node: &mut Program) -> Result<AstRetType> {
+	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
 		self.ctx.push();
-		for v in node.comp_units.iter_mut() {
+		// TODO: solve global variable
+		for v in node.functions.iter_mut() {
 			v.accept(self)?;
 		}
 		self.ctx.pop()?;
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<AstRetType> {
+	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<()> {
 		self.ctx.push();
 		let mut func_type = Vec::new();
 		for param in node.formal_params.iter_mut() {
@@ -75,55 +72,50 @@ impl Visitor for Namer {
 			func_type.push(param.get_attr("type").unwrap().into());
 		}
 		let func_type: FuncType = (node.ret_type, func_type);
-		let symbol = self.mgr.new_symbol(Some(node.ident.clone()), func_type);
+		let symbol = self.mgr.new_symbol(&node.ident, func_type);
 		self.ctx.set_func(&node.ident, symbol)?;
 		node.block.accept(self)?;
 		self.ctx.pop()?;
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<AstRetType> {
+	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let (is_const, btype) = self.cur_type.unwrap();
 		let var_type: VarType = (!is_const, btype, dim_list).into();
-		let symbol = self.mgr.new_symbol(None, var_type);
+		let symbol = self.mgr.new_symbol(&node.ident, var_type);
+		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol)?;
 		if let Some(init) = node.init.as_mut() {
 			init.accept(self)?;
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<AstRetType> {
+	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<()> {
 		self.cur_type = Some((node.is_const, node.type_t));
 		for var_def in node.defs.iter_mut() {
 			var_def.accept(self)?;
 		}
 		self.cur_type = None;
-		Ok(Empty)
+		Ok(())
 	}
 	//TODO: solve init value list
-	fn visit_init_val_list(
-		&mut self,
-		node: &mut InitValList,
-	) -> Result<AstRetType> {
+	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
 		for val in node.val_list.iter_mut() {
 			val.accept(self)?;
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_literal_int(&mut self, node: &mut LiteralInt) -> Result<AstRetType> {
+	fn visit_literal_int(&mut self, node: &mut LiteralInt) -> Result<()> {
 		let value: Value = node.value.into();
 		node.set_attr("value", value.into());
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_literal_float(
-		&mut self,
-		node: &mut LiteralFloat,
-	) -> Result<AstRetType> {
+	fn visit_literal_float(&mut self, node: &mut LiteralFloat) -> Result<()> {
 		let value: Value = node.value.into();
 		node.set_attr("value", value.into());
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<AstRetType> {
+	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<()> {
 		node.lhs.accept(self)?;
 		node.rhs.accept(self)?;
 		shirink(&mut node.lhs);
@@ -135,19 +127,21 @@ impl Visitor for Namer {
 				let value = exec_binaryop(&lhs.into(), node.op, &rhs.into())?;
 				node.set_attr("value", value.into());
 			}
+		} else if let Some(symbol) = node.lhs.get_attr("symbol") {
+			node.set_attr("symbol", symbol.clone());
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<AstRetType> {
+	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<()> {
 		node.rhs.accept(self)?;
 		shirink(&mut node.rhs);
 		if let Some(rhs) = node.rhs.get_attr("value") {
 			let value = exec_unaryop(node.op, &rhs.into())?;
 			node.set_attr("value", value.into());
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<AstRetType> {
+	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<()> {
 		let symbol = self.ctx.find_func(&node.ident)?.clone();
 		let v: Option<VarType> = symbol.var_type.0.into();
 		if let Some(v) = v {
@@ -158,58 +152,56 @@ impl Visitor for Namer {
 			param.accept(self)?;
 			shirink(param);
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_formal_param(
-		&mut self,
-		node: &mut FormalParam,
-	) -> Result<AstRetType> {
+	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let var_type: VarType = (false, node.type_t, dim_list).into();
-		let symbol = self.mgr.new_symbol(None, var_type.clone());
+		let symbol = self.mgr.new_symbol(&node.ident, var_type.clone());
+		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol)?;
 		node.set_attr("type", var_type.into());
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_variable(&mut self, node: &mut Variable) -> Result<AstRetType> {
+	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let symbol = self.ctx.find_val(&node.ident)?.clone();
 		node.set_attr("symbol", symbol.clone().into());
 		node.set_attr("type", symbol.var_type.into());
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_block(&mut self, node: &mut Block) -> Result<AstRetType> {
+	fn visit_block(&mut self, node: &mut Block) -> Result<()> {
 		self.ctx.push();
 		for stmt in node.stmts.iter_mut() {
 			stmt.accept(self)?;
 		}
 		self.ctx.pop()?;
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_if(&mut self, node: &mut If) -> Result<AstRetType> {
+	fn visit_if(&mut self, node: &mut If) -> Result<()> {
 		node.cond.accept(self)?;
 		shirink(&mut node.cond);
 		node.body.accept(self)?;
 		if let Some(then) = &mut node.then {
 			then.accept(self)?;
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_while(&mut self, node: &mut While) -> Result<AstRetType> {
+	fn visit_while(&mut self, node: &mut While) -> Result<()> {
 		node.cond.accept(self)?;
 		shirink(&mut node.cond);
 		node.body.accept(self)
 	}
-	fn visit_continue(&mut self, node: &mut Continue) -> Result<AstRetType> {
-		Ok(Empty)
+	fn visit_continue(&mut self, node: &mut Continue) -> Result<()> {
+		Ok(())
 	}
-	fn visit_break(&mut self, node: &mut Break) -> Result<AstRetType> {
-		Ok(Empty)
+	fn visit_break(&mut self, node: &mut Break) -> Result<()> {
+		Ok(())
 	}
-	fn visit_return(&mut self, node: &mut Return) -> Result<AstRetType> {
+	fn visit_return(&mut self, node: &mut Return) -> Result<()> {
 		if let Some(val) = &mut node.value {
 			val.accept(self)?;
 			shirink(val);
 		}
-		Ok(Empty)
+		Ok(())
 	}
 }

@@ -1,26 +1,47 @@
-use crate::basicblock::Node;
+use std::fmt::Display;
 
-pub struct CFG {
-	pub total: i32,
-	pub blocks: Vec<Node>, // 锁定 0 是 enter，1 是 exit
+use utils::Label;
+
+use crate::basicblock::{BasicBlock, Node};
+
+pub struct CFG<T: Display> {
+	pub blocks: Vec<Node<T>>,
 }
 
-impl CFG {
-	pub fn new() -> Self {
+impl<T: Display> CFG<T> {
+	pub fn new(id: i32) -> Self {
 		Self {
-			total: 0,
-			blocks: Vec::new(),
+			blocks: vec![BasicBlock::new_node(id)],
 		}
 	}
-	pub fn merge(&mut self, mut other: CFG) {
-		other.blocks.iter().for_each(|v| v.borrow_mut().id += self.total);
-		self.total += other.total;
-		self.blocks.append(&mut other.blocks);
+	pub fn append(&mut self, other: CFG<T>) {
+		self.blocks.extend(other.blocks);
+	}
+	pub fn get_entry(&self) -> Node<T> {
+		self.blocks.first().unwrap().clone()
+	}
+	pub fn get_exit(&self) -> Node<T> {
+		self.blocks.last().unwrap().clone()
+	}
+	pub fn entry_label(&self) -> Label {
+		self.get_entry().borrow().label()
+	}
+	pub fn exit_label(&self) -> Label {
+		self.get_exit().borrow().label()
 	}
 }
 
-impl Default for CFG {
-	fn default() -> Self {
-		Self::new()
-	}
+pub fn link_basic_block<T>(from: Node<T>, to: Node<T>)
+where
+	T: Display,
+{
+	from.borrow_mut().succ.push(to.clone());
+	to.borrow_mut().prev.push(from.clone());
+}
+
+pub fn link_cfg<T>(from: &mut CFG<T>, to: &mut CFG<T>)
+where
+	T: Display,
+{
+	link_basic_block(from.get_exit(), to.get_entry())
 }

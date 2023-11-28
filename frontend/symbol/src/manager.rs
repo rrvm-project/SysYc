@@ -14,17 +14,17 @@ impl SymbolManager {
 	pub fn new() -> Self {
 		Self { cnt: 0 }
 	}
-	/// `ident` is `Some` only when the symbol is global
+	// `ident` is `Some` only when the symbol is global
 	pub fn new_symbol<T: Clone>(
 		&mut self,
-		ident: Option<String>,
+		ident: impl ToString,
 		var_type: T,
 	) -> Symbol<T> {
 		self.cnt += 1;
 		Symbol {
 			id: self.cnt,
 			var_type,
-			ident: ident.unwrap_or(self.cnt.to_string()),
+			ident: format!("{} {}", ident.to_string(), self.cnt),
 		}
 	}
 }

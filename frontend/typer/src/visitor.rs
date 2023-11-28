@@ -2,16 +2,13 @@
 
 use std::collections::HashMap;
 
-use ast::{
-	tree::{AstRetType::Empty, *},
-	Visitor,
-};
+use ast::{tree::*, Visitor};
 use attr::Attrs;
 use rrvm_symbol::{manager::SymbolManager, FuncSymbol, Symbol, VarSymbol};
 use utils::{errors::Result, SysycError::TypeError};
 use value::{
 	calc_type::{to_rval, type_binaryop},
-	BType, BinaryOp, FuncType, Value, VarType,
+	BType, BinaryOp, FuncType, UnaryOp, Value, VarType,
 };
 
 pub struct Typer {}
@@ -26,52 +23,48 @@ impl Typer {
 	pub fn new() -> Self {
 		Self {}
 	}
-	pub fn transform(&mut self, program: &mut Program) -> Result<AstRetType> {
+	pub fn transform(&mut self, program: &mut Program) -> Result<()> {
 		program.accept(self)
 	}
 }
 
 impl Visitor for Typer {
-	fn visit_program(&mut self, node: &mut Program) -> Result<AstRetType> {
-		for v in node.comp_units.iter_mut() {
+	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
+		for v in node.functions.iter_mut() {
 			v.accept(self)?;
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<AstRetType> {
+	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<()> {
 		node.block.accept(self)
 	}
-	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<AstRetType> {
-		node.init.as_mut().map(|v| v.accept(self));
-		Ok(Empty)
+	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
+		if let Some(init) = node.init.as_mut() {
+			init.accept(self)?;
+		}
+		Ok(())
 	}
-	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<AstRetType> {
+	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<()> {
 		for var_def in node.defs.iter_mut() {
 			var_def.accept(self)?;
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_init_val_list(
-		&mut self,
-		node: &mut InitValList,
-	) -> Result<AstRetType> {
+	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
 		for val in node.val_list.iter_mut() {
 			val.accept(self)?;
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_literal_int(&mut self, node: &mut LiteralInt) -> Result<AstRetType> {
+	fn visit_literal_int(&mut self, node: &mut LiteralInt) -> Result<()> {
 		node.set_attr("type", VarType::new_int().into());
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_literal_float(
-		&mut self,
-		node: &mut LiteralFloat,
-	) -> Result<AstRetType> {
+	fn visit_literal_float(&mut self, node: &mut LiteralFloat) -> Result<()> {
 		node.set_attr("type", VarType::new_float().into());
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<AstRetType> {
+	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<()> {
 		node.lhs.accept(self);
 		node.rhs.accept(self);
 		let lhs = node.lhs.get_attr("type").ok_or(TypeError(
@@ -82,17 +75,21 @@ impl Visitor for Typer {
 		))?;
 		let type_t = type_binaryop(&lhs.into(), node.op, &rhs.into())?;
 		node.set_attr("type", type_t.into());
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<AstRetType> {
+	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<()> {
 		node.rhs.accept(self);
 		let rhs = node.rhs.get_attr("type").ok_or(TypeError(
 			" void value not ignored as it ought to be".to_string(),
 		))?;
-		node.set_attr("type", to_rval(&rhs.into()).into());
-		Ok(Empty)
+		let type_t = to_rval(&rhs.into());
+		if type_t.type_t == BType::Float && node.op == UnaryOp::Not {
+			return Err(TypeError("Only integer can use operator '!'".to_string()));
+		}
+		node.set_attr("type", type_t.into());
+		Ok(())
 	}
-	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<AstRetType> {
+	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<()> {
 		for param in node.params.iter_mut() {
 			param.accept(self)?;
 		}
@@ -117,45 +114,42 @@ impl Visitor for Typer {
 				return Err(TypeError(err_msg));
 			}
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_formal_param(
-		&mut self,
-		node: &mut FormalParam,
-	) -> Result<AstRetType> {
+	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		unreachable!()
 	}
-	fn visit_variable(&mut self, node: &mut Variable) -> Result<AstRetType> {
-		Ok(Empty)
+	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
+		Ok(())
 	}
-	fn visit_block(&mut self, node: &mut Block) -> Result<AstRetType> {
+	fn visit_block(&mut self, node: &mut Block) -> Result<()> {
 		for stmt in node.stmts.iter_mut() {
 			stmt.accept(self)?;
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_if(&mut self, node: &mut If) -> Result<AstRetType> {
+	fn visit_if(&mut self, node: &mut If) -> Result<()> {
 		node.cond.accept(self)?;
 		node.body.accept(self)?;
 		if let Some(then) = &mut node.then {
 			then.accept(self)?;
 		}
-		Ok(Empty)
+		Ok(())
 	}
-	fn visit_while(&mut self, node: &mut While) -> Result<AstRetType> {
+	fn visit_while(&mut self, node: &mut While) -> Result<()> {
 		node.cond.accept(self)?;
 		node.body.accept(self)
 	}
-	fn visit_continue(&mut self, node: &mut Continue) -> Result<AstRetType> {
-		Ok(Empty)
+	fn visit_continue(&mut self, node: &mut Continue) -> Result<()> {
+		Ok(())
 	}
-	fn visit_break(&mut self, node: &mut Break) -> Result<AstRetType> {
-		Ok(Empty)
+	fn visit_break(&mut self, node: &mut Break) -> Result<()> {
+		Ok(())
 	}
-	fn visit_return(&mut self, node: &mut Return) -> Result<AstRetType> {
+	fn visit_return(&mut self, node: &mut Return) -> Result<()> {
 		if let Some(val) = &mut node.value {
 			val.accept(self)?;
 		}
-		Ok(Empty)
+		Ok(())
 	}
 }

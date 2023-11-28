@@ -13,8 +13,10 @@ use anyhow::Result;
 use ast::tree::Program;
 use clap::Parser;
 use cli::Args;
+use irgen::IRGenerator;
 use namer::visitor::Namer;
 use parser::parser::parse;
+use rrvm::program::LlvmProgram;
 use typer::visitor::Typer;
 use utils::{fatal_error, map_sys_err};
 
@@ -28,16 +30,14 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 	Ok(parse(&code)?)
 }
 
-fn step_llvm(mut program: Program) -> Result<i32> {
+fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
 	Namer::new().transform(&mut program)?;
 	Typer::new().transform(&mut program)?;
-	let x = format!("{:#?}", program);
-	println!("{}", trans_indent(&x, PARSER_INDENT));
-	todo!()
+	Ok(IRGenerator::new().to_rrvm(&mut program)?)
 }
 
 #[allow(unused_variables)]
-fn step_riscv(program: i32) -> Result<i32> {
+fn step_riscv(program: LlvmProgram) -> Result<i32> {
 	todo!()
 	// let mut program = RrvmProgram::new(program);
 	// program.solve_global()?;
@@ -68,6 +68,10 @@ fn main() -> Result<()> {
 	if args.llvm {
 		write!(writer, "{}", llvm)?;
 		return Ok(());
+	}
+
+	if let Some(2) = args.opimizer {
+		todo!() // optimizer
 	}
 
 	let riscv = step_riscv(llvm)?;

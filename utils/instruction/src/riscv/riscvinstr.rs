@@ -3,7 +3,9 @@ use utils::Label;
 
 use super::{riscvop::*, value::*};
 
-pub trait RiscvInstr: Display {}
+pub type RiscvInstr = Box<dyn RiscvInstrTrait>;
+
+pub trait RiscvInstrTrait: Display {}
 
 pub struct RTriInstr {
 	pub op: RTriInstrOp,

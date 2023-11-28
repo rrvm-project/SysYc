@@ -1,5 +1,4 @@
 use attr::{Attr, Attrs};
-use rrvm::cfg::CFG;
 use std::fmt::Debug;
 use sysyc_derive::{has_attrs, AstNode};
 use utils::errors::Result;
@@ -7,13 +6,8 @@ use value::{BType, BinaryOp, FuncRetType, UnaryOp};
 
 use crate::visitor::Visitor;
 
-pub enum AstRetType {
-	Empty,
-	Cfg(CFG),
-}
-
 pub trait AstNode: Debug + Attrs {
-	fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<AstRetType>;
+	fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<()>;
 }
 
 pub type Node = Box<dyn AstNode>;
@@ -22,7 +16,8 @@ pub type NodeList = Vec<Node>;
 #[has_attrs]
 #[derive(Debug, AstNode)]
 pub struct Program {
-	pub comp_units: NodeList,
+	pub global_vars: NodeList,
+	pub functions: NodeList,
 }
 
 #[has_attrs]

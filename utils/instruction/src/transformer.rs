@@ -13,7 +13,6 @@ pub fn to_riscv(src: &mut InstrSet, mgr: &mut TempManager) -> Result<()> {
 	.unwrap();
 	*src = match instr.get_variant() {
 		LlvmInstrVariant::ArithInstr(v) => riscv_arith(v, mgr),
-		LlvmInstrVariant::LabelInstr(v) => riscv_label(v, mgr),
 		LlvmInstrVariant::CompInstr(v) => riscv_comp(v, mgr),
 		LlvmInstrVariant::ConvertInstr(v) => riscv_convert(v, mgr),
 		LlvmInstrVariant::JumpInstr(v) => riscv_jump(v, mgr),

@@ -15,7 +15,7 @@ pub struct Args {
 	pub output: Option<String>,
 
 	#[arg(short = 'O')]
-	pub opimizer: Option<String>,
+	pub opimizer: Option<i32>,
 
 	#[arg(value_parser)]
 	pub input: Option<String>,

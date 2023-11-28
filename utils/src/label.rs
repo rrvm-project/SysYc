@@ -3,6 +3,7 @@ use std::fmt::Display;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label {
 	pub name: String,
+	pub id: Option<i32>,
 }
 
 impl Display for Label {
@@ -12,24 +13,10 @@ impl Display for Label {
 }
 
 impl Label {
-	pub fn new(name: impl ToString) -> Self {
+	pub fn new(name: impl ToString, id: Option<i32>) -> Self {
 		Label {
 			name: name.to_string(),
+			id,
 		}
-	}
-}
-
-#[derive(Default)]
-pub struct LabelManager {
-	total: u32,
-}
-
-impl LabelManager {
-	pub fn new() -> Self {
-		Self::default()
-	}
-	pub fn new_label(&mut self) -> Label {
-		self.total += 1;
-		Label::new("B".to_string() + self.total.to_string().as_str())
 	}
 }

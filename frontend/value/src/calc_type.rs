@@ -40,6 +40,7 @@ pub fn type_binaryop(x: &VarType, op: BinaryOp, y: &VarType) -> Result<VarType> 
         return Err(TypeError("array can only be indexed by int".to_string()));
       }
       Ok(VarType{
+				is_lval: x.dims.len() == 1,
         dims: x.dims[1..].to_vec(),
         ..*x
       })
@@ -47,25 +48,25 @@ pub fn type_binaryop(x: &VarType, op: BinaryOp, y: &VarType) -> Result<VarType> 
     BinaryOp::Assign => {
       if !x.is_lval {
         Err(TypeError("Only lvalue can be assigned".to_string()))
-      }
-      else if !x.dims.is_empty() || !y.dims.is_empty() {
+      } else if !x.dims.is_empty() || !y.dims.is_empty() {
         Err(TypeError("Can not do assign to pointer".to_string()))
-      }
-      else {
+      } else {
         Ok(x.clone())
       }
     }
-		BinaryOp::Add => upgrade(x, y),
-		BinaryOp::Sub => upgrade(x, y),
-		BinaryOp::Mul => upgrade(x, y),
-		BinaryOp::Div => upgrade(x, y),
-		BinaryOp::Mod => upgrade(x, y),
-		BinaryOp::LT => to_bool(x, y),
-		BinaryOp::LE => to_bool(x, y),
-		BinaryOp::GT => to_bool(x, y),
-		BinaryOp::GE => to_bool(x, y),
-		BinaryOp::EQ => to_bool(x, y),
-		BinaryOp::NE => to_bool(x, y),
+		BinaryOp::Add
+		| BinaryOp::Sub
+		| BinaryOp::Mul
+		| BinaryOp::Div
+		| BinaryOp::Mod => upgrade(x, y),
+		BinaryOp::LT
+		| BinaryOp::LE
+		| BinaryOp::GT
+		| BinaryOp::GE
+		| BinaryOp::EQ
+		| BinaryOp::NE
+		| BinaryOp::LOr
+		| BinaryOp::LAnd => to_bool(x, y),
 	}
 }
 

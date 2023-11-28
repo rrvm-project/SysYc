@@ -24,6 +24,8 @@ fn map_binary_op(pair: &Pair<Rule>) -> BinaryOp {
 		Rule::GT => BinaryOp::GT,
 		Rule::EQ => BinaryOp::EQ,
 		Rule::NE => BinaryOp::NE,
+		Rule::LOr => BinaryOp::LOr,
+		Rule::LAnd => BinaryOp::LAnd,
 		_ => unreachable!(),
 	}
 }
@@ -291,20 +293,25 @@ fn parse_func_decl(pair: Pair<Rule>) -> Node {
 	Box::new(func_decl)
 }
 
-fn parse_comp_unit(pair: Pair<Rule>) -> Option<Node> {
+fn parse_comp_unit(pair: Pair<Rule>, program: &mut Program) {
 	match pair.as_rule() {
-		Rule::Decl => Some(parse_decl(pair)),
-		Rule::FuncDecl => Some(parse_func_decl(pair)),
-		Rule::EOI => None,
+		Rule::Decl => program.global_vars.push(parse_decl(pair)),
+		Rule::FuncDecl => program.functions.push(parse_func_decl(pair)),
+		Rule::EOI => (),
 		_ => unreachable!(),
 	}
 }
 
 pub fn parse(str: &str) -> Result<Program> {
-	let progam = SysycParser::parse(Rule::Program, str)
+	let pairs = SysycParser::parse(Rule::Program, str)
 		.map_err(|e| LexError(e.to_string()))?;
-	Ok(Program {
+	let mut program = Program {
 		_attrs: HashMap::new(),
-		comp_units: progam.into_iter().filter_map(parse_comp_unit).collect(),
-	})
+		global_vars: Vec::new(),
+		functions: Vec::new(),
+	};
+	for pair in pairs.into_iter() {
+		parse_comp_unit(pair, &mut program);
+	}
+	Ok(program)
 }

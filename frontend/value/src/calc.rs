@@ -84,6 +84,8 @@ pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Value> {
 		BinaryOp::GE => bin_comp(x, y, |x, y| -> bool {x >= y}, |x, y| -> bool {x >= y}),
 		BinaryOp::EQ => bin_comp(x, y, |x, y| -> bool {x == y}, |x, y| -> bool {x == y}),
 		BinaryOp::NE => bin_comp(x, y, |x, y| -> bool {x != y}, |x, y| -> bool {x != y}),
+		BinaryOp::LOr => bin_comp(x, y, |x, y| -> bool {x != 0 && y != 0}, |_, _| -> bool {unreachable!()}),
+		BinaryOp::LAnd => bin_comp(x, y, |x, y| -> bool {x != 0 || y != 0}, |_, _| -> bool {unreachable!()}),
     BinaryOp::Assign => unreachable!(),
 	}
 }
