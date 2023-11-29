@@ -40,4 +40,11 @@ impl VarType {
 			_ => unreachable!(),
 		}
 	}
+	pub fn deref_type(&self) -> VarType {
+		match self {
+			Self::I32Ptr => Self::I32,
+			Self::F32Ptr => Self::F32,
+			_ => unreachable!(),
+		}
+	}
 }

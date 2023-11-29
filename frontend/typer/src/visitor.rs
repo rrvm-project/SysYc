@@ -147,6 +147,7 @@ impl Visitor for Typer {
 		Ok(())
 	}
 	fn visit_return(&mut self, node: &mut Return) -> Result<()> {
+		// TODO: check return type
 		if let Some(val) = &mut node.value {
 			val.accept(self)?;
 		}

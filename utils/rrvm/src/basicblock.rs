@@ -103,7 +103,7 @@ impl<T: Display> Display for BasicBlock<T> {
 			self.live_in.iter().map(|v| v.name.as_str()).collect();
 		let live_out: Vec<_> =
 			self.live_out.iter().map(|v| v.name.as_str()).collect();
-		let mut instrs = self
+		let instrs = self
 			.phi_instrs
 			.iter()
 			.map(instr_format)

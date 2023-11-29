@@ -29,14 +29,19 @@ impl<T: Display> CFG<T> {
 	pub fn exit_label(&self) -> Label {
 		self.get_exit().borrow().label()
 	}
+	pub fn sort(&mut self) {
+		self.blocks.sort_unstable_by(|x, y| x.borrow().id.cmp(&y.borrow().id));
+	}
 }
 
 pub fn link_basic_block<T>(from: Node<T>, to: Node<T>)
 where
 	T: Display,
 {
-	from.borrow_mut().succ.push(to.clone());
-	to.borrow_mut().prev.push(from.clone());
+	if from.borrow().jump_instr.is_none() {
+		from.borrow_mut().succ.push(to.clone());
+		to.borrow_mut().prev.push(from.clone());
+	}
 }
 
 pub fn link_cfg<T>(from: &mut CFG<T>, to: &mut CFG<T>)

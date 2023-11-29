@@ -9,7 +9,7 @@ pub enum BType {
 	Float,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FuncRetType {
 	Int,
 	Float,
