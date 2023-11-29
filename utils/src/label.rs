@@ -3,7 +3,6 @@ use std::fmt::Display;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label {
 	pub name: String,
-	pub id: Option<i32>,
 }
 
 impl Display for Label {
@@ -13,10 +12,9 @@ impl Display for Label {
 }
 
 impl Label {
-	pub fn new(name: impl ToString, id: Option<i32>) -> Self {
+	pub fn new(name: impl ToString) -> Self {
 		Label {
 			name: name.to_string(),
-			id,
 		}
 	}
 }

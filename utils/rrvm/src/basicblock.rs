@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashSet, fmt::Display, rc::Rc};
 
-use llvm::{temp::Temp, JumpInstr, LlvmInstr, PhiInstr};
+use llvm::{temp::Temp, JumpInstr, LlvmInstr, PhiInstr, RetInstr, VarType};
 use utils::Label;
 
 pub type Node<T> = Rc<RefCell<BasicBlock<T>>>;
@@ -15,6 +15,7 @@ pub struct BasicBlock<T: Display> {
 	pub live_out: HashSet<Temp>,
 	pub phi_instrs: Vec<PhiInstr>,
 	pub instrs: Vec<T>,
+	pub jump_instr: Option<T>,
 }
 
 impl<T: Display> BasicBlock<T> {
@@ -29,6 +30,7 @@ impl<T: Display> BasicBlock<T> {
 			live_out: HashSet::new(),
 			phi_instrs: Vec::new(),
 			instrs: Vec::new(),
+			jump_instr: None,
 		}
 	}
 	pub fn new_node(id: i32) -> Node<T> {
@@ -36,8 +38,8 @@ impl<T: Display> BasicBlock<T> {
 	}
 	pub fn label(&self) -> Label {
 		match self.id {
-			0 => Label::new("entry", Some(0)),
-			_ => Label::new(format!("B{}", self.id), Some(self.id)),
+			0 => Label::new("entry"),
+			_ => Label::new(format!("B{}", self.id)),
 		}
 	}
 	pub fn clear(&mut self) {
@@ -53,14 +55,26 @@ impl<T: Display> BasicBlock<T> {
 }
 
 impl BasicBlock<LlvmInstr> {
-	pub fn gen_jump(&mut self) {
-		if self.succ.len() == 1 {
-			let instr = Box::new(JumpInstr {
-				target: self.succ.first().unwrap().borrow().label(),
+	pub fn gen_jump(&mut self, var_type: VarType) {
+		if self.jump_instr.is_none() {
+			self.jump_instr = Some(match self.succ.len() {
+				1 => Box::new(JumpInstr {
+					target: self.succ.first().unwrap().borrow().label(),
+				}),
+				0 => Box::new(RetInstr {
+					value: var_type.default_value_option(),
+				}),
+				_ => unreachable!(),
 			});
-			self.instrs.push(instr);
 		}
 	}
+	pub fn set_jump(&mut self, instr: Option<LlvmInstr>) {
+		self.jump_instr = instr;
+	}
+}
+
+fn instr_format<T: Display>(v: T) -> String {
+	format!("  {}", v)
 }
 
 #[cfg(not(feature = "debug"))]
@@ -69,8 +83,9 @@ impl<T: Display> Display for BasicBlock<T> {
 		let instrs = self
 			.phi_instrs
 			.iter()
-			.map(|v| format!("  {}", v))
-			.chain(self.instrs.iter().map(|v| format!("  {}", v)))
+			.map(instr_format)
+			.chain(self.instrs.iter().map(instr_format))
+			.chain(self.jump_instr.iter().map(instr_format))
 			.collect::<Vec<_>>()
 			.join("\n");
 		write!(f, "  {}:\n{}", self.label(), instrs)
@@ -88,11 +103,12 @@ impl<T: Display> Display for BasicBlock<T> {
 			self.live_in.iter().map(|v| v.name.as_str()).collect();
 		let live_out: Vec<_> =
 			self.live_out.iter().map(|v| v.name.as_str()).collect();
-		let instrs = self
+		let mut instrs = self
 			.phi_instrs
 			.iter()
-			.map(|v| format!("  {}", v))
-			.chain(self.instrs.iter().map(|v| format!("  {}", v)))
+			.map(instr_format)
+			.chain(self.instrs.iter().map(instr_format))
+			.chain(self.jump_instr.iter().map(instr_format))
 			.collect::<Vec<_>>()
 			.join("\n");
 		write!(

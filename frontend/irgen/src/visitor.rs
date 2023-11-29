@@ -116,6 +116,16 @@ impl IRGenerator {
 		self.total += 1;
 		out
 	}
+	pub fn fold_cfgs(&mut self, cfgs: Vec<LlvmCFG>) -> LlvmCFG {
+		cfgs
+			.into_iter()
+			.reduce(|mut acc, mut v| {
+				link_cfg(&mut acc, &mut v);
+				acc.append(v);
+				acc
+			})
+			.unwrap_or_else(|| self.new_cfg())
+	}
 }
 
 impl Visitor for IRGenerator {
@@ -139,11 +149,12 @@ impl Visitor for IRGenerator {
 		}
 		node.block.accept(self)?;
 		let (cfg, _, _) = self.stack.pop().unwrap();
-		cfg.blocks.iter().for_each(|v| v.borrow_mut().gen_jump());
+		let var_type = func_type_convert(&node.ret_type);
+		cfg.blocks.iter().for_each(|v| v.borrow_mut().gen_jump(var_type));
 		self.program.funcs.push(LlvmFunc::new(
 			cfg,
 			node.ident.clone(),
-			func_type_convert(&node.ret_type),
+			var_type,
 			params,
 		));
 		self.symbol_table.pop();
@@ -152,62 +163,44 @@ impl Visitor for IRGenerator {
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
 		let var_type = type_convert(&symbol.var_type);
-		let temp = self.mgr.new_temp(var_type, false);
-		self.symbol_table.set(symbol.id, temp.clone().into());
 		if let Some(init) = node.init.as_mut() {
 			init.accept(self)?;
-			if let Some((cfg, value, _)) = self.stack.pop() {
-				let instr: LlvmInstr = if symbol.var_type.is_array() {
-					// TODO: solve array init value list
-					todo!()
-				} else {
-					Box::new(ArithInstr {
-						target: temp.clone(),
-						lhs: var_type.default_value(),
-						op: ArithOp::Add,
-						rhs: value.unwrap(),
-						var_type,
-					})
-				};
-				cfg.get_exit().borrow_mut().push(instr);
-				self.stack.push((cfg, Some(temp.into()), None));
-			}
+			let (mut cfg, value, _) = self.stack.pop().unwrap();
+			if symbol.var_type.is_array() {
+				// TODO: solve array init value list
+				todo!()
+			} else {
+				let value = self.type_conv(value.unwrap(), var_type, &mut cfg);
+				self.symbol_table.set(symbol.id, value);
+			};
+			self.stack.push((cfg, None, None));
 		} else {
 			let cfg: LlvmCFG = self.new_cfg();
-			let instr: LlvmInstr = if symbol.var_type.is_array() {
+			if symbol.var_type.is_array() {
 				let length: usize = symbol.var_type.dims.iter().product();
-				Box::new(AllocInstr {
+				let temp = self.mgr.new_temp(var_type, false);
+				self.symbol_table.set(symbol.id, temp.clone().into());
+				let instr = Box::new(AllocInstr {
 					target: temp.clone(),
 					length: (length as i32).into(),
 					var_type,
-				})
+				});
+				cfg.get_entry().borrow_mut().push(instr);
 			} else {
-				Box::new(ArithInstr {
-					target: temp.clone(),
-					lhs: temp.clone().into(),
-					op: ArithOp::Add,
-					rhs: var_type.default_value(),
-					var_type,
-				})
+				self.symbol_table.set(symbol.id, var_type.default_value());
 			};
-			cfg.get_entry().borrow_mut().push(instr);
 			self.stack.push((cfg, None, None));
 		}
 		Ok(())
 	}
 	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<()> {
-		let mut now = None;
+		let mut cfgs = Vec::new();
 		for var_def in node.defs.iter_mut() {
 			var_def.accept(self)?;
-			let (mut cfg, _, _) = self.stack.pop().unwrap();
-			if let Some(acc) = &mut now {
-				link_cfg(acc, &mut cfg);
-				acc.append(cfg);
-			} else {
-				now = Some(cfg);
-			}
+			cfgs.push(self.stack.pop().unwrap().0);
 		}
-		self.stack.push((now.unwrap(), None, None));
+		let cfg = self.fold_cfgs(cfgs);
+		self.stack.push((cfg, None, None));
 		Ok(())
 	}
 	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
@@ -215,6 +208,17 @@ impl Visitor for IRGenerator {
 		todo!("I don't know how to solve this");
 		for val in node.val_list.iter_mut() {
 			val.accept(self)?;
+		}
+		Ok(())
+	}
+	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
+		let mut now: LlvmCFG = self.new_cfg();
+		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
+		let temp = self.symbol_table.get(&symbol.id);
+		if !symbol.var_type.is_array() {
+			self.stack.push((now, Some(temp), None));
+		} else {
+			self.stack.push((now, None, Some(temp)));
 		}
 		Ok(())
 	}
@@ -232,6 +236,7 @@ impl Visitor for IRGenerator {
 		use BinaryOp::*;
 		node.lhs.accept(self);
 		let (mut lcfg, lhs_val, lhs_addr) = self.stack.pop().unwrap();
+		// self.symbol_table.push();
 		node.rhs.accept(self);
 		let (mut rcfg, rhs_val, rhs_addr) = self.stack.pop().unwrap();
 		link_cfg(&mut lcfg, &mut rcfg);
@@ -286,7 +291,6 @@ impl Visitor for IRGenerator {
 				let rhs = self.type_conv(rhs_val, var_type, &mut rcfg);
 				match node.op {
 					Add | Sub | Mul | Div | Mod => {
-						link_basic_block(rcfg.get_exit(), rcfg.get_exit());
 						let op = to_arith(node.op, var_type);
 						let temp = self.mgr.new_temp(var_type, false);
 						let instr = Box::new(ArithInstr {
@@ -301,7 +305,6 @@ impl Visitor for IRGenerator {
 						(Some(temp.into()), None)
 					}
 					LT | LE | GE | GT | EQ | NE => {
-						link_basic_block(rcfg.get_exit(), rcfg.get_exit());
 						let op = to_comp(node.op, var_type);
 						let temp = self.mgr.new_temp(var_type, false);
 						let instr = Box::new(CompInstr {
@@ -337,7 +340,7 @@ impl Visitor for IRGenerator {
 							target_false,
 							target_true,
 						});
-						lcfg.get_exit().borrow_mut().push(instr);
+						lcfg.get_exit().borrow_mut().set_jump(Some(instr));
 						let temp = self.mgr.new_temp(I32, false);
 						let instr = PhiInstr {
 							target: temp.clone(),
@@ -356,6 +359,7 @@ impl Visitor for IRGenerator {
 				}
 			}
 		};
+		// self.symbol_table.pop();
 		self.stack.push((lcfg, ret_val, ret_addr));
 		Ok(())
 	}
@@ -397,7 +401,30 @@ impl Visitor for IRGenerator {
 		Ok(())
 	}
 	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<()> {
-		todo!();
+		let symbol: FuncSymbol = node.get_attr("func_symbol").unwrap().into();
+		let mut cfgs = Vec::new();
+		let mut params = Vec::new();
+		let (ret_type, params_type) = symbol.var_type;
+		for (param, type_t) in node.params.iter_mut().zip(params_type.iter()) {
+			param.accept(self)?;
+			let (mut cfg, val, addr) = self.stack.pop().unwrap();
+			let var_type = type_convert(type_t);
+			let val = self.solve(val, addr, var_type, &mut cfg);
+			let val = self.type_conv(val, var_type, &mut cfg);
+			cfgs.push(cfg);
+			params.push((var_type, val));
+		}
+		let var_type = func_type_convert(&ret_type);
+		let cfg = self.fold_cfgs(cfgs);
+		let temp = self.mgr.new_temp(var_type, false);
+		let instr = Box::new(CallInstr {
+			target: temp.clone(),
+			var_type,
+			func: Label::new(symbol.ident),
+			params,
+		});
+		cfg.get_exit().borrow_mut().push(instr);
+		self.stack.push((cfg, Some(temp.into()), None));
 		Ok(())
 	}
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
@@ -406,31 +433,14 @@ impl Visitor for IRGenerator {
 		self.symbol_table.set(symbol.id, temp.into());
 		Ok(())
 	}
-	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
-		let mut now: LlvmCFG = self.new_cfg();
-		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
-		let temp = self.symbol_table.get(&symbol.id);
-		if !symbol.var_type.is_array() {
-			self.stack.push((now, Some(temp), None));
-		} else {
-			self.stack.push((now, None, Some(temp)));
-		}
-		Ok(())
-	}
 	fn visit_block(&mut self, node: &mut Block) -> Result<()> {
-		let mut now = None;
+		let mut cfgs = Vec::new();
 		for stmt in node.stmts.iter_mut() {
 			stmt.accept(self)?;
-			let (mut cfg, _, _) = self.stack.pop().unwrap();
-			if let Some(acc) = &mut now {
-				link_cfg(acc, &mut cfg);
-				acc.append(cfg);
-			} else {
-				now = Some(cfg);
-			}
+			cfgs.push(self.stack.pop().unwrap().0);
 		}
-		let tuple = (now.unwrap_or(self.new_cfg()), None, None);
-		self.stack.push(tuple);
+		let cfg = self.fold_cfgs(cfgs);
+		self.stack.push((cfg, None, None));
 		Ok(())
 	}
 	fn visit_if(&mut self, node: &mut If) -> Result<()> {
