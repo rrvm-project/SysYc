@@ -13,77 +13,77 @@ pub trait AstNode: Debug + Attrs {
 pub type Node = Box<dyn AstNode>;
 pub type NodeList = Vec<Node>;
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct Program {
 	pub global_vars: NodeList,
 	pub functions: NodeList,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct VarDef {
 	pub ident: String,
 	pub dim_list: NodeList,
 	pub init: Option<Node>,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct VarDecl {
 	pub is_const: bool,
 	pub type_t: BType,
 	pub defs: NodeList,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct InitValList {
 	pub val_list: NodeList,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct LiteralInt {
 	pub value: i32,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct LiteralFloat {
 	pub value: f32,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct Variable {
 	pub ident: String,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct BinaryExpr {
 	pub lhs: Node,
 	pub op: BinaryOp,
 	pub rhs: Node,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct UnaryExpr {
 	pub op: UnaryOp,
 	pub rhs: Node,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct FuncCall {
 	pub ident: String,
 	pub params: NodeList,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct FuncDecl {
 	pub ret_type: FuncRetType,
 	pub ident: String,
@@ -91,45 +91,45 @@ pub struct FuncDecl {
 	pub block: Node,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct FormalParam {
 	pub type_t: BType,
 	pub ident: String,
 	pub dim_list: NodeList,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct Block {
 	pub stmts: NodeList,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct If {
 	pub cond: Node,
 	pub body: Node,
 	pub then: Option<Node>,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct While {
 	pub cond: Node,
 	pub body: Node,
 }
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct Break {}
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct Continue {}
 
-#[has_attrs]
 #[derive(Debug, AstNode)]
+#[has_attrs]
 pub struct Return {
 	pub value: Option<Node>,
 }

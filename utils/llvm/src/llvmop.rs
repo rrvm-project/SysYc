@@ -82,6 +82,12 @@ impl Value {
 			Self::Temp(v) => v.var_type,
 		}
 	}
+	pub fn deref_type(&self) -> VarType {
+		match self {
+			Self::Temp(v) => v.var_type.deref_type(),
+			_ => unreachable!(),
+		}
+	}
 	pub fn is_num(&self) -> bool {
 		!matches!(self, Self::Temp(_))
 	}
