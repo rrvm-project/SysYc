@@ -72,7 +72,7 @@ impl Visitor for Namer {
 			func_type.push(param.get_attr("type").unwrap().into());
 		}
 		let func_type: FuncType = (node.ret_type, func_type);
-		let symbol = self.mgr.new_symbol(&node.ident, func_type);
+		let symbol = self.mgr.new_func_symbol(&node.ident, func_type);
 		self.ctx.set_func(&node.ident, symbol)?;
 		node.block.accept(self)?;
 		self.ctx.pop()?;
@@ -82,7 +82,7 @@ impl Visitor for Namer {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let (is_const, btype) = self.cur_type.unwrap();
 		let var_type: VarType = (!is_const, btype, dim_list).into();
-		let symbol = self.mgr.new_symbol(&node.ident, var_type);
+		let symbol = self.mgr.new_var_symbol(&node.ident, var_type);
 		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol)?;
 		if let Some(init) = node.init.as_mut() {
@@ -157,7 +157,7 @@ impl Visitor for Namer {
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let var_type: VarType = (false, node.type_t, dim_list).into();
-		let symbol = self.mgr.new_symbol(&node.ident, var_type.clone());
+		let symbol = self.mgr.new_var_symbol(&node.ident, var_type.clone());
 		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol)?;
 		node.set_attr("type", var_type.into());

@@ -32,4 +32,12 @@ impl VarType {
 			_ => unreachable!(),
 		}
 	}
+	pub fn default_value_option(&self) -> Option<Value> {
+		match self {
+			Self::I32 => Some(0.into()),
+			Self::F32 => Some(0.0.into()),
+			Self::Void => None,
+			_ => unreachable!(),
+		}
+	}
 }
