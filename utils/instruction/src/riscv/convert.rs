@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use llvm::llvmop::*;
 use utils::errors::{Result, SysycError::*};
 
@@ -168,7 +166,7 @@ pub fn riscv_convert(
 
 pub fn riscv_jump(
 	instr: &llvm::llvminstr::JumpInstr,
-	mgr: &mut TempManager,
+	_mgr: &mut TempManager,
 ) -> Result<InstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let to = instr.target.clone().into();
@@ -190,8 +188,8 @@ pub fn riscv_cond(
 }
 
 pub fn riscv_phi(
-	instr: &llvm::llvminstr::PhiInstr,
-	mgr: &mut TempManager,
+	_instr: &llvm::llvminstr::PhiInstr,
+	_mgr: &mut TempManager,
 ) -> Result<InstrSet> {
 	unreachable!("phi instruction should be solved in mid end")
 }
@@ -215,7 +213,7 @@ pub fn riscv_ret(
 
 pub fn riscv_alloc(
 	instr: &llvm::llvminstr::AllocInstr,
-	mgr: &mut TempManager,
+	_mgr: &mut TempManager,
 ) -> Result<InstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let size = &instr.length;
@@ -264,8 +262,8 @@ pub fn riscv_gep(
 }
 
 pub fn riscv_call(
-	instr: &llvm::llvminstr::CallInstr,
-	mgr: &mut TempManager,
+	_instr: &llvm::llvminstr::CallInstr,
+	_mgr: &mut TempManager,
 ) -> Result<InstrSet> {
 	todo!()
 }

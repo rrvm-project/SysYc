@@ -1,14 +1,10 @@
-#![allow(unused)]
-
-use std::collections::HashMap;
-
 use ast::{tree::*, Visitor};
 use attr::Attrs;
-use rrvm_symbol::{manager::SymbolManager, FuncSymbol, Symbol, VarSymbol};
+use rrvm_symbol::FuncSymbol;
 use utils::{errors::Result, SysycError::TypeError};
 use value::{
 	calc_type::{to_rval, type_binaryop},
-	BType, BinaryOp, FuncType, UnaryOp, Value, VarType,
+	BType, UnaryOp, VarType,
 };
 
 pub struct Typer {}
@@ -65,8 +61,8 @@ impl Visitor for Typer {
 		Ok(())
 	}
 	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<()> {
-		node.lhs.accept(self);
-		node.rhs.accept(self);
+		node.lhs.accept(self)?;
+		node.rhs.accept(self)?;
 		let lhs = node.lhs.get_attr("type").ok_or(TypeError(
 			" void value not ignored as it ought to be".to_string(),
 		))?;
@@ -78,7 +74,7 @@ impl Visitor for Typer {
 		Ok(())
 	}
 	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<()> {
-		node.rhs.accept(self);
+		node.rhs.accept(self)?;
 		let rhs = node.rhs.get_attr("type").ok_or(TypeError(
 			" void value not ignored as it ought to be".to_string(),
 		))?;
@@ -116,10 +112,10 @@ impl Visitor for Typer {
 		}
 		Ok(())
 	}
-	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
+	fn visit_formal_param(&mut self, _node: &mut FormalParam) -> Result<()> {
 		unreachable!()
 	}
-	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
+	fn visit_variable(&mut self, _node: &mut Variable) -> Result<()> {
 		Ok(())
 	}
 	fn visit_block(&mut self, node: &mut Block) -> Result<()> {
@@ -140,10 +136,10 @@ impl Visitor for Typer {
 		node.cond.accept(self)?;
 		node.body.accept(self)
 	}
-	fn visit_continue(&mut self, node: &mut Continue) -> Result<()> {
+	fn visit_continue(&mut self, _node: &mut Continue) -> Result<()> {
 		Ok(())
 	}
-	fn visit_break(&mut self, node: &mut Break) -> Result<()> {
+	fn visit_break(&mut self, _node: &mut Break) -> Result<()> {
 		Ok(())
 	}
 	fn visit_return(&mut self, node: &mut Return) -> Result<()> {

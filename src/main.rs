@@ -34,16 +34,17 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 	Namer::new().transform(&mut program)?;
 	Typer::new().transform(&mut program)?;
-	let program = IRGenerator::new().to_rrvm(&mut program)?;
+	let mut program = IRGenerator::new().to_rrvm(program)?;
 	match level {
-		0 => Ok(BasicOptimizer::new().apply(program)),
+		0 => BasicOptimizer::new().apply(&mut program)?,
 		_ => {
 			warning(format!(
 				"optimization level '-O{level}' is not supported; using '-O0' instead",
 			));
-			Ok(BasicOptimizer::new().apply(program))
+			BasicOptimizer::new().apply(&mut program)?
 		}
-	}
+	};
+	Ok(program)
 }
 
 fn step_riscv(_program: LlvmProgram) -> Result<i32> {
