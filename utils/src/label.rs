@@ -12,7 +12,7 @@ impl Display for Label {
 }
 
 impl Label {
-	pub fn new(name: impl ToString) -> Self {
+	pub fn new(name: impl Display) -> Self {
 		Label {
 			name: name.to_string(),
 		}

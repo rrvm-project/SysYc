@@ -21,9 +21,9 @@ members = [
   "frontend/scope",
   "frontend/value",
   "frontend/parser",
+  "optimizer",
   "backend/func",
   "backend/program",
-  "optimizer/ast_optimizer",
 ]
 
 [dependencies]
@@ -37,6 +37,8 @@ parser = { path = "frontend/parser" }
 namer = { path = "frontend/namer" }
 typer = { path = "frontend/typer" }
 irgen = { path = "frontend/irgen" }
+
+optimizer = { path = "optimizer" }
 
 # rrvm_func = { path = "backend/func" }
 # rrvm_program = { path = "backend/program" }
