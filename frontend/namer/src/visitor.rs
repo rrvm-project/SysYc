@@ -1,11 +1,7 @@
-#![allow(unused)]
-
-use std::collections::HashMap;
-
 use ast::{shirink, tree::*, Visitor};
 use attr::Attrs;
-use rrvm_symbol::{manager::SymbolManager, FuncSymbol, Symbol, VarSymbol};
-use scope::{scope::Scope, stack::ScopeStack};
+use rrvm_symbol::manager::SymbolManager;
+use scope::stack::ScopeStack;
 use utils::{errors::Result, SysycError::TypeError};
 use value::{
 	calc::{exec_binaryop, exec_unaryop},
@@ -191,10 +187,10 @@ impl Visitor for Namer {
 		shirink(&mut node.cond);
 		node.body.accept(self)
 	}
-	fn visit_continue(&mut self, node: &mut Continue) -> Result<()> {
+	fn visit_continue(&mut self, _node: &mut Continue) -> Result<()> {
 		Ok(())
 	}
-	fn visit_break(&mut self, node: &mut Break) -> Result<()> {
+	fn visit_break(&mut self, _node: &mut Break) -> Result<()> {
 		Ok(())
 	}
 	fn visit_return(&mut self, node: &mut Return) -> Result<()> {

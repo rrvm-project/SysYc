@@ -24,15 +24,15 @@ impl SymbolTable {
 		}
 		None
 	}
-	// pub fn top(&self, n: usize) -> Table {
-	// 	let mut out = HashMap::new();
-	// 	for table in self.stack.iter().rev().take(n) {
-	// 		for (k, v) in table.iter() {
-	// 			out.entry(*k).or_insert_with(|| v.clone());
-	// 		}
-	// 	}
-	// 	out
-	// }
+	pub fn top(&self, n: usize) -> Table {
+		let mut out = HashMap::new();
+		for table in self.stack.iter().rev().take(n) {
+			for (k, v) in table.iter() {
+				out.entry(*k).or_insert_with(|| v.clone());
+			}
+		}
+		out
+	}
 	pub fn get(&self, id: &i32) -> Value {
 		self.get_skip(id, 0).unwrap()
 	}
@@ -51,5 +51,11 @@ impl SymbolTable {
 	}
 	pub fn drop(&mut self) -> Table {
 		self.stack.pop().unwrap()
+	}
+}
+
+impl Default for SymbolTable {
+	fn default() -> Self {
+		Self::new()
 	}
 }
