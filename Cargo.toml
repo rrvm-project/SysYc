@@ -22,8 +22,6 @@ members = [
   "frontend/value",
   "frontend/parser",
   "optimizer",
-  "backend/func",
-  "backend/program",
 ]
 
 [dependencies]
@@ -39,9 +37,6 @@ typer = { path = "frontend/typer" }
 irgen = { path = "frontend/irgen" }
 
 optimizer = { path = "optimizer" }
-
-# rrvm_func = { path = "backend/func" }
-# rrvm_program = { path = "backend/program" }
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"

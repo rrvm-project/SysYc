@@ -8,5 +8,7 @@ edition = "2021"
 [dependencies]
 pest = "2.7.5"
 pest_derive = "2.7.5"
-utils = { path = ".." }
+
 sysyc_derive = { path = "../../sysyc_derive" }
+
+utils = { path = ".." }

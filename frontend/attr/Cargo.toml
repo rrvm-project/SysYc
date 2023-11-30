@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 utils = { path = "../../utils" }
+
 value = { path = "../value" }
 rrvm_symbol = { path = "../symbol" }
