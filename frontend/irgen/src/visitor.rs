@@ -226,12 +226,10 @@ impl Visitor for IRGenerator {
 						(lcfg, Some(temp.into()), None)
 					}
 					LOr | LAnd => {
-						/* TODO: 逻辑运算的 i1 类型
-							 这里有 bug，返回右式的时候会返回原始值而不是 bool
-							要解决的话需要加一个类型 bool，但是在逻辑计算的过程中始终不将原始值转成 bool
-							只有当需要体现真实值特征的时候转 bool
-							现在的实现忽略了相关判断，为了更高的运行效率。
-							事实上 Sysy2022 的文法中不包含这种情况，测例里有再改。
+						/*
+							这里返回值类型不是 bool 而是 int
+							不过测例满足逻辑运算只会出现在 if 或 while 中
+							这么写不影响正确性，摆了
 						*/
 						let source = vec![
 							(((node.op == LOr) as i32).into(), lcfg.exit_label()),

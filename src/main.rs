@@ -15,7 +15,7 @@ use clap::Parser;
 use cli::Args;
 use irgen::IRGenerator;
 use namer::visitor::Namer;
-use optimizer::{BasicOptimizer, RrvmOptimizer};
+use optimizer::*;
 use parser::parser::parse;
 use rrvm::program::LlvmProgram;
 use typer::visitor::Typer;
@@ -36,12 +36,13 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 	Typer::new().transform(&mut program)?;
 	let mut program = IRGenerator::new().to_rrvm(program)?;
 	match level {
-		0 => BasicOptimizer::new().apply(&mut program)?,
+		0 => Optimizer0::new().apply(&mut program)?,
+		1 => Optimizer1::new().apply(&mut program)?,
 		_ => {
 			warning(format!(
 				"optimization level '-O{level}' is not supported; using '-O0' instead",
 			));
-			BasicOptimizer::new().apply(&mut program)?
+			Optimizer0::new().apply(&mut program)?
 		}
 	};
 	Ok(program)

@@ -32,6 +32,9 @@ impl<T: Display> CFG<T> {
 	pub fn sort(&mut self) {
 		self.blocks.sort_unstable_by(|x, y| x.borrow().id.cmp(&y.borrow().id));
 	}
+	pub fn size(&self) -> usize {
+		self.blocks.len()
+	}
 }
 
 pub fn link_basic_block<T>(from: Node<T>, to: Node<T>)

@@ -15,15 +15,6 @@ pub trait LlvmInstrTrait: Display {
 	fn type_valid(&self) -> bool {
 		true
 	}
-	fn get_label(&self) -> Option<Label> {
-		None
-	}
-	fn is_seq(&self) -> bool {
-		true
-	}
-	fn is_ret(&self) -> bool {
-		false
-	}
 	fn is_phi(&self) -> bool {
 		false
 	}
@@ -31,7 +22,9 @@ pub trait LlvmInstrTrait: Display {
 		Vec::new()
 	}
 	fn get_variant(&self) -> LlvmInstrVariant;
-	fn add_label(&mut self, _delta: i32) {}
+	fn new_jump(&self) -> Option<JumpInstr> {
+		None
+	}
 }
 
 pub struct ArithInstr {

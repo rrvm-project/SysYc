@@ -122,7 +122,7 @@ impl IRGenerator {
 		}
 		for key in keys {
 			let val1 = get_val(key, &diff1, &self.symbol_table);
-			let val2 = get_val(key, &diff1, &self.symbol_table);
+			let val2 = get_val(key, &diff2, &self.symbol_table);
 			let var_type = val1.get_type();
 			let temp = self.mgr.new_temp(var_type, false);
 			let instr = PhiInstr {
@@ -133,6 +133,10 @@ impl IRGenerator {
 			exit.get_exit().borrow_mut().push_phi(instr);
 			self.symbol_table.set(key, temp.into());
 		}
+		link_cfg(&mut cond, &mut cfg1);
+		link_cfg(&mut cond, &mut cfg2);
+		link_cfg(&mut cfg1, &mut exit);
+		link_cfg(&mut cfg2, &mut exit);
 		let instr = Box::new(JumpCondInstr {
 			var_type: I32,
 			cond: cond_val,
@@ -140,10 +144,6 @@ impl IRGenerator {
 			target_false: cfg2.entry_label(),
 		});
 		cond.get_exit().borrow_mut().set_jump(Some(instr));
-		link_cfg(&mut cond, &mut cfg1);
-		link_cfg(&mut cond, &mut cfg2);
-		link_cfg(&mut cfg1, &mut exit);
-		link_cfg(&mut cfg2, &mut exit);
 		cond.append(cfg1);
 		cond.append(cfg2);
 		cond.append(exit);

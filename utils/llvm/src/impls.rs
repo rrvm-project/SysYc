@@ -127,9 +127,6 @@ impl LlvmInstrTrait for JumpInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::JumpInstr(self)
 	}
-	fn is_seq(&self) -> bool {
-		false
-	}
 }
 
 impl Display for JumpCondInstr {
@@ -146,11 +143,26 @@ impl LlvmInstrTrait for JumpCondInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::JumpCondInstr(self)
 	}
-	fn is_seq(&self) -> bool {
-		false
-	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[&self.cond.get_type(), &self.var_type, &VarType::I32])
+	}
+	fn new_jump(&self) -> Option<JumpInstr> {
+		if self.cond.always_true() {
+			return Some(JumpInstr {
+				target: self.target_true.clone(),
+			});
+		}
+		if self.cond.always_false() {
+			return Some(JumpInstr {
+				target: self.target_false.clone(),
+			});
+		}
+		if self.target_true == self.target_false {
+			return Some(JumpInstr {
+				target: self.target_false.clone(),
+			});
+		}
+		None
 	}
 }
 
@@ -210,12 +222,6 @@ impl LlvmInstrTrait for RetInstr {
 		self.value.as_ref().map_or(Vec::new(), |v| {
 			vec![&v].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 		})
-	}
-	fn is_seq(&self) -> bool {
-		false
-	}
-	fn is_ret(&self) -> bool {
-		true
 	}
 }
 

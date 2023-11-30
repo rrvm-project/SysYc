@@ -121,7 +121,6 @@ FuncDecl = {
 }
 
 // global declaration
-// TODO: 添加链接属性、字节对齐等额外信息，不过我想不会有人想写这个
 VarGlobalDecl = { Label ~ " = " ~ "global " ~ VarType ~ Number }
 // multidimensional array is banned
 ArrayDimsDecl = { "[" ~ Integer ~ " x " ~ VarType ~ "]" }

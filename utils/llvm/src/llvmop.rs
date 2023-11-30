@@ -91,6 +91,18 @@ impl Value {
 	pub fn is_num(&self) -> bool {
 		!matches!(self, Self::Temp(_))
 	}
+	pub fn always_true(&self) -> bool {
+		match self {
+			Self::Int(v) => *v != 0,
+			_ => false,
+		}
+	}
+	pub fn always_false(&self) -> bool {
+		match self {
+			Self::Int(v) => *v == 0,
+			_ => false,
+		}
+	}
 }
 
 impl Display for Value {

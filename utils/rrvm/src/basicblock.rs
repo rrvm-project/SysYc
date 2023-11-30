@@ -8,7 +8,7 @@ pub type Node<T> = Rc<RefCell<BasicBlock<T>>>;
 pub struct BasicBlock<T: Display> {
 	pub id: i32,
 	pub prev: Vec<Node<T>>,
-	pub succ: Vec<Node<T>>, // 这个不用修了
+	pub succ: Vec<Node<T>>,
 	pub defs: HashSet<Temp>,
 	pub uses: HashSet<Temp>,
 	pub live_in: HashSet<Temp>,
@@ -42,6 +42,7 @@ impl<T: Display> BasicBlock<T> {
 			_ => Label::new(format!("B{}", self.id)),
 		}
 	}
+	// Use this before drop a BasicBlock, or may lead to memory leak
 	pub fn clear(&mut self) {
 		self.prev.clear();
 		self.succ.clear();
@@ -51,6 +52,31 @@ impl<T: Display> BasicBlock<T> {
 	}
 	pub fn push_phi(&mut self, instr: PhiInstr) {
 		self.phi_instrs.push(instr);
+	}
+	pub fn single_prev(&self) -> bool {
+		self.prev.len() == 1
+	}
+	pub fn single_succ(&self) -> bool {
+		self.succ.len() == 1
+	}
+	pub fn get_succ(&self) -> Node<T> {
+		self.succ.first().unwrap().clone()
+	}
+	pub fn no_phi(&self) -> bool {
+		self.phi_instrs.is_empty()
+	}
+	pub fn replace_prev(&mut self, label: &Label, target: Node<T>) {
+		let new_label = target.borrow().label();
+		for instr in self.phi_instrs.iter_mut() {
+			if let Some((_, v)) = instr.source.iter_mut().find(|(_, v)| v == label) {
+				*v = new_label.clone();
+			}
+		}
+		if let Some(prev) =
+			self.prev.iter_mut().find(|v| v.borrow().label() == *label)
+		{
+			*prev = target
+		}
 	}
 }
 
