@@ -20,7 +20,7 @@ impl Display for Temp {
 }
 
 impl Temp {
-	fn new(name: impl ToString, var_type: VarType, is_global: bool) -> Self {
+	fn new(name: impl Display, var_type: VarType, is_global: bool) -> Self {
 		Self {
 			name: name.to_string(),
 			var_type,

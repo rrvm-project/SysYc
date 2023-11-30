@@ -15,10 +15,11 @@ use clap::Parser;
 use cli::Args;
 use irgen::IRGenerator;
 use namer::visitor::Namer;
+use optimizer::{BasicOptimizer, RrvmOptimizer};
 use parser::parser::parse;
 use rrvm::program::LlvmProgram;
 use typer::visitor::Typer;
-use utils::{fatal_error, map_sys_err};
+use utils::{fatal_error, map_sys_err, warning};
 
 fn step_parse(name: Option<String>) -> Result<Program> {
 	if name.is_none() {
@@ -30,14 +31,22 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 	Ok(parse(&code)?)
 }
 
-fn step_llvm(mut program: Program) -> Result<LlvmProgram> {
+fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 	Namer::new().transform(&mut program)?;
 	Typer::new().transform(&mut program)?;
-	Ok(IRGenerator::new().to_rrvm(&mut program)?)
+	let program = IRGenerator::new().to_rrvm(&mut program)?;
+	match level {
+		0 => Ok(BasicOptimizer::new().apply(program)),
+		_ => {
+			warning(format!(
+				"optimization level '-O{level}' is not supported; using '-O0' instead",
+			));
+			Ok(BasicOptimizer::new().apply(program))
+		}
+	}
 }
 
-#[allow(unused_variables)]
-fn step_riscv(program: LlvmProgram) -> Result<i32> {
+fn step_riscv(_program: LlvmProgram) -> Result<i32> {
 	todo!()
 	// let mut program = RrvmProgram::new(program);
 	// program.solve_global()?;
@@ -64,14 +73,10 @@ fn main() -> Result<()> {
 		return Ok(());
 	}
 
-	let llvm = step_llvm(program)?;
+	let llvm = step_llvm(program, args.opimizer.unwrap_or(0))?;
 	if args.llvm {
 		write!(writer, "{}", llvm)?;
 		return Ok(());
-	}
-
-	if let Some(2) = args.opimizer {
-		todo!() // optimizer
 	}
 
 	let riscv = step_riscv(llvm)?;
