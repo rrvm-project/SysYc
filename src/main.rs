@@ -50,13 +50,6 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 
 fn step_riscv(_program: LlvmProgram) -> Result<i32> {
 	todo!()
-	// let mut program = RrvmProgram::new(program);
-	// program.solve_global()?;
-	// let funcs: Result<Vec<_>, _> =
-	// 	program.funcs.into_iter().map(rrvm_func::transform_riscv).collect();
-	// program.funcs = funcs?;
-	// let code = program.alloc_reg();
-	// Ok(code)
 }
 
 fn main() -> Result<()> {
