@@ -22,6 +22,7 @@ members = [
   "frontend/value",
   "frontend/parser",
   "optimizer",
+  "backend/transform",
 ]
 
 [dependencies]
@@ -37,6 +38,8 @@ typer = { path = "frontend/typer" }
 irgen = { path = "frontend/irgen" }
 
 optimizer = { path = "optimizer" }
+
+transform = { path = "backend/transform" }
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"
