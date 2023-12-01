@@ -17,7 +17,8 @@ use irgen::IRGenerator;
 use namer::visitor::Namer;
 use optimizer::*;
 use parser::parser::parse;
-use rrvm::program::LlvmProgram;
+use rrvm::program::*;
+use transform::convert_func;
 use typer::visitor::Typer;
 use utils::{fatal_error, map_sys_err, warning};
 
@@ -48,7 +49,12 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 	Ok(program)
 }
 
-fn step_riscv(_program: LlvmProgram) -> Result<i32> {
+fn step_riscv(program: LlvmProgram) -> Result<i32> {
+	let mut riscv_program = RiscvProgram::new();
+	for func in program.funcs.into_iter() {
+		riscv_program.funcs.push(convert_func(func)?);
+	}
+	// program.funcs;
 	todo!()
 }
 

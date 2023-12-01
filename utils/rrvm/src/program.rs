@@ -7,6 +7,7 @@ use crate::func::RrvmFunc;
 
 pub type LlvmFunc = RrvmFunc<LlvmInstr>;
 pub type LlvmProgram = RrvmProgram<LlvmInstr>;
+pub type RiscvFunc = RrvmFunc<RiscvInstr>;
 pub type RiscvProgram = RrvmProgram<RiscvInstr>;
 
 pub struct RrvmProgram<T: Display> {

@@ -4,7 +4,7 @@ use utils::errors::{Result, SysycError::*};
 use crate::{
 	riscv::{reg::*, riscvinstr::*, riscvop::*, value::*},
 	temp::TempManager,
-	InstrSet, RiscvInstrSet,
+	RiscvInstrSet,
 };
 
 fn i32_to_reg(
@@ -84,12 +84,12 @@ fn get_arith(
 pub fn riscv_arith(
 	instr: &llvm::llvminstr::ArithInstr,
 	mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let (lhs, rhs) = (&instr.lhs, &instr.rhs);
 	let target = mgr.get(&instr.target);
 	get_arith(target, instr.op, lhs, rhs, &mut instrs, mgr);
-	Ok(InstrSet::RiscvInstrSet(instrs))
+	Ok(instrs)
 }
 
 fn get_slt(
@@ -111,7 +111,7 @@ fn get_slt(
 pub fn riscv_comp(
 	instr: &llvm::llvminstr::CompInstr,
 	mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let (lhs, rhs) = (&instr.lhs, &instr.rhs);
 	let target = mgr.get(&instr.target);
@@ -141,13 +141,13 @@ pub fn riscv_comp(
 			instrs.push(ITriInstr::new(Xori, target, target, 1.into()));
 		}
 	}
-	Ok(InstrSet::RiscvInstrSet(instrs))
+	Ok(instrs)
 }
 
 pub fn riscv_convert(
 	instr: &llvm::llvminstr::ConvertInstr,
 	mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let target = mgr.get(&instr.target);
 	let from = &instr.lhs;
@@ -161,43 +161,43 @@ pub fn riscv_convert(
 		};
 		instrs.push(RBinInstr::new(op, target, from));
 	}
-	Ok(InstrSet::RiscvInstrSet(instrs))
+	Ok(instrs)
 }
 
 pub fn riscv_jump(
 	instr: &llvm::llvminstr::JumpInstr,
 	_mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let to = instr.target.clone().into();
 	instrs.push(BranInstr::new(BEQ, X0.into(), X0.into(), to));
-	Ok(InstrSet::RiscvInstrSet(instrs))
+	Ok(instrs)
 }
 
 pub fn riscv_cond(
 	instr: &llvm::llvminstr::JumpCondInstr,
 	mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let cond = into_reg(&instr.cond, &mut instrs, mgr);
 	let to_true = instr.target_true.clone().into();
 	let to_false = instr.target_false.clone().into();
 	instrs.push(BranInstr::new(BNE, cond, X0.into(), to_true));
 	instrs.push(BranInstr::new(BEQ, X0.into(), X0.into(), to_false));
-	Ok(InstrSet::RiscvInstrSet(instrs))
+	Ok(instrs)
 }
 
 pub fn riscv_phi(
 	_instr: &llvm::llvminstr::PhiInstr,
 	_mgr: &mut TempManager,
-) -> Result<InstrSet> {
-	unreachable!("phi instruction should be solved in mid end")
+) -> Result<RiscvInstrSet> {
+	unreachable!("phi instruction should be solved before instruction selcetion")
 }
 
 pub fn riscv_ret(
 	instr: &llvm::llvminstr::RetInstr,
 	mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	if let Some(val) = &instr.value {
 		if let Some(num) = end_num(val) {
@@ -208,13 +208,13 @@ pub fn riscv_ret(
 		}
 	}
 	instrs.push(NoArgInstr::new(Ret));
-	Ok(InstrSet::RiscvInstrSet(instrs))
+	Ok(instrs)
 }
 
 pub fn riscv_alloc(
 	instr: &llvm::llvminstr::AllocInstr,
 	_mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let size = &instr.length;
 	if let Some(num) = end_num(size) {
@@ -225,45 +225,45 @@ pub fn riscv_alloc(
 		// let num = into_reg(size, &mut instrs, mgr);
 		// instrs.push(RTriInstr::new(Sub, SP.into(), SP.into(), num));
 	}
-	Ok(InstrSet::RiscvInstrSet(instrs))
+	Ok(instrs)
 }
 
 pub fn riscv_store(
 	instr: &llvm::llvminstr::StoreInstr,
 	mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let addr = into_reg(&instr.addr, &mut instrs, mgr);
 	let value = into_reg(&instr.value, &mut instrs, mgr);
 	instrs.push(IBinInstr::new(SW, value, (0, addr).into()));
-	Ok(InstrSet::RiscvInstrSet(instrs))
+	Ok(instrs)
 }
 
 pub fn riscv_load(
 	instr: &llvm::llvminstr::LoadInstr,
 	mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let addr = into_reg(&instr.addr, &mut instrs, mgr);
 	let rd = mgr.get(&instr.target);
 	instrs.push(IBinInstr::new(LWU, rd, (0, addr).into()));
-	Ok(InstrSet::RiscvInstrSet(instrs))
+	Ok(instrs)
 }
 
 pub fn riscv_gep(
 	instr: &llvm::llvminstr::GEPInstr,
 	mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let rd = mgr.get(&instr.target);
 	let (lhs, rhs) = (&instr.addr, &instr.offset);
 	get_arith(rd, llvm::llvmop::ArithOp::Add, lhs, rhs, &mut instrs, mgr);
-	Ok(InstrSet::RiscvInstrSet(instrs))
+	Ok(instrs)
 }
 
 pub fn riscv_call(
 	_instr: &llvm::llvminstr::CallInstr,
 	_mgr: &mut TempManager,
-) -> Result<InstrSet> {
+) -> Result<RiscvInstrSet> {
 	todo!()
 }
