@@ -78,6 +78,9 @@ impl<T: Display> BasicBlock<T> {
 			*prev = target
 		}
 	}
+	pub fn make_pretty(&mut self) {
+		self.phi_instrs.sort_unstable_by(|x, y| x.target.cmp(&y.target));
+	}
 }
 
 impl BasicBlock<LlvmInstr> {

@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use utils::Label;
 
-use crate::basicblock::{BasicBlock, Node};
+pub use crate::basicblock::{BasicBlock, Node};
 
 pub struct CFG<T: Display> {
 	pub blocks: Vec<Node<T>>,
@@ -29,15 +29,16 @@ impl<T: Display> CFG<T> {
 	pub fn exit_label(&self) -> Label {
 		self.get_exit().borrow().label()
 	}
-	pub fn sort(&mut self) {
+	pub fn make_pretty(&mut self) {
 		self.blocks.sort_unstable_by(|x, y| x.borrow().id.cmp(&y.borrow().id));
+		self.blocks.iter().for_each(|v| v.borrow_mut().make_pretty())
 	}
 	pub fn size(&self) -> usize {
 		self.blocks.len()
 	}
 }
 
-pub fn link_basic_block<T>(from: Node<T>, to: Node<T>)
+pub fn link_node<T>(from: &Node<T>, to: &Node<T>)
 where
 	T: Display,
 {
@@ -47,9 +48,9 @@ where
 	}
 }
 
-pub fn link_cfg<T>(from: &mut CFG<T>, to: &mut CFG<T>)
+pub fn link_cfg<T>(from: &CFG<T>, to: &CFG<T>)
 where
 	T: Display,
 {
-	link_basic_block(from.get_exit(), to.get_entry())
+	link_node(&from.get_exit(), &to.get_entry())
 }

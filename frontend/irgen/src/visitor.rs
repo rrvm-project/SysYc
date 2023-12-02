@@ -12,15 +12,18 @@ use rrvm_symbol::{FuncSymbol, VarSymbol};
 use utils::{errors::Result, Label, SysycError::TypeError};
 use value::{BinaryOp, FuncRetType, UnaryOp, VarType};
 
-use crate::{symbol_table::SymbolTable, utils::*};
+use crate::{
+	counter::Counter, loop_state::LoopState, symbol_table::SymbolTable, utils::*,
+};
 
 pub struct IRGenerator {
-	pub program: LlvmProgram,
-	pub stack: Vec<(LlvmCFG, Option<Value>, Option<Value>)>,
-	pub mgr: TempManager,
 	pub total: i32,
-	pub symbol_table: SymbolTable,
 	pub ret_type: FuncRetType,
+	pub mgr: TempManager,
+	pub program: LlvmProgram,
+	pub symbol_table: SymbolTable,
+	pub stack: Vec<(LlvmCFG, Option<Value>, Option<Value>)>,
+	pub states: Vec<LoopState>,
 }
 
 impl Default for IRGenerator {
@@ -53,7 +56,7 @@ impl Visitor for IRGenerator {
 		let (mut cfg, _, _) = self.stack.pop().unwrap();
 		let var_type = func_type_convert(&node.ret_type);
 		cfg.blocks.iter().for_each(|v| v.borrow_mut().gen_jump(var_type));
-		cfg.sort();
+		cfg.make_pretty();
 		self.program.funcs.push(LlvmFunc::new(
 			cfg,
 			node.ident.clone(),
@@ -155,7 +158,7 @@ impl Visitor for IRGenerator {
 					let symbol: VarSymbol = symbol.into();
 					self.symbol_table.set(symbol.id, val.clone());
 				}
-				link_cfg(&mut lcfg, &mut rcfg);
+				link_cfg(&lcfg, &rcfg);
 				lcfg.append(rcfg);
 				self.symbol_table.pop();
 				(lcfg, Some(val), lhs_addr)
@@ -181,7 +184,7 @@ impl Visitor for IRGenerator {
 					offset: offset.into(),
 				});
 				rcfg.get_exit().borrow_mut().push(instr);
-				link_cfg(&mut lcfg, &mut rcfg);
+				link_cfg(&lcfg, &rcfg);
 				lcfg.append(rcfg);
 				self.symbol_table.pop();
 				(lcfg, None, Some(temp.into()))
@@ -203,7 +206,7 @@ impl Visitor for IRGenerator {
 							var_type,
 						});
 						rcfg.get_exit().borrow_mut().push(instr);
-						link_cfg(&mut lcfg, &mut rcfg);
+						link_cfg(&lcfg, &rcfg);
 						lcfg.append(rcfg);
 						self.symbol_table.pop();
 						(lcfg, Some(temp.into()), None)
@@ -220,7 +223,7 @@ impl Visitor for IRGenerator {
 							var_type,
 						});
 						rcfg.get_exit().borrow_mut().push(instr);
-						link_cfg(&mut lcfg, &mut rcfg);
+						link_cfg(&lcfg, &rcfg);
 						lcfg.append(rcfg);
 						self.symbol_table.pop();
 						(lcfg, Some(temp.into()), None)
@@ -334,6 +337,9 @@ impl Visitor for IRGenerator {
 		for stmt in node.stmts.iter_mut() {
 			stmt.accept(self)?;
 			cfgs.push(self.stack.pop().unwrap().0);
+			if stmt.is_end() {
+				break;
+			}
 		}
 		let cfg = self.fold_cfgs(cfgs);
 		self.stack.push((cfg, None, None));
@@ -360,9 +366,49 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
-	fn visit_while(&mut self, _node: &mut While) -> Result<()> {
-		// TODO: while
-		todo!();
+	fn visit_while(&mut self, node: &mut While) -> Result<()> {
+		let mut counter = Counter::new();
+		node.cond.accept(&mut counter)?;
+		node.body.accept(&mut counter)?;
+		let (mut init, init_diff, need_phi) = self.copy_symbols(counter.symbols);
+
+		node.cond.accept(self)?;
+		let (mut cond, cond_val, cond_addr) = self.stack.pop().unwrap();
+		let cond_val = self.solve(cond_val, cond_addr, &mut cond);
+		let exit = self.new_cfg();
+
+		self.states.push(LoopState::new(self.symbol_table.size()));
+		self.symbol_table.push();
+		node.body.accept(self)?;
+		let (body, _, _) = self.stack.pop().unwrap();
+		let body_diff = self.symbol_table.drop();
+		let mut loop_state = self.states.pop().unwrap();
+
+		let before_exit = self.new_cfg();
+		loop_state.push_entry(init.get_exit(), init_diff);
+		loop_state.push_exit(before_exit.get_exit(), HashMap::new());
+		if body.get_exit().borrow().jump_instr.is_none() {
+			loop_state.push_entry(body.get_exit(), body_diff);
+		}
+
+		link_cfg(&cond, &body);
+		link_cfg(&cond, &before_exit);
+		let instr = Box::new(JumpCondInstr {
+			var_type: cond_val.get_type(),
+			cond: cond_val,
+			target_true: body.entry_label(),
+			target_false: before_exit.entry_label(),
+		});
+		cond.get_exit().borrow_mut().set_jump(Some(instr));
+
+		self.link_into(cond.get_entry(), loop_state.entry, Some(need_phi));
+		self.link_into(exit.get_entry(), loop_state.exit, None);
+		init.append(cond);
+		init.append(body);
+		init.append(before_exit);
+		init.append(exit);
+		self.stack.push((init, None, None));
+		Ok(())
 	}
 	fn visit_continue(&mut self, _node: &mut Continue) -> Result<()> {
 		/*
