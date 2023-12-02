@@ -54,11 +54,16 @@ pub fn ast_node_derive(input: TokenStream) -> TokenStream {
 	let snake_name = name.to_string().to_snake_case();
 	let visitor_fn_name = format!("visit_{}", snake_name);
 	let visitor_fn_ident = syn::Ident::new(&visitor_fn_name, name.span());
+	let is_end =
+		matches!(name.to_string().as_str(), "Return" | "Continue" | "Break");
 
 	let expanded = quote! {
 		impl AstNode for #name {
 			fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<()> {
 				visitor.#visitor_fn_ident(self)
+			}
+			fn is_end(&self) -> bool {
+				#is_end
 			}
 		}
 	};

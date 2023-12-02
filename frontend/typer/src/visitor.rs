@@ -112,9 +112,6 @@ impl Visitor for Typer {
 		}
 		Ok(())
 	}
-	fn visit_formal_param(&mut self, _node: &mut FormalParam) -> Result<()> {
-		unreachable!()
-	}
 	fn visit_variable(&mut self, _node: &mut Variable) -> Result<()> {
 		Ok(())
 	}

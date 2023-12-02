@@ -1,12 +1,12 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use ast::tree::*;
 
 use llvm::{Value, VarType::*, *};
 use rrvm::{
-	cfg::{link_cfg, CFG},
+	cfg::{link_cfg, link_node, CFG},
 	program::{LlvmProgram, RrvmProgram},
-	LlvmCFG,
+	LlvmCFG, LlvmNode,
 };
 
 use utils::errors::Result;
@@ -26,6 +26,7 @@ impl IRGenerator {
 			mgr: TempManager::new(),
 			symbol_table: SymbolTable::new(),
 			ret_type: FuncRetType::Void,
+			states: Vec::new(),
 		}
 	}
 	pub fn to_rrvm(mut self, mut program: Program) -> Result<LlvmProgram> {
@@ -94,8 +95,8 @@ impl IRGenerator {
 	pub fn fold_cfgs(&mut self, cfgs: Vec<LlvmCFG>) -> LlvmCFG {
 		cfgs
 			.into_iter()
-			.reduce(|mut acc, mut v| {
-				link_cfg(&mut acc, &mut v);
+			.reduce(|mut acc, v| {
+				link_cfg(&acc, &v);
 				acc.append(v);
 				acc
 			})
@@ -105,12 +106,12 @@ impl IRGenerator {
 		&mut self,
 		mut cond: LlvmCFG,
 		cond_val: Value,
-		mut cfg1: LlvmCFG,
+		cfg1: LlvmCFG,
 		diff1: Table,
-		mut cfg2: LlvmCFG,
+		cfg2: LlvmCFG,
 		diff2: Table,
 	) -> LlvmCFG {
-		let mut exit = self.new_cfg();
+		let exit = self.new_cfg();
 		let keys = diff1
 			.keys()
 			.chain(diff2.keys())
@@ -133,10 +134,10 @@ impl IRGenerator {
 			exit.get_exit().borrow_mut().push_phi(instr);
 			self.symbol_table.set(key, temp.into());
 		}
-		link_cfg(&mut cond, &mut cfg1);
-		link_cfg(&mut cond, &mut cfg2);
-		link_cfg(&mut cfg1, &mut exit);
-		link_cfg(&mut cfg2, &mut exit);
+		link_cfg(&cond, &cfg1);
+		link_cfg(&cond, &cfg2);
+		link_cfg(&cfg1, &exit);
+		link_cfg(&cfg2, &exit);
 		let instr = Box::new(JumpCondInstr {
 			var_type: I32,
 			cond: cond_val,
@@ -148,5 +149,68 @@ impl IRGenerator {
 		cond.append(cfg2);
 		cond.append(exit);
 		cond
+	}
+	pub fn copy_symbols(
+		&mut self,
+		symbols: Vec<i32>,
+	) -> (LlvmCFG, Table, HashMap<i32, Temp>) {
+		let cfg = self.new_cfg();
+		let mut table = Table::new();
+		let mut need_phi = HashMap::new();
+		let symbols: HashSet<_> =
+			symbols.into_iter().filter(|v| self.symbol_table.has(v)).collect();
+		for id in symbols {
+			let value = self.symbol_table.get(&id);
+			table.insert(id, value.clone());
+			let var_type = value.get_type();
+			let temp = self.mgr.new_temp(var_type, false);
+			need_phi.insert(id, temp.clone());
+			self.symbol_table.set(id, temp.into());
+		}
+		(cfg, table, need_phi)
+	}
+	pub fn link_into(
+		&mut self,
+		target: LlvmNode,
+		prev: Vec<(LlvmNode, Table)>,
+		need_phi: Option<HashMap<i32, Temp>>,
+	) {
+		let phi_targets: Vec<_> = prev
+			.iter()
+			.flat_map(|(_, table)| table.iter().map(|(k, v)| (*k, v.get_type())))
+			.collect::<HashSet<_>>()
+			.into_iter()
+			.filter(|(id, _)| self.symbol_table.has(id))
+			.map(|(id, var_type)| {
+				let temp = need_phi
+					.as_ref()
+					.and_then(|v| v.get(&id))
+					.cloned()
+					.unwrap_or_else(|| self.mgr.new_temp(var_type, false));
+				(id, temp)
+			})
+			.collect();
+
+		prev.iter().for_each(|(node, _)| link_node(node, &target));
+		let init: Vec<_> =
+			phi_targets.iter().map(|(id, _)| self.symbol_table.get(id)).collect();
+
+		for ((id, temp), default) in phi_targets.into_iter().zip(init) {
+			let source = prev
+				.iter()
+				.map(|(node, table)| {
+					(
+						table.get(&id).unwrap_or(&default).clone(),
+						node.borrow().label(),
+					)
+				})
+				.collect();
+			target.borrow_mut().push_phi(PhiInstr {
+				var_type: temp.var_type,
+				target: temp.clone(),
+				source,
+			});
+			self.symbol_table.set(id, temp.into());
+		}
 	}
 }

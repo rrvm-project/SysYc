@@ -8,6 +8,9 @@ use crate::visitor::Visitor;
 
 pub trait AstNode: Debug + Attrs {
 	fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<()>;
+	fn is_end(&self) -> bool {
+		false
+	}
 }
 
 pub type Node = Box<dyn AstNode>;

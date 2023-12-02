@@ -24,8 +24,12 @@ impl SymbolTable {
 		}
 		None
 	}
-	pub fn top(&self, n: usize) -> Table {
+	pub fn size(&self) -> usize {
+		self.stack.len()
+	}
+	pub fn top(&self, target: usize) -> Table {
 		let mut out = HashMap::new();
+		let n = self.size() - target;
 		for table in self.stack.iter().rev().take(n) {
 			for (k, v) in table.iter() {
 				out.entry(*k).or_insert_with(|| v.clone());
@@ -35,6 +39,9 @@ impl SymbolTable {
 	}
 	pub fn get(&self, id: &i32) -> Value {
 		self.get_skip(id, 0).unwrap()
+	}
+	pub fn has(&self, id: &i32) -> bool {
+		self.get_skip(id, 0).is_some()
 	}
 	pub fn set(&mut self, id: i32, temp: Value) {
 		if let Some(last) = self.stack.last_mut() {

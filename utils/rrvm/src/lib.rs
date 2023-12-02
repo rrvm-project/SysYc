@@ -1,3 +1,4 @@
+use basicblock::Node;
 use cfg::CFG;
 use instruction::riscv::riscvinstr::RiscvInstr;
 use llvm::LlvmInstr;
@@ -10,3 +11,5 @@ pub mod program;
 
 pub type LlvmCFG = CFG<LlvmInstr>;
 pub type RiscvCFG = CFG<RiscvInstr>;
+
+pub type LlvmNode = Node<LlvmInstr>;
