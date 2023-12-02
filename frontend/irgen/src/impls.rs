@@ -13,6 +13,7 @@ use utils::errors::Result;
 use value::FuncRetType;
 
 use crate::{
+	loop_state::LoopState,
 	symbol_table::{SymbolTable, Table},
 	IRGenerator,
 };
@@ -191,7 +192,10 @@ impl IRGenerator {
 			})
 			.collect();
 
-		prev.iter().for_each(|(node, _)| link_node(node, &target));
+		prev.iter().for_each(|(node, _)| {
+			node.borrow_mut().succ.clear();
+			link_node(node, &target)
+		});
 		let init: Vec<_> =
 			phi_targets.iter().map(|(id, _)| self.symbol_table.get(id)).collect();
 
@@ -212,5 +216,8 @@ impl IRGenerator {
 			});
 			self.symbol_table.set(id, temp.into());
 		}
+	}
+	pub fn top_state(&mut self) -> &mut LoopState {
+		self.states.last_mut().unwrap()
 	}
 }

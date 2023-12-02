@@ -30,7 +30,7 @@ impl<T: Display> CFG<T> {
 		self.get_exit().borrow().label()
 	}
 	pub fn make_pretty(&mut self) {
-		self.blocks.sort_unstable_by(|x, y| x.borrow().id.cmp(&y.borrow().id));
+		// self.blocks.sort_unstable_by(|x, y| x.borrow().id.cmp(&y.borrow().id));
 		self.blocks.iter().for_each(|v| v.borrow_mut().make_pretty())
 	}
 	pub fn size(&self) -> usize {

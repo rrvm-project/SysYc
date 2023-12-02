@@ -411,15 +411,18 @@ impl Visitor for IRGenerator {
 		Ok(())
 	}
 	fn visit_continue(&mut self, _node: &mut Continue) -> Result<()> {
-		/*
-		 这玩意本质是 goto 啊，咋处理来着
-		*/
-		// TODO: continue
-		todo!();
+		let cfg = self.new_cfg();
+		let diff = self.symbol_table.top(self.states.last().unwrap().size);
+		self.top_state().push_entry(cfg.get_exit(), diff);
+		self.stack.push((cfg, None, None));
+		Ok(())
 	}
 	fn visit_break(&mut self, _node: &mut Break) -> Result<()> {
-		// TODO: break
-		todo!();
+		let cfg = self.new_cfg();
+		let diff = self.symbol_table.top(self.states.last().unwrap().size);
+		self.top_state().push_exit(cfg.get_exit(), diff);
+		self.stack.push((cfg, None, None));
+		Ok(())
 	}
 	fn visit_return(&mut self, node: &mut Return) -> Result<()> {
 		if let Some(val) = &mut node.value {
