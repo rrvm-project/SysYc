@@ -28,6 +28,7 @@ impl IRGenerator {
 			symbol_table: SymbolTable::new(),
 			ret_type: FuncRetType::Void,
 			states: Vec::new(),
+			weights: Vec::new(),
 		}
 	}
 	pub fn to_rrvm(mut self, mut program: Program) -> Result<LlvmProgram> {
@@ -89,7 +90,7 @@ impl IRGenerator {
 		}
 	}
 	pub fn new_cfg(&mut self) -> LlvmCFG {
-		let out = CFG::new(self.total);
+		let out = CFG::new(self.total, *self.weights.last().unwrap());
 		self.total += 1;
 		out
 	}
@@ -219,5 +220,12 @@ impl IRGenerator {
 	}
 	pub fn top_state(&mut self) -> &mut LoopState {
 		self.states.last_mut().unwrap()
+	}
+	pub fn enter_loop(&mut self) {
+		self.weights.push(*self.weights.last().unwrap() * 10.0);
+		self.states.push(LoopState::new(self.symbol_table.size()));
+	}
+	pub fn enter_branch(&mut self) {
+		self.weights.push(*self.weights.last().unwrap() * 0.5);
 	}
 }

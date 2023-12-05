@@ -1,26 +1,26 @@
 use std::fmt::Display;
 
-use utils::Label;
+use utils::{Label, UseTemp};
 
 pub use crate::basicblock::{BasicBlock, Node};
 
-pub struct CFG<T: Display> {
-	pub blocks: Vec<Node<T>>,
+pub struct CFG<T: Display + UseTemp<U>, U: Display> {
+	pub blocks: Vec<Node<T, U>>,
 }
 
-impl<T: Display> CFG<T> {
-	pub fn new(id: i32) -> Self {
+impl<T: Display + UseTemp<U>, U: Display> CFG<T, U> {
+	pub fn new(id: i32, weight: f64) -> Self {
 		Self {
-			blocks: vec![BasicBlock::new_node(id)],
+			blocks: vec![BasicBlock::new_node(id, weight)],
 		}
 	}
-	pub fn append(&mut self, other: CFG<T>) {
+	pub fn append(&mut self, other: CFG<T, U>) {
 		self.blocks.extend(other.blocks);
 	}
-	pub fn get_entry(&self) -> Node<T> {
+	pub fn get_entry(&self) -> Node<T, U> {
 		self.blocks.first().unwrap().clone()
 	}
-	pub fn get_exit(&self) -> Node<T> {
+	pub fn get_exit(&self) -> Node<T, U> {
 		self.blocks.last().unwrap().clone()
 	}
 	pub fn entry_label(&self) -> Label {
@@ -38,9 +38,10 @@ impl<T: Display> CFG<T> {
 	}
 }
 
-pub fn link_node<T>(from: &Node<T>, to: &Node<T>)
+pub fn link_node<T, U>(from: &Node<T, U>, to: &Node<T, U>)
 where
 	T: Display,
+	U: Display,
 {
 	if from.borrow().jump_instr.is_none() {
 		from.borrow_mut().succ.push(to.clone());
@@ -48,9 +49,10 @@ where
 	}
 }
 
-pub fn link_cfg<T>(from: &CFG<T>, to: &CFG<T>)
+pub fn link_cfg<T, U>(from: &CFG<T, U>, to: &CFG<T, U>)
 where
-	T: Display,
+	T: Display + UseTemp<U>,
+	U: Display,
 {
 	link_node(&from.get_exit(), &to.get_entry())
 }

@@ -1,11 +1,22 @@
 use std::fmt::Display;
-use utils::Label;
+use utils::{Label, UseTemp};
+
+use crate::temp::Temp;
 
 use super::{riscvop::*, value::*};
 
 pub type RiscvInstr = Box<dyn RiscvInstrTrait>;
 
-pub trait RiscvInstrTrait: Display {}
+pub trait RiscvInstrTrait: Display + UseTemp<Temp> {}
+
+impl UseTemp<Temp> for RiscvInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		self.as_ref().get_read()
+	}
+	fn get_write(&self) -> Option<Temp> {
+		self.as_ref().get_write()
+	}
+}
 
 pub struct RTriInstr {
 	pub op: RTriInstrOp,

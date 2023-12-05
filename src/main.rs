@@ -18,7 +18,7 @@ use namer::visitor::Namer;
 use optimizer::*;
 use parser::parser::parse;
 use rrvm::program::*;
-use transform::convert_func;
+use transform::{convert_func, register_alloc};
 use typer::visitor::Typer;
 use utils::{fatal_error, map_sys_err, warning};
 
@@ -54,6 +54,9 @@ fn step_riscv(program: LlvmProgram) -> Result<i32> {
 	for func in program.funcs.into_iter() {
 		riscv_program.funcs.push(convert_func(func)?);
 	}
+	// println!("{}", riscv_program);
+	riscv_program.funcs.iter_mut().for_each(register_alloc);
+	// riscv_program.
 	println!("{}", riscv_program);
 	todo!()
 }

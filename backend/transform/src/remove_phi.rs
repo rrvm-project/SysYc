@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use llvm::{ArithInstr, LlvmInstr};
-use rrvm::cfg::Node;
+use llvm::ArithInstr;
+use rrvm::LlvmNode;
 
-pub fn remove_phi(u: &Node<LlvmInstr>) {
+pub fn remove_phi(u: &LlvmNode) {
 	if u.borrow().no_phi() {
 		return;
 	}
