@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::Value;
+use crate::{llvmop::ArithOp, Value};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VarType {
@@ -45,6 +45,13 @@ impl VarType {
 			Self::I32Ptr => Self::I32,
 			Self::F32Ptr => Self::F32,
 			_ => unreachable!(),
+		}
+	}
+	pub fn move_op(&self) -> ArithOp {
+		match self {
+			Self::F32 => ArithOp::Fadd,
+			Self::Void => unreachable!(),
+			_ => ArithOp::Add,
 		}
 	}
 }

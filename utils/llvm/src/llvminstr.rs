@@ -5,7 +5,20 @@ use std::fmt::Display;
 
 pub type LlvmInstr = Box<dyn LlvmInstrTrait>;
 
-pub trait LlvmInstrTrait: Display {
+pub trait CloneLlvmInstr {
+	fn clone_box(&self) -> Box<dyn LlvmInstrTrait>;
+}
+
+impl<T> CloneLlvmInstr for T
+where
+	T: 'static + LlvmInstrTrait + Clone,
+{
+	fn clone_box(&self) -> Box<dyn LlvmInstrTrait> {
+		Box::new(self.clone())
+	}
+}
+
+pub trait LlvmInstrTrait: Display + CloneLlvmInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		Vec::new()
 	}
@@ -27,6 +40,7 @@ pub trait LlvmInstrTrait: Display {
 	}
 }
 
+#[derive(Clone)]
 pub struct ArithInstr {
 	pub target: Temp,
 	pub op: ArithOp,
@@ -35,6 +49,7 @@ pub struct ArithInstr {
 	pub rhs: Value,
 }
 
+#[derive(Clone)]
 pub struct CompInstr {
 	pub kind: CompKind,
 	pub target: Temp,
@@ -44,6 +59,7 @@ pub struct CompInstr {
 	pub rhs: Value,
 }
 
+#[derive(Clone)]
 pub struct ConvertInstr {
 	pub target: Temp,
 	pub op: ConvertOp,
@@ -52,10 +68,12 @@ pub struct ConvertInstr {
 	pub to_type: VarType,
 }
 
+#[derive(Clone)]
 pub struct JumpInstr {
 	pub target: Label,
 }
 
+#[derive(Clone)]
 pub struct JumpCondInstr {
 	pub var_type: VarType,
 	pub cond: Value,
@@ -63,33 +81,39 @@ pub struct JumpCondInstr {
 	pub target_false: Label,
 }
 
+#[derive(Clone)]
 pub struct PhiInstr {
 	pub target: Temp,
 	pub var_type: VarType,
 	pub source: Vec<(Value, Label)>,
 }
 
+#[derive(Clone)]
 pub struct RetInstr {
 	pub value: Option<Value>,
 }
 
+#[derive(Clone)]
 pub struct AllocInstr {
 	pub target: Temp,
 	pub var_type: VarType,
 	pub length: Value,
 }
 
+#[derive(Clone)]
 pub struct StoreInstr {
 	pub value: Value,
 	pub addr: Value,
 }
 
+#[derive(Clone)]
 pub struct LoadInstr {
 	pub target: Temp,
 	pub var_type: VarType,
 	pub addr: Value,
 }
 
+#[derive(Clone)]
 pub struct GEPInstr {
 	pub target: Temp,
 	pub var_type: VarType,
@@ -97,6 +121,7 @@ pub struct GEPInstr {
 	pub offset: Value,
 }
 
+#[derive(Clone)]
 pub struct CallInstr {
 	pub target: Temp,
 	pub var_type: VarType,
