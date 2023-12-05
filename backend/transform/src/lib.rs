@@ -1,23 +1,23 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use instr_dag::InstrDag;
-use instruction::{riscv::riscvinstr::RiscvInstr, temp::TempManager};
-use llvm::LlvmInstr;
+use instruction::temp::TempManager;
+
 use rrvm::{
-	basicblock::Node,
 	cfg::{link_node, BasicBlock},
 	program::*,
-	RiscvCFG,
+	LlvmNode, RiscvCFG, RiscvNode,
 };
 use transformer::to_riscv;
 use utils::errors::Result;
 
 pub mod instr_dag;
 pub mod instr_schedule;
+pub mod register;
 pub mod remove_phi;
 pub mod transformer;
 
-use crate::instr_schedule::instr_schedule;
+use crate::{instr_schedule::instr_schedule, register::RegisterAllocer};
 
 pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 	let mut blocks = Vec::new();
@@ -44,14 +44,18 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 }
 
 pub fn transform_basicblock(
-	node: Node<LlvmInstr>,
+	node: LlvmNode,
 	mgr: &mut TempManager,
-) -> Result<Node<RiscvInstr>> {
+) -> Result<RiscvNode> {
 	let instr_dag = InstrDag::new(&node.borrow().instrs, mgr)?;
-	let mut block = BasicBlock::new(node.borrow().id);
+	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
 	block.instrs = instr_schedule(instr_dag)?;
 	block
 		.instrs
 		.extend(to_riscv(node.borrow().jump_instr.as_ref().unwrap(), mgr)?);
 	Ok(Rc::new(RefCell::new(block)))
+}
+
+pub fn register_alloc(func: &mut RiscvFunc) {
+	RegisterAllocer::new().alloc(func);
 }

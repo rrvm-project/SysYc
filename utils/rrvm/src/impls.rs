@@ -1,8 +1,10 @@
 use std::fmt::Display;
 
+use utils::UseTemp;
+
 use crate::{cfg::CFG, func::RrvmFunc, program::RrvmProgram};
 
-impl<T: Display> Display for CFG<T> {
+impl<T: Display + UseTemp<U>, U: Display> Display for CFG<T, U> {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(
 			f,
@@ -17,7 +19,7 @@ impl<T: Display> Display for CFG<T> {
 	}
 }
 
-impl<T: Display> Display for RrvmFunc<T> {
+impl<T: Display + UseTemp<U>, U: Display> Display for RrvmFunc<T, U> {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let params = self
 			.params
@@ -30,7 +32,7 @@ impl<T: Display> Display for RrvmFunc<T> {
 	}
 }
 
-impl<T: Display> Display for RrvmProgram<T> {
+impl<T: Display + UseTemp<U>, U: Display> Display for RrvmProgram<T, U> {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let funcs =
 			self.funcs.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("\n");

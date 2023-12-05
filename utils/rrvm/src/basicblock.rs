@@ -3,25 +3,27 @@ use std::{cell::RefCell, collections::HashSet, fmt::Display, rc::Rc};
 use llvm::{temp::Temp, JumpInstr, LlvmInstr, PhiInstr, RetInstr, VarType};
 use utils::Label;
 
-pub type Node<T> = Rc<RefCell<BasicBlock<T>>>;
+pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
 
-pub struct BasicBlock<T: Display> {
+pub struct BasicBlock<T: Display, U: Display> {
 	pub id: i32,
-	pub prev: Vec<Node<T>>,
-	pub succ: Vec<Node<T>>,
-	pub defs: HashSet<Temp>,
-	pub uses: HashSet<Temp>,
-	pub live_in: HashSet<Temp>,
-	pub live_out: HashSet<Temp>,
+	pub weight: f64,
+	pub prev: Vec<Node<T, U>>,
+	pub succ: Vec<Node<T, U>>,
+	pub defs: HashSet<U>,
+	pub uses: HashSet<U>,
+	pub live_in: HashSet<U>,
+	pub live_out: HashSet<U>,
 	pub phi_instrs: Vec<PhiInstr>,
 	pub instrs: Vec<T>,
 	pub jump_instr: Option<T>,
 }
 
-impl<T: Display> BasicBlock<T> {
-	pub fn new(id: i32) -> BasicBlock<T> {
+impl<T: Display, U: Display> BasicBlock<T, U> {
+	pub fn new(id: i32, weight: f64) -> BasicBlock<T, U> {
 		BasicBlock {
 			id,
+			weight,
 			prev: Vec::new(),
 			succ: Vec::new(),
 			defs: HashSet::new(),
@@ -33,8 +35,8 @@ impl<T: Display> BasicBlock<T> {
 			jump_instr: None,
 		}
 	}
-	pub fn new_node(id: i32) -> Node<T> {
-		Rc::new(RefCell::new(Self::new(id)))
+	pub fn new_node(id: i32, weight: f64) -> Node<T, U> {
+		Rc::new(RefCell::new(Self::new(id, weight)))
 	}
 	pub fn label(&self) -> Label {
 		match self.id {
@@ -59,13 +61,13 @@ impl<T: Display> BasicBlock<T> {
 	pub fn single_succ(&self) -> bool {
 		self.succ.len() == 1
 	}
-	pub fn get_succ(&self) -> Node<T> {
+	pub fn get_succ(&self) -> Node<T, U> {
 		self.succ.first().unwrap().clone()
 	}
 	pub fn no_phi(&self) -> bool {
 		self.phi_instrs.is_empty()
 	}
-	pub fn replace_prev(&mut self, label: &Label, target: Node<T>) {
+	pub fn replace_prev(&mut self, label: &Label, target: Node<T, U>) {
 		let new_label = target.borrow().label();
 		for instr in self.phi_instrs.iter_mut() {
 			if let Some((_, v)) = instr.source.iter_mut().find(|(_, v)| v == label) {
@@ -86,7 +88,7 @@ impl<T: Display> BasicBlock<T> {
 	}
 }
 
-impl BasicBlock<LlvmInstr> {
+impl BasicBlock<LlvmInstr, Temp> {
 	pub fn gen_jump(&mut self, var_type: VarType) {
 		if self.jump_instr.is_none() {
 			self.jump_instr = Some(match self.succ.len() {
@@ -107,7 +109,7 @@ fn instr_format<T: Display>(v: T) -> String {
 }
 
 #[cfg(not(feature = "debug"))]
-impl<T: Display> Display for BasicBlock<T> {
+impl<T: Display, U: Display> Display for BasicBlock<T, U> {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let instrs = self
 			.phi_instrs
@@ -122,16 +124,15 @@ impl<T: Display> Display for BasicBlock<T> {
 }
 
 #[cfg(feature = "debug")]
-impl<T: Display> Display for BasicBlock<T> {
+impl<T: Display, U: Display> Display for BasicBlock<T, U> {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let prev: Vec<_> = self.prev.iter().map(|v| v.borrow().id).collect();
 		let succ: Vec<_> = self.succ.iter().map(|v| v.borrow().id).collect();
-		let defs: Vec<_> = self.defs.iter().map(|v| v.name.as_str()).collect();
-		let uses: Vec<_> = self.uses.iter().map(|v| v.name.as_str()).collect();
-		let live_in: Vec<_> =
-			self.live_in.iter().map(|v| v.name.as_str()).collect();
+		let defs: Vec<_> = self.defs.iter().map(|v| v.to_string()).collect();
+		let uses: Vec<_> = self.uses.iter().map(|v| v.to_string()).collect();
+		let live_in: Vec<_> = self.live_in.iter().map(|v| v.to_string()).collect();
 		let live_out: Vec<_> =
-			self.live_out.iter().map(|v| v.name.as_str()).collect();
+			self.live_out.iter().map(|v| v.to_string()).collect();
 		let instrs = self
 			.phi_instrs
 			.iter()

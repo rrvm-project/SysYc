@@ -9,7 +9,8 @@ pub mod func;
 pub mod impls;
 pub mod program;
 
-pub type LlvmCFG = CFG<LlvmInstr>;
-pub type RiscvCFG = CFG<RiscvInstr>;
+pub type LlvmCFG = CFG<LlvmInstr, llvm::Temp>;
+pub type RiscvCFG = CFG<RiscvInstr, instruction::temp::Temp>;
 
-pub type LlvmNode = Node<LlvmInstr>;
+pub type LlvmNode = Node<LlvmInstr, llvm::Temp>;
+pub type RiscvNode = Node<RiscvInstr, instruction::temp::Temp>;

@@ -1,4 +1,4 @@
-use utils::Label;
+use utils::{Label, UseTemp};
 
 use crate::{llvmop::*, llvmvar::VarType, LlvmInstrVariant, Temp};
 use std::fmt::Display;
@@ -18,13 +18,7 @@ where
 	}
 }
 
-pub trait LlvmInstrTrait: Display + CloneLlvmInstr {
-	fn get_read(&self) -> Vec<Temp> {
-		Vec::new()
-	}
-	fn get_write(&self) -> Option<Temp> {
-		None
-	}
+pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn type_valid(&self) -> bool {
 		true
 	}
@@ -37,6 +31,15 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr {
 	fn get_variant(&self) -> LlvmInstrVariant;
 	fn new_jump(&self) -> Option<JumpInstr> {
 		None
+	}
+}
+
+impl UseTemp<Temp> for LlvmInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		self.as_ref().get_read()
+	}
+	fn get_write(&self) -> Option<Temp> {
+		self.as_ref().get_write()
 	}
 }
 

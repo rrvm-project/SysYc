@@ -15,3 +15,12 @@ pub fn fatal_error(str: impl Display) {
 pub fn warning(str: impl Display) {
 	eprintln!("{}: {}", console::style("warning").bold().magenta(), str);
 }
+
+pub trait UseTemp<U> {
+	fn get_read(&self) -> Vec<U> {
+		Vec::new()
+	}
+	fn get_write(&self) -> Option<U> {
+		None
+	}
+}

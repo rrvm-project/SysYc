@@ -1,12 +1,11 @@
-use llvm::LlvmInstr;
-use rrvm::cfg::Node;
+use rrvm::LlvmNode;
 
 use crate::symbol_table::Table;
 
 pub struct LoopState {
 	pub size: usize,
-	pub entry: Vec<(Node<LlvmInstr>, Table)>,
-	pub exit: Vec<(Node<LlvmInstr>, Table)>,
+	pub entry: Vec<(LlvmNode, Table)>,
+	pub exit: Vec<(LlvmNode, Table)>,
 }
 
 impl LoopState {
@@ -17,10 +16,10 @@ impl LoopState {
 			exit: Vec::new(),
 		}
 	}
-	pub fn push_entry(&mut self, node: Node<LlvmInstr>, table: Table) {
+	pub fn push_entry(&mut self, node: LlvmNode, table: Table) {
 		self.entry.push((node, table))
 	}
-	pub fn push_exit(&mut self, node: Node<LlvmInstr>, table: Table) {
+	pub fn push_exit(&mut self, node: LlvmNode, table: Table) {
 		self.exit.push((node, table))
 	}
 }

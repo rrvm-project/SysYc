@@ -2,13 +2,29 @@
 
 use std::fmt::Display;
 
-use utils::Label;
+use utils::{Label, UseTemp};
 
-use super::{riscvinstr::*, riscvop::*, value::*};
+use crate::temp::Temp;
+
+use super::{
+	riscvinstr::*,
+	riscvop::*,
+	utils::{unwarp_temp, unwarp_temps},
+	value::*,
+};
 
 impl Display for RTriInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "    {} {}, {}, {}", self.op, self.rd, self.rs1, self.rs2)
+	}
+}
+
+impl UseTemp<Temp> for RTriInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		unwarp_temps(vec![&self.rs1, &self.rs2])
+	}
+	fn get_write(&self) -> Option<Temp> {
+		unwarp_temp(&self.rd)
 	}
 }
 
@@ -20,7 +36,7 @@ impl RTriInstr {
 		rd: RiscvTemp,
 		rs1: RiscvTemp,
 		rs2: RiscvTemp,
-	) -> Box<dyn RiscvInstrTrait> {
+	) -> RiscvInstr {
 		Box::new(Self { op, rs1, rs2, rd })
 	}
 }
@@ -28,6 +44,15 @@ impl RTriInstr {
 impl Display for ITriInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "    {} {}, {}, {}", self.op, self.rd, self.rs1, self.rs2)
+	}
+}
+
+impl UseTemp<Temp> for ITriInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		unwarp_temps(vec![&self.rs1])
+	}
+	fn get_write(&self) -> Option<Temp> {
+		unwarp_temp(&self.rd)
 	}
 }
 
@@ -39,7 +64,7 @@ impl ITriInstr {
 		rd: RiscvTemp,
 		rs1: RiscvTemp,
 		rs2: RiscvImm,
-	) -> Box<dyn RiscvInstrTrait> {
+	) -> RiscvInstr {
 		Box::new(Self { op, rs1, rs2, rd })
 	}
 }
@@ -50,14 +75,16 @@ impl Display for IBinInstr {
 	}
 }
 
+impl UseTemp<Temp> for IBinInstr {
+	fn get_write(&self) -> Option<Temp> {
+		unwarp_temp(&self.rd)
+	}
+}
+
 impl RiscvInstrTrait for IBinInstr {}
 
 impl IBinInstr {
-	pub fn new(
-		op: IBinInstrOp,
-		rd: RiscvTemp,
-		rs1: RiscvImm,
-	) -> Box<dyn RiscvInstrTrait> {
+	pub fn new(op: IBinInstrOp, rd: RiscvTemp, rs1: RiscvImm) -> RiscvInstr {
 		Box::new(Self { op, rs1, rd })
 	}
 }
@@ -68,10 +95,12 @@ impl Display for LabelInstr {
 	}
 }
 
+impl UseTemp<Temp> for LabelInstr {}
+
 impl RiscvInstrTrait for LabelInstr {}
 
 impl LabelInstr {
-	pub fn new(label: Label) -> Box<dyn RiscvInstrTrait> {
+	pub fn new(label: Label) -> RiscvInstr {
 		Box::new(Self { label })
 	}
 }
@@ -82,14 +111,19 @@ impl Display for RBinInstr {
 	}
 }
 
+impl UseTemp<Temp> for RBinInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		unwarp_temps(vec![&self.rs1])
+	}
+	fn get_write(&self) -> Option<Temp> {
+		unwarp_temp(&self.rd)
+	}
+}
+
 impl RiscvInstrTrait for RBinInstr {}
 
 impl RBinInstr {
-	pub fn new(
-		op: RBinInstrOp,
-		rd: RiscvTemp,
-		rs1: RiscvTemp,
-	) -> Box<dyn RiscvInstrTrait> {
+	pub fn new(op: RBinInstrOp, rd: RiscvTemp, rs1: RiscvTemp) -> RiscvInstr {
 		Box::new(Self { op, rs1, rd })
 	}
 }
@@ -97,6 +131,12 @@ impl RBinInstr {
 impl Display for BranInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "    {} {}, {}, {}", self.op, self.rs1, self.rs2, self.to)
+	}
+}
+
+impl UseTemp<Temp> for BranInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		unwarp_temps(vec![&self.rs1, &self.rs2])
 	}
 }
 
@@ -108,7 +148,7 @@ impl BranInstr {
 		rs1: RiscvTemp,
 		rs2: RiscvTemp,
 		to: RiscvImm,
-	) -> Box<dyn RiscvInstrTrait> {
+	) -> RiscvInstr {
 		Box::new(Self { op, rs1, rs2, to })
 	}
 }
@@ -119,10 +159,12 @@ impl Display for NoArgInstr {
 	}
 }
 
+impl UseTemp<Temp> for NoArgInstr {}
+
 impl RiscvInstrTrait for NoArgInstr {}
 
 impl NoArgInstr {
-	pub fn new(op: NoArgInstrOp) -> Box<dyn RiscvInstrTrait> {
+	pub fn new(op: NoArgInstrOp) -> RiscvInstr {
 		Box::new(Self { op })
 	}
 }

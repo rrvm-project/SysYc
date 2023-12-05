@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use utils::UseTemp;
+
 use crate::{
 	llvminstr::*,
 	llvmop::*,
@@ -37,15 +39,18 @@ impl Display for ArithInstr {
 	}
 }
 
-impl LlvmInstrTrait for ArithInstr {
-	fn get_variant(&self) -> LlvmInstrVariant {
-		LlvmInstrVariant::ArithInstr(self)
-	}
+impl UseTemp<Temp> for ArithInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+}
+
+impl LlvmInstrTrait for ArithInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::ArithInstr(self)
 	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[
@@ -67,15 +72,18 @@ impl Display for CompInstr {
 	}
 }
 
-impl LlvmInstrTrait for CompInstr {
-	fn get_variant(&self) -> LlvmInstrVariant {
-		LlvmInstrVariant::CompInstr(self)
-	}
+impl UseTemp<Temp> for CompInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+}
+
+impl LlvmInstrTrait for CompInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::CompInstr(self)
 	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[
@@ -97,15 +105,18 @@ impl Display for ConvertInstr {
 	}
 }
 
-impl LlvmInstrTrait for ConvertInstr {
-	fn get_variant(&self) -> LlvmInstrVariant {
-		LlvmInstrVariant::ConvertInstr(self)
-	}
+impl UseTemp<Temp> for ConvertInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.lhs])
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+}
+
+impl LlvmInstrTrait for ConvertInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::ConvertInstr(self)
 	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[
@@ -123,6 +134,8 @@ impl Display for JumpInstr {
 	}
 }
 
+impl UseTemp<Temp> for JumpInstr {}
+
 impl LlvmInstrTrait for JumpInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::JumpInstr(self)
@@ -136,6 +149,12 @@ impl Display for JumpCondInstr {
 			"  br {} {}, label %{}, label %{}",
 			self.var_type, self.cond, self.target_true, self.target_false
 		)
+	}
+}
+
+impl UseTemp<Temp> for JumpCondInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		unwrap_values(vec![&self.cond])
 	}
 }
 
@@ -183,15 +202,18 @@ impl Display for PhiInstr {
 	}
 }
 
-impl LlvmInstrTrait for PhiInstr {
-	fn get_variant(&self) -> LlvmInstrVariant {
-		LlvmInstrVariant::PhiInstr(self)
-	}
+impl UseTemp<Temp> for PhiInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		self.source.iter().flat_map(|(v, _)| v.unwrap_temp()).collect()
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+}
+
+impl LlvmInstrTrait for PhiInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::PhiInstr(self)
 	}
 	fn type_valid(&self) -> bool {
 		let mut v: Vec<_> = self.source.iter().map(|(v, _)| v.get_type()).collect();
@@ -214,14 +236,17 @@ impl Display for RetInstr {
 	}
 }
 
-impl LlvmInstrTrait for RetInstr {
-	fn get_variant(&self) -> LlvmInstrVariant {
-		LlvmInstrVariant::RetInstr(self)
-	}
+impl UseTemp<Temp> for RetInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		self.value.as_ref().map_or(Vec::new(), |v| {
 			vec![&v].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 		})
+	}
+}
+
+impl LlvmInstrTrait for RetInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::RetInstr(self)
 	}
 }
 
@@ -238,15 +263,18 @@ impl Display for AllocInstr {
 	}
 }
 
-impl LlvmInstrTrait for AllocInstr {
-	fn get_variant(&self) -> LlvmInstrVariant {
-		LlvmInstrVariant::AllocInstr(self)
-	}
+impl UseTemp<Temp> for AllocInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		vec![&self.length].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+}
+
+impl LlvmInstrTrait for AllocInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::AllocInstr(self)
 	}
 	fn type_valid(&self) -> bool {
 		self.length.get_type() == VarType::I32
@@ -266,12 +294,15 @@ impl Display for StoreInstr {
 	}
 }
 
+impl UseTemp<Temp> for StoreInstr {
+	fn get_read(&self) -> Vec<Temp> {
+		unwrap_values(vec![&self.value, &self.addr])
+	}
+}
+
 impl LlvmInstrTrait for StoreInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::StoreInstr(self)
-	}
-	fn get_read(&self) -> Vec<Temp> {
-		unwrap_values(vec![&self.value, &self.addr])
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.value.get_type(), self.addr.get_type())
@@ -291,15 +322,18 @@ impl Display for LoadInstr {
 	}
 }
 
-impl LlvmInstrTrait for LoadInstr {
-	fn get_variant(&self) -> LlvmInstrVariant {
-		LlvmInstrVariant::LoadInstr(self)
-	}
+impl UseTemp<Temp> for LoadInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		vec![&self.addr].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+}
+
+impl LlvmInstrTrait for LoadInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::LoadInstr(self)
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.var_type, self.addr.get_type())
@@ -320,15 +354,18 @@ impl Display for GEPInstr {
 	}
 }
 
-impl LlvmInstrTrait for GEPInstr {
-	fn get_variant(&self) -> LlvmInstrVariant {
-		LlvmInstrVariant::GEPInstr(self)
-	}
+impl UseTemp<Temp> for GEPInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(vec![&self.addr, &self.offset])
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+}
+
+impl LlvmInstrTrait for GEPInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::GEPInstr(self)
 	}
 	fn type_valid(&self) -> bool {
 		is_ptr(self.addr.get_type())
@@ -352,14 +389,17 @@ impl Display for CallInstr {
 	}
 }
 
-impl LlvmInstrTrait for CallInstr {
-	fn get_variant(&self) -> LlvmInstrVariant {
-		LlvmInstrVariant::CallInstr(self)
-	}
+impl UseTemp<Temp> for CallInstr {
 	fn get_read(&self) -> Vec<Temp> {
 		unwrap_values(self.params.iter().map(|(_, x)| x).collect())
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+}
+
+impl LlvmInstrTrait for CallInstr {
+	fn get_variant(&self) -> LlvmInstrVariant {
+		LlvmInstrVariant::CallInstr(self)
 	}
 }

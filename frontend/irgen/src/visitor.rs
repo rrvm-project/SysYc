@@ -24,6 +24,7 @@ pub struct IRGenerator {
 	pub symbol_table: SymbolTable,
 	pub stack: Vec<(LlvmCFG, Option<Value>, Option<Value>)>,
 	pub states: Vec<LoopState>,
+	pub weights: Vec<f64>,
 }
 
 impl Default for IRGenerator {
@@ -35,6 +36,7 @@ impl Default for IRGenerator {
 impl Visitor for IRGenerator {
 	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
 		self.symbol_table.push();
+		self.weights.push(1.0);
 		for v in node.functions.iter_mut() {
 			v.accept(self)?;
 			self.total = 0;
@@ -230,6 +232,7 @@ impl Visitor for IRGenerator {
 					}
 					LOr | LAnd => {
 						/*
+							TODO: type convert in logical expression
 							这里返回值类型不是 bool 而是 int
 							不过测例满足逻辑运算只会出现在 if 或 while 中
 							这么写不影响正确性，摆了
@@ -349,6 +352,7 @@ impl Visitor for IRGenerator {
 		node.cond.accept(self)?;
 		let (mut cond, cond_val, cond_addr) = self.stack.pop().unwrap();
 		let cond_val = self.solve(cond_val, cond_addr, &mut cond);
+		self.enter_branch();
 		self.symbol_table.push();
 		node.body.accept(self)?;
 		let (cfg1, _, _) = self.stack.pop().unwrap();
@@ -362,11 +366,13 @@ impl Visitor for IRGenerator {
 		} else {
 			(self.new_cfg(), HashMap::new())
 		};
+		let _ = self.weights.pop();
 		let cfg = self.if_then_else(cond, cond_val, cfg1, diff1, cfg2, diff2);
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
 	fn visit_while(&mut self, node: &mut While) -> Result<()> {
+		self.enter_loop();
 		let mut counter = Counter::new();
 		node.cond.accept(&mut counter)?;
 		node.body.accept(&mut counter)?;
@@ -375,15 +381,15 @@ impl Visitor for IRGenerator {
 		node.cond.accept(self)?;
 		let (mut cond, cond_val, cond_addr) = self.stack.pop().unwrap();
 		let cond_val = self.solve(cond_val, cond_addr, &mut cond);
-		let exit = self.new_cfg();
 
-		self.states.push(LoopState::new(self.symbol_table.size()));
 		self.symbol_table.push();
 		node.body.accept(self)?;
 		let (body, _, _) = self.stack.pop().unwrap();
 		let body_diff = self.symbol_table.drop();
 		let mut loop_state = self.states.pop().unwrap();
 
+		let _ = self.weights.pop();
+		let exit = self.new_cfg();
 		let before_exit = self.new_cfg();
 		loop_state.push_entry(init.get_exit(), init_diff);
 		loop_state.push_exit(before_exit.get_exit(), HashMap::new());
