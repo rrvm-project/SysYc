@@ -34,7 +34,7 @@ pub enum ArithOp {
 	Xor,
 }
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, Clone, Copy)]
 pub enum CompOp {
 	EQ,
 	NE,
@@ -63,12 +63,13 @@ pub fn is_commutative(op: &ArithOp) -> bool {
 	)
 }
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, Clone, Copy)]
 pub enum CompKind {
 	Icmp,
 	Fcmp,
 }
 
+#[derive(Clone, Copy)]
 pub enum ConvertOp {
 	Int2Float,
 	Float2Int,

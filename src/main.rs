@@ -54,7 +54,7 @@ fn step_riscv(program: LlvmProgram) -> Result<i32> {
 	for func in program.funcs.into_iter() {
 		riscv_program.funcs.push(convert_func(func)?);
 	}
-	// program.funcs;
+	println!("{}", riscv_program);
 	todo!()
 }
 

@@ -25,7 +25,7 @@ impl InstrNode {
 		mgr: &mut TempManager,
 	) -> Result<InstrNode> {
 		Ok(InstrNode {
-			in_deg: instr.get_read().len(),
+			in_deg: 0,
 			instr: to_riscv(instr, mgr)?,
 			succ,
 		})

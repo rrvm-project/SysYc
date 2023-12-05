@@ -43,6 +43,7 @@ fn into_reg(
 	mgr: &mut TempManager,
 ) -> RiscvTemp {
 	match val {
+		Value::Int(0) => RiscvTemp::PhysReg(X0), // 这个代价不同
 		Value::Int(num) => i32_to_reg(*num, instrs, mgr),
 		Value::Float(num) => f32_to_reg(*num, instrs, mgr),
 		Value::Temp(temp) => mgr.get(temp),
@@ -60,7 +61,7 @@ fn get_arith(
 	if can_to_iop(&op) {
 		match end_num(lhs) {
 			Some(num) if is_commutative(&op) => {
-				let rhs = into_reg(lhs, instrs, mgr);
+				let rhs = into_reg(rhs, instrs, mgr);
 				instrs.push(ITriInstr::new(to_iop(&op), rd, rhs, num.into()));
 			}
 			_ => {
