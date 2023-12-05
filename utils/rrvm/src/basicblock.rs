@@ -72,14 +72,17 @@ impl<T: Display> BasicBlock<T> {
 				*v = new_label.clone();
 			}
 		}
-		if let Some(prev) =
-			self.prev.iter_mut().find(|v| v.borrow().label() == *label)
-		{
+		if let Some(prev) = self.prev.iter_mut().find(|v| Rc::ptr_eq(v, &target)) {
 			*prev = target
+		} else {
+			unreachable!()
 		}
 	}
 	pub fn make_pretty(&mut self) {
 		self.phi_instrs.sort_unstable_by(|x, y| x.target.cmp(&y.target));
+	}
+	pub fn set_jump(&mut self, instr: Option<T>) {
+		self.jump_instr = instr;
 	}
 }
 
@@ -96,9 +99,6 @@ impl BasicBlock<LlvmInstr> {
 				_ => unreachable!(),
 			});
 		}
-	}
-	pub fn set_jump(&mut self, instr: Option<LlvmInstr>) {
-		self.jump_instr = instr;
 	}
 }
 

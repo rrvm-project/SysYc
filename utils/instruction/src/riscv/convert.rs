@@ -7,11 +7,28 @@ use crate::{
 	RiscvInstrSet,
 };
 
+fn reg_cost(val: &llvm::llvmop::Value) -> i32 {
+	fn i32_cost(num: i32) -> i32 {
+		match num {
+			0 => 0,
+			_ => 1 + (!is_lower(num) as i32),
+		}
+	}
+	match val {
+		Value::Int(num) => i32_cost(*num),
+		Value::Float(num) => i32_cost(num.to_bits() as i32),
+		Value::Temp(_) => 0,
+	}
+}
+
 fn i32_to_reg(
 	num: i32,
 	instrs: &mut RiscvInstrSet,
 	mgr: &mut TempManager,
 ) -> RiscvTemp {
+	if num == 0 {
+		return RiscvTemp::PhysReg(X0); // 代价不同、最小化代价
+	}
 	let rd = mgr.new_temp();
 	if is_lower(num) {
 		instrs.push(IBinInstr::new(Li, rd, num.into()));
@@ -43,7 +60,6 @@ fn into_reg(
 	mgr: &mut TempManager,
 ) -> RiscvTemp {
 	match val {
-		Value::Int(0) => RiscvTemp::PhysReg(X0), // 这个代价不同
 		Value::Int(num) => i32_to_reg(*num, instrs, mgr),
 		Value::Float(num) => f32_to_reg(*num, instrs, mgr),
 		Value::Temp(temp) => mgr.get(temp),
@@ -60,7 +76,7 @@ fn get_arith(
 ) {
 	if can_to_iop(&op) {
 		match end_num(lhs) {
-			Some(num) if is_commutative(&op) => {
+			Some(num) if is_commutative(&op) && reg_cost(lhs) > reg_cost(rhs) => {
 				let rhs = into_reg(rhs, instrs, mgr);
 				instrs.push(ITriInstr::new(to_iop(&op), rd, rhs, num.into()));
 			}
