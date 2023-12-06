@@ -1,4 +1,4 @@
-use instruction::{riscv::riscvinstr::RiscvInstr, temp};
+use instruction::{riscv::RiscvInstr, temp};
 use llvm::LlvmInstr;
 use utils::{InstrTrait, TempTrait};
 

@@ -36,3 +36,13 @@ pub enum RiscvReg {
 	T5,
 	T6,
 }
+
+pub const CALLER_SAVE: &[RiscvReg] =
+	&[T0, T1, T2, T3, T4, T5, T6, A0, A1, A2, A3, A4, A5, A6, A7];
+pub const CALLEE_SAVE: &[RiscvReg] =
+	&[S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11];
+pub const ALLOCABLE_REGS: &[RiscvReg] = &[
+	T0, T1, T2, T3, T4, T5, T6, A0, A1, A2, A3, A4, A5, A6, A7, S1, S2, S3, S4,
+	S5, S6, S7, S8, S9, S10, S11,
+];
+pub const ALLOACBLE_COUNT: usize = ALLOCABLE_REGS.len();

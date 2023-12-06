@@ -1,6 +1,6 @@
 use basicblock::Node;
 use cfg::CFG;
-use instruction::riscv::riscvinstr::RiscvInstr;
+use instruction::riscv::RiscvInstr;
 use llvm::LlvmInstr;
 
 pub mod basicblock;

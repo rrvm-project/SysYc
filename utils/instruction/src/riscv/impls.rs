@@ -1,15 +1,16 @@
 #![allow(clippy::new_ret_no_self)]
 
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use utils::{Label, UseTemp};
 
 use crate::temp::Temp;
 
 use super::{
+	reg::RiscvReg,
 	riscvinstr::*,
 	riscvop::*,
-	utils::{unwarp_temp, unwarp_temps},
+	utils::{map_temp, unwarp_temp, unwarp_temps},
 	value::*,
 };
 
@@ -28,7 +29,13 @@ impl UseTemp<Temp> for RTriInstr {
 	}
 }
 
-impl RiscvInstrTrait for RTriInstr {}
+impl RiscvInstrTrait for RTriInstr {
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
+		map_temp(&mut self.rd, map);
+		map_temp(&mut self.rs1, map);
+		map_temp(&mut self.rs2, map);
+	}
+}
 
 impl RTriInstr {
 	pub fn new(
@@ -56,7 +63,12 @@ impl UseTemp<Temp> for ITriInstr {
 	}
 }
 
-impl RiscvInstrTrait for ITriInstr {}
+impl RiscvInstrTrait for ITriInstr {
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
+		map_temp(&mut self.rd, map);
+		map_temp(&mut self.rs1, map);
+	}
+}
 
 impl ITriInstr {
 	pub fn new(
@@ -81,7 +93,11 @@ impl UseTemp<Temp> for IBinInstr {
 	}
 }
 
-impl RiscvInstrTrait for IBinInstr {}
+impl RiscvInstrTrait for IBinInstr {
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
+		map_temp(&mut self.rd, map);
+	}
+}
 
 impl IBinInstr {
 	pub fn new(op: IBinInstrOp, rd: RiscvTemp, rs1: RiscvImm) -> RiscvInstr {
@@ -120,7 +136,12 @@ impl UseTemp<Temp> for RBinInstr {
 	}
 }
 
-impl RiscvInstrTrait for RBinInstr {}
+impl RiscvInstrTrait for RBinInstr {
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
+		map_temp(&mut self.rd, map);
+		map_temp(&mut self.rs1, map);
+	}
+}
 
 impl RBinInstr {
 	pub fn new(op: RBinInstrOp, rd: RiscvTemp, rs1: RiscvTemp) -> RiscvInstr {
@@ -140,7 +161,12 @@ impl UseTemp<Temp> for BranInstr {
 	}
 }
 
-impl RiscvInstrTrait for BranInstr {}
+impl RiscvInstrTrait for BranInstr {
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
+		map_temp(&mut self.rs1, map);
+		map_temp(&mut self.rs2, map);
+	}
+}
 
 impl BranInstr {
 	pub fn new(

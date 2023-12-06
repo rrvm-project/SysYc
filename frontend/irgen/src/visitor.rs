@@ -59,12 +59,13 @@ impl Visitor for IRGenerator {
 		let var_type = func_type_convert(&node.ret_type);
 		cfg.blocks.iter().for_each(|v| v.borrow_mut().gen_jump(var_type));
 		cfg.make_pretty();
-		self.program.funcs.push(LlvmFunc::new(
+		self.program.funcs.push(LlvmFunc {
+			total: 0,
 			cfg,
-			node.ident.clone(),
-			var_type,
+			name: node.ident.clone(),
+			ret_type: var_type,
 			params,
-		));
+		});
 		self.symbol_table.pop();
 		Ok(())
 	}

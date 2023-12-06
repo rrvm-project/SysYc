@@ -1,6 +1,12 @@
-use std::{cell::RefCell, collections::HashSet, fmt::Display, rc::Rc};
+use std::{
+	cell::RefCell,
+	collections::{HashMap, HashSet},
+	fmt::Display,
+	rc::Rc,
+};
 
-use llvm::{temp::Temp, JumpInstr, LlvmInstr, PhiInstr, RetInstr, VarType};
+use instruction::riscv::{reg::RiscvReg, RiscvInstr};
+use llvm::{JumpInstr, LlvmInstr, PhiInstr, RetInstr, VarType};
 use utils::{InstrTrait, Label, TempTrait, UseTemp};
 
 pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
@@ -101,7 +107,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 	}
 }
 
-impl BasicBlock<LlvmInstr, Temp> {
+impl BasicBlock<LlvmInstr, llvm::Temp> {
 	pub fn gen_jump(&mut self, var_type: VarType) {
 		if self.jump_instr.is_none() {
 			self.jump_instr = Some(match self.succ.len() {
@@ -124,6 +130,12 @@ impl BasicBlock<LlvmInstr, Temp> {
 				self.defs.insert(temp);
 			}
 		}
+	}
+}
+
+impl BasicBlock<RiscvInstr, instruction::Temp> {
+	pub fn map_temp(&mut self, map: &HashMap<instruction::Temp, RiscvReg>) {
+		self.instrs.iter_mut().for_each(|v| v.map_temp(map))
 	}
 }
 

@@ -23,15 +23,17 @@ impl Temp {
 	}
 }
 
-#[derive(Default)]
 pub struct TempManager {
-	total: u32,
+	pub total: u32,
 	llvm2riscv: HashMap<llvm::temp::Temp, RiscvTemp>,
 }
 
 impl TempManager {
-	pub fn new() -> Self {
-		Self::default()
+	pub fn new(total: u32) -> Self {
+		Self {
+			total,
+			llvm2riscv: HashMap::new(),
+		}
 	}
 	pub fn new_temp(&mut self) -> RiscvTemp {
 		self.total += 1;
