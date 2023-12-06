@@ -20,6 +20,7 @@ impl RrvmOptimizer for Optimizer1 {
 	fn apply(self, program: &mut LlvmProgram) -> Result<()> {
 		RemoveDeadCode::new().apply(program)?;
 		RemoveUnreachCode::new().apply(program)?;
+		program.analysis();
 		Ok(())
 	}
 }

@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 
+use utils::TempTrait;
+
 use crate::riscv::value::RiscvTemp;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -12,6 +14,8 @@ impl Display for Temp {
 		write!(f, "%{}", self.id)
 	}
 }
+
+impl TempTrait for Temp {}
 
 impl Temp {
 	fn new(id: u32) -> Self {

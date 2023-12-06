@@ -1,11 +1,11 @@
 use std::{cell::RefCell, collections::HashSet, fmt::Display, rc::Rc};
 
 use llvm::{temp::Temp, JumpInstr, LlvmInstr, PhiInstr, RetInstr, VarType};
-use utils::Label;
+use utils::{InstrTrait, Label, TempTrait, UseTemp};
 
 pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
 
-pub struct BasicBlock<T: Display, U: Display> {
+pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub id: i32,
 	pub weight: f64,
 	pub prev: Vec<Node<T, U>>,
@@ -19,7 +19,7 @@ pub struct BasicBlock<T: Display, U: Display> {
 	pub jump_instr: Option<T>,
 }
 
-impl<T: Display, U: Display> BasicBlock<T, U> {
+impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 	pub fn new(id: i32, weight: f64) -> BasicBlock<T, U> {
 		BasicBlock {
 			id,
@@ -74,7 +74,9 @@ impl<T: Display, U: Display> BasicBlock<T, U> {
 				*v = new_label.clone();
 			}
 		}
-		if let Some(prev) = self.prev.iter_mut().find(|v| Rc::ptr_eq(v, &target)) {
+		if let Some(prev) =
+			self.prev.iter_mut().find(|v| v.borrow().label() == *label)
+		{
 			*prev = target
 		} else {
 			unreachable!()
@@ -85,6 +87,17 @@ impl<T: Display, U: Display> BasicBlock<T, U> {
 	}
 	pub fn set_jump(&mut self, instr: Option<T>) {
 		self.jump_instr = instr;
+	}
+	pub fn init(&mut self) {
+		for instr in self.instrs.iter().chain(self.jump_instr.iter()) {
+			for temp in instr.get_read() {
+				self.uses.insert(temp);
+			}
+			if let Some(temp) = instr.get_write() {
+				self.defs.insert(temp);
+			}
+		}
+		self.uses.retain(|v| !self.defs.contains(v));
 	}
 }
 
@@ -102,6 +115,16 @@ impl BasicBlock<LlvmInstr, Temp> {
 			});
 		}
 	}
+	pub fn init_phi(&mut self) {
+		for instr in self.phi_instrs.iter() {
+			for temp in instr.get_read() {
+				self.uses.insert(temp);
+			}
+			if let Some(temp) = instr.get_write() {
+				self.defs.insert(temp);
+			}
+		}
+	}
 }
 
 fn instr_format<T: Display>(v: T) -> String {
@@ -109,7 +132,7 @@ fn instr_format<T: Display>(v: T) -> String {
 }
 
 #[cfg(not(feature = "debug"))]
-impl<T: Display, U: Display> Display for BasicBlock<T, U> {
+impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let instrs = self
 			.phi_instrs
@@ -124,7 +147,7 @@ impl<T: Display, U: Display> Display for BasicBlock<T, U> {
 }
 
 #[cfg(feature = "debug")]
-impl<T: Display, U: Display> Display for BasicBlock<T, U> {
+impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let prev: Vec<_> = self.prev.iter().map(|v| v.borrow().id).collect();
 		let succ: Vec<_> = self.succ.iter().map(|v| v.borrow().id).collect();
@@ -143,8 +166,20 @@ impl<T: Display, U: Display> Display for BasicBlock<T, U> {
 			.join("\n");
 		write!(
 			f,
-			"  {}: prev: {:?} succ: {:?} uses: {:?} defs: {:?} livein: {:?} liveout: {:?}\n{}",
-			self.label(), prev, succ, uses, defs, live_in, live_out,  instrs
+			"  {}:
+    prev: {:?} succ: {:?}
+    uses: {:?}
+    defs: {:?}
+    livein: {:?}
+    liveout: {:?}\n{}",
+			self.label(),
+			prev,
+			succ,
+			uses,
+			defs,
+			live_in,
+			live_out,
+			instrs
 		)
 	}
 }

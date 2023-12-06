@@ -1,7 +1,7 @@
 pub mod errors;
 pub mod init_value_item;
 pub mod label;
-use std::fmt::Display;
+use std::{fmt::Display, hash::Hash};
 
 pub use errors::*;
 pub use init_value_item::*;
@@ -24,3 +24,6 @@ pub trait UseTemp<U> {
 		None
 	}
 }
+
+pub trait InstrTrait<U>: Display + UseTemp<U> {}
+pub trait TempTrait: Display + Hash + Eq + Clone {}

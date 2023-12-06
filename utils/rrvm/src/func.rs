@@ -1,18 +1,16 @@
-use std::fmt::Display;
-
 use llvm::{Value, VarType};
-use utils::UseTemp;
+use utils::{InstrTrait, TempTrait};
 
 use crate::cfg::CFG;
 
-pub struct RrvmFunc<T: Display + UseTemp<U>, U: Display> {
+pub struct RrvmFunc<T: InstrTrait<U>, U: TempTrait> {
 	pub cfg: CFG<T, U>,
 	pub name: String,
 	pub ret_type: VarType,
 	pub params: Vec<Value>,
 }
 
-impl<T: Display + UseTemp<U>, U: Display> RrvmFunc<T, U> {
+impl<T: InstrTrait<U>, U: TempTrait> RrvmFunc<T, U> {
 	pub fn new(
 		cfg: CFG<T, U>,
 		name: String,
