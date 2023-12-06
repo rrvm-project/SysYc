@@ -18,9 +18,10 @@ impl RegAllocator {
 		Self {}
 	}
 	pub fn alloc(&mut self, func: &mut RiscvFunc) {
-		func.cfg.analysis();
 		let map: HashMap<_, _> = loop {
-			let graph = InterferenceGraph::new(&func.cfg);
+			func.cfg.analysis();
+			let mut graph = InterferenceGraph::new(&func.cfg);
+			graph.coloring();
 			if graph.color_cnt <= ALLOACBLE_COUNT {
 				break graph
 					.color

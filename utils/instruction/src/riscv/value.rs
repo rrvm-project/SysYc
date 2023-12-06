@@ -73,3 +73,18 @@ impl From<(i32, RiscvTemp)> for RiscvImm {
 		RiscvImm::OffsetReg(x.0, x.1)
 	}
 }
+
+impl RiscvTemp {
+	pub fn is_zero(&self) -> bool {
+		matches!(self, PhysReg(RiscvReg::X0))
+	}
+	pub fn is_virtual(&self) -> bool {
+		matches!(self, VirtReg(_))
+	}
+}
+
+impl RiscvImm {
+	pub fn is_zero(&self) -> bool {
+		matches!(self, Int(0))
+	}
+}

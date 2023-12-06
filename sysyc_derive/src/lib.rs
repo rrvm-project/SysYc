@@ -115,3 +115,63 @@ pub fn display_lowercase(input: TokenStream) -> TokenStream {
 		panic!("DisplayLowercase is only defined for enums");
 	}
 }
+
+#[proc_macro_derive(UseTemp)]
+pub fn use_temp_derive(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as DeriveInput);
+	let name = input.ident;
+
+	let expanded = quote! {
+		impl UseTemp<Temp> for #name {
+			fn get_read(&self) -> Vec<Temp> {
+				super::utils::unwarp_temps(self.get_riscv_read())
+			}
+			fn get_write(&self) -> Option<Temp> {
+				super::utils::unwarp_temps(self.get_riscv_write()).pop()
+			}
+		}
+	};
+
+	TokenStream::from(expanded)
+}
+
+#[proc_macro_attribute]
+pub fn has_riscv_attrs(_: TokenStream, item: TokenStream) -> TokenStream {
+	let mut input = parse_macro_input!(item as DeriveInput);
+	let name = &input.ident;
+
+	let Data::Struct(data) = &mut input.data else {
+		panic!("This trait can only implement on struct");
+	};
+
+	let Fields::Named(fields) = &mut data.fields else {
+		panic!("made, struct li mian zen me neng shi mei name de");
+	};
+
+	fields.named.insert(
+		0,
+		Field {
+			attrs: Vec::new(),
+			vis: Visibility::Public(parse_quote!(pub)),
+			mutability: FieldMutability::None,
+			ident: Some(Ident::new("is_start", Span::call_site())),
+			colon_token: None,
+			ty: parse2(quote!(bool)).unwrap(),
+		},
+	);
+
+	quote! {
+		#input
+
+		impl RiscvAttr for #name {
+			fn is_start(&self) -> bool {
+				self.is_start
+			}
+			fn set_start(&mut self, val: bool) -> bool {
+				self.is_start = val;
+				val
+			}
+		}
+	}
+	.into()
+}
