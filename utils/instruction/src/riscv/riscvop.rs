@@ -8,7 +8,7 @@ pub use NoArgInstrOp::*;
 pub use RBinInstrOp::*;
 pub use RTriInstrOp::*;
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, PartialEq, Eq)]
 pub enum ITriInstrOp {
 	Addi,
 
@@ -23,7 +23,7 @@ pub enum ITriInstrOp {
 	Sltiu,
 }
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, PartialEq, Eq)]
 pub enum RTriInstrOp {
 	Add,
 	Sub,
@@ -56,7 +56,7 @@ pub enum RTriInstrOp {
 	Fle,
 }
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, PartialEq, Eq)]
 pub enum IBinInstrOp {
 	Li,
 	Lui,
@@ -69,7 +69,7 @@ pub enum IBinInstrOp {
 	SD,
 }
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, PartialEq, Eq)]
 pub enum RBinInstrOp {
 	#[style("fcvt.s.w")]
 	Int2Float,
@@ -77,14 +77,14 @@ pub enum RBinInstrOp {
 	Float2Int,
 }
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, PartialEq, Eq)]
 pub enum UnInstrOp {
 	Li,
 	Lb,
 	Lh,
 }
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, PartialEq, Eq)]
 pub enum BranInstrOp {
 	#[style("BEQ")]
 	BEQ,
@@ -100,7 +100,7 @@ pub enum BranInstrOp {
 	BGEU,
 }
 
-#[derive(Fuyuki)]
+#[derive(Fuyuki, PartialEq, Eq)]
 pub enum NoArgInstrOp {
 	Ret,
 }

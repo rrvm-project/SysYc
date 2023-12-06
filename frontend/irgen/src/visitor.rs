@@ -76,8 +76,8 @@ impl Visitor for IRGenerator {
 			init.accept(self)?;
 			let (mut cfg, value, _) = self.stack.pop().unwrap();
 			if symbol.var_type.is_array() {
-				// TODO: solve array init value list
-				todo!()
+				let temp = self.mgr.new_temp(var_type, false);
+				self.symbol_table.set(symbol.id, temp.clone().into());
 			} else {
 				let value = self.type_conv(value.unwrap(), var_type, &mut cfg);
 				self.symbol_table.set(symbol.id, value);
@@ -114,6 +114,8 @@ impl Visitor for IRGenerator {
 	}
 	fn visit_init_val_list(&mut self, _node: &mut InitValList) -> Result<()> {
 		// TODO: solve init_val_list
+		// eprintln!("")
+
 		todo!("I don't know how to solve this");
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
