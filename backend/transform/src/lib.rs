@@ -13,15 +13,14 @@ use utils::errors::Result;
 
 pub mod instr_dag;
 pub mod instr_schedule;
-pub mod register;
 pub mod remove_phi;
 pub mod transformer;
 
-use crate::{instr_schedule::instr_schedule, register::RegisterAllocer};
+use crate::instr_schedule::instr_schedule;
 
 pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 	let mut blocks = Vec::new();
-	let mgr = &mut TempManager::new();
+	let mgr = &mut TempManager::new(0);
 	let mut edge = Vec::new();
 	let mut table = HashMap::new();
 	func.cfg.blocks.iter().for_each(remove_phi::remove_phi);
@@ -36,6 +35,7 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 		link_node(table.get(&u).unwrap(), table.get(&v).unwrap())
 	}
 	Ok(RiscvFunc {
+		total: mgr.total,
 		cfg: RiscvCFG { blocks },
 		name: func.name,
 		params: func.params,
@@ -54,8 +54,4 @@ pub fn transform_basicblock(
 		.instrs
 		.extend(to_riscv(node.borrow().jump_instr.as_ref().unwrap(), mgr)?);
 	Ok(Rc::new(RefCell::new(block)))
-}
-
-pub fn register_alloc(func: &mut RiscvFunc) {
-	RegisterAllocer::new().alloc(func);
 }

@@ -1,13 +1,15 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 use utils::{InstrTrait, Label, UseTemp};
 
 use crate::temp::Temp;
 
-use super::{riscvop::*, value::*};
+use super::{reg::RiscvReg, riscvop::*, value::*};
 
 pub type RiscvInstr = Box<dyn RiscvInstrTrait>;
 
-pub trait RiscvInstrTrait: Display + UseTemp<Temp> {}
+pub trait RiscvInstrTrait: Display + UseTemp<Temp> {
+	fn map_temp(&mut self, _map: &HashMap<Temp, RiscvReg>) {}
+}
 
 impl UseTemp<Temp> for RiscvInstr {
 	fn get_read(&self) -> Vec<Temp> {

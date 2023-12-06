@@ -17,8 +17,9 @@ use irgen::IRGenerator;
 use namer::visitor::Namer;
 use optimizer::*;
 use parser::parser::parse;
+use register::register_alloc;
 use rrvm::program::*;
-use transform::{convert_func, register_alloc};
+use transform::convert_func;
 use typer::visitor::Typer;
 use utils::{fatal_error, map_sys_err, warning};
 
@@ -49,16 +50,13 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 	Ok(program)
 }
 
-fn step_riscv(program: LlvmProgram) -> Result<i32> {
+fn step_riscv(program: LlvmProgram) -> Result<RiscvProgram> {
 	let mut riscv_program = RiscvProgram::new();
 	for func in program.funcs.into_iter() {
 		riscv_program.funcs.push(convert_func(func)?);
 	}
-	// println!("{}", riscv_program);
 	riscv_program.funcs.iter_mut().for_each(register_alloc);
-	// riscv_program.
-	println!("{}", riscv_program);
-	todo!()
+	Ok(riscv_program)
 }
 
 fn main() -> Result<()> {
@@ -85,7 +83,7 @@ fn main() -> Result<()> {
 
 	let riscv = step_riscv(llvm)?;
 	if args.riscv {
-		write!(writer, "{:?}", riscv)?;
+		write!(writer, "{}", riscv)?;
 		return Ok(());
 	}
 

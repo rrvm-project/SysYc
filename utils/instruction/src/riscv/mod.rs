@@ -5,3 +5,5 @@ pub mod riscvinstr;
 pub mod riscvop;
 pub mod utils;
 pub mod value;
+
+pub use riscvinstr::RiscvInstr;

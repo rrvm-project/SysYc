@@ -23,6 +23,7 @@ members = [
   "frontend/parser",
   "optimizer",
   "backend/transform",
+  "backend/register",
 ]
 
 [dependencies]
@@ -40,6 +41,7 @@ irgen = { path = "frontend/irgen" }
 optimizer = { path = "optimizer" }
 
 transform = { path = "backend/transform" }
+register = { path = "backend/register" }
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"
