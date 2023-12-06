@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use utils::TempTrait;
+
 use crate::{llvmop::Value, llvmvar::VarType};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -18,6 +20,8 @@ impl Display for Temp {
 		}
 	}
 }
+
+impl TempTrait for Temp {}
 
 impl Temp {
 	fn new(name: impl Display, var_type: VarType, is_global: bool) -> Self {

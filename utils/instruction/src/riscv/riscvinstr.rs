@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use utils::{Label, UseTemp};
+use utils::{InstrTrait, Label, UseTemp};
 
 use crate::temp::Temp;
 
@@ -17,6 +17,8 @@ impl UseTemp<Temp> for RiscvInstr {
 		self.as_ref().get_write()
 	}
 }
+
+impl InstrTrait<Temp> for RiscvInstr {}
 
 pub struct RTriInstr {
 	pub op: RTriInstrOp,

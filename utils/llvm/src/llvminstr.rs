@@ -1,4 +1,4 @@
-use utils::{Label, UseTemp};
+use utils::{InstrTrait, Label, UseTemp};
 
 use crate::{llvmop::*, llvmvar::VarType, LlvmInstrVariant, Temp};
 use std::fmt::Display;
@@ -42,6 +42,8 @@ impl UseTemp<Temp> for LlvmInstr {
 		self.as_ref().get_write()
 	}
 }
+
+impl InstrTrait<Temp> for LlvmInstr {}
 
 #[derive(Clone)]
 pub struct ArithInstr {

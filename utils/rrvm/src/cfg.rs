@@ -1,14 +1,15 @@
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
-use utils::{Label, UseTemp};
+use utils::{InstrTrait, Label, TempTrait};
 
 pub use crate::basicblock::{BasicBlock, Node};
+use crate::LlvmCFG;
 
-pub struct CFG<T: Display + UseTemp<U>, U: Display> {
+pub struct CFG<T: InstrTrait<U>, U: TempTrait> {
 	pub blocks: Vec<Node<T, U>>,
 }
 
-impl<T: Display + UseTemp<U>, U: Display> CFG<T, U> {
+impl<T: InstrTrait<U>, U: TempTrait> CFG<T, U> {
 	pub fn new(id: i32, weight: f64) -> Self {
 		Self {
 			blocks: vec![BasicBlock::new_node(id, weight)],
@@ -30,18 +31,50 @@ impl<T: Display + UseTemp<U>, U: Display> CFG<T, U> {
 		self.get_exit().borrow().label()
 	}
 	pub fn make_pretty(&mut self) {
-		// self.blocks.sort_unstable_by(|x, y| x.borrow().id.cmp(&y.borrow().id));
 		self.blocks.iter().for_each(|v| v.borrow_mut().make_pretty())
 	}
 	pub fn size(&self) -> usize {
 		self.blocks.len()
 	}
+	pub fn analysis(&self) {
+		self.blocks.iter().for_each(|v| v.borrow_mut().init());
+		loop {
+			let mut changed = false;
+			for u in self.blocks.iter().rev() {
+				let mut new_liveout = HashSet::new();
+				for v in u.borrow().succ.iter() {
+					new_liveout.extend(v.borrow().live_in.clone());
+				}
+				let uses = u.borrow().uses.clone();
+				let defs = u.borrow().defs.clone();
+				let mut new_livein: HashSet<_> =
+					new_liveout.difference(&defs).cloned().collect();
+				new_livein.extend(uses);
+				if new_livein != u.borrow().live_in {
+					u.borrow_mut().live_in = new_livein;
+					u.borrow_mut().live_out = new_liveout;
+					changed = true;
+				}
+			}
+			if !changed {
+				break;
+			}
+		}
+	}
 }
 
-pub fn link_node<T, U>(from: &Node<T, U>, to: &Node<T, U>)
-where
+impl LlvmCFG {
+	pub fn init_phi(&self) {
+		self.blocks.iter().for_each(|v| v.borrow_mut().init_phi());
+	}
+}
+
+pub fn link_node<T: InstrTrait<U>, U: TempTrait>(
+	from: &Node<T, U>,
+	to: &Node<T, U>,
+) where
 	T: Display,
-	U: Display,
+	U: TempTrait,
 {
 	if from.borrow().jump_instr.is_none() {
 		from.borrow_mut().succ.push(to.clone());
@@ -49,10 +82,12 @@ where
 	}
 }
 
-pub fn link_cfg<T, U>(from: &CFG<T, U>, to: &CFG<T, U>)
-where
-	T: Display + UseTemp<U>,
-	U: Display,
+pub fn link_cfg<T: InstrTrait<U>, U: TempTrait>(
+	from: &CFG<T, U>,
+	to: &CFG<T, U>,
+) where
+	T: InstrTrait<U>,
+	U: TempTrait,
 {
 	link_node(&from.get_exit(), &to.get_entry())
 }
