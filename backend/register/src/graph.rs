@@ -120,7 +120,6 @@ impl InterferenceGraph {
 		for (u, v) in self.edges.iter() {
 			edges.entry(u).or_insert_with(Vec::new).push(v);
 		}
-		// eprintln!("{}", self.temps.len());
 		let mut temps = self
 			.temps
 			.iter()

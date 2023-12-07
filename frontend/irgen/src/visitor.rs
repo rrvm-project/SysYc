@@ -114,8 +114,6 @@ impl Visitor for IRGenerator {
 	}
 	fn visit_init_val_list(&mut self, _node: &mut InitValList) -> Result<()> {
 		// TODO: solve init_val_list
-		// eprintln!("")
-
 		todo!("I don't know how to solve this");
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
