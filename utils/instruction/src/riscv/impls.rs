@@ -12,7 +12,7 @@ use super::{
 
 impl Display for RTriInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "    {} {}, {}, {}", self.op, self.rd, self.rs1, self.rs2)
+		write!(f, "  {} {}, {}, {}", self.op, self.rd, self.rs1, self.rs2)
 	}
 }
 
@@ -52,7 +52,7 @@ impl RTriInstr {
 
 impl Display for ITriInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "    {} {}, {}, {}", self.op, self.rd, self.rs1, self.rs2)
+		write!(f, "  {} {}, {}, {}", self.op, self.rd, self.rs1, self.rs2)
 	}
 }
 
@@ -91,7 +91,7 @@ impl ITriInstr {
 
 impl Display for IBinInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "    {} {}, {}", self.op, self.rd, self.rs1)
+		write!(f, "  {} {}, {}", self.op, self.rd, self.rs1)
 	}
 }
 
@@ -100,7 +100,16 @@ impl RiscvInstrTrait for IBinInstr {
 		map_temp(&mut self.rd, map);
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
-		vec![self.rd]
+		match self.op {
+			Li | Lui | LD | LW | LWU => vec![self.rd],
+			SB | SH | SW | SD => vec![],
+		}
+	}
+	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
+		match self.op {
+			Li | Lui | LD | LW | LWU => vec![],
+			SB | SH | SW | SD => vec![self.rd],
+		}
 	}
 }
 
@@ -134,7 +143,7 @@ impl LabelInstr {
 
 impl Display for RBinInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "    {} {}, {}", self.op, self.rd, self.rs1)
+		write!(f, "  {} {}, {}", self.op, self.rd, self.rs1)
 	}
 }
 
@@ -164,7 +173,7 @@ impl RBinInstr {
 
 impl Display for BranInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "    {} {}, {}, {}", self.op, self.rs1, self.rs2, self.to)
+		write!(f, "  {} {}, {}, {}", self.op, self.rs1, self.rs2, self.to)
 	}
 }
 
@@ -197,7 +206,7 @@ impl BranInstr {
 
 impl Display for NoArgInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "    {}", self.op)
+		write!(f, "  {}", self.op)
 	}
 }
 

@@ -76,6 +76,7 @@ fn main() -> Result<()> {
 	}
 
 	let llvm = step_llvm(program, args.opimizer.unwrap_or(0))?;
+	write!(writer, "{}", llvm)?;
 	if args.llvm {
 		write!(writer, "{}", llvm)?;
 		return Ok(());

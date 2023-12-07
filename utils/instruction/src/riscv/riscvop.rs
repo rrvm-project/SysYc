@@ -78,13 +78,6 @@ pub enum RBinInstrOp {
 }
 
 #[derive(Fuyuki, PartialEq, Eq)]
-pub enum UnInstrOp {
-	Li,
-	Lb,
-	Lh,
-}
-
-#[derive(Fuyuki, PartialEq, Eq)]
 pub enum BranInstrOp {
 	#[style("BEQ")]
 	BEQ,

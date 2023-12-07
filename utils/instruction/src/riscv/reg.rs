@@ -6,12 +6,12 @@ pub const CALLER_SAVE: &[RiscvReg] =
 pub const CALLEE_SAVE: &[RiscvReg] =
 	&[S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11];
 pub const ALLOCABLE_REGS: &[RiscvReg] = &[
-	T0, T1, T2, T3, T4, T5, T6, A0, A1, A2, A3, A4, A5, A6, A7, S1, S2, S3, S4,
+	A0, A1, A2, A3, A4, A5, A6, A7, T0, T1, T2, T3, T4, T5, T6, S1, S2, S3, S4,
 	S5, S6, S7, S8, S9, S10, S11,
 ];
 pub const ALLOACBLE_COUNT: usize = ALLOCABLE_REGS.len();
 
-#[derive(Fuyuki, Clone, Copy, PartialEq, Eq)]
+#[derive(Fuyuki, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RiscvReg {
 	X0, // always zero
 	RA, // return address
