@@ -19,15 +19,11 @@ pub struct InstrDag {
 }
 
 impl InstrNode {
-	pub fn new(
-		instr: &LlvmInstr,
-		succ: Vec<Node>,
-		mgr: &mut TempManager,
-	) -> Result<InstrNode> {
+	pub fn new(instr: &LlvmInstr, mgr: &mut TempManager) -> Result<InstrNode> {
 		Ok(InstrNode {
 			in_deg: 0,
+			succ: Vec::new(),
 			instr: to_riscv(instr, mgr)?,
-			succ,
 		})
 	}
 }
@@ -35,18 +31,22 @@ impl InstrNode {
 impl InstrDag {
 	pub fn new(instrs: &LlvmInstrSet, mgr: &mut TempManager) -> Result<InstrDag> {
 		let mut nodes = Vec::new();
-		let mut edge = HashMap::new();
+		let mut uses: HashMap<llvm::Temp, Vec<Node>> = HashMap::new();
+		let mut defs: HashMap<llvm::Temp, Node> = HashMap::new();
 		for instr in instrs.iter().rev() {
-			let prev = instr.get_read();
-			let node = if let Some(target) = instr.get_write() {
-				InstrNode::new(instr, edge.remove(&target).unwrap_or(Vec::new()), mgr)
-			} else {
-				InstrNode::new(instr, Vec::new(), mgr)
-			}?;
-			let node = Rc::new(RefCell::new(node));
-			for label in prev {
-				edge.entry(label).or_insert_with(Vec::new).push(Rc::clone(&node));
+			let mut succ: Vec<Node> = Vec::new();
+			let node = Rc::new(RefCell::new(InstrNode::new(instr, mgr)?));
+			for temp in instr.get_read() {
+				if let Some(def) = defs.get(&temp) {
+					succ.push(def.clone());
+				}
+				uses.entry(temp).or_default().push(node.clone());
 			}
+			if let Some(target) = instr.get_write() {
+				succ.extend(uses.remove(&target).unwrap_or_default());
+				defs.insert(target, node.clone());
+			}
+			node.borrow_mut().succ = succ;
 			nodes.push(node);
 		}
 		Ok(InstrDag { nodes })
