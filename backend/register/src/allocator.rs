@@ -19,20 +19,13 @@ impl RegAllocator {
 	pub fn alloc(&mut self, func: &mut RiscvFunc) {
 		let map: HashMap<_, _> = loop {
 			func.cfg.analysis();
-			eprintln!("{}", func.cfg);
 			let mut graph = InterferenceGraph::new(&func.cfg);
-			for (u, v) in graph.edges.iter() {
-				eprintln!("{} {}", u.id, v.id);
-			}
 			if graph.coloring() {
 				break graph.color;
 			}
 			let node = graph.spill_node.unwrap();
 			spill(func, node);
 		};
-		for (k, v) in map.iter() {
-			eprintln!("{} {}", k, v);
-		}
 		func.cfg.blocks.iter().for_each(|v| v.borrow_mut().map_temp(&map));
 	}
 }

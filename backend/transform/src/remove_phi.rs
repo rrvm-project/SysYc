@@ -18,7 +18,6 @@ pub fn remove_phi(u: &LlvmNode) {
 	}
 	let prev = u.borrow().prev.clone();
 	for v in prev.into_iter() {
-		// eprintln!("remove phi start:");
 		let src = table.remove(&v.borrow().label()).unwrap();
 		let mut map = HashMap::new();
 		for (target, value) in src.iter() {
@@ -29,9 +28,6 @@ pub fn remove_phi(u: &LlvmNode) {
 				map.entry(temp).and_modify(|(_, v)| *v += 1);
 			}
 		}
-		// for (target, (value, cnt)) in map.iter() {
-		// 	eprintln!("target: {} value: {} cnt:{}", target, value, cnt);
-		// }
 		let mut ready = Vec::<(&Temp, &Value)>::new();
 		map.retain(|target, (value, cnt)| {
 			*cnt != 0 || {
@@ -40,7 +36,6 @@ pub fn remove_phi(u: &LlvmNode) {
 			}
 		});
 		while let Some((target, value)) = ready.pop() {
-			// eprintln!("insert: target {target}, value: {value}");
 			let var_type = value.get_type();
 			v.borrow_mut().push(Box::new(ArithInstr {
 				target: target.clone(),
