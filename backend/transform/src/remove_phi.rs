@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use llvm::ArithInstr;
+use llvm::{ArithInstr, Temp, Value};
 use rrvm::LlvmNode;
 
 pub fn remove_phi(u: &LlvmNode) {
@@ -18,16 +18,45 @@ pub fn remove_phi(u: &LlvmNode) {
 	}
 	let prev = u.borrow().prev.clone();
 	for v in prev.into_iter() {
+		// eprintln!("remove phi start:");
 		let src = table.remove(&v.borrow().label()).unwrap();
-		for (target, value) in src {
+		let mut map = HashMap::new();
+		for (target, value) in src.iter() {
+			map.insert(target, (value, 0));
+		}
+		for (_, value) in src.iter() {
+			if let Value::Temp(temp) = value {
+				map.entry(temp).and_modify(|(_, v)| *v += 1);
+			}
+		}
+		// for (target, (value, cnt)) in map.iter() {
+		// 	eprintln!("target: {} value: {} cnt:{}", target, value, cnt);
+		// }
+		let mut ready = Vec::<(&Temp, &Value)>::new();
+		map.retain(|target, (value, cnt)| {
+			*cnt != 0 || {
+				ready.push((target, value));
+				false
+			}
+		});
+		while let Some((target, value)) = ready.pop() {
+			// eprintln!("insert: target {target}, value: {value}");
 			let var_type = value.get_type();
 			v.borrow_mut().push(Box::new(ArithInstr {
-				target,
+				target: target.clone(),
 				lhs: var_type.default_value(),
 				op: var_type.move_op(),
 				var_type,
-				rhs: value,
+				rhs: value.clone(),
 			}));
+			if let Value::Temp(target) = value {
+				map.entry(target).and_modify(|(value, cnt)| {
+					*cnt -= 1;
+					if *cnt == 0 {
+						ready.push((target, value));
+					}
+				});
+			}
 		}
 	}
 	u.borrow_mut().phi_instrs.clear();

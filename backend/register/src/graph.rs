@@ -50,7 +50,11 @@ impl InterferenceGraph {
 				// calc graph
 				if instr.is_start() {
 					instr.get_write().iter().for_each(|v| {
-						now.remove(v);
+						if !now.remove(v) {
+							graph
+								.edges
+								.extend(now.iter().flat_map(move |&y| vec![(*v, y), (y, *v)]));
+						}
 					});
 				}
 				graph.edges.extend(

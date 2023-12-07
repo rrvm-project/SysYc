@@ -17,9 +17,9 @@ impl RegAllocator {
 		Self {}
 	}
 	pub fn alloc(&mut self, func: &mut RiscvFunc) {
-		eprintln!("{}", func.cfg);
 		let map: HashMap<_, _> = loop {
 			func.cfg.analysis();
+			eprintln!("{}", func.cfg);
 			let mut graph = InterferenceGraph::new(&func.cfg);
 			for (u, v) in graph.edges.iter() {
 				eprintln!("{} {}", u.id, v.id);

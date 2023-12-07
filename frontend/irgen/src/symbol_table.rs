@@ -40,7 +40,7 @@ impl SymbolTable {
 	pub fn get(&self, id: &i32) -> Value {
 		self.get_skip(id, 0).unwrap()
 	}
-	pub fn has(&self, id: &i32) -> bool {
+	pub fn contains(&self, id: &i32) -> bool {
 		self.get_skip(id, 0).is_some()
 	}
 	pub fn set(&mut self, id: i32, temp: Value) {
