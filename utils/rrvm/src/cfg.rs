@@ -50,7 +50,9 @@ impl<T: InstrTrait<U>, U: TempTrait> CFG<T, U> {
 				let mut new_livein: HashSet<_> =
 					new_liveout.difference(&defs).cloned().collect();
 				new_livein.extend(uses);
-				if new_livein != u.borrow().live_in {
+				if new_livein != u.borrow().live_in
+					|| new_liveout != u.borrow().live_out
+				{
 					u.borrow_mut().live_in = new_livein;
 					u.borrow_mut().live_out = new_liveout;
 					changed = true;

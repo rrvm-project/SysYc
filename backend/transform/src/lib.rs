@@ -24,6 +24,7 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 	let mut edge = Vec::new();
 	let mut table = HashMap::new();
 	func.cfg.blocks.iter().for_each(remove_phi::remove_phi);
+	eprintln!("remove_phi:=========\n{}", func.cfg);
 	for u in func.cfg.blocks {
 		let u_id = u.borrow().id;
 		edge.extend(u.borrow().succ.iter().map(|v| (u_id, v.borrow().id)));

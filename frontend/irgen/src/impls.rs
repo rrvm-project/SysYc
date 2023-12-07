@@ -118,6 +118,7 @@ impl IRGenerator {
 			.keys()
 			.chain(diff2.keys())
 			.cloned()
+			.filter(|v| self.symbol_table.contains(v))
 			.collect::<HashSet<_>>()
 			.into_iter();
 		fn get_val(id: i32, now: &Table, default: &SymbolTable) -> Value {
@@ -160,7 +161,7 @@ impl IRGenerator {
 		let mut table = Table::new();
 		let mut need_phi = HashMap::new();
 		let symbols: HashSet<_> =
-			symbols.into_iter().filter(|v| self.symbol_table.has(v)).collect();
+			symbols.into_iter().filter(|v| self.symbol_table.contains(v)).collect();
 		for id in symbols {
 			let value = self.symbol_table.get(&id);
 			table.insert(id, value.clone());
@@ -182,7 +183,7 @@ impl IRGenerator {
 			.flat_map(|(_, table)| table.iter().map(|(k, v)| (*k, v.get_type())))
 			.collect::<HashSet<_>>()
 			.into_iter()
-			.filter(|(id, _)| self.symbol_table.has(id))
+			.filter(|(id, _)| self.symbol_table.contains(id))
 			.map(|(id, var_type)| {
 				let temp = need_phi
 					.as_ref()
