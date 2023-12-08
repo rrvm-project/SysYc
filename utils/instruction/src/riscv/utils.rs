@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 
+use utils::{mapper::LabelMapper, Label};
+
 use crate::temp::Temp;
 
-use super::{reg::RiscvReg, value::RiscvTemp};
+use super::{
+	reg::RiscvReg,
+	value::{RiscvImm, RiscvTemp},
+};
 
 pub fn unwarp_temp(temp: RiscvTemp) -> Option<Temp> {
 	match temp {
@@ -21,4 +26,14 @@ pub fn map_temp(temp: &mut RiscvTemp, map: &HashMap<Temp, RiscvReg>) {
 		RiscvTemp::PhysReg(v) => v,
 	};
 	*temp = RiscvTemp::PhysReg(*reg);
+}
+
+pub fn map_label(label: &mut Label, map: &mut LabelMapper) {
+	*label = map.get(label.clone())
+}
+
+pub fn map_imm_label(val: &mut RiscvImm, map: &mut LabelMapper) {
+	if let RiscvImm::Label(label) = val {
+		map_label(label, map)
+	}
 }

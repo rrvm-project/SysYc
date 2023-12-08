@@ -13,6 +13,7 @@ use anyhow::Result;
 use ast::tree::Program;
 use clap::Parser;
 use cli::Args;
+use emission::code_emission;
 use irgen::IRGenerator;
 use namer::visitor::Namer;
 use optimizer::*;
@@ -50,7 +51,7 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 	Ok(program)
 }
 
-fn step_riscv(program: LlvmProgram) -> Result<RiscvProgram> {
+fn step_riscv(program: LlvmProgram, _level: i32) -> Result<RiscvProgram> {
 	let mut riscv_program = RiscvProgram::new();
 	for func in program.funcs.into_iter() {
 		riscv_program.funcs.push(convert_func(func)?);
@@ -68,6 +69,8 @@ fn main() -> Result<()> {
 		Box::new(io::stdout())
 	};
 
+	let level = args.opimizer.unwrap_or(0);
+
 	let program = step_parse(args.input)?;
 	if args.parse {
 		let x = format!("{:#?}", program);
@@ -75,17 +78,20 @@ fn main() -> Result<()> {
 		return Ok(());
 	}
 
-	let llvm = step_llvm(program, args.opimizer.unwrap_or(0))?;
+	let llvm = step_llvm(program, level)?;
 	if args.llvm {
 		write!(writer, "{}", llvm)?;
 		return Ok(());
 	}
 
-	let riscv = step_riscv(llvm)?;
+	let riscv = step_riscv(llvm, level)?;
 	if args.riscv {
 		write!(writer, "{}", riscv)?;
 		return Ok(());
 	}
 
-	unreachable!()
+	let code = code_emission(riscv);
+	write!(writer, "{}", code)?;
+
+	Ok(())
 }

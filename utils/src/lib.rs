@@ -1,6 +1,7 @@
 pub mod errors;
 pub mod init_value_item;
 pub mod label;
+pub mod mapper;
 use std::{fmt::Display, hash::Hash};
 
 pub use errors::*;
@@ -27,3 +28,7 @@ pub trait UseTemp<U> {
 
 pub trait InstrTrait<U>: Display + UseTemp<U> {}
 pub trait TempTrait: Display + Hash + Eq + Clone {}
+
+pub fn instr_format<T: Display>(v: T) -> String {
+	format!("  {}", v)
+}

@@ -24,6 +24,7 @@ members = [
   "optimizer",
   "backend/transform",
   "backend/register",
+  "backend/emission",
 ]
 
 [dependencies]
@@ -42,6 +43,7 @@ optimizer = { path = "optimizer" }
 
 transform = { path = "backend/transform" }
 register = { path = "backend/register" }
+emission = { path = "backend/emission" }
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"
