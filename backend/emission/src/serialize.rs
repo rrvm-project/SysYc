@@ -9,8 +9,7 @@ use instruction::{
 	RiscvInstrSet,
 };
 use rrvm::program::RiscvFunc;
-
-use crate::utils::UnionFind;
+use utils::union_find::UnionFind;
 
 pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	let size = func.spill_size;
@@ -31,8 +30,9 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	}
 	nodes.sort_by(|x, y| x.borrow().id.cmp(&y.borrow().id));
 	let mut instrs = Vec::new();
-	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
-
+	if size != 0 {
+		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
+	}
 	let is_pre = Box::new(|u: i32, v: i32| -> bool {
 		pre.get(&v).map_or(false, |v| *v == u)
 	});
@@ -54,6 +54,8 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 		}
 	}
 	nodes.into_iter().for_each(|v| v.borrow_mut().clear());
-	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
+	if size != 0 {
+		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
+	}
 	(func.name, instrs)
 }

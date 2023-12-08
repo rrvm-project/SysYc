@@ -13,11 +13,15 @@ use instruction::{
 	temp::Temp,
 };
 use rrvm::RiscvCFG;
+use utils::union_find::UnionFind;
+
+use crate::utils::{get_degree, spill_cost};
 
 #[derive(Default)]
 pub struct InterferenceGraph {
 	pub temps: Vec<Temp>,
 	pub spill_node: Option<Temp>,
+	pub union_find: UnionFind<Temp>,
 	pub color: HashMap<Temp, RiscvReg>,
 	pub edges: Vec<(Temp, Temp)>,
 	pub merge_w: HashMap<(Temp, Temp), f64>,
@@ -133,6 +137,59 @@ impl InterferenceGraph {
 		}
 	}
 
+	pub fn merge_nodes(&mut self) {
+		let mut edges: HashMap<Temp, Vec<Temp>> = HashMap::new();
+		for (u, v) in self.edges.iter() {
+			edges.entry(*u).or_default().push(*v);
+		}
+		let mut to_merge: Vec<_> = self
+			.merge_w
+			.iter()
+			.filter(|((x, y), _)| x < y)
+			.map(|((u, v), w)| (u, v, w))
+			.collect();
+		to_merge.sort_by(|(_, _, x), (_, _, y)| y.total_cmp(x));
+
+		loop {
+			let mut flag = true;
+			for (&x, &y, _) in to_merge.iter() {
+				if !self.union_find.same(x, y) {
+					let x = self.union_find.find(x);
+					let y = self.union_find.find(y);
+					if edges.get(&x).map_or(true, |e| e.iter().all(|&v| v != y)) {
+						// x 和 y 的邻居节点中 >= N 的 小于 N ？
+						let a = edges.get(&x).cloned().unwrap_or_else(Vec::new);
+						let b = edges.get(&y).cloned().unwrap_or_else(Vec::new);
+						let neighbors: HashSet<_> = a
+							.into_iter()
+							.chain(b.into_iter())
+							.filter(|v| {
+								get_degree(v, &edges, &mut self.union_find) >= ALLOACBLE_COUNT
+							})
+							.collect();
+						if neighbors.len() < ALLOACBLE_COUNT {
+							let a = edges.get(&x).cloned().unwrap_or_else(Vec::new);
+							a.iter().for_each(|v| edges.entry(*v).or_default().push(y));
+							edges.entry(y).or_default().extend(a);
+							self.union_find.merge(x, y);
+							flag = false;
+						}
+					}
+				}
+			}
+			if flag {
+				break;
+			}
+		}
+		self.edges = edges
+			.into_iter()
+			.flat_map(|(x, y)| y.into_iter().map(|v| (x, v)).collect::<Vec<_>>())
+			.filter(|(x, y)| {
+				self.union_find.is_root(*x) && self.union_find.is_root(*y)
+			})
+			.collect();
+	}
+
 	pub fn coloring(&mut self) -> bool {
 		let mut edges = HashMap::new();
 		let mut color = HashMap::new();
@@ -145,37 +202,46 @@ impl InterferenceGraph {
 			.map(|v| {
 				let degree = edges.get(v).map(|arr| arr.len()).unwrap_or_default();
 				let weight = self.spill_cost.get(v).copied().unwrap_or(0.0);
-				(degree as f64 + weight, v)
+				(spill_cost(weight, degree), v)
 			})
 			.collect::<Vec<_>>();
 
 		temps.sort_by(|(x, _), (y, _)| y.total_cmp(x));
-		for (_, temp) in temps {
-			let mut a: Vec<_> = self
-				.color_w
-				.remove(temp)
-				.unwrap_or_else(default_array)
-				.into_iter()
-				.enumerate()
-				.collect();
-			a.sort_by(cmp_tuple);
-			let used: HashSet<_> = edges
-				.remove(temp)
-				.unwrap_or_else(Vec::new)
-				.iter()
-				.filter_map(|v| color.get(v))
-				.collect();
-			if let Some(reg) = a.into_iter().find(|(index, _)| !used.contains(index))
-			{
-				color.insert(temp, reg.0);
-			} else {
-				self.spill_node = Some(*temp);
-				return false;
+		for (_, temp) in temps.iter() {
+			if self.union_find.is_root(**temp) {
+				let mut a: Vec<_> = self
+					.color_w
+					.remove(temp)
+					.unwrap_or_else(default_array)
+					.into_iter()
+					.enumerate()
+					.collect();
+				a.sort_by(cmp_tuple);
+				let used: HashSet<_> = edges
+					.remove(temp)
+					.unwrap_or_else(Vec::new)
+					.iter()
+					.filter_map(|v| color.get(*v))
+					.collect();
+				if let Some(reg) =
+					a.into_iter().find(|(index, _)| !used.contains(index))
+				{
+					color.insert(**temp, reg.0);
+				} else {
+					self.spill_node = Some(**temp);
+					return false;
+				}
+			}
+		}
+		for (_, &temp) in temps {
+			if !self.union_find.is_root(temp) {
+				let v = color.get(&self.union_find.find(temp)).unwrap();
+				color.insert(temp, *v);
 			}
 		}
 		self.color = color
 			.into_iter()
-			.map(|(k, v)| (*k, *ALLOCABLE_REGS.get(v).unwrap()))
+			.map(|(k, v)| (k, *ALLOCABLE_REGS.get(v).unwrap()))
 			.collect();
 		true
 	}
