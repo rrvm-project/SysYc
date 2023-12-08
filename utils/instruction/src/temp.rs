@@ -4,7 +4,7 @@ use utils::TempTrait;
 
 use crate::riscv::value::RiscvTemp;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Temp {
 	pub id: u32,
 }

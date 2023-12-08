@@ -13,6 +13,7 @@ impl RegAllocator {
 		let map: HashMap<_, _> = loop {
 			func.cfg.analysis();
 			let mut graph = InterferenceGraph::new(&func.cfg);
+			graph.merge_nodes();
 			if graph.coloring() {
 				break graph.color;
 			}
