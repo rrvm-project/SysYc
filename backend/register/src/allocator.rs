@@ -4,18 +4,10 @@ use rrvm::program::RiscvFunc;
 
 use crate::{graph::InterferenceGraph, spill::spill};
 
+#[derive(Default)]
 pub struct RegAllocator {}
 
-impl Default for RegAllocator {
-	fn default() -> Self {
-		Self::new()
-	}
-}
-
 impl RegAllocator {
-	pub fn new() -> Self {
-		Self {}
-	}
 	pub fn alloc(&mut self, func: &mut RiscvFunc) {
 		let map: HashMap<_, _> = loop {
 			func.cfg.analysis();

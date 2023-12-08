@@ -4,20 +4,12 @@ use value::{FuncType, VarType};
 
 use crate::{FuncSymbol, Symbol, VarSymbol};
 
+#[derive(Default)]
 pub struct SymbolManager {
 	cnt: i32,
 }
 
-impl Default for SymbolManager {
-	fn default() -> Self {
-		Self::new()
-	}
-}
-
 impl SymbolManager {
-	pub fn new() -> Self {
-		Self { cnt: 0 }
-	}
 	pub fn new_var_symbol(
 		&mut self,
 		ident: impl Display,

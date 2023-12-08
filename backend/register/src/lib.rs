@@ -6,5 +6,5 @@ pub mod graph;
 pub mod spill;
 
 pub fn register_alloc(func: &mut RiscvFunc) {
-	RegAllocator::new().alloc(func);
+	RegAllocator::default().alloc(func);
 }

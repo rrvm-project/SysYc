@@ -125,10 +125,12 @@ pub struct While {
 
 #[derive(Debug, AstNode)]
 #[has_attrs]
+#[derive(Default)]
 pub struct Break {}
 
 #[derive(Debug, AstNode)]
 #[has_attrs]
+#[derive(Default)]
 pub struct Continue {}
 
 #[derive(Debug, AstNode)]

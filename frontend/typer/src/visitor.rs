@@ -7,18 +7,10 @@ use value::{
 	BType, UnaryOp, VarType,
 };
 
+#[derive(Default)]
 pub struct Typer {}
 
-impl Default for Typer {
-	fn default() -> Self {
-		Self::new()
-	}
-}
-
 impl Typer {
-	pub fn new() -> Self {
-		Self {}
-	}
 	pub fn transform(&mut self, program: &mut Program) -> Result<()> {
 		program.accept(self)
 	}

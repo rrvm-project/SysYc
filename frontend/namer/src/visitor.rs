@@ -7,26 +7,15 @@ use value::{
 	calc::{exec_binaryop, exec_unaryop},
 	BType, BinaryOp, FuncType, Value, VarType,
 };
+
+#[derive(Default)]
 pub struct Namer {
 	mgr: SymbolManager,
 	ctx: ScopeStack,
 	cur_type: Option<(bool, BType)>,
 }
 
-impl Default for Namer {
-	fn default() -> Self {
-		Self::new()
-	}
-}
-
 impl Namer {
-	pub fn new() -> Self {
-		Self {
-			mgr: SymbolManager::new(),
-			ctx: ScopeStack::new(),
-			cur_type: None,
-		}
-	}
 	pub fn transform(&mut self, program: &mut Program) -> Result<()> {
 		program.accept(self)
 	}
