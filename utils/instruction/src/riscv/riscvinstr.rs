@@ -44,6 +44,9 @@ pub trait RiscvInstrTrait:
 	}
 	fn map_label(&mut self, _map: &mut LabelMapper) {}
 	fn move_sp(&self, _height: &mut i32) {}
+	fn useless(&self) -> bool {
+		false
+	}
 }
 
 impl UseTemp<Temp> for RiscvInstr {

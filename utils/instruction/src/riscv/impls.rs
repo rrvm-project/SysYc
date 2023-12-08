@@ -42,6 +42,26 @@ impl RiscvInstrTrait for RTriInstr {
 			todo!()
 		}
 	}
+	fn useless(&self) -> bool {
+		match (&self.op, &self.rd, &self.rs1, &self.rs2) {
+			(Add, PhysReg(x), PhysReg(y), PhysReg(z))
+				if x == y && *z == X0 || x == z && *y == X0 =>
+			{
+				true
+			}
+			(Xor, PhysReg(x), PhysReg(y), PhysReg(z))
+				if x == y && *z == X0 || x == z && *y == X0 =>
+			{
+				true
+			}
+			(Or, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
+			(Srl, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
+			(Sra, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
+			(Slt, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
+			(Sltu, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
+			_ => false,
+		}
+	}
 }
 
 impl RTriInstr {
@@ -90,6 +110,14 @@ impl RiscvInstrTrait for ITriInstr {
 			(&self.op, &self.rd, &self.rs1, &self.rs2)
 		{
 			*height += dis
+		}
+	}
+	fn useless(&self) -> bool {
+		match (&self.op, &self.rd, &self.rs1, &self.rs2) {
+			(Addi, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
+			(Xori, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
+			(Ori, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
+			_ => false,
 		}
 	}
 }

@@ -30,9 +30,7 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	}
 	nodes.sort_by(|x, y| x.borrow().id.cmp(&y.borrow().id));
 	let mut instrs = Vec::new();
-	if size != 0 {
-		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
-	}
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
 	let is_pre = Box::new(|u: i32, v: i32| -> bool {
 		pre.get(&v).map_or(false, |v| *v == u)
 	});
@@ -54,8 +52,7 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 		}
 	}
 	nodes.into_iter().for_each(|v| v.borrow_mut().clear());
-	if size != 0 {
-		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
-	}
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
+	instrs.retain(|v| !v.useless());
 	(func.name, instrs)
 }
