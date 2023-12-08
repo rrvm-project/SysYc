@@ -62,6 +62,7 @@ impl<T: InstrTrait<U>, U: TempTrait> CFG<T, U> {
 				break;
 			}
 		}
+		self.blocks.iter().for_each(|v| v.borrow_mut().calc_kill());
 	}
 }
 

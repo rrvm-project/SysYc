@@ -18,6 +18,7 @@ pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub succ: Vec<Node<T, U>>,
 	pub defs: HashSet<U>,
 	pub uses: HashSet<U>,
+	pub kills: HashSet<U>,
 	pub live_in: HashSet<U>,
 	pub live_out: HashSet<U>,
 	pub phi_instrs: Vec<PhiInstr>,
@@ -34,6 +35,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			succ: Vec::new(),
 			defs: HashSet::new(),
 			uses: HashSet::new(),
+			kills: HashSet::new(),
 			live_in: HashSet::new(),
 			live_out: HashSet::new(),
 			phi_instrs: Vec::new(),
@@ -105,6 +107,10 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 		}
 		self.uses.retain(|v| !self.defs.contains(v));
 	}
+	pub fn calc_kill(&mut self) {
+		let lives: HashSet<_> = self.defs.union(&self.live_in).cloned().collect();
+		self.kills = lives.difference(&self.live_out).cloned().collect();
+	}
 }
 
 impl BasicBlock<LlvmInstr, llvm::Temp> {
@@ -171,6 +177,7 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
 		let succ: Vec<_> = self.succ.iter().map(|v| v.borrow().id).collect();
 		let defs: Vec<_> = self.defs.iter().map(|v| v.to_string()).collect();
 		let uses: Vec<_> = self.uses.iter().map(|v| v.to_string()).collect();
+		let kills: Vec<_> = self.kills.iter().map(|v| v.to_string()).collect();
 		let live_in: Vec<_> = self.live_in.iter().map(|v| v.to_string()).collect();
 		let live_out: Vec<_> =
 			self.live_out.iter().map(|v| v.to_string()).collect();
@@ -188,6 +195,7 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
     prev: {:?} succ: {:?}
     uses: {:?}
     defs: {:?}
+		kills: {:?}
     livein: {:?}
     liveout: {:?}\n{}",
 			self.label(),
@@ -195,6 +203,7 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
 			succ,
 			uses,
 			defs,
+			kills,
 			live_in,
 			live_out,
 			instrs

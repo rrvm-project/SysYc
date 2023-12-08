@@ -29,6 +29,15 @@ impl From<f32> for Value {
 	}
 }
 
+impl From<&Value> for i32 {
+	fn from(value: &Value) -> Self {
+		match value {
+			Value::Int(v) => *v,
+			_ => unreachable!(),
+		}
+	}
+}
+
 impl Display for ArithInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(
@@ -278,6 +287,9 @@ impl LlvmInstrTrait for AllocInstr {
 	}
 	fn type_valid(&self) -> bool {
 		self.length.get_type() == VarType::I32
+	}
+	fn get_alloc(&self) -> Option<(Temp, Value)> {
+		Some((self.target.clone(), self.length.clone()))
 	}
 }
 

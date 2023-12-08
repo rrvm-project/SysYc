@@ -54,4 +54,10 @@ impl VarType {
 			_ => ArithOp::Add,
 		}
 	}
+	pub fn get_size(&self) -> usize {
+		match self {
+			Self::I32 | Self::I32Ptr | Self::F32 | Self::F32Ptr => 4,
+			Self::Void => unreachable!(),
+		}
+	}
 }

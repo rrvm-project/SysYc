@@ -1,7 +1,16 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use instr_dag::InstrDag;
-use instruction::temp::TempManager;
+use instruction::{
+	riscv::{
+		convert::i32_to_reg,
+		reg::RiscvReg::SP,
+		riscvinstr::{ITriInstr, RTriInstr},
+		riscvop::{ITriInstrOp::Addi, RTriInstrOp::Add},
+		value::is_lower,
+	},
+	temp::TempManager,
+};
 
 use rrvm::{
 	cfg::{link_node, BasicBlock},
@@ -19,24 +28,48 @@ pub mod transformer;
 use crate::instr_schedule::instr_schedule;
 
 pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
-	let mut blocks = Vec::new();
+	let mut nodes = Vec::new();
 	let mgr = &mut TempManager::new(0);
 	let mut edge = Vec::new();
 	let mut table = HashMap::new();
+	let mut alloc_table = HashMap::new();
 	func.cfg.blocks.iter().for_each(remove_phi::remove_phi);
-	for u in func.cfg.blocks {
-		let u_id = u.borrow().id;
-		edge.extend(u.borrow().succ.iter().map(|v| (u_id, v.borrow().id)));
-		let block = transform_basicblock(u, mgr)?;
-		table.insert(u_id, block.clone());
-		blocks.push(block)
+	for block in func.cfg.blocks.iter() {
+		for instr in block.borrow().instrs.iter() {
+			if let Some((temp, length)) = instr.get_alloc() {
+				alloc_table.insert(temp, length);
+			}
+		}
+	}
+	for block in func.cfg.blocks {
+		let kill_size = block
+			.borrow()
+			.kills
+			.iter() // TODO: alloc size which is variable?
+			.map(|v| alloc_table.get(v).map_or(0, |v| v.into()))
+			.sum::<i32>();
+		let kill_size = (kill_size + 15) & -16;
+		let id = block.borrow().id;
+		edge.extend(block.borrow().succ.iter().map(|v| (id, v.borrow().id)));
+		let node = transform_basicblock(block, mgr)?;
+		table.insert(id, node.clone());
+		if kill_size != 0 {
+			let instr = if is_lower(kill_size) {
+				ITriInstr::new(Addi, SP.into(), SP.into(), kill_size.into())
+			} else {
+				let num = i32_to_reg(kill_size, &mut node.borrow_mut().instrs, mgr);
+				RTriInstr::new(Add, SP.into(), SP.into(), num)
+			};
+			node.borrow_mut().instrs.push(instr);
+		}
+		nodes.push(node);
 	}
 	for (u, v) in edge {
 		link_node(table.get(&u).unwrap(), table.get(&v).unwrap())
 	}
 	Ok(RiscvFunc {
 		total: mgr.total,
-		cfg: RiscvCFG { blocks },
+		cfg: RiscvCFG { blocks: nodes },
 		name: func.name,
 		params: func.params,
 		ret_type: func.ret_type,

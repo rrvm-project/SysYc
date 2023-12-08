@@ -76,8 +76,8 @@ impl Visitor for IRGenerator {
 			init.accept(self)?;
 			let (mut cfg, value, _) = self.stack.pop().unwrap();
 			if symbol.var_type.is_array() {
-				let temp = self.mgr.new_temp(var_type, false);
-				self.symbol_table.set(symbol.id, temp.clone().into());
+				// TODO: solve array init value list
+				todo!()
 			} else {
 				let value = self.type_conv(value.unwrap(), var_type, &mut cfg);
 				self.symbol_table.set(symbol.id, value);
@@ -91,7 +91,7 @@ impl Visitor for IRGenerator {
 				self.symbol_table.set(symbol.id, temp.clone().into());
 				let instr = Box::new(AllocInstr {
 					target: temp.clone(),
-					length: (length as i32).into(),
+					length: ((length * var_type.deref_type().get_size()) as i32).into(),
 					var_type,
 				});
 				cfg.get_entry().borrow_mut().push(instr);
