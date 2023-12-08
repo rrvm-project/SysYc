@@ -21,7 +21,7 @@ fn reg_cost(val: &llvm::llvmop::Value) -> i32 {
 	}
 }
 
-fn i32_to_reg(
+pub fn i32_to_reg(
 	num: i32,
 	instrs: &mut RiscvInstrSet,
 	mgr: &mut TempManager,
