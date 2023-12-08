@@ -8,22 +8,20 @@ pub use NoArgInstrOp::*;
 pub use RBinInstrOp::*;
 pub use RTriInstrOp::*;
 
-#[derive(Fuyuki, PartialEq, Eq)]
+#[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum ITriInstrOp {
 	Addi,
-
 	Xori,
 	Ori,
 	Andi,
 	Slli,
 	Srli,
 	Srai,
-
 	Slti,
 	Sltiu,
 }
 
-#[derive(Fuyuki, PartialEq, Eq)]
+#[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum RTriInstrOp {
 	Add,
 	Sub,
@@ -56,7 +54,7 @@ pub enum RTriInstrOp {
 	Fle,
 }
 
-#[derive(Fuyuki, PartialEq, Eq)]
+#[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum IBinInstrOp {
 	Li,
 	Lui,
@@ -69,7 +67,7 @@ pub enum IBinInstrOp {
 	SD,
 }
 
-#[derive(Fuyuki, PartialEq, Eq)]
+#[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum RBinInstrOp {
 	#[style("fcvt.s.w")]
 	Int2Float,
@@ -77,7 +75,7 @@ pub enum RBinInstrOp {
 	Float2Int,
 }
 
-#[derive(Fuyuki, PartialEq, Eq)]
+#[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum BranInstrOp {
 	#[style("BEQ")]
 	BEQ,
@@ -93,7 +91,7 @@ pub enum BranInstrOp {
 	BGEU,
 }
 
-#[derive(Fuyuki, PartialEq, Eq)]
+#[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum NoArgInstrOp {
 	Ret,
 }

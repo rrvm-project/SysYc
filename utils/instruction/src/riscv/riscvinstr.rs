@@ -4,7 +4,7 @@ use utils::{mapper::LabelMapper, InstrTrait, Label, UseTemp};
 
 use crate::temp::Temp;
 
-use super::{reg::RiscvReg, riscvop::*, value::*};
+use super::{riscvop::*, value::*};
 
 pub type RiscvInstr = Box<dyn RiscvInstrTrait>;
 
@@ -13,8 +13,23 @@ pub trait RiscvAttr {
 	fn set_start(&mut self, val: bool) -> bool;
 }
 
-pub trait RiscvInstrTrait: Display + UseTemp<Temp> + RiscvAttr {
-	fn map_temp(&mut self, _map: &HashMap<Temp, RiscvReg>) {}
+pub trait CloneRiscvInstr {
+	fn clone_box(&self) -> Box<dyn RiscvInstrTrait>;
+}
+
+impl<T> CloneRiscvInstr for T
+where
+	T: 'static + RiscvInstrTrait + Clone,
+{
+	fn clone_box(&self) -> Box<dyn RiscvInstrTrait> {
+		Box::new(self.clone())
+	}
+}
+
+pub trait RiscvInstrTrait:
+	Display + UseTemp<Temp> + RiscvAttr + CloneRiscvInstr
+{
+	fn map_temp(&mut self, _map: &HashMap<Temp, RiscvTemp>) {}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		Vec::new()
 	}
@@ -28,6 +43,7 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + RiscvAttr {
 		unreachable!()
 	}
 	fn map_label(&mut self, _map: &mut LabelMapper) {}
+	fn move_sp(&self, _height: &mut i32) {}
 }
 
 impl UseTemp<Temp> for RiscvInstr {
@@ -42,7 +58,7 @@ impl UseTemp<Temp> for RiscvInstr {
 impl InstrTrait<Temp> for RiscvInstr {}
 
 #[has_riscv_attrs]
-#[derive(UseTemp)]
+#[derive(UseTemp, Clone)]
 pub struct RTriInstr {
 	pub op: RTriInstrOp,
 	pub rd: RiscvTemp,
@@ -51,7 +67,7 @@ pub struct RTriInstr {
 }
 
 #[has_riscv_attrs]
-#[derive(UseTemp)]
+#[derive(UseTemp, Clone)]
 pub struct ITriInstr {
 	pub op: ITriInstrOp,
 	pub rd: RiscvTemp,
@@ -60,7 +76,7 @@ pub struct ITriInstr {
 }
 
 #[has_riscv_attrs]
-#[derive(UseTemp)]
+#[derive(UseTemp, Clone)]
 pub struct IBinInstr {
 	pub op: IBinInstrOp,
 	pub rd: RiscvTemp,
@@ -68,7 +84,7 @@ pub struct IBinInstr {
 }
 
 #[has_riscv_attrs]
-#[derive(UseTemp)]
+#[derive(UseTemp, Clone)]
 pub struct RBinInstr {
 	pub op: RBinInstrOp,
 	pub rd: RiscvTemp,
@@ -76,13 +92,13 @@ pub struct RBinInstr {
 }
 
 #[has_riscv_attrs]
-#[derive(UseTemp)]
+#[derive(UseTemp, Clone)]
 pub struct LabelInstr {
 	pub label: Label,
 }
 
 #[has_riscv_attrs]
-#[derive(UseTemp)]
+#[derive(UseTemp, Clone)]
 pub struct BranInstr {
 	pub op: BranInstrOp,
 	pub rs1: RiscvTemp,
@@ -91,7 +107,7 @@ pub struct BranInstr {
 }
 
 #[has_riscv_attrs]
-#[derive(UseTemp)]
+#[derive(UseTemp, Clone)]
 pub struct NoArgInstr {
 	pub op: NoArgInstrOp,
 }

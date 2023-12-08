@@ -73,6 +73,7 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 	}
 	Ok(RiscvFunc {
 		total: mgr.total,
+		spill_size: 0,
 		cfg: RiscvCFG { blocks: nodes },
 		name: func.name,
 		params: func.params,
@@ -88,8 +89,6 @@ pub fn transform_basicblock(
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
 	block.instrs = instr_schedule(instr_dag)?;
 	let jump = to_riscv(node.borrow().jump_instr.as_ref().unwrap(), mgr)?;
-	// let last = jump.pop().unwrap();
 	block.instrs.extend(jump);
-	// block.jump_instr = Some(last);
 	Ok(Rc::new(RefCell::new(block)))
 }

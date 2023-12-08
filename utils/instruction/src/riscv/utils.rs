@@ -4,10 +4,7 @@ use utils::{mapper::LabelMapper, Label};
 
 use crate::temp::Temp;
 
-use super::{
-	reg::RiscvReg,
-	value::{RiscvImm, RiscvTemp},
-};
+use super::value::{RiscvImm, RiscvTemp};
 
 pub fn unwarp_temp(temp: RiscvTemp) -> Option<Temp> {
 	match temp {
@@ -31,15 +28,15 @@ pub fn unwarp_imms(temp: Vec<&RiscvImm>) -> Vec<RiscvTemp> {
 	temp.into_iter().filter_map(unwarp_imm).collect()
 }
 
-pub fn map_temp(temp: &mut RiscvTemp, map: &HashMap<Temp, RiscvReg>) {
-	let reg = match temp {
-		RiscvTemp::VirtReg(v) => map.get(v).unwrap(),
-		RiscvTemp::PhysReg(v) => v,
-	};
-	*temp = RiscvTemp::PhysReg(*reg);
+pub fn map_temp(temp: &mut RiscvTemp, map: &HashMap<Temp, RiscvTemp>) {
+	if let RiscvTemp::VirtReg(v) = temp {
+		if let Some(new_temp) = map.get(v) {
+			*temp = *new_temp;
+		}
+	}
 }
 
-pub fn map_imm_temp(val: &mut RiscvImm, map: &HashMap<Temp, RiscvReg>) {
+pub fn map_imm_temp(val: &mut RiscvImm, map: &HashMap<Temp, RiscvTemp>) {
 	if let RiscvImm::OffsetReg(_, temp) = val {
 		map_temp(temp, map)
 	}

@@ -1,6 +1,7 @@
 use std::{
 	cmp::Ordering,
 	collections::{HashMap, HashSet},
+	f64::INFINITY,
 };
 
 use instruction::{
@@ -57,6 +58,7 @@ impl InterferenceGraph {
 			}
 			let weight = node.borrow().weight;
 			let mut now = node.borrow().live_out.clone();
+			let mut last_end = HashSet::new();
 			for instr in node.borrow().instrs.iter().rev() {
 				// calc graph
 				if instr.is_start() {
@@ -68,9 +70,22 @@ impl InterferenceGraph {
 				}
 				edge_extend!(&instr.get_read(), &now);
 				edge_extend!(&instr.get_read(), &instr.get_read());
-				now.extend(instr.get_read().iter());
+				// calc spill cost
 				if let Some(temp) = instr.get_write() {
+					if last_end.contains(&temp) {
+						*graph.spill_cost.entry(temp).or_default() = INFINITY;
+					}
 					graph.temps.push(temp);
+					*graph.spill_cost.entry(temp).or_default() += weight;
+				}
+				let read_set = instr.get_read().into_iter().collect::<HashSet<_>>();
+				let diff = read_set.difference(&now).cloned().collect::<HashSet<_>>();
+				if !diff.is_empty() {
+					last_end = diff;
+				}
+				for temp in read_set {
+					now.insert(temp);
+					*graph.spill_cost.entry(temp).or_default() += weight;
 				}
 				// calc benefit of merge & precolor
 				graph.calc_w(instr, weight);
@@ -127,9 +142,14 @@ impl InterferenceGraph {
 		let mut temps = self
 			.temps
 			.iter()
-			.map(|v| (edges.get(v).map(|arr| arr.len()).unwrap_or_default(), v))
+			.map(|v| {
+				let degree = edges.get(v).map(|arr| arr.len()).unwrap_or_default();
+				let weight = self.spill_cost.get(v).copied().unwrap_or(0.0);
+				(degree as f64 + weight, v)
+			})
 			.collect::<Vec<_>>();
-		temps.sort_by_key(|v| v.0);
+
+		temps.sort_by(|(x, _), (y, _)| y.total_cmp(x));
 		for (_, temp) in temps {
 			let mut a: Vec<_> = self
 				.color_w
@@ -149,6 +169,7 @@ impl InterferenceGraph {
 			{
 				color.insert(temp, reg.0);
 			} else {
+				self.spill_node = Some(*temp);
 				return false;
 			}
 		}
