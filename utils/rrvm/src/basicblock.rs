@@ -195,7 +195,7 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
     prev: {:?} succ: {:?}
     uses: {:?}
     defs: {:?}
-		kills: {:?}
+    kills: {:?}
     livein: {:?}
     liveout: {:?}\n{}",
 			self.label(),

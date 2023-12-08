@@ -3,17 +3,22 @@ use std::collections::HashMap;
 use instruction::{riscv::riscvinstr::LabelInstr, RiscvInstrSet};
 use rrvm::program::RiscvFunc;
 
+use crate::utils::UnionFind;
+
 pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	let mut nodes = func.cfg.blocks;
 	let mut pre = HashMap::new();
+	let mut union_find = UnionFind::default();
 	nodes.sort_by(|x, y| y.borrow().weight.total_cmp(&x.borrow().weight));
+
 	for node in nodes.iter() {
 		let u = node.borrow().id;
 		node.borrow_mut().sort_succ();
 		if let Some(succ) = node.borrow().succ.first() {
 			let v = succ.borrow().id;
-			if v != 0 && u != v && pre.get(&v).is_none() {
+			if v != 0 && u != v && pre.get(&v).is_none() && !union_find.same(u, v) {
 				pre.insert(v, u);
+				union_find.merge(u, v);
 			}
 		}
 	}
