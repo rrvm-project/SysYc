@@ -25,7 +25,7 @@ impl IRGenerator {
 			stack: Vec::new(),
 			total: 0,
 			mgr: TempManager::new(),
-			symbol_table: SymbolTable::new(),
+			symbol_table: SymbolTable::default(),
 			ret_type: FuncRetType::Void,
 			states: Vec::new(),
 			weights: Vec::new(),

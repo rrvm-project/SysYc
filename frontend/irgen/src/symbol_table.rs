@@ -4,14 +4,12 @@ use llvm::Value;
 
 pub type Table = HashMap<i32, Value>;
 
+#[derive(Default)]
 pub struct SymbolTable {
 	pub stack: Vec<Table>,
 }
 
 impl SymbolTable {
-	pub fn new() -> Self {
-		Self { stack: Vec::new() }
-	}
 	pub fn push(&mut self) {
 		self.stack.push(HashMap::new())
 	}
@@ -58,11 +56,5 @@ impl SymbolTable {
 	}
 	pub fn drop(&mut self) -> Table {
 		self.stack.pop().unwrap()
-	}
-}
-
-impl Default for SymbolTable {
-	fn default() -> Self {
-		Self::new()
 	}
 }

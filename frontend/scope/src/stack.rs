@@ -6,6 +6,7 @@ use utils::{
 };
 use value::{FuncType, VarType};
 
+#[derive(Default)]
 pub struct ScopeStack {
 	func_scope: Scope<FuncType>,
 	scopes: Vec<Scope<VarType>>,
@@ -13,19 +14,7 @@ pub struct ScopeStack {
 
 const UNDERFLOW_ERR_MSG: &str = "stack of scopes underFlow";
 
-impl Default for ScopeStack {
-	fn default() -> Self {
-		Self::new()
-	}
-}
-
 impl ScopeStack {
-	pub fn new() -> Self {
-		Self {
-			scopes: Vec::new(),
-			func_scope: Scope::new(),
-		}
-	}
 	pub fn push(&mut self) {
 		self.scopes.push(Scope::new())
 	}

@@ -259,8 +259,8 @@ fn parse_stmt(pair: Pair<Rule>) -> Node {
 		Rule::Block => parse_block(pair),
 		Rule::IfStmt => parse_if_stmt(pair),
 		Rule::WhileStmt => parse_while_stmt(pair),
-		Rule::Break => Box::new(Break::new()),
-		Rule::Continue => Box::new(Continue::new()),
+		Rule::Break => Box::<Break>::default(),
+		Rule::Continue => Box::<Continue>::default(),
 		Rule::Return => parse_return(pair),
 		_ => unreachable!(),
 	}
