@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 use sysyc_derive::{has_riscv_attrs, UseTemp};
-use utils::{InstrTrait, Label, UseTemp};
+use utils::{mapper::LabelMapper, InstrTrait, Label, UseTemp};
 
 use crate::temp::Temp;
 
@@ -24,6 +24,10 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + RiscvAttr {
 	fn is_move(&self) -> bool {
 		false
 	}
+	fn get_label(&self) -> Label {
+		unreachable!()
+	}
+	fn map_label(&mut self, _map: &mut LabelMapper) {}
 }
 
 impl UseTemp<Temp> for RiscvInstr {

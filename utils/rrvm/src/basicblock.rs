@@ -7,7 +7,7 @@ use std::{
 
 use instruction::riscv::{reg::RiscvReg, RiscvInstr};
 use llvm::{JumpInstr, LlvmInstr, PhiInstr, RetInstr, VarType};
-use utils::{InstrTrait, Label, TempTrait, UseTemp};
+use utils::{instr_format, InstrTrait, Label, TempTrait, UseTemp};
 
 pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
 
@@ -89,7 +89,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 		}
 	}
 	pub fn make_pretty(&mut self) {
-		self.phi_instrs.sort_unstable_by(|x, y| x.target.cmp(&y.target));
+		self.phi_instrs.sort_by(|x, y| x.target.cmp(&y.target));
 	}
 	pub fn set_jump(&mut self, instr: Option<T>) {
 		self.jump_instr = instr;
@@ -137,10 +137,16 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 	pub fn map_temp(&mut self, map: &HashMap<instruction::Temp, RiscvReg>) {
 		self.instrs.iter_mut().for_each(|v| v.map_temp(map))
 	}
-}
-
-fn instr_format<T: Display>(v: T) -> String {
-	format!("  {}", v)
+	pub fn sort_succ(&mut self) {
+		if self.succ.is_empty() {
+			return;
+		}
+		let label = self.jump_instr.as_ref().unwrap().get_label();
+		let (left, right) =
+			self.succ.drain(..).partition(|v| v.borrow().label() == label);
+		self.succ = left;
+		self.succ.extend(right);
+	}
 }
 
 #[cfg(not(feature = "debug"))]

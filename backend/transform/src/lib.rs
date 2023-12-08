@@ -50,8 +50,9 @@ pub fn transform_basicblock(
 	let instr_dag = InstrDag::new(&node.borrow().instrs, mgr)?;
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
 	block.instrs = instr_schedule(instr_dag)?;
-	block
-		.instrs
-		.extend(to_riscv(node.borrow().jump_instr.as_ref().unwrap(), mgr)?);
+	let mut jump = to_riscv(node.borrow().jump_instr.as_ref().unwrap(), mgr)?;
+	let last = jump.pop().unwrap();
+	block.instrs.extend(jump);
+	block.jump_instr = Some(last);
 	Ok(Rc::new(RefCell::new(block)))
 }

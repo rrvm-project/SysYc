@@ -2,12 +2,16 @@
 
 use std::{collections::HashMap, fmt::Display};
 
-use utils::Label;
+use utils::{mapper::LabelMapper, Label};
 
 use crate::temp::Temp;
 
 use super::{
-	reg::RiscvReg, riscvinstr::*, riscvop::*, utils::map_temp, value::*,
+	reg::RiscvReg,
+	riscvinstr::*,
+	riscvop::*,
+	utils::{map_imm_label, map_label, map_temp},
+	value::*,
 };
 
 impl Display for RTriInstr {
@@ -70,6 +74,9 @@ impl RiscvInstrTrait for ITriInstr {
 	fn is_move(&self) -> bool {
 		self.op == Addi && !self.rs1.is_zero() && self.rs2.is_zero()
 	}
+	fn map_label(&mut self, map: &mut LabelMapper) {
+		map_imm_label(&mut self.rs2, map);
+	}
 }
 
 impl ITriInstr {
@@ -111,6 +118,9 @@ impl RiscvInstrTrait for IBinInstr {
 			SB | SH | SW | SD => vec![self.rd],
 		}
 	}
+	fn map_label(&mut self, map: &mut LabelMapper) {
+		map_imm_label(&mut self.rs1, map);
+	}
 }
 
 impl IBinInstr {
@@ -130,7 +140,14 @@ impl Display for LabelInstr {
 	}
 }
 
-impl RiscvInstrTrait for LabelInstr {}
+impl RiscvInstrTrait for LabelInstr {
+	fn get_label(&self) -> Label {
+		self.label.clone()
+	}
+	fn map_label(&mut self, map: &mut LabelMapper) {
+		map_label(&mut self.label, map);
+	}
+}
 
 impl LabelInstr {
 	pub fn new(label: Label) -> RiscvInstr {
@@ -184,6 +201,15 @@ impl RiscvInstrTrait for BranInstr {
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		vec![self.rs1, self.rs2]
+	}
+	fn map_label(&mut self, map: &mut LabelMapper) {
+		map_imm_label(&mut self.to, map);
+	}
+	fn get_label(&self) -> Label {
+		match &self.to {
+			RiscvImm::Label(label) => label.clone(),
+			_ => unreachable!(),
+		}
 	}
 }
 

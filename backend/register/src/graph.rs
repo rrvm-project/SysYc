@@ -29,12 +29,23 @@ fn default_array() -> Vec<f64> {
 }
 
 fn cmp_tuple<T>((_, x): &(T, f64), (_, y): &(T, f64)) -> Ordering {
-	x.partial_cmp(y).unwrap()
+	x.total_cmp(y)
 }
 
 impl InterferenceGraph {
 	pub fn new(cfg: &RiscvCFG) -> Self {
 		let mut graph = Self::default();
+
+		macro_rules! edge_extend {
+			($a:expr, $b:expr) => {{
+				let c = $b; // ???
+				graph.edges.extend(
+					$a.into_iter()
+						.flat_map(|&x| c.iter().flat_map(move |&y| vec![(x, y), (y, x)])),
+				);
+			}};
+		}
+
 		for node in cfg.blocks.iter() {
 			let mut now = node.borrow().live_in.clone();
 			for instr in node.borrow_mut().instrs.iter_mut() {
@@ -51,18 +62,12 @@ impl InterferenceGraph {
 				if instr.is_start() {
 					instr.get_write().iter().for_each(|v| {
 						if !now.remove(v) {
-							graph
-								.edges
-								.extend(now.iter().flat_map(move |&y| vec![(*v, y), (y, *v)]));
+							edge_extend!(Some(v), &now);
 						}
 					});
 				}
-				graph.edges.extend(
-					instr
-						.get_read()
-						.iter()
-						.flat_map(|&x| now.iter().flat_map(move |&y| vec![(x, y), (y, x)])),
-				);
+				edge_extend!(&instr.get_read(), &now);
+				edge_extend!(&instr.get_read(), &instr.get_read());
 				now.extend(instr.get_read().iter());
 				if let Some(temp) = instr.get_write() {
 					graph.temps.push(temp);
@@ -70,9 +75,7 @@ impl InterferenceGraph {
 				// calc benefit of merge & precolor
 				graph.calc_w(instr, weight);
 			}
-			graph
-				.edges
-				.extend(now.iter().flat_map(|&x| now.iter().map(move |&y| (x, y))));
+			edge_extend!(&now, &now);
 		}
 		graph.edges =
 			graph.edges.into_iter().collect::<HashSet<_>>().into_iter().collect();
@@ -125,7 +128,7 @@ impl InterferenceGraph {
 			.iter()
 			.map(|v| (edges.get(v).map(|arr| arr.len()).unwrap_or_default(), v))
 			.collect::<Vec<_>>();
-		temps.sort_unstable_by_key(|v| v.0);
+		temps.sort_by_key(|v| v.0);
 		for (_, temp) in temps {
 			let mut a: Vec<_> = self
 				.color_w
@@ -134,7 +137,7 @@ impl InterferenceGraph {
 				.into_iter()
 				.enumerate()
 				.collect();
-			a.sort_unstable_by(cmp_tuple);
+			a.sort_by(cmp_tuple);
 			let used: HashSet<_> = edges
 				.remove(temp)
 				.unwrap_or_else(Vec::new)
