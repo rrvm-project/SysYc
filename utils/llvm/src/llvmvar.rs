@@ -27,9 +27,8 @@ impl Display for VarType {
 impl VarType {
 	pub fn default_value(&self) -> Value {
 		match self {
-			Self::I32 => 0.into(),
 			Self::F32 => 0.0.into(),
-			_ => unreachable!(),
+			_ => 0.into(),
 		}
 	}
 	pub fn default_value_option(&self) -> Option<Value> {

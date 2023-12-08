@@ -39,6 +39,10 @@ impl TempManager {
 		self.total += 1;
 		RiscvTemp::VirtReg(Temp::new(self.total))
 	}
+	pub fn new_raw_temp(&mut self) -> Temp {
+		self.total += 1;
+		Temp::new(self.total)
+	}
 	pub fn get(&mut self, temp: &llvm::temp::Temp) -> RiscvTemp {
 		if let Some(v) = self.llvm2riscv.get(temp) {
 			*v

@@ -7,7 +7,7 @@ use utils::{mapper::LabelMapper, Label};
 use crate::temp::Temp;
 
 use super::{
-	reg::RiscvReg,
+	reg::RiscvReg::*,
 	riscvinstr::*,
 	riscvop::*,
 	utils::{map_imm_label, map_imm_temp, map_label, map_temp, unwarp_imms},
@@ -21,7 +21,7 @@ impl Display for RTriInstr {
 }
 
 impl RiscvInstrTrait for RTriInstr {
-	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rd, map);
 		map_temp(&mut self.rs1, map);
 		map_temp(&mut self.rs2, map);
@@ -34,6 +34,13 @@ impl RiscvInstrTrait for RTriInstr {
 	}
 	fn is_move(&self) -> bool {
 		self.op == Add && (self.rs1.is_zero() || self.rs2.is_zero())
+	}
+	fn move_sp(&self, _height: &mut i32) {
+		if let (Add, PhysReg(SP), PhysReg(SP), _) =
+			(&self.op, &self.rd, &self.rs1, &self.rs2)
+		{
+			todo!()
+		}
 	}
 }
 
@@ -61,7 +68,7 @@ impl Display for ITriInstr {
 }
 
 impl RiscvInstrTrait for ITriInstr {
-	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rd, map);
 		map_temp(&mut self.rs1, map);
 		map_imm_temp(&mut self.rs2, map);
@@ -77,6 +84,13 @@ impl RiscvInstrTrait for ITriInstr {
 	}
 	fn map_label(&mut self, map: &mut LabelMapper) {
 		map_imm_label(&mut self.rs2, map);
+	}
+	fn move_sp(&self, height: &mut i32) {
+		if let (Addi, PhysReg(SP), PhysReg(SP), Int(dis)) =
+			(&self.op, &self.rd, &self.rs1, &self.rs2)
+		{
+			*height += dis
+		}
 	}
 }
 
@@ -104,7 +118,7 @@ impl Display for IBinInstr {
 }
 
 impl RiscvInstrTrait for IBinInstr {
-	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rd, map);
 		map_imm_temp(&mut self.rs1, map);
 	}
@@ -171,7 +185,7 @@ impl Display for RBinInstr {
 }
 
 impl RiscvInstrTrait for RBinInstr {
-	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rd, map);
 		map_temp(&mut self.rs1, map);
 	}
@@ -201,7 +215,7 @@ impl Display for BranInstr {
 }
 
 impl RiscvInstrTrait for BranInstr {
-	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rs1, map);
 		map_temp(&mut self.rs2, map);
 		map_imm_temp(&mut self.to, map);

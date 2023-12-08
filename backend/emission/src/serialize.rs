@@ -1,16 +1,23 @@
 use std::collections::HashMap;
 
-use instruction::{riscv::riscvinstr::LabelInstr, RiscvInstrSet};
+use instruction::{
+	riscv::{
+		reg::RiscvReg::SP,
+		riscvinstr::{LabelInstr, *},
+		riscvop::ITriInstrOp::Addi,
+	},
+	RiscvInstrSet,
+};
 use rrvm::program::RiscvFunc;
 
 use crate::utils::UnionFind;
 
 pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
+	let size = func.spill_size;
 	let mut nodes = func.cfg.blocks;
 	let mut pre = HashMap::new();
 	let mut union_find = UnionFind::default();
 	nodes.sort_by(|x, y| y.borrow().weight.total_cmp(&x.borrow().weight));
-
 	for node in nodes.iter() {
 		let u = node.borrow().id;
 		node.borrow_mut().sort_succ();
@@ -24,10 +31,12 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	}
 	nodes.sort_by(|x, y| x.borrow().id.cmp(&y.borrow().id));
 	let mut instrs = Vec::new();
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
+
 	let is_pre = Box::new(|u: i32, v: i32| -> bool {
 		pre.get(&v).map_or(false, |v| *v == u)
 	});
-	for node in nodes {
+	for node in nodes.iter() {
 		if pre.get(&node.borrow().id).is_none() {
 			let mut now = node.clone();
 			loop {
@@ -43,7 +52,8 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 				}
 			}
 		}
-		node.borrow_mut().clear();
 	}
+	nodes.into_iter().for_each(|v| v.borrow_mut().clear());
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
 	(func.name, instrs)
 }

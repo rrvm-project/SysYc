@@ -31,6 +31,7 @@ impl From<RiscvReg> for RiscvTemp {
 	}
 }
 
+#[derive(Clone)]
 pub enum RiscvImm {
 	Int(i32),
 	Label(utils::Label),
