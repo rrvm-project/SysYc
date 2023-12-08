@@ -32,6 +32,12 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn new_jump(&self) -> Option<JumpInstr> {
 		None
 	}
+	fn is_load(&self) -> bool {
+		false
+	}
+	fn is_store(&self) -> bool {
+		false
+	}
 }
 
 impl UseTemp<Temp> for LlvmInstr {

@@ -230,17 +230,20 @@ pub fn riscv_ret(
 
 pub fn riscv_alloc(
 	instr: &llvm::llvminstr::AllocInstr,
-	_mgr: &mut TempManager,
+	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let size = &instr.length;
 	if let Some(num) = end_num(size) {
 		let num = (num + 15) & -16;
+		let target = mgr.get(&instr.target);
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-num).into()));
+		instrs.push(RTriInstr::new(Add, target, X0.into(), SP.into()));
 	} else {
-		Err(RiscvGenError("array size should be constant".to_owned()))?
-		// let num = into_reg(size, &mut instrs, mgr);
-		// instrs.push(RTriInstr::new(Sub, SP.into(), SP.into(), num));
+		let target = mgr.get(&instr.target);
+		let num = into_reg(size, &mut instrs, mgr);
+		instrs.push(RTriInstr::new(Sub, SP.into(), SP.into(), num));
+		instrs.push(RTriInstr::new(Add, target, X0.into(), SP.into()));
 	}
 	Ok(instrs)
 }

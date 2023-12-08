@@ -111,8 +111,9 @@ impl InterferenceGraph {
 			} else {
 				let x = virt.pop().unwrap();
 				let y = phys.pop().unwrap();
-				self.color_w.entry(x).or_insert_with(default_array)[y.get_index()] +=
-					weight;
+				if let Some(index) = y.get_index() {
+					self.color_w.entry(x).or_insert_with(default_array)[index] += weight;
+				}
 			}
 		}
 	}

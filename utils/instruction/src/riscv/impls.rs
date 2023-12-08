@@ -10,7 +10,7 @@ use super::{
 	reg::RiscvReg,
 	riscvinstr::*,
 	riscvop::*,
-	utils::{map_imm_label, map_label, map_temp},
+	utils::{map_imm_label, map_imm_temp, map_label, map_temp, unwarp_imms},
 	value::*,
 };
 
@@ -64,9 +64,10 @@ impl RiscvInstrTrait for ITriInstr {
 	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
 		map_temp(&mut self.rd, map);
 		map_temp(&mut self.rs1, map);
+		map_imm_temp(&mut self.rs2, map);
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
-		vec![self.rs1]
+		[vec![self.rs1], unwarp_imms(vec![&self.rs2])].concat()
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		vec![self.rd]
@@ -105,6 +106,7 @@ impl Display for IBinInstr {
 impl RiscvInstrTrait for IBinInstr {
 	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
 		map_temp(&mut self.rd, map);
+		map_imm_temp(&mut self.rs1, map);
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		match self.op {
@@ -113,10 +115,14 @@ impl RiscvInstrTrait for IBinInstr {
 		}
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
-		match self.op {
-			Li | Lui | LD | LW | LWU => vec![],
-			SB | SH | SW | SD => vec![self.rd],
-		}
+		[
+			match self.op {
+				Li | Lui | LD | LW | LWU => vec![],
+				SB | SH | SW | SD => vec![self.rd],
+			},
+			unwarp_imms(vec![&self.rs1]),
+		]
+		.concat()
 	}
 	fn map_label(&mut self, map: &mut LabelMapper) {
 		map_imm_label(&mut self.rs1, map);
@@ -198,9 +204,10 @@ impl RiscvInstrTrait for BranInstr {
 	fn map_temp(&mut self, map: &HashMap<Temp, RiscvReg>) {
 		map_temp(&mut self.rs1, map);
 		map_temp(&mut self.rs2, map);
+		map_imm_temp(&mut self.to, map);
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
-		vec![self.rs1, self.rs2]
+		[vec![self.rs1, self.rs2], unwarp_imms(vec![&self.to])].concat()
 	}
 	fn map_label(&mut self, map: &mut LabelMapper) {
 		map_imm_label(&mut self.to, map);
