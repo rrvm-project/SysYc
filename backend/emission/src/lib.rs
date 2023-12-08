@@ -1,10 +1,11 @@
+use ::utils::mapper::LabelMapper;
 use rrvm::program::RiscvProgram;
-use utils::mapper::LabelMapper;
 
 use crate::{label_mapper::map_label, serialize::func_serialize};
 
 mod label_mapper;
 mod serialize;
+mod utils;
 
 const PROGRAM_HEAD: &str = "  .text\n  .align 1\n  .globl main\n";
 
