@@ -48,7 +48,7 @@ pub enum RiscvReg {
 }
 
 impl RiscvReg {
-	pub fn get_index(&self) -> usize {
-		ALLOCABLE_REGS.iter().position(|&x| x == *self).unwrap()
+	pub fn get_index(&self) -> Option<usize> {
+		ALLOCABLE_REGS.iter().position(|&x| x == *self)
 	}
 }

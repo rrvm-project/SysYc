@@ -307,6 +307,9 @@ impl LlvmInstrTrait for StoreInstr {
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.value.get_type(), self.addr.get_type())
 	}
+	fn is_store(&self) -> bool {
+		true
+	}
 }
 
 impl Display for LoadInstr {
@@ -337,6 +340,9 @@ impl LlvmInstrTrait for LoadInstr {
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.var_type, self.addr.get_type())
+	}
+	fn is_load(&self) -> bool {
+		true
 	}
 }
 
