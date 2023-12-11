@@ -1,7 +1,7 @@
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
 
-use crate::{RrvmOptimizer, *};
+use crate::{useless_code::RemoveUselessCode, RrvmOptimizer, *};
 
 impl Optimizer0 {
 	pub fn new() -> Self {

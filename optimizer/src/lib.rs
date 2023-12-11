@@ -1,6 +1,7 @@
 mod dead_code;
 pub mod impls;
 mod unreachable;
+mod useless_code;
 
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
