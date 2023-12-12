@@ -67,8 +67,8 @@ impl RrvmOptimizer for RemoveUselessCode {
 					break;
 				}
 			}
-			println!("effect_in {:?}", effect_in);
-			println!("effect_out {:?}", effect_out);
+			// println!("effect_in {:?}", effect_in);
+			// println!("effect_out {:?}", effect_out);
 			for u in cfg.blocks.iter().rev() {
 				let mut u_effect_out =
 					effect_out.get(&u.borrow().id).cloned().unwrap_or(HashSet::new());
