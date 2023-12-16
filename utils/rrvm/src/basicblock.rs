@@ -26,6 +26,18 @@ pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub jump_instr: Option<T>,
 }
 
+fn get_other_label<T: InstrTrait<U>, U: TempTrait>(
+	now: *const BasicBlock<T, U>,
+	now_label: Label,
+	other: &Node<T, U>,
+) -> Label {
+	if std::ptr::eq(now, other.as_ptr()) {
+		now_label
+	} else {
+		other.borrow().label()
+	}
+}
+
 impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 	pub fn new(id: i32, weight: f64) -> BasicBlock<T, U> {
 		BasicBlock {
@@ -76,7 +88,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 		self.phi_instrs.is_empty()
 	}
 	pub fn replace_prev(&mut self, label: &Label, target: Node<T, U>) {
-		let new_label = target.borrow().label();
+		let new_label = get_other_label(self, self.label(), &target);
 		for instr in self.phi_instrs.iter_mut() {
 			if let Some((_, v)) = instr.source.iter_mut().find(|(_, v)| v == label) {
 				*v = new_label.clone();
@@ -118,7 +130,11 @@ impl BasicBlock<LlvmInstr, llvm::Temp> {
 		if self.jump_instr.is_none() {
 			self.jump_instr = Some(match self.succ.len() {
 				1 => Box::new(JumpInstr {
-					target: self.succ.first().unwrap().borrow().label(),
+					target: get_other_label(
+						self,
+						self.label(),
+						self.succ.first().unwrap(),
+					),
 				}),
 				0 => Box::new(RetInstr {
 					value: var_type.default_value_option(),
@@ -148,8 +164,12 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 			return;
 		}
 		let label = self.jump_instr.as_ref().unwrap().get_label();
-		let (left, right) =
-			self.succ.drain(..).partition(|v| v.borrow().label() == label);
+		let now_label = self.label();
+		let now = self as *const BasicBlock<_, _>;
+		let (left, right) = self
+			.succ
+			.drain(..)
+			.partition(|v| get_other_label(now, now_label.clone(), v) == label);
 		self.succ = left;
 		self.succ.extend(right);
 	}
