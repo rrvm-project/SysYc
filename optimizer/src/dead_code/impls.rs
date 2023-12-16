@@ -64,13 +64,17 @@ impl RrvmOptimizer for RemoveDeadCode {
 			// solve data flow
 			cfg.blocks.iter().for_each(|v| v.borrow_mut().prev.clear());
 			cfg.blocks.iter().for_each(|u| {
-				u.borrow().succ.iter().for_each(|v| v.borrow_mut().prev.push(u.clone()))
+				let succ = u.borrow().succ.clone();
+				for v in succ {
+					let p = u.clone();
+					v.borrow_mut().prev.push(p);
+				}
 			});
 			for block in cfg.blocks.iter() {
 				let labels: HashSet<_> =
 					block.borrow().prev.iter().map(|v| v.borrow().label()).collect();
 				for instr in block.borrow_mut().phi_instrs.iter_mut() {
-					instr.source.retain(|(_, label)| labels.get(label).is_some())
+					instr.source.retain(|(_, label)| labels.contains(label))
 				}
 			}
 		}
