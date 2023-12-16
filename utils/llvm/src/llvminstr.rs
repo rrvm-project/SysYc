@@ -1,7 +1,7 @@
 use utils::Label;
 
 use crate::{llvmop::*, llvmvar::VarType, LlvmInstrVariant, Temp};
-use std::{collections::HashMap, fmt::Display};
+use std::fmt::Display;
 
 pub trait LlvmInstr: Display {
 	fn get_read(&self) -> Vec<Temp> {
@@ -29,11 +29,8 @@ pub trait LlvmInstr: Display {
 		Vec::new()
 	}
 	fn get_variant(&self) -> LlvmInstrVariant;
-	fn swap_temp(&mut self, old: Temp, new: Value);
-	fn replace_temp(&mut self, map: &HashMap<Temp, Value>);
 }
 
-#[derive(Debug)]
 pub struct ArithInstr {
 	pub target: Temp,
 	pub op: ArithOp,

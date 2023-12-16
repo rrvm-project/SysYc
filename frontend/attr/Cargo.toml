@@ -9,4 +9,3 @@ edition = "2021"
 utils = { path = "../../utils" }
 value = { path = "../value" }
 rrvm_symbol = { path = "../symbol" }
-llvm = { path = "../../utils/llvm" }

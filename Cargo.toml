@@ -17,12 +17,11 @@ members = [
   "frontend/scope",
   "frontend/value",
   "frontend/parser",
-  "frontend/irgen",
   "backend/basicblock",
   "backend/cfg",
   "backend/func",
   "backend/instruction",
-  "backend/program", "middleend",
+  "backend/program",
 ]
 
 [dependencies]
@@ -32,13 +31,10 @@ llvm = { path = "utils/llvm" }
 ast = { path = "frontend/ast" }
 parser = { path = "frontend/parser" }
 namer = { path = "frontend/namer" }
-irgen = { path = "frontend/irgen" }
 
 rrvm_func = { path = "backend/func" }
 rrvm_program = { path = "backend/program" }
 instruction = { path = "backend/instruction" }
-
-middleend = {path = "middleend"}
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"

@@ -9,17 +9,6 @@ pub enum VarType {
 	Void,
 }
 
-impl VarType {
-	// convert ptr to value
-	pub fn to_value(&self) -> Self {
-		match self {
-			Self::I32Ptr => Self::I32,
-			Self::F32Ptr => Self::F32,
-			_ => *self,
-		}
-	}
-}
-
 impl Display for VarType {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let type_str = match self {
