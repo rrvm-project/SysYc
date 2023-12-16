@@ -4,71 +4,18 @@ use sysyc_derive::Fuyuki;
 
 use crate::{llvmvar::VarType, temp::Temp};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Value {
 	Int(i32),
 	Float(f32),
 	Temp(Temp),
 }
 
-impl PartialEq for Value {
-	fn eq(&self, other: &Value) -> bool {
-		match &self {
-			Value::Int(v1) => {
-				if let Value::Int(v2) = other {
-					v1 == v2
-				} else {
-					false
-				}
-			}
-			Value::Float(v1) => {
-				if let Value::Float(v2) = other {
-					(v1.is_nan() && v2.is_nan()) || (v1 == v2)
-				} else {
-					false
-				}
-			}
-			Value::Temp(v1) => {
-				if let Value::Temp(v2) = other {
-					v1 == v2
-				} else {
-					false
-				}
-			}
-		}
-	}
-}
-
-impl Eq for Value {}
-
-impl std::hash::Hash for Value {
-	fn hash_slice<H: std::hash::Hasher>(data: &[Self], state: &mut H)
-	where
-		Self: Sized,
-	{
-		for piece in data {
-			if let Value::Float(value) = piece {
-				if value.is_nan() {
-					6122876.hash(state)
-				} else {
-					value.to_bits().hash(state)
-				}
-			} else {
-				piece.hash(state)
-			}
-		}
-	}
-
-	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-		core::mem::discriminant(self).hash(state);
-	}
-}
-
 pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
 }
 
-#[derive(Fuyuki, Clone, Copy, Debug)]
+#[derive(Fuyuki, Clone, Copy)]
 pub enum ArithOp {
 	Add,
 	Sub,
@@ -87,7 +34,7 @@ pub enum ArithOp {
 	Xor,
 }
 
-#[derive(Fuyuki, Debug)]
+#[derive(Fuyuki)]
 pub enum CompOp {
 	EQ,
 	NE,
@@ -137,9 +84,6 @@ impl Value {
 	}
 	pub fn is_num(&self) -> bool {
 		!matches!(self, Self::Temp(_))
-	}
-	pub fn is_ptr(&self) -> bool {
-		matches!(self, Self::Temp(v) if v.is_ptr())
 	}
 }
 

@@ -38,28 +38,6 @@ impl LlvmInstr for ArithInstr {
 			&self.rhs.get_type(),
 		])
 	}
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		if self.lhs.unwrap_temp().map_or(false, |t| t == old) {
-			self.lhs = new.clone();
-		}
-		if self.rhs.unwrap_temp().map_or(false, |t| t == old) {
-			self.rhs = new;
-		}
-	}
-
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		if let Value::Temp(temp) = &self.lhs {
-			if let Some(value) = map.get(temp) {
-				self.lhs = value.clone();
-			}
-		}
-
-		if let Value::Temp(temp) = &self.rhs {
-			if let Some(value) = map.get(temp) {
-				self.rhs = value.clone();
-			}
-		}
-	}
 }
 
 impl Display for LabelInstr {
@@ -75,11 +53,6 @@ impl LlvmInstr for LabelInstr {
 	fn get_label(&self) -> Option<Label> {
 		Some(self.label.clone())
 	}
-	fn swap_temp(&mut self, _old: Temp, _new: Value) {
-		// do nothing
-	}
-
-	fn replace_temp(&mut self, _map: &std::collections::HashMap<Temp, Value>) {}
 }
 
 impl Display for CompInstr {
@@ -109,28 +82,6 @@ impl LlvmInstr for CompInstr {
 			&self.lhs.get_type(),
 			&self.rhs.get_type(),
 		])
-	}
-
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		if self.lhs.unwrap_temp().map_or(false, |t| t == old) {
-			self.lhs = new.clone();
-		}
-		if self.rhs.unwrap_temp().map_or(false, |t| t == old) {
-			self.rhs = new;
-		}
-	}
-
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		if let Value::Temp(temp) = &self.lhs {
-			if let Some(value) = map.get(temp) {
-				self.lhs = value.clone();
-			}
-		}
-		if let Value::Temp(temp) = &self.rhs {
-			if let Some(value) = map.get(temp) {
-				self.rhs = value.clone();
-			}
-		}
 	}
 }
 
@@ -162,20 +113,6 @@ impl LlvmInstr for ConvertInstr {
 			&self.to_type,
 		])
 	}
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		// omit target
-		if self.lhs.unwrap_temp().map_or(false, |t| t == old) {
-			self.lhs = new;
-		}
-	}
-
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		if let Value::Temp(temp) = &self.lhs {
-			if let Some(value) = map.get(temp) {
-				self.lhs = value.clone();
-			}
-		}
-	}
 }
 
 impl Display for JumpInstr {
@@ -191,11 +128,6 @@ impl LlvmInstr for JumpInstr {
 	fn is_seq(&self) -> bool {
 		false
 	}
-	fn swap_temp(&mut self, _old: Temp, _new: Value) {
-		// do nothing
-	}
-
-	fn replace_temp(&mut self, _map: &std::collections::HashMap<Temp, Value>) {}
 }
 
 impl Display for JumpCondInstr {
@@ -217,18 +149,6 @@ impl LlvmInstr for JumpCondInstr {
 	}
 	fn type_valid(&self) -> bool {
 		all_equal(&[&self.cond.get_type(), &self.var_type, &VarType::I32])
-	}
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		if self.cond.unwrap_temp().map_or(false, |t| t == old) {
-			self.cond = new;
-		}
-	}
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		if let Value::Temp(temp) = &self.cond {
-			if let Some(value) = map.get(temp) {
-				self.cond = value.clone();
-			}
-		}
 	}
 }
 
@@ -265,34 +185,6 @@ impl LlvmInstr for PhiInstr {
 	fn is_phi(&self) -> bool {
 		true
 	}
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		// do nothing
-		let mut new_source = vec![];
-		for (value, label) in std::mem::take(&mut self.source) {
-			if let Value::Temp(temp) = &value {
-				if *temp == old {
-					new_source.push((new.clone(), label));
-					continue;
-				}
-			}
-			new_source.push((value, label));
-		}
-		self.source = new_source;
-	}
-
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		let mut new_source = vec![];
-		for (value, label) in std::mem::take(&mut self.source) {
-			if let Value::Temp(temp) = &value {
-				if let Some(new_value) = map.get(temp) {
-					new_source.push((new_value.clone(), label));
-					continue;
-				}
-			}
-			new_source.push((value, label));
-		}
-		self.source = new_source;
-	}
 }
 
 impl Display for RetInstr {
@@ -319,23 +211,6 @@ impl LlvmInstr for RetInstr {
 	}
 	fn is_ret(&self) -> bool {
 		true
-	}
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		if self
-			.value
-			.clone()
-			.map_or(false, |v| v.unwrap_temp().map_or(false, |t| t == old))
-		{
-			self.value = Some(new);
-		}
-	}
-
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		if let Some(Value::Temp(temp)) = &self.value {
-			if let Some(value) = map.get(temp) {
-				self.value = Some(value.clone());
-			}
-		}
 	}
 }
 
@@ -365,18 +240,6 @@ impl LlvmInstr for AllocInstr {
 	fn type_valid(&self) -> bool {
 		self.length.get_type() == VarType::I32
 	}
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		if self.length.unwrap_temp().map_or(false, |t| t == old) {
-			self.length = new;
-		}
-	}
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		if let Value::Temp(temp) = &self.length {
-			if let Some(value) = map.get(temp) {
-				self.length = value.clone();
-			}
-		}
-	}
 }
 
 impl Display for StoreInstr {
@@ -401,26 +264,6 @@ impl LlvmInstr for StoreInstr {
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.value.get_type(), self.addr.get_type())
-	}
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		if self.value.unwrap_temp().map_or(false, |t| t == old) {
-			self.value = new.clone();
-		}
-		if self.addr.unwrap_temp().map_or(false, |t| t == old) {
-			self.addr = new;
-		}
-	}
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		if let Value::Temp(temp) = &self.value {
-			if let Some(value) = map.get(temp) {
-				self.value = value.clone();
-			}
-		}
-		if let Value::Temp(temp) = &self.addr {
-			if let Some(value) = map.get(temp) {
-				self.addr = value.clone();
-			}
-		}
 	}
 }
 
@@ -449,18 +292,6 @@ impl LlvmInstr for LoadInstr {
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.var_type, self.addr.get_type())
-	}
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		if self.addr.unwrap_temp().map_or(false, |t| t == old) {
-			self.addr = new;
-		}
-	}
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		if let Value::Temp(temp) = &self.addr {
-			if let Some(value) = map.get(temp) {
-				self.addr = value.clone();
-			}
-		}
 	}
 }
 
@@ -493,27 +324,6 @@ impl LlvmInstr for GEPInstr {
 			&& self.offset.get_type() == VarType::I32
 			&& type_match_ptr(self.var_type, self.addr.get_type())
 	}
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		if self.addr.unwrap_temp().map_or(false, |t| t == old) {
-			self.addr = new.clone();
-		}
-		if self.offset.unwrap_temp().map_or(false, |t| t == old) {
-			self.offset = new;
-		}
-	}
-
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		if let Value::Temp(temp) = &self.addr {
-			if let Some(value) = map.get(temp) {
-				self.addr = value.clone();
-			}
-		}
-		if let Value::Temp(temp) = &self.offset {
-			if let Some(value) = map.get(temp) {
-				self.offset = value.clone();
-			}
-		}
-	}
 }
 
 impl Display for CallInstr {
@@ -540,22 +350,5 @@ impl LlvmInstr for CallInstr {
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
-	}
-	fn swap_temp(&mut self, old: Temp, new: Value) {
-		for (_, v) in &mut self.params {
-			if v.unwrap_temp().map_or(false, |t| t == old) {
-				*v = new.clone();
-			}
-		}
-	}
-
-	fn replace_temp(&mut self, map: &std::collections::HashMap<Temp, Value>) {
-		for (_, v) in &mut self.params {
-			if let Value::Temp(temp) = v {
-				if let Some(value) = map.get(temp) {
-					*v = value.clone();
-				}
-			}
-		}
 	}
 }
