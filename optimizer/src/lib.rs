@@ -10,9 +10,12 @@ use unreachable::RemoveUnreachCode;
 
 pub trait RrvmOptimizer {
 	fn new() -> Self;
-	fn apply(self, program: &mut LlvmProgram) -> Result<()>;
+	fn apply(self, program: &mut LlvmProgram) -> Result<bool>;
 }
 
+#[derive(Default)]
 pub struct Optimizer0 {}
+#[derive(Default)]
 pub struct Optimizer1 {}
+#[derive(Default)]
 pub struct Optimizer2 {}

@@ -3,34 +3,46 @@ use utils::errors::Result;
 
 use crate::{RrvmOptimizer, *};
 
-impl RrvmOptimizer for Optimizer0 {
-	fn new() -> Self {
-		Self {}
+impl Optimizer0 {
+	pub fn new() -> Self {
+		Self::default()
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<()> {
-		RemoveUnreachCode::new().apply(program)?;
+	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
+		loop {
+			let mut flag = false;
+			flag |= RemoveUnreachCode::new().apply(program)?;
+			if !flag {
+				break;
+			}
+		}
 		program.analysis();
 		Ok(())
 	}
 }
 
-impl RrvmOptimizer for Optimizer1 {
-	fn new() -> Self {
-		Self {}
+impl Optimizer1 {
+	pub fn new() -> Self {
+		Self::default()
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<()> {
-		RemoveDeadCode::new().apply(program)?;
-		RemoveUnreachCode::new().apply(program)?;
+	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
+		loop {
+			let mut flag = false;
+			flag |= RemoveDeadCode::new().apply(program)?;
+			flag |= RemoveUnreachCode::new().apply(program)?;
+			if !flag {
+				break;
+			}
+		}
 		program.analysis();
 		Ok(())
 	}
 }
 
-impl RrvmOptimizer for Optimizer2 {
-	fn new() -> Self {
-		Self {}
+impl Optimizer2 {
+	pub fn new() -> Self {
+		Self::default()
 	}
-	fn apply(self, _program: &mut LlvmProgram) -> Result<()> {
+	pub fn apply(self, _program: &mut LlvmProgram) -> Result<bool> {
 		todo!()
 	}
 }
