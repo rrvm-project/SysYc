@@ -51,7 +51,7 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 		let kill_size = (kill_size + 15) & -16;
 		let id = block.borrow().id;
 		edge.extend(block.borrow().succ.iter().map(|v| (id, v.borrow().id)));
-		let node = transform_basicblock(block, mgr)?;
+		let node = transform_basicblock(&block, mgr)?;
 		table.insert(id, node.clone());
 		if kill_size != 0 {
 			let instr = if is_lower(kill_size) {
@@ -62,6 +62,8 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 			};
 			node.borrow_mut().instrs.push(instr);
 		}
+		let jump = to_riscv(block.borrow().jump_instr.as_ref().unwrap(), mgr)?;
+		node.borrow_mut().instrs.extend(jump);
 		nodes.push(node);
 	}
 	for (u, v) in edge {
@@ -82,13 +84,11 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 }
 
 pub fn transform_basicblock(
-	node: LlvmNode,
+	node: &LlvmNode,
 	mgr: &mut TempManager,
 ) -> Result<RiscvNode> {
 	let instr_dag = InstrDag::new(&node.borrow().instrs, mgr)?;
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
 	block.instrs = instr_schedule(instr_dag)?;
-	let jump = to_riscv(node.borrow().jump_instr.as_ref().unwrap(), mgr)?;
-	block.instrs.extend(jump);
 	Ok(Rc::new(RefCell::new(block)))
 }

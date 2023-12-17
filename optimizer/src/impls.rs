@@ -9,6 +9,7 @@ impl RrvmOptimizer for Optimizer0 {
 	}
 	fn apply(self, program: &mut LlvmProgram) -> Result<()> {
 		RemoveUnreachCode::new().apply(program)?;
+		program.analysis();
 		Ok(())
 	}
 }
