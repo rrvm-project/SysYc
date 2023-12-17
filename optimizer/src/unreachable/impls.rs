@@ -9,8 +9,9 @@ impl RrvmOptimizer for RemoveUnreachCode {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<()> {
-		for func in program.funcs.iter_mut() {
+	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+		Ok(program.funcs.iter_mut().fold(false, |last, func| {
+			let size = func.cfg.size();
 			let mut visited = HashSet::new();
 			let cfg = &mut func.cfg;
 			let mut stack = vec![cfg.get_entry()];
@@ -30,7 +31,7 @@ impl RrvmOptimizer for RemoveUnreachCode {
 					false
 				}
 			});
-		}
-		Ok(())
+			last || size != cfg.blocks.len()
+		}))
 	}
 }

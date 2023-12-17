@@ -9,7 +9,7 @@ impl RrvmOptimizer for RemoveDeadCode {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<()> {
+	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG) {
 			let mut visited = HashSet::new();
 			// let cfg = &mut func.cfg;
@@ -78,15 +78,17 @@ impl RrvmOptimizer for RemoveDeadCode {
 				}
 			}
 		}
-		for func in program.funcs.iter_mut() {
+		Ok(program.funcs.iter_mut().fold(false, |last, func| {
+			let mut cnt = 0;
 			loop {
 				let size = func.cfg.size();
 				solve(&mut func.cfg);
 				if func.cfg.size() == size {
 					break;
 				}
+				cnt += 1;
 			}
-		}
-		Ok(())
+			cnt != 0 || last
+		}))
 	}
 }
