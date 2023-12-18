@@ -239,13 +239,13 @@ impl Visitor for IRGenerator {
 							不过测例满足逻辑运算只会出现在 if 或 while 中
 							这么写不影响正确性，摆了
 						*/
-						let source = vec![
-							(((node.op == LOr) as i32).into(), lcfg.exit_label()),
-							(rhs, rcfg.exit_label()),
-						];
 						let diff = self.symbol_table.drop();
 						let cfg_empty = self.new_cfg();
 						let diff_empty = HashMap::new();
+						let source = vec![
+							(((node.op == LOr) as i32).into(), cfg_empty.exit_label()),
+							(rhs, rcfg.exit_label()),
+						];
 						let cfg = if node.op == LAnd {
 							self.if_then_else(lcfg, lhs, rcfg, diff, cfg_empty, diff_empty)
 						} else {
