@@ -159,6 +159,9 @@ impl LlvmInstrTrait for JumpInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::JumpInstr(self)
 	}
+	fn is_direct_jump(&self) -> bool {
+		true
+	}
 }
 
 impl Display for JumpCondInstr {

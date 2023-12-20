@@ -2,9 +2,16 @@ use std::collections::{HashMap, VecDeque};
 
 use super::RemoveUselessCode;
 use crate::RrvmOptimizer;
-use llvm::{llvminstrattr::LlvmAttr, LlvmInstr, Temp};
+use llvm::{
+	llvminstrattr::{LlvmAttr, LlvmAttrs},
+	JumpInstr, LlvmInstr, Temp,
+};
 use rrvm::{
-	dominator::naive::compute_dominator, program::LlvmProgram, LlvmCFG, LlvmNode,
+	dominator::{
+		dominator_frontier::compute_dominator_frontier, naive::compute_dominator,
+	},
+	program::LlvmProgram,
+	LlvmCFG, LlvmNode,
 };
 use utils::{errors::Result, UseTemp};
 
@@ -15,7 +22,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 		Self {}
 	}
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
-		fn solve(cfg: &mut LlvmCFG) -> bool {
+		fn solve(cfg: &mut LlvmCFG) {
 			let mut _flag: bool = false;
 
 			let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
@@ -27,6 +34,15 @@ impl RrvmOptimizer for RemoveUselessCode {
 				&mut dominates,
 				&mut dominates_directly,
 				&mut dominator,
+			);
+
+			let mut dominator_frontier: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
+			compute_dominator_frontier(
+				cfg,
+				true,
+				&dominates,
+				&dominator,
+				&mut dominator_frontier,
 			);
 
 			// Temp -> Instruction, Basicblock which contains the instruction
@@ -52,13 +68,14 @@ impl RrvmOptimizer for RemoveUselessCode {
 					}
 				}
 				if let Some(instr) = block.borrow_mut().jump_instr.as_mut() {
-					if instr.is_ret() {
+					if instr.is_ret() || instr.is_direct_jump() {
 						instr.set_attr(MARK, LlvmAttr::Mark);
 						worklist.push_back((instr.clone_box(), block.clone()))
 					}
 				}
 			}
-			while let Some((instr, _basicblock)) = worklist.pop_front() {
+
+			while let Some((instr, basicblock)) = worklist.pop_front() {
 				instr.get_read().iter().for_each(|t| {
 					if let Some((instr_inner, bb_inner)) = defs.get_mut(t) {
 						if instr_inner.get_attr(MARK).is_none() {
@@ -67,8 +84,54 @@ impl RrvmOptimizer for RemoveUselessCode {
 						}
 					}
 				});
+				dominator_frontier
+					.entry(basicblock.borrow().id)
+					.or_default()
+					.iter_mut()
+					.for_each(|bb| {
+						if let Some(jump) = bb.borrow_mut().jump_instr.as_mut() {
+							if jump.get_attr(MARK).is_none() {
+								jump.set_attr(MARK, LlvmAttr::Mark);
+								worklist.push_back((jump.clone_box(), bb.clone()));
+							}
+						}
+					})
 			}
-			_flag
+
+			// Sweep. Clear the useless code
+			for block in cfg.blocks.iter_mut() {
+				block
+					.borrow_mut()
+					.instrs
+					.retain(|instr| instr.get_attr(MARK).is_some());
+				block
+					.borrow_mut()
+					.phi_instrs
+					.retain(|instr| instr.get_attr(MARK).is_some());
+				if let Some(jump) = block.borrow_mut().jump_instr.as_ref() {
+					if jump.get_attr(MARK).is_none() && jump.is_jump_cond() {
+						let mut domi = dominator.get(&block.borrow().id).unwrap();
+						while !(domi
+							.borrow()
+							.phi_instrs
+							.iter()
+							.any(|i| i.get_attr(MARK).is_some())
+							|| domi
+								.borrow()
+								.instrs
+								.iter()
+								.chain(domi.borrow().jump_instr.iter())
+								.any(|i| i.get_attr(MARK).is_some()))
+						{
+							domi = dominator.get(&domi.borrow().id).unwrap();
+						}
+						block.borrow_mut().jump_instr.replace(Box::new(JumpInstr {
+							_attrs: HashMap::from([(MARK.to_string(), LlvmAttr::Mark)]),
+							target: domi.borrow().label(),
+						}));
+					}
+				}
+			}
 		}
 		// fn solve(cfg: &mut LlvmCFG) {
 		// 	let mut flag: bool = false;
@@ -176,16 +239,17 @@ impl RrvmOptimizer for RemoveUselessCode {
 		// 		u.borrow_mut().phi_instrs = new_phi_instr;
 		// 	}
 		// }
-		let mut flag = false;
-		for func in program.funcs.iter_mut() {
+		Ok(program.funcs.iter_mut().fold(false, |last, func| {
+			let mut cnt = 0;
 			loop {
 				let size = func.cfg.size();
-				flag = solve(&mut func.cfg);
+				solve(&mut func.cfg);
 				if func.cfg.size() == size {
 					break;
 				}
+				cnt += 1;
 			}
-		}
-		Ok(flag)
+			cnt != 0 || last
+		}))
 	}
 }

@@ -51,6 +51,9 @@ pub trait LlvmInstrTrait:
 	fn is_jump_cond(&self) -> bool {
 		false
 	}
+	fn is_direct_jump(&self) -> bool {
+		false
+	}
 	fn is_call(&self) -> bool {
 		false
 	}
