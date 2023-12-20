@@ -65,7 +65,6 @@ pub struct ArithInstr {
 	pub lhs: Value,
 	pub rhs: Value,
 }
-
 #[derive(Clone)]
 pub struct CompInstr {
 	pub kind: CompKind,

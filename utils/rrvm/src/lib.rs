@@ -5,6 +5,7 @@ use llvm::LlvmInstr;
 
 pub mod basicblock;
 pub mod cfg;
+pub mod dominator;
 pub mod func;
 pub mod impls;
 pub mod program;

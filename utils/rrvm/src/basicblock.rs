@@ -175,6 +175,12 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 	}
 }
 
+impl PartialEq for BasicBlock<LlvmInstr, llvm::Temp> {
+	fn eq(&self, other: &Self) -> bool {
+		self.id == other.id
+	}
+}
+
 #[cfg(not(feature = "debug"))]
 impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

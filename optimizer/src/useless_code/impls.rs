@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use super::RemoveUselessCode;
 use crate::RrvmOptimizer;
 use llvm::Temp;
-use rrvm::{program::LlvmProgram, LlvmCFG};
+use rrvm::{
+	dominator::naive::compute_dominator, program::LlvmProgram, LlvmCFG, LlvmNode,
+};
 use utils::{errors::Result, UseTemp};
 
 impl RrvmOptimizer for RemoveUselessCode {
@@ -12,6 +14,16 @@ impl RrvmOptimizer for RemoveUselessCode {
 	}
 	fn apply(self, program: &mut LlvmProgram) -> Result<()> {
 		fn solve(cfg: &mut LlvmCFG) {
+			let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
+			let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
+			let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
+			compute_dominator(
+				cfg,
+				true,
+				&mut dominates,
+				&mut dominates_directly,
+				&mut dominator,
+			);
 			let mut effect_in = HashMap::<i32, HashSet<Temp>>::new();
 			let mut effect_out = HashMap::<i32, HashSet<Temp>>::new();
 			loop {
