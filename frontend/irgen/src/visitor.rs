@@ -99,7 +99,6 @@ impl Visitor for IRGenerator {
 		if let Some(init) = node.init.as_mut() {
 			self.symbol_table.set(symbol.id, var_type.default_value());
 			init.accept(self)?;
-			let (mut cfg, value, _) = self.stack.pop().unwrap();
 			if symbol.var_type.is_array() {
 				let temp = self.mgr.new_temp(var_type_to_ptr(&var_type), false); //往这个temp里store
 				self.symbol_table.set(symbol.id, temp.clone().into());
