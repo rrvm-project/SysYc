@@ -30,6 +30,8 @@ impl IRGenerator {
 			states: Vec::new(),
 			weights: Vec::new(),
 			is_global: false,
+			loading_array: None,
+			loading_type: None,
 		}
 	}
 	pub fn to_rrvm(mut self, mut program: Program) -> Result<LlvmProgram> {
@@ -46,6 +48,7 @@ impl IRGenerator {
 		if target == value.get_type() {
 			return value;
 		}
+
 		let (from_type, to_type, op) = match target {
 			I32 => (F32, I32, Float2Int),
 			F32 => (I32, F32, Int2Float),

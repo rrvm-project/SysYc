@@ -35,9 +35,10 @@ fn step_parse(name: Option<String>) -> Result<Program> {
 }
 
 fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
-	Namer::default().transform(&mut program)?;
+	let global_value = Namer::default().transform(&mut program)?;
 	Typer::default().transform(&mut program)?;
 	let mut program = IRGenerator::new().to_rrvm(program)?;
+	program.global_values = global_value;
 	match level {
 		0 => Optimizer0::new().apply(&mut program)?,
 		1 => Optimizer1::new().apply(&mut program)?,
