@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 pub mod calc;
 pub mod calc_type;
 pub mod impls;
@@ -24,8 +26,8 @@ pub struct VarType {
 }
 
 pub type FuncType = (FuncRetType, Vec<VarType>);
-pub type IntPtr = (Vec<usize>, Vec<i32>);
-pub type FloatPtr = (Vec<usize>, Vec<f32>);
+pub type IntPtr = (Vec<usize>, HashMap<usize, i32>);
+pub type FloatPtr = (Vec<usize>, HashMap<usize, f32>);
 
 #[derive(Clone, Debug)]
 pub enum Value {

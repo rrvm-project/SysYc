@@ -29,6 +29,7 @@ impl IRGenerator {
 			ret_type: FuncRetType::Void,
 			states: Vec::new(),
 			weights: Vec::new(),
+			is_global: false,
 		}
 	}
 	pub fn to_rrvm(mut self, mut program: Program) -> Result<LlvmProgram> {

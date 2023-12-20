@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+
 use ast::{shirink, tree::*, Visitor};
 use attr::Attrs;
 use rrvm_symbol::manager::SymbolManager;
 use scope::stack::ScopeStack;
-use utils::{errors::Result, SysycError::TypeError};
+use utils::{
+	errors::Result, init_value_item::InitValueItem, SysycError::TypeError,
+};
 use value::{
 	calc::{exec_binaryop, exec_unaryop},
 	BType, BinaryOp, FuncType, Value, VarType,
@@ -13,11 +17,22 @@ pub struct Namer {
 	mgr: SymbolManager,
 	ctx: ScopeStack,
 	cur_type: Option<(bool, BType)>,
+	dim_list_processing: Option<Vec<usize>>,
+	alignment_processing: Option<Vec<usize>>,
+	current_index_processing: usize,
+	const_processing: Option<bool>,
+	array_init_value_processing: HashMap<usize, Value>,
+	is_global: bool,
+	init_values: HashMap<i32, Value>,
+
+	global_init_values: HashMap<String, Vec<InitValueItem>>,
 }
 
 impl Namer {
 	pub fn transform(&mut self, program: &mut Program) -> Result<()> {
-		program.accept(self)
+		program.accept(self)?;
+		dbg!(&self.global_init_values);
+		Ok(())
 	}
 }
 
@@ -42,7 +57,13 @@ impl Namer {
 impl Visitor for Namer {
 	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
 		self.ctx.push();
-		// TODO: solve global variable
+		self.is_global = true;
+		self.init_values.clear();
+		for v in node.global_vars.iter_mut() {
+			v.accept(self)?;
+		}
+		self.is_global = false;
+
 		for v in node.functions.iter_mut() {
 			v.accept(self)?;
 		}
@@ -65,14 +86,214 @@ impl Visitor for Namer {
 	}
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
+
+		let mut align = vec![1];
+		for item in dim_list.iter().rev() {
+			align.push(align.last().unwrap() * item);
+		}
+
 		let (is_const, btype) = self.cur_type.unwrap();
-		let var_type: VarType = (!is_const, btype, dim_list).into();
+
+		self.dim_list_processing = dim_list.clone().into();
+		self.const_processing = is_const.into();
+		self.alignment_processing = align.into();
+		self.current_index_processing = 0;
+
+		let var_type: VarType = (!is_const, btype, dim_list.clone()).into();
+
 		let symbol = self.mgr.new_var_symbol(&node.ident, var_type);
+		let symbol_id = symbol.id;
+		let symbol_ident =
+			symbol.ident.clone().split_whitespace().next().unwrap().to_string();
 		node.set_attr("symbol", symbol.clone().into());
+
 		self.ctx.set_val(&node.ident, symbol)?;
 		if let Some(init) = node.init.as_mut() {
+			init.mark_init_list_depth();
+			self.array_init_value_processing.clear();
 			init.accept(self)?;
+			if is_const || self.is_global {
+				if init.is_init_val_list() {
+					let total_size =
+						self.alignment_processing.as_ref().unwrap().last().unwrap();
+
+					match btype {
+						BType::Int => {
+							let mut init_global_value = vec![];
+							let mut next_global_index = 0;
+							let mut typed_array_init_value = HashMap::new();
+
+							for index in 0..*total_size {
+								if let Some(value) =
+									self.array_init_value_processing.get(&index)
+								{
+									let blank = index - next_global_index;
+									if blank > 0 {
+										init_global_value.push(InitValueItem::None(blank));
+									}
+									next_global_index = index + 1;
+									match value {
+										Value::Int(v) => {
+											init_global_value.push(InitValueItem::Int(*v));
+											typed_array_init_value.insert(index, *v);
+										}
+										Value::Float(v) => {
+											init_global_value.push(InitValueItem::Int(*v as i32));
+											typed_array_init_value.insert(index, *v as i32);
+										}
+										_ => {
+											return Err(utils::SysycError::SyntaxError(
+												"non scalar init value item for array!".to_string(),
+											))
+										}
+									}
+								}
+							}
+
+							let blank = total_size - next_global_index;
+							if blank > 0 {
+								init_global_value.push(InitValueItem::None(blank));
+							}
+
+							if is_const {
+								self.init_values.insert(
+									symbol_id,
+									(dim_list.clone(), typed_array_init_value).into(),
+								);
+							}
+
+							if self.is_global {
+								self.global_init_values.insert(symbol_ident, init_global_value);
+							}
+						}
+						BType::Float => {
+							let mut init_global_value = vec![];
+							let mut next_global_index = 0;
+							let mut typed_array_init_value = HashMap::new();
+
+							for index in 0..*total_size {
+								if let Some(value) =
+									self.array_init_value_processing.get(&index)
+								{
+									let blank = index - next_global_index;
+									if blank > 0 {
+										init_global_value.push(InitValueItem::None(blank));
+									}
+									next_global_index = index + 1;
+									match value {
+										Value::Int(v) => {
+											init_global_value.push(InitValueItem::Float(*v as f32));
+											typed_array_init_value.insert(index, *v as f32);
+										}
+										Value::Float(v) => {
+											init_global_value.push(InitValueItem::Float(*v));
+											typed_array_init_value.insert(index, *v);
+										}
+										_ => {
+											return Err(utils::SysycError::SyntaxError(
+												"non scalar init value item for array!".to_string(),
+											))
+										}
+									}
+								}
+							}
+
+							let blank = total_size - next_global_index;
+							if blank > 0 {
+								init_global_value.push(InitValueItem::None(blank));
+							}
+
+							if is_const {
+								self.init_values.insert(
+									symbol_id,
+									(dim_list.clone(), typed_array_init_value).into(),
+								);
+							}
+
+							if self.is_global {
+								self.global_init_values.insert(symbol_ident, init_global_value);
+							}
+						}
+					}
+				} else {
+					let init_value = init.get_attr("value");
+					if let Some(attr::Attr::Value(value)) = init_value {
+						match value {
+							Value::Int(v) => match btype {
+								BType::Int => {
+									if self.is_global {
+										self
+											.global_init_values
+											.insert(symbol_ident, vec![InitValueItem::Int(*v)]);
+									}
+									if is_const {
+										self.init_values.insert(symbol_id, Value::Int(*v));
+									}
+								}
+								BType::Float => {
+									if self.is_global {
+										self.global_init_values.insert(
+											symbol_ident,
+											vec![InitValueItem::Float(*v as f32)],
+										);
+									}
+									if is_const {
+										self.init_values.insert(symbol_id, Value::Float(*v as f32));
+									}
+								}
+							},
+
+							Value::Float(v) => match btype {
+								BType::Int => {
+									if self.is_global {
+										self.global_init_values.insert(
+											symbol_ident,
+											vec![InitValueItem::Int(*v as i32)],
+										);
+									}
+									if is_const {
+										self.init_values.insert(symbol_id, Value::Int(*v as i32));
+									}
+								}
+								BType::Float => {
+									if self.is_global {
+										self
+											.global_init_values
+											.insert(symbol_ident, vec![InitValueItem::Float(*v)]);
+									}
+									if is_const {
+										self.init_values.insert(symbol_id, Value::Float(*v));
+									}
+								}
+							},
+							_ => {
+								return Err(utils::SysycError::SyntaxError(
+									"non scalar init value item for array!".to_string(),
+								))
+							}
+						}
+					}
+				}
+			}
+		} else if self.is_global {
+			// not initialized global
+			match btype {
+				BType::Int => {
+					self
+						.global_init_values
+						.insert(symbol_ident, vec![InitValueItem::Int(0)]);
+				}
+				BType::Float => {
+					self
+						.global_init_values
+						.insert(symbol_ident, vec![InitValueItem::Float(0.0)]);
+				}
+			}
 		}
+		self.dim_list_processing = None;
+		self.const_processing = None;
+		self.alignment_processing = None;
+
 		Ok(())
 	}
 	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<()> {
@@ -83,11 +304,53 @@ impl Visitor for Namer {
 		self.cur_type = None;
 		Ok(())
 	}
-	//TODO: solve init value list
+
 	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
-		for val in node.val_list.iter_mut() {
-			val.accept(self)?;
+		if let Some(attr::Attr::InitValListDepth(depth)) =
+			&node.get_attr("initvallistdepth")
+		{
+			let alignment =
+				*(self.alignment_processing.as_ref().unwrap().get(*depth).unwrap());
+
+			let odd = self.current_index_processing % alignment;
+			if odd > 0 {
+				self.current_index_processing += alignment - odd;
+			}
+
+			node.set_attr(
+				"initvallist_index",
+				attr::Attr::InitValLIstPosition(self.current_index_processing),
+			);
+
+			for val in node.val_list.iter_mut() {
+				val.accept(self)?;
+				if !val.is_init_val_list() {
+					val.set_attr(
+						"initvallist_index",
+						attr::Attr::InitValLIstPosition(self.current_index_processing),
+					);
+
+					if let Some(attr::Attr::Value(value)) = val.get_attr("value") {
+						self
+							.array_init_value_processing
+							.insert(self.current_index_processing, value.clone());
+					} else if self.const_processing.unwrap() {
+						return Err(utils::SysycError::SyntaxError(
+							"non-const init value for const array!".to_string(),
+						));
+					}
+					self.current_index_processing += 1;
+				}
+			}
+
+			let odd = self.current_index_processing % alignment;
+			if odd > 0 {
+				self.current_index_processing += alignment - odd;
+			}
+		} else {
+			unreachable!("depth should be calculated before visit init vallist")
 		}
+
 		Ok(())
 	}
 	fn visit_literal_int(&mut self, node: &mut LiteralInt) -> Result<()> {
@@ -141,7 +404,7 @@ impl Visitor for Namer {
 	}
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
-		let var_type: VarType = (false, node.type_t, dim_list).into();
+		let var_type: VarType = (true, node.type_t, dim_list).into();
 		let symbol = self.mgr.new_var_symbol(&node.ident, var_type.clone());
 		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol)?;
@@ -150,8 +413,14 @@ impl Visitor for Namer {
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let symbol = self.ctx.find_val(&node.ident)?.clone();
+
 		node.set_attr("symbol", symbol.clone().into());
 		node.set_attr("type", symbol.var_type.into());
+
+		if let Some(value) = self.init_values.get(&symbol.id) {
+			node.set_attr("value", attr::Attr::Value(value.clone()));
+		}
+
 		Ok(())
 	}
 	fn visit_block(&mut self, node: &mut Block) -> Result<()> {

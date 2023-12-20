@@ -51,7 +51,7 @@ UnaryOp = _{
   UnaryAdd | UnarySub | UnaryNot | UnaryBitNot
 }
 
-CompUnit = _{ FuncDecl } // TODO: global variable: CompUnit = _{ Decl | FuncDecl }
+CompUnit = _{ Decl | FuncDecl }
 DimList = { ("[" ~ Expr ~ "]")* }
 
 Decl = { ConstDecl | VarDecl }
