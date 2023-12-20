@@ -84,8 +84,8 @@ pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Value> {
 		BinaryOp::GE => bin_comp(x, y, |x, y| -> bool {x >= y}, |x, y| -> bool {x >= y}),
 		BinaryOp::EQ => bin_comp(x, y, |x, y| -> bool {x == y}, |x, y| -> bool {x == y}),
 		BinaryOp::NE => bin_comp(x, y, |x, y| -> bool {x != y}, |x, y| -> bool {x != y}),
-		BinaryOp::LOr => bin_comp(x, y, |x, y| -> bool {x != 0 && y != 0}, |_, _| -> bool {unreachable!()}),
-		BinaryOp::LAnd => bin_comp(x, y, |x, y| -> bool {x != 0 || y != 0}, |_, _| -> bool {unreachable!()}),
+		BinaryOp::LOr => bin_comp(x, y, |x, y| -> bool {x != 0 || y != 0}, |_, _| -> bool {unreachable!()}),
+		BinaryOp::LAnd => bin_comp(x, y, |x, y| -> bool {x != 0 && y != 0}, |_, _| -> bool {unreachable!()}),
     BinaryOp::Assign => unreachable!(),
 	}
 }
@@ -107,6 +107,7 @@ pub fn exec_unaryop(op: UnaryOp, x: &Value) -> Result<Value> {
 	match op {
 	  UnaryOp::Plus => una_calc(x, |x|-> i32 {x} ,|x|-> f32 {x}),
 	  UnaryOp::Neg => una_calc(x, |x|-> i32 {-x} ,|x|-> f32 {-x}),
-	  UnaryOp::Not => una_calc(x, |x|-> i32 {!x} ,|_|-> f32 {unreachable!()}),
+	  UnaryOp::BitNot => una_calc(x, |x|-> i32 {!x} ,|_|-> f32 {unreachable!()}),
+	  UnaryOp::Not => una_calc(x, |x|-> i32 {(x == 0) as i32} ,|_|-> f32 {unreachable!()}),
 	}
 }
