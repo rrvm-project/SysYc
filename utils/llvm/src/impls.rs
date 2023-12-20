@@ -1,9 +1,10 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use utils::UseTemp;
 
 use crate::{
 	llvminstr::*,
+	llvminstrattr::{LlvmAttr, LlvmAttrs},
 	llvmop::*,
 	llvmvar::VarType,
 	temp::Temp,
@@ -186,20 +187,26 @@ impl LlvmInstrTrait for JumpCondInstr {
 	fn new_jump(&self) -> Option<JumpInstr> {
 		if self.cond.always_true() {
 			return Some(JumpInstr {
+				_attrs: HashMap::new(),
 				target: self.target_true.clone(),
 			});
 		}
 		if self.cond.always_false() {
 			return Some(JumpInstr {
+				_attrs: HashMap::new(),
 				target: self.target_false.clone(),
 			});
 		}
 		if self.target_true == self.target_false {
 			return Some(JumpInstr {
+				_attrs: HashMap::new(),
 				target: self.target_false.clone(),
 			});
 		}
 		None
+	}
+	fn is_jump_cond(&self) -> bool {
+		true
 	}
 }
 
@@ -265,6 +272,9 @@ impl UseTemp<Temp> for RetInstr {
 impl LlvmInstrTrait for RetInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::RetInstr(self)
+	}
+	fn is_ret(&self) -> bool {
+		true
 	}
 }
 
@@ -431,5 +441,163 @@ impl LlvmInstrTrait for CallInstr {
 	}
 	fn is_call(&self) -> bool {
 		true
+	}
+}
+
+impl LlvmAttrs for ArithInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+
+impl LlvmAttrs for CompInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+impl LlvmAttrs for ConvertInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+impl LlvmAttrs for JumpInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+impl LlvmAttrs for JumpCondInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+impl LlvmAttrs for PhiInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+impl LlvmAttrs for RetInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+impl LlvmAttrs for AllocInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+impl LlvmAttrs for LoadInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+impl LlvmAttrs for StoreInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+impl LlvmAttrs for GEPInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
+	}
+}
+impl LlvmAttrs for CallInstr {
+	fn set_attr(&mut self, name: &str, attr: LlvmAttr) {
+		self._attrs.insert(String::from(name), attr);
+	}
+
+	fn get_attr(&self, name: &str) -> Option<&LlvmAttr> {
+		self._attrs.get(name)
+	}
+
+	fn clear_attr(&mut self, name: &str) {
+		self._attrs.remove(name);
 	}
 }

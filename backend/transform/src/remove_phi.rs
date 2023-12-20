@@ -38,6 +38,7 @@ pub fn remove_phi(u: &LlvmNode) {
 		while let Some((target, value)) = ready.pop() {
 			let var_type = value.get_type();
 			v.borrow_mut().push(Box::new(ArithInstr {
+				_attrs: HashMap::new(),
 				target: target.clone(),
 				lhs: var_type.default_value(),
 				op: var_type.move_op(),

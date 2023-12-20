@@ -61,6 +61,7 @@ impl IRGenerator {
 			(_, Value::Temp(temp)) => {
 				let target = self.mgr.new_temp(to_type, false);
 				let instr = Box::new(ConvertInstr {
+					_attrs: HashMap::new(),
 					op,
 					target: target.clone(),
 					from_type,
@@ -85,6 +86,7 @@ impl IRGenerator {
 				let var_type = addr.as_ref().unwrap().deref_type();
 				let temp = self.mgr.new_temp(var_type, false);
 				let instr = Box::new(LoadInstr {
+					_attrs: HashMap::new(),
 					target: temp.clone(),
 					var_type,
 					addr: addr.unwrap(),
@@ -135,6 +137,7 @@ impl IRGenerator {
 			let var_type = val1.get_type();
 			let temp = self.mgr.new_temp(var_type, false);
 			let instr = PhiInstr {
+				_attrs: HashMap::new(),
 				target: temp.clone(),
 				var_type,
 				source: vec![(val1, cfg1.exit_label()), (val2, cfg2.exit_label())],
@@ -147,6 +150,7 @@ impl IRGenerator {
 		link_cfg(&cfg1, &exit);
 		link_cfg(&cfg2, &exit);
 		let instr = Box::new(JumpCondInstr {
+			_attrs: HashMap::new(),
 			var_type: I32,
 			cond: cond_val,
 			target_true: cfg1.entry_label(),
@@ -217,6 +221,7 @@ impl IRGenerator {
 				})
 				.collect();
 			target.borrow_mut().push_phi(PhiInstr {
+				_attrs: HashMap::new(),
 				var_type: temp.var_type,
 				target: temp.clone(),
 				source,

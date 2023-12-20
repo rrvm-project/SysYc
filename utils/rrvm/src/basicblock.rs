@@ -130,6 +130,7 @@ impl BasicBlock<LlvmInstr, llvm::Temp> {
 		if self.jump_instr.is_none() {
 			self.jump_instr = Some(match self.succ.len() {
 				1 => Box::new(JumpInstr {
+					_attrs: HashMap::new(),
 					target: get_other_label(
 						self,
 						self.label(),
@@ -137,6 +138,7 @@ impl BasicBlock<LlvmInstr, llvm::Temp> {
 					),
 				}),
 				0 => Box::new(RetInstr {
+					_attrs: HashMap::new(),
 					value: var_type.default_value_option(),
 				}),
 				_ => unreachable!(),
