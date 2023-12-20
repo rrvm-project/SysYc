@@ -9,6 +9,8 @@ pub enum Attr {
 	VarSymbol(VarSymbol),
 	VarType(VarType),
 	Value(Value),
+	InitValListDepth(usize),
+	InitValLIstPosition(usize),
 }
 
 pub trait Attrs {

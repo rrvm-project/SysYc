@@ -11,6 +11,12 @@ pub trait AstNode: Debug + Attrs {
 	fn is_end(&self) -> bool {
 		false
 	}
+	fn is_init_val_list(&self) -> bool {
+		false
+	}
+	fn mark_init_list_depth(&mut self) -> usize {
+		0
+	}
 }
 
 pub type Node = Box<dyn AstNode>;
@@ -39,10 +45,32 @@ pub struct VarDecl {
 	pub defs: NodeList,
 }
 
-#[derive(Debug, AstNode)]
+#[derive(Debug)]
 #[has_attrs]
 pub struct InitValList {
 	pub val_list: NodeList,
+}
+
+impl AstNode for InitValList {
+	fn accept(&mut self, visitor: &mut dyn Visitor) -> Result<()> {
+		visitor.visit_init_val_list(self)
+	}
+	fn is_init_val_list(&self) -> bool {
+		true
+	}
+	fn mark_init_list_depth(&mut self) -> usize {
+		let mut max_depth = 0;
+		for item in &mut self.val_list {
+			let child_depth = item.mark_init_list_depth();
+			max_depth = if max_depth < child_depth {
+				child_depth
+			} else {
+				max_depth
+			};
+		}
+		self.set_attr("initvallistdepth", Attr::InitValListDepth(max_depth + 1));
+		max_depth + 1
+	}
 }
 
 #[derive(Debug, AstNode)]

@@ -25,6 +25,7 @@ pub struct IRGenerator {
 	pub stack: Vec<(LlvmCFG, Option<Value>, Option<Value>)>,
 	pub states: Vec<LoopState>,
 	pub weights: Vec<f64>,
+	pub is_global: bool,
 }
 
 impl Default for IRGenerator {
@@ -37,10 +38,18 @@ impl Visitor for IRGenerator {
 	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
 		self.symbol_table.push();
 		self.weights.push(1.0);
+		self.is_global = true;
+		for v in node.global_vars.iter_mut() {
+			v.accept(self)?;
+			self.total = 0;
+		}
+		self.is_global = false;
+
 		for v in node.functions.iter_mut() {
 			v.accept(self)?;
 			self.total = 0;
 		}
+		self.symbol_table.pop();
 		Ok(())
 	}
 	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<()> {
@@ -78,13 +87,22 @@ impl Visitor for IRGenerator {
 			init.accept(self)?;
 			let (mut cfg, value, _) = self.stack.pop().unwrap();
 			if symbol.var_type.is_array() {
-				// TODO: solve array init value list
-				todo!()
+				if self.is_global {
+					let temp = self.mgr.new_temp(var_type, self.is_global);
+					self.symbol_table.set(symbol.id, temp.clone().into());
+				} else {
+					init.accept(self)?;
+					//todo
+					let (cfg, _, _) = self.stack.pop().unwrap();
+					self.stack.push((cfg, None, None));
+				}
 			} else {
+				init.accept(self)?;
+				let (mut cfg, value, _) = self.stack.pop().unwrap();
 				let value = self.type_conv(value.unwrap(), var_type, &mut cfg);
 				self.symbol_table.set(symbol.id, value);
+				self.stack.push((cfg, None, None));
 			};
-			self.stack.push((cfg, None, None));
 		} else {
 			let cfg: LlvmCFG = self.new_cfg();
 			if symbol.var_type.is_array() {
@@ -114,9 +132,19 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
-	fn visit_init_val_list(&mut self, _node: &mut InitValList) -> Result<()> {
-		// TODO: solve init_val_list
-		todo!("I don't know how to solve this");
+	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
+		for val in node.val_list.iter_mut() {
+			val.accept(self)?;
+			let (_cfg, value, addr) = self.stack.pop().unwrap();
+
+			if !val.is_init_val_list() {
+				dbg!(&val, &val.get_attr("initvallist_index"));
+				dbg!(value, addr);
+			}
+		}
+
+		// todo!();
+		Ok(())
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let now: LlvmCFG = self.new_cfg();
