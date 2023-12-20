@@ -38,6 +38,7 @@ Assign = { "=" }
 UnaryAdd = { "+" }
 UnarySub = { "-" }
 UnaryNot = { "!" }
+UnaryBitNot = { "~" }
 
 Break = { "break" }
 Continue = { "continue" }
@@ -47,7 +48,7 @@ BinaryOp = _{
   Add | Sub | Mul | Div | Mod | LE | LT | GE | GT | EQ | NE | LOr | LAnd | Assign
 }
 UnaryOp = _{
-  UnaryAdd | UnarySub | UnaryNot
+  UnaryAdd | UnarySub | UnaryNot | UnaryBitNot
 }
 
 CompUnit = _{ FuncDecl } // TODO: global variable: CompUnit = _{ Decl | FuncDecl }
@@ -91,7 +92,7 @@ Stmt = {
 Lval = { Identifier ~ DimList }
 FuncCall = { Identifier ~ "(" ~ RealParams ~ ")"}
 Primary = _{ "(" ~ Expr ~ ")" | Number | FuncCall | Lval }
-Atom = _{ UnaryOp? ~ Primary }
+Atom = _{ UnaryOp* ~ Primary }
 Expr = { Atom ~ (BinaryOp ~ Atom)* }
 
 Program = _{ SOI ~ (CompUnit)* ~ EOI }

@@ -35,6 +35,7 @@ fn map_unary_op(pair: &Pair<Rule>) -> UnaryOp {
 		Rule::UnaryAdd => UnaryOp::Plus,
 		Rule::UnarySub => UnaryOp::Neg,
 		Rule::UnaryNot => UnaryOp::Not,
+		Rule::UnaryBitNot => UnaryOp::BitNot,
 		_ => unreachable!(),
 	}
 }
@@ -79,7 +80,8 @@ lazy_static::lazy_static! {
 				| Op::infix(Rule::GE, Left) | Op::infix(Rule::GT, Left))
 			.op(Op::infix(Rule::Add, Left) | Op::infix(Rule::Sub, Left))
 			.op(Op::infix(Rule::Mul, Left) | Op::infix(Rule::Div, Left) | Op::infix(Rule::Mod, Left))
-			.op(Op::prefix(Rule::UnaryAdd) | Op::prefix(Rule::UnarySub) | Op::prefix(Rule::UnaryNot))
+			.op(Op::prefix(Rule::UnaryAdd) | Op::prefix(Rule::UnarySub)
+				| Op::prefix(Rule::UnaryNot) | Op::prefix(Rule::UnaryBitNot))
 	};
 }
 

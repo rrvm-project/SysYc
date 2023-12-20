@@ -74,6 +74,7 @@ impl Visitor for IRGenerator {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
 		let var_type = type_convert(&symbol.var_type);
 		if let Some(init) = node.init.as_mut() {
+			self.symbol_table.set(symbol.id, var_type.default_value());
 			init.accept(self)?;
 			let (mut cfg, value, _) = self.stack.pop().unwrap();
 			if symbol.var_type.is_array() {
@@ -282,6 +283,18 @@ impl Visitor for IRGenerator {
 					target: target.clone(),
 					op,
 					lhs: var_type.default_value(),
+					var_type,
+					rhs: temp,
+				});
+				cfg.get_exit().borrow_mut().push(instr);
+				self.stack.push((cfg, Some(target.into()), None));
+			}
+			UnaryOp::BitNot => {
+				let target = self.mgr.new_temp(var_type, false);
+				let instr = Box::new(ArithInstr {
+					target: target.clone(),
+					op: ArithOp::Xor,
+					lhs: (-1).into(),
 					var_type,
 					rhs: temp,
 				});

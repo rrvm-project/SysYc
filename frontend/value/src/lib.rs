@@ -59,4 +59,5 @@ pub enum UnaryOp {
 	Plus,
 	Neg,
 	Not,
+	BitNot,
 }
