@@ -55,4 +55,12 @@ impl TempManager {
 		self.total += 1;
 		Temp::new(self.total, var_type, is_global)
 	}
+	pub fn new_temp_with_name(
+		&mut self,
+		name: String,
+		var_type: VarType,
+	) -> Temp {
+		self.total += 1;
+		Temp::new(name, var_type, true)
+	}
 }

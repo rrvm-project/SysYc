@@ -29,10 +29,12 @@ pub struct Namer {
 }
 
 impl Namer {
-	pub fn transform(&mut self, program: &mut Program) -> Result<()> {
+	pub fn transform(
+		&mut self,
+		program: &mut Program,
+	) -> Result<HashMap<String, Vec<InitValueItem>>> {
 		program.accept(self)?;
-		dbg!(&self.global_init_values);
-		Ok(())
+		Ok(self.global_init_values.to_owned())
 	}
 }
 
@@ -102,6 +104,7 @@ impl Visitor for Namer {
 		let var_type: VarType = (!is_const, btype, dim_list.clone()).into();
 
 		let symbol = self.mgr.new_var_symbol(&node.ident, var_type);
+
 		let symbol_id = symbol.id;
 		let symbol_ident =
 			symbol.ident.clone().split_whitespace().next().unwrap().to_string();

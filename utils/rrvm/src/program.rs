@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use instruction::{riscv::RiscvInstr, temp};
 use llvm::LlvmInstr;
-use utils::{InstrTrait, TempTrait};
+use utils::{InitValueItem, InstrTrait, TempTrait};
 
 use crate::func::RrvmFunc;
 
@@ -10,13 +12,16 @@ pub type RiscvFunc = RrvmFunc<RiscvInstr, temp::Temp>;
 pub type RiscvProgram = RrvmProgram<RiscvInstr, temp::Temp>;
 
 pub struct RrvmProgram<T: InstrTrait<U>, U: TempTrait> {
-	// pub global_vars: Vec<>
+	pub global_values: HashMap<String, Vec<InitValueItem>>,
 	pub funcs: Vec<RrvmFunc<T, U>>,
 }
 
 impl<T: InstrTrait<U>, U: TempTrait> RrvmProgram<T, U> {
 	pub fn new() -> Self {
-		Self { funcs: Vec::new() }
+		Self {
+			funcs: Vec::new(),
+			global_values: HashMap::new(),
+		}
 	}
 }
 
