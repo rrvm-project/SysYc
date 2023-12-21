@@ -5,17 +5,15 @@ COMMENT = _{
   "/*" ~ (!"*/" ~ ANY)* ~ "*/"
 }
 
-DecimalInteger = _{ "0"|("1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"|"9") ~ ASCII_DIGIT* }
-HexDigit=_{"0"|"1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"|"9"|"a"|"b"|"c"|"d"|"e"|"f"|"A"|"B"|"C"|"D"|"E"|"F"}
-HexInteger=_{("0X"|"0x") ~ HexDigit+}
-OctalDigit=_{"0"|"1"|"2"|"3"|"4"|"5"|"6"|"7"}
-OctalInteger=_{"0" ~ OctalDigit+}
-BinaryInteger=_{("0b"|"0B") ~ ("0"|"1")+}
-Integer={HexInteger|BinaryInteger|OctalInteger|DecimalInteger}
+DecimalInteger = _{ "0"|ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
+HexInteger = _{("0X"|"0x") ~ ASCII_HEX_DIGIT+}
+OctalInteger = _{"0" ~ ASCII_OCT_DIGIT+}
+BinaryInteger = _{("0b"|"0B") ~ ASCII_BIN_DIGIT+}
+Integer = {HexInteger|BinaryInteger|OctalInteger|DecimalInteger}
 
 Decimals = _{ ASCII_DIGIT+ }
-Exponent= _{("e"|"E") ~ ("+"|"-")* ~ Decimals }
-Float=${ (Decimals ~ "." ~ Decimals? ~ Exponent? ~ ("f"|"F")?)|(Decimals~ Exponent ~ ("f"|"F")?)|("." ~ Decimals ~ Exponent? ~ ("f"|"F")?) }
+Exponent = _{("e"|"E") ~ ("+"|"-")* ~ Decimals }
+Float = ${ (Decimals ~ "." ~ Decimals? ~ Exponent? ~ ("f"|"F")?)|(Decimals~ Exponent ~ ("f"|"F")?)|("." ~ Decimals ~ Exponent? ~ ("f"|"F")?) }
 
 Number = _{ Float | Integer}
 

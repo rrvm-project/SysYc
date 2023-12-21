@@ -147,13 +147,11 @@ fn parse_int_lit(s: &str) -> i32 {
 }
 fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 	match pair.as_rule() {
-		Rule::Integer => {
-			println!("int{}", pair.as_str());
-			Box::new(LiteralInt {
-				_attrs: HashMap::new(),
-				value: parse_int_lit(pair.as_str()),
-			})
-		}
+		Rule::Integer => Box::new(LiteralInt {
+			_attrs: HashMap::new(),
+			value: parse_int_lit(pair.as_str()),
+		}),
+
 		Rule::Float => Box::new(LiteralFloat {
 			_attrs: HashMap::new(),
 			value: parse_float_lit(pair.as_str()),
