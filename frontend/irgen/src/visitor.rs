@@ -145,8 +145,9 @@ impl Visitor for IRGenerator {
 				self.stack.push((cfg, None, None));
 			} else {
 				init.accept(self)?;
-				let (mut cfg, value, _) = self.stack.pop().unwrap();
-				let value = self.type_conv(value.unwrap(), var_type, &mut cfg);
+				let (mut cfg, value, addr) = self.stack.pop().unwrap();
+				let value = self.solve(value, addr, &mut cfg);
+				let value = self.type_conv(value, var_type, &mut cfg);
 				self.symbol_table.set(symbol.id, value);
 				self.stack.push((cfg, None, None));
 			};
