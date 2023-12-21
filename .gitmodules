@@ -1,0 +1,3 @@
+[submodule "sysyc-tests"]
+	path = sysyc-tests
+	url = git@github.com:rrvm-project/sysyc-tests.git
