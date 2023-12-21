@@ -5,10 +5,18 @@ COMMENT = _{
   "/*" ~ (!"*/" ~ ANY)* ~ "*/"
 }
 
-// TODO: 多种进制的整数
-Integer = ${ ASCII_DIGIT+ }
-// 先这样看看效果
-Float = ${ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+DecimalInteger = _{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
+HexInteger = _{ ("0X" | "0x") ~ ASCII_HEX_DIGIT+ }
+OctalInteger = _{ "0" ~ ASCII_OCT_DIGIT+ }
+BinaryInteger = _{ ("0b" | "0B") ~ ASCII_BIN_DIGIT+ }
+Integer = ${ HexInteger | BinaryInteger | OctalInteger | DecimalInteger }
+
+Decimals = _{ ASCII_DIGIT+ }
+Exponent = _{ ("e" | "E") ~ ("+" | "-")* ~ Decimals }
+Float = ${ (Decimals ~ "." ~ Decimals? ~ Exponent? ~ ("f" | "F")?)
+          | (Decimals ~ Exponent ~ ("f" | "F")?)
+          | ("." ~ Decimals ~ Exponent? ~ ("f" | "F")?) }
+
 Number = _{ Float | Integer}
 
 // 怎么能不支持下划线，我给他加上了

@@ -113,15 +113,42 @@ fn parse_lval(pair: Pair<Rule>) -> Node {
 	var
 }
 
+fn parse_float_lit(s: &str) -> f32 {
+	let mut s1 = s.to_string();
+	if s1.starts_with('.') {
+		s1.insert(0, '0');
+	}
+	if s1.ends_with('f') {
+		s1.pop();
+	}
+	s1.parse().unwrap()
+}
+
+fn parse_int_lit(s: &str) -> i32 {
+	if s == "0" {
+		return 0;
+	}
+	if s.contains('x') || s.contains('X') {
+		return i32::from_str_radix(&s[2..], 16).unwrap();
+	} else if s.contains('b') || s.contains('B') {
+		return i32::from_str_radix(&s[2..], 2).unwrap();
+	}
+	if s.starts_with('0') {
+		return i32::from_str_radix(s, 8).unwrap();
+	}
+	s.parse().unwrap()
+}
+
 fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 	match pair.as_rule() {
 		Rule::Integer => Box::new(LiteralInt {
 			_attrs: HashMap::new(),
-			value: pair.as_str().parse().unwrap(),
+			value: parse_int_lit(pair.as_str()),
 		}),
+
 		Rule::Float => Box::new(LiteralFloat {
 			_attrs: HashMap::new(),
-			value: pair.as_str().parse().unwrap(),
+			value: parse_float_lit(pair.as_str()),
 		}),
 		Rule::FuncCall => parse_func_call(pair),
 		Rule::Lval => parse_lval(pair),
