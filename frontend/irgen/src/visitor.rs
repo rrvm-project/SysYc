@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use ast::{tree::*, Visitor};
 use attr::Attrs;
@@ -28,6 +28,7 @@ pub struct IRGenerator {
 	pub is_global: bool,
 	pub loading_array: Option<Temp>,
 	pub loading_type: Option<llvm::VarType>,
+	pub initialized_stack_array_item: HashSet<usize>,
 }
 
 impl Default for IRGenerator {
@@ -98,17 +99,42 @@ impl Visitor for IRGenerator {
 
 		if let Some(init) = node.init.as_mut() {
 			self.symbol_table.set(symbol.id, var_type.default_value());
-			init.accept(self)?;
+
 			if symbol.var_type.is_array() {
 				let temp = self.mgr.new_temp(var_type_to_ptr(&var_type), false); //往这个temp里store
 				self.symbol_table.set(symbol.id, temp.clone().into());
 				self.loading_array = Some(temp.clone());
 				self.loading_type = Some(var_type_to_scalar(&var_type));
-
+				self.initialized_stack_array_item.clear();
 				init.accept(self)?;
 				let (cfg, _, _) = self.stack.pop().unwrap(); // 这里的cfg中是一堆store指令
 
 				let length: usize = symbol.var_type.dims.iter().product();
+				for i in 0..length {
+					if self.initialized_stack_array_item.contains(&i) {
+						continue;
+					}
+					let store_addr = self
+						.mgr
+						.new_temp(var_type_to_ptr(&self.loading_type.unwrap()), false);
+
+					let instr = Box::new(GEPInstr {
+						target: store_addr.clone(),
+						var_type: var_type_to_ptr(&self.loading_type.unwrap()),
+						addr: llvm::Value::Temp(self.loading_array.clone().unwrap()),
+						offset: llvm::Value::Int((i * 4) as i32),
+					});
+
+					cfg.get_exit().borrow_mut().push(instr);
+
+					let instr = Box::new(StoreInstr {
+						value: get_zero(&self.loading_type.unwrap()),
+						addr: llvm::Value::Temp(store_addr),
+					});
+					cfg.get_exit().borrow_mut().push(instr);
+				}
+				self.initialized_stack_array_item.clear();
+
 				let instr = Box::new(AllocInstr {
 					target: temp.clone(),
 					length: ((length * var_type.deref_type().get_size()) as i32).into(),
@@ -177,6 +203,7 @@ impl Visitor for IRGenerator {
 						addr: llvm::Value::Temp(self.loading_array.clone().unwrap()),
 						offset: llvm::Value::Int((*position * 4) as i32),
 					});
+					self.initialized_stack_array_item.insert(*position);
 					cfg_child.get_exit().borrow_mut().push(instr);
 
 					let instr = Box::new(StoreInstr {
@@ -187,10 +214,9 @@ impl Visitor for IRGenerator {
 				} else {
 					unreachable!();
 				}
-
-				link_cfg(&cfg_this, &cfg_child);
-				cfg_this.append(cfg_child);
 			}
+			link_cfg(&cfg_this, &cfg_child);
+			cfg_this.append(cfg_child);
 		}
 		self.stack.push((cfg_this, None, None));
 		Ok(())
