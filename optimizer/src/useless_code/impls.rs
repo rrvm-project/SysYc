@@ -1,11 +1,8 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::RemoveUselessCode;
 use crate::RrvmOptimizer;
-use llvm::{
-	llvminstrattr::{LlvmAttr, LlvmAttrs},
-	JumpInstr, LlvmInstr, Temp,
-};
+use llvm::{JumpInstr, Temp};
 use rrvm::{
 	dominator::{
 		dominator_frontier::compute_dominator_frontier, naive::compute_dominator,
@@ -14,8 +11,6 @@ use rrvm::{
 	LlvmCFG, LlvmNode,
 };
 use utils::{errors::Result, UseTemp};
-
-const MARK: &str = "MARK";
 
 impl RrvmOptimizer for RemoveUselessCode {
 	fn new() -> Self {
@@ -40,96 +35,129 @@ impl RrvmOptimizer for RemoveUselessCode {
 			compute_dominator_frontier(
 				cfg,
 				true,
-				&dominates,
+				&dominates_directly,
 				&dominator,
 				&mut dominator_frontier,
 			);
 
-			// Temp -> Instruction, Basicblock which contains the instruction
-			let mut defs: HashMap<Temp, (LlvmInstr, LlvmNode)> = HashMap::new();
-			let mut worklist = VecDeque::new();
+			// Temp -> Instruction, id of the Basicblock which contains the instruction
+			// instruction here is represented by its index in the basicblock
+			let mut temp_graph: HashMap<Temp, HashSet<(Temp, i32)>> = HashMap::new();
+			let mut worklist: VecDeque<Temp> = VecDeque::new();
+			let mut visited: HashSet<Temp> = HashSet::new();
+			let mut visited_block: HashSet<i32> = HashSet::new();
+			let mut insert_worklist = |t: &Temp, id: i32| {
+				if !visited.contains(t) {
+					visited.insert(t.clone());
+					worklist.push_back(t.clone());
+					visited_block.insert(id);
+				}
+			};
+			let mut add_edge = |u: &Temp, v: &Temp, id: i32| {
+				temp_graph.entry(u.clone()).or_default().insert((v.clone(), id));
+			};
 			for block in cfg.blocks.iter() {
-				for instr in block.borrow_mut().instrs.iter_mut() {
-					instr.clear_attr(MARK);
-					if instr.is_store()
-						|| instr
-							.get_read()
-							.iter()
-							.chain(instr.get_write().iter())
-							.any(|t| t.is_global)
-					{
-						instr.set_attr(MARK, LlvmAttr::Mark);
-						worklist.push_back((instr.clone_box(), block.clone()))
-					}
-					if let Some(t) = instr.get_write().clone() {
-						if !t.is_global {
-							defs.insert(t, (instr.clone_box(), block.clone()));
-						}
+				let block = block.borrow();
+				let id = block.id;
+				for instr in block.instrs.iter() {
+					if instr.has_sideeffect() {
+						instr.get_write().iter().for_each(|v| insert_worklist(v, id));
 					}
 				}
-				if let Some(instr) = block.borrow_mut().jump_instr.as_mut() {
-					if instr.is_ret() || instr.is_direct_jump() {
-						instr.set_attr(MARK, LlvmAttr::Mark);
-						worklist.push_back((instr.clone_box(), block.clone()))
+				if let Some(jump) = block.jump_instr.as_ref() {
+					if jump.is_ret() {
+						jump.get_read().iter().for_each(|v| insert_worklist(v, id));
+					}
+				}
+				let virtual_temp = Temp {
+					name: format!("virtual_temp_{}", id),
+					is_global: false,
+					var_type: llvm::VarType::Void,
+				};
+				for instr in block.instrs.iter() {
+					if let Some(u) = instr.get_write() {
+						for v in instr.get_read() {
+							add_edge(&u, &v, id);
+						}
+						add_edge(&u, &virtual_temp, id);
+					}
+				}
+				for instr in block.phi_instrs.iter() {
+					if let Some(u) = instr.get_write() {
+						for v in instr.get_read() {
+							add_edge(&u, &v, id);
+						}
+						add_edge(&u, &virtual_temp, id);
+					}
+				}
+				for bb in dominator_frontier.get(&id).iter().flat_map(|v| v.iter()) {
+					let bb_id = bb.borrow().id;
+					if let Some(jump) = bb.borrow().jump_instr.as_ref() {
+						jump
+							.get_read()
+							.iter()
+							.for_each(|v| add_edge(&virtual_temp, v, bb_id));
 					}
 				}
 			}
 
-			while let Some((instr, basicblock)) = worklist.pop_front() {
-				instr.get_read().iter().for_each(|t| {
-					if let Some((instr_inner, bb_inner)) = defs.get_mut(t) {
-						if instr_inner.get_attr(MARK).is_none() {
-							instr_inner.set_attr(MARK, LlvmAttr::Mark);
-							worklist.push_back((instr_inner.clone_box(), bb_inner.clone()));
+			while let Some(u) = worklist.pop_front() {
+				if let Some(edges) = temp_graph.get(&u) {
+					for (v, id) in edges.iter() {
+						if !visited.contains(v) {
+							visited.insert(v.clone());
+							worklist.push_back(v.clone());
+							visited_block.insert(*id);
 						}
 					}
-				});
-				dominator_frontier
-					.entry(basicblock.borrow().id)
-					.or_default()
-					.iter_mut()
-					.for_each(|bb| {
-						if let Some(jump) = bb.borrow_mut().jump_instr.as_mut() {
-							if jump.get_attr(MARK).is_none() {
-								jump.set_attr(MARK, LlvmAttr::Mark);
-								worklist.push_back((jump.clone_box(), bb.clone()));
-							}
-						}
-					})
+				}
 			}
 
 			// Sweep. Clear the useless code
 			for block in cfg.blocks.iter_mut() {
-				block
-					.borrow_mut()
-					.instrs
-					.retain(|instr| instr.get_attr(MARK).is_some());
-				block
-					.borrow_mut()
-					.phi_instrs
-					.retain(|instr| instr.get_attr(MARK).is_some());
-				if let Some(jump) = block.borrow_mut().jump_instr.as_ref() {
-					if jump.get_attr(MARK).is_none() && jump.is_jump_cond() {
-						let mut domi = dominator.get(&block.borrow().id).unwrap();
-						while !(domi
-							.borrow()
-							.phi_instrs
-							.iter()
-							.any(|i| i.get_attr(MARK).is_some())
-							|| domi
-								.borrow()
-								.instrs
-								.iter()
-								.chain(domi.borrow().jump_instr.iter())
-								.any(|i| i.get_attr(MARK).is_some()))
+				let mut block = block.borrow_mut();
+
+				block.instrs.retain(|instr| {
+					if let Some(u) = instr.get_write() {
+						if visited.contains(&u) {
+							return true;
+						}
+					}
+					false
+				});
+
+				block.phi_instrs.retain(|instr| {
+					if let Some(u) = instr.get_write() {
+						if visited.contains(&u) {
+							return true;
+						}
+					}
+					false
+				});
+			}
+
+			for block in cfg.blocks.iter_mut() {
+				let block_id = block.borrow().id;
+				let mut block = block.borrow_mut();
+
+				let mut new_target = None;
+
+				if let Some(jump) = block.jump_instr.as_ref() {
+					if jump.is_jump_cond() && !visited_block.contains(&block_id) {
+						let mut domi = dominator.get(&block_id).unwrap();
+						while domi.borrow().jump_instr.as_ref().unwrap().is_jump_cond()
+							&& !visited_block.contains(&domi.borrow().id)
 						{
 							domi = dominator.get(&domi.borrow().id).unwrap();
 						}
-						block.borrow_mut().jump_instr.replace(Box::new(JumpInstr {
-							_attrs: HashMap::from([(MARK.to_string(), LlvmAttr::Mark)]),
-							target: domi.borrow().label(),
-						}));
+						new_target = Some(domi.borrow().label())
 					}
+				}
+				if new_target.is_some() {
+					block.jump_instr = Some(Box::new(JumpInstr {
+						_attrs: HashMap::new(),
+						target: new_target.unwrap(),
+					}));
 				}
 			}
 		}

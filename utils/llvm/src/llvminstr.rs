@@ -45,6 +45,9 @@ pub trait LlvmInstrTrait:
 	fn is_store(&self) -> bool {
 		false
 	}
+	fn has_sideeffect(&self) -> bool {
+		false
+	}
 	fn is_ret(&self) -> bool {
 		false
 	}

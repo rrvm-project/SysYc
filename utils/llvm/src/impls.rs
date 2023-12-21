@@ -341,6 +341,9 @@ impl LlvmInstrTrait for StoreInstr {
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.value.get_type(), self.addr.get_type())
 	}
+	fn has_sideeffect(&self) -> bool {
+		true
+	}
 	fn is_store(&self) -> bool {
 		true
 	}
@@ -441,6 +444,9 @@ impl UseTemp<Temp> for CallInstr {
 impl LlvmInstrTrait for CallInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::CallInstr(self)
+	}
+	fn has_sideeffect(&self) -> bool {
+		true
 	}
 	fn is_call(&self) -> bool {
 		true

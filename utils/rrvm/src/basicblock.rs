@@ -64,6 +64,9 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			_ => Label::new(format!("B{}", self.id)),
 		}
 	}
+	pub fn is_empty(&self) -> bool {
+		self.instrs.is_empty() && self.jump_instr.is_none()
+	}
 	// Use this before drop a BasicBlock, or may lead to memory leak
 	pub fn clear(&mut self) {
 		self.prev.clear();
