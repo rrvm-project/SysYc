@@ -129,7 +129,7 @@ fn parse_float_lit(s: &str) -> f32 {
 	if s1.ends_with('f') {
 		s1.pop();
 	}
-	return s1.parse().unwrap();
+	s1.parse().unwrap()
 }
 fn parse_int_lit(s: &str) -> i32 {
 	if s == "0" {
@@ -143,7 +143,7 @@ fn parse_int_lit(s: &str) -> i32 {
 	if s.starts_with('0') {
 		return i32::from_str_radix(s, 8).unwrap();
 	}
-	return s.parse().unwrap();
+	s.parse().unwrap()
 }
 fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 	match pair.as_rule() {
