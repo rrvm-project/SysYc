@@ -8,7 +8,10 @@ COMMENT = _{
 // TODO: 多种进制的整数
 Integer = ${ ASCII_DIGIT+ }
 // 先这样看看效果
-Float = ${ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+Decimals = _{ ASCII_DIGIT+ }
+Exponent= _{("e"|"E") ~ ("+"|"-")* ~ Decimals }
+Float=${ (Decimals ~ "." ~ Decimals? ~ Exponent? ~ ("f"|"F")?)|(Decimals~ Exponent ~ ("f"|"F")?)|("." ~ Decimals ~ Exponent? ~ ("f"|"F")?) }
+
 Number = _{ Float | Integer}
 
 // 怎么能不支持下划线，我给他加上了
