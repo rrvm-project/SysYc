@@ -32,6 +32,7 @@ impl IRGenerator {
 			is_global: false,
 			loading_array: None,
 			loading_type: None,
+			initialized_stack_array_item: HashSet::new(),
 		}
 	}
 	pub fn to_rrvm(mut self, mut program: Program) -> Result<LlvmProgram> {

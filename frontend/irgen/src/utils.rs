@@ -99,3 +99,11 @@ pub fn is_ptr(var_type: &VarType) -> bool {
 		VarType::Void => unreachable!(),
 	}
 }
+
+pub fn get_zero(var_type: &VarType) -> llvm::Value {
+	match var_type {
+		VarType::I32 => llvm::Value::Int(0),
+		VarType::F32 => llvm::Value::Float(0.0),
+		_ => unreachable!(),
+	}
+}
