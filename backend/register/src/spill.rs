@@ -6,7 +6,7 @@ use instruction::{
 };
 use rrvm::program::RiscvFunc;
 
-pub fn spill(func: &mut RiscvFunc, to_spill: Temp, cnt: u32) {
+pub fn spill(func: &mut RiscvFunc, to_spill: Temp, cnt: i32) {
 	// TODO: need more test
 	eprintln!("register spill happened! this may lead unknown fault");
 	let mut mgr = TempManager::new(cnt);
@@ -22,9 +22,9 @@ pub fn spill(func: &mut RiscvFunc, to_spill: Temp, cnt: u32) {
 				instr.move_sp(&mut height);
 				let mut new_instrs = Vec::new();
 				let temp = if instr.get_read().into_iter().any(|v| v == to_spill) {
-					let new_temp = mgr.new_raw_temp();
+					let new_temp = mgr.new_raw_temp(&to_spill);
 					let load_instr =
-						IBinInstr::new(LWU, new_temp.into(), (height, SP.into()).into());
+						IBinInstr::new(LW, new_temp.into(), (height, SP.into()).into());
 					new_instrs.push(load_instr);
 					instr.map_temp(&[(to_spill, new_temp.into())].into_iter().collect());
 					new_temp

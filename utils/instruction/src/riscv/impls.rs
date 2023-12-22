@@ -295,3 +295,25 @@ impl NoArgInstr {
 		})
 	}
 }
+
+impl Display for CallInstr {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "  jal ra, {}", self.func_label)
+	}
+}
+
+impl RiscvInstrTrait for CallInstr {
+	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
+		self.params.clone()
+	}
+}
+
+impl CallInstr {
+	pub fn new(func_label: Label) -> RiscvInstr {
+		Box::new(Self {
+			is_start: false,
+			func_label,
+			params: Vec::new(),
+		})
+	}
+}

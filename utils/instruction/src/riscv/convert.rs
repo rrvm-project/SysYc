@@ -1,3 +1,5 @@
+use std::cmp::max;
+
 use llvm::llvmop::*;
 use utils::errors::{Result, SysycError::*};
 
@@ -266,7 +268,7 @@ pub fn riscv_load(
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let addr = into_reg(&instr.addr, &mut instrs, mgr);
 	let rd = mgr.get(&instr.target);
-	instrs.push(IBinInstr::new(LWU, rd, (0, addr).into()));
+	instrs.push(IBinInstr::new(LW, rd, (0, addr).into()));
 	Ok(instrs)
 }
 
@@ -277,13 +279,56 @@ pub fn riscv_gep(
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let rd = mgr.get(&instr.target);
 	let (lhs, rhs) = (&instr.addr, &instr.offset);
-	get_arith(rd, llvm::llvmop::ArithOp::Add, lhs, rhs, &mut instrs, mgr);
+	get_arith(rd, llvm::ArithOp::Add, lhs, rhs, &mut instrs, mgr);
 	Ok(instrs)
 }
 
 pub fn riscv_call(
-	_instr: &llvm::llvminstr::CallInstr,
-	_mgr: &mut TempManager,
+	instr: &llvm::llvminstr::CallInstr,
+	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
-	todo!()
+	// caller-saved
+	let mut instrs: RiscvInstrSet = Vec::new();
+	CALLER_SAVE.iter().for_each(|&reg| {
+		let rd = mgr.new_pre_color_temp(reg);
+		let instr = RTriInstr::new(Add, rd, reg.into(), X0.into());
+		instrs.push(instr);
+	});
+
+	// load parameters
+	for (&reg, (_, val)) in PARAMETER_REGS.iter().zip(instr.params.iter()) {
+		let rd = mgr.new_pre_color_temp(reg);
+		get_arith(rd, llvm::ArithOp::Add, val, &0.into(), &mut instrs, mgr);
+	}
+
+	let cnt = max(0, instr.params.len() as i32 - 8) * 16; // 64 位的
+	if cnt > 0 {
+		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-cnt).into()));
+	}
+	for (index, (_, val)) in instr.params.iter().skip(8).enumerate() {
+		let value = into_reg(val, &mut instrs, mgr);
+		instrs.push(IBinInstr::new(
+			SW,
+			value,
+			((index * 8) as i32, SP.into()).into(),
+		));
+	}
+
+	instrs.push(CallInstr::new(instr.func.clone()));
+	if !instr.target.var_type.is_void() {
+		let rd = mgr.get(&instr.target);
+		let instr = RTriInstr::new(Add, rd, A0.into(), X0.into());
+		instrs.push(instr);
+	}
+
+	if cnt > 0 {
+		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), cnt.into()));
+	}
+
+	CALLER_SAVE.iter().for_each(|&reg| {
+		let rd = mgr.new_pre_color_temp(reg);
+		let instr = RTriInstr::new(Add, reg.into(), rd, X0.into());
+		instrs.push(instr);
+	});
+	Ok(instrs)
 }
