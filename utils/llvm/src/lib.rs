@@ -8,7 +8,7 @@ mod impls;
 mod utils_llvm;
 
 pub use llvminstr::*;
-pub use llvmop::Value;
+pub use llvmop::{Value, *};
 pub use llvmvar::VarType;
 pub use temp::*;
 

@@ -114,3 +114,10 @@ pub struct BranInstr {
 pub struct NoArgInstr {
 	pub op: NoArgInstrOp,
 }
+
+#[has_riscv_attrs]
+#[derive(UseTemp, Clone)]
+pub struct CallInstr {
+	pub func_label: Label,
+	pub params: Vec<RiscvTemp>,
+}

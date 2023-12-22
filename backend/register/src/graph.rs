@@ -1,5 +1,4 @@
 use std::{
-	cmp::Ordering,
 	collections::{HashMap, HashSet},
 	f64::INFINITY,
 };
@@ -7,7 +6,7 @@ use std::{
 use instruction::{
 	riscv::{
 		reg::{RiscvReg, ALLOACBLE_COUNT, ALLOCABLE_REGS},
-		value::RiscvTemp::{PhysReg, VirtReg},
+		value::RiscvTemp::VirtReg,
 		RiscvInstr,
 	},
 	temp::Temp,
@@ -25,16 +24,7 @@ pub struct InterferenceGraph {
 	pub color: HashMap<Temp, RiscvReg>,
 	pub edges: Vec<(Temp, Temp)>,
 	pub merge_w: HashMap<(Temp, Temp), f64>,
-	pub color_w: HashMap<Temp, Vec<f64>>,
 	pub spill_cost: HashMap<Temp, f64>,
-}
-
-fn default_array() -> Vec<f64> {
-	(0..ALLOACBLE_COUNT).map(|v| 0.1 * v as f64).collect()
-}
-
-fn cmp_tuple<T>((_, x): &(T, f64), (_, y): &(T, f64)) -> Ordering {
-	x.total_cmp(y)
 }
 
 impl InterferenceGraph {
@@ -108,30 +98,19 @@ impl InterferenceGraph {
 		if instr.is_move() {
 			let uses = instr.get_riscv_read();
 			let defs = instr.get_riscv_write();
-			let (mut virt, mut phys) = uses.into_iter().chain(defs).fold(
-				(Vec::new(), Vec::new()),
-				|(mut x, mut y), v| {
-					match v {
-						_ if v.is_zero() => (),
-						PhysReg(reg) => y.push(reg),
-						VirtReg(temp) => x.push(temp),
-					};
-					(x, y)
-				},
-			);
-			assert_eq!(virt.len() + phys.len(), 2);
+			let mut virt =
+				uses.into_iter().chain(defs).fold(Vec::new(), |mut x, v| {
+					if let VirtReg(temp) = v {
+						x.push(temp);
+					}
+					x
+				});
 			if virt.len() == 2 {
 				let x = virt.pop().unwrap();
 				let y = virt.pop().unwrap();
 				if x != y {
 					*self.merge_w.entry((x, y)).or_default() += weight;
 					*self.merge_w.entry((y, x)).or_default() += weight;
-				}
-			} else {
-				let x = virt.pop().unwrap();
-				let y = phys.pop().unwrap();
-				if let Some(index) = y.get_index() {
-					self.color_w.entry(x).or_insert_with(default_array)[index] += weight;
 				}
 			}
 		}
@@ -192,7 +171,7 @@ impl InterferenceGraph {
 
 	pub fn coloring(&mut self) -> bool {
 		let mut edges = HashMap::new();
-		let mut color = HashMap::new();
+		self.color.clear();
 		for (u, v) in self.edges.iter() {
 			edges.entry(u).or_insert_with(Vec::new).push(v);
 		}
@@ -209,24 +188,14 @@ impl InterferenceGraph {
 		temps.sort_by(|(x, _), (y, _)| y.total_cmp(x));
 		for (_, temp) in temps.iter() {
 			if self.union_find.is_root(**temp) {
-				let mut a: Vec<_> = self
-					.color_w
-					.remove(temp)
-					.unwrap_or_else(default_array)
-					.into_iter()
-					.enumerate()
-					.collect();
-				a.sort_by(cmp_tuple);
 				let used: HashSet<_> = edges
 					.remove(temp)
 					.unwrap_or_else(Vec::new)
 					.iter()
-					.filter_map(|v| color.get(*v))
+					.filter_map(|v| self.color.get(*v))
 					.collect();
-				if let Some(reg) =
-					a.into_iter().find(|(index, _)| !used.contains(index))
-				{
-					color.insert(**temp, reg.0);
+				if let Some(reg) = ALLOCABLE_REGS.iter().find(|v| !used.contains(v)) {
+					self.color.insert(**temp, *reg);
 				} else {
 					self.spill_node = Some(**temp);
 					return false;
@@ -235,14 +204,10 @@ impl InterferenceGraph {
 		}
 		for (_, &temp) in temps {
 			if !self.union_find.is_root(temp) {
-				let v = color.get(&self.union_find.find(temp)).unwrap();
-				color.insert(temp, *v);
+				let v = self.color.get(&self.union_find.find(temp)).unwrap();
+				self.color.insert(temp, *v);
 			}
 		}
-		self.color = color
-			.into_iter()
-			.map(|(k, v)| (k, *ALLOCABLE_REGS.get(v).unwrap()))
-			.collect();
 		true
 	}
 }

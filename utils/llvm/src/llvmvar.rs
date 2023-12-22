@@ -59,4 +59,7 @@ impl VarType {
 			Self::Void => unreachable!(),
 		}
 	}
+	pub fn is_void(&self) -> bool {
+		matches!(self, Self::Void)
+	}
 }

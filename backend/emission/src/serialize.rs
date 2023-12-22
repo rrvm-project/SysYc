@@ -52,6 +52,7 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 		}
 	}
 	nodes.into_iter().for_each(|v| v.borrow_mut().clear());
+	// TODO: solve callee saved
 	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
 	instrs.retain(|v| !v.useless());
 	(func.name, instrs)

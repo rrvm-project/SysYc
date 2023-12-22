@@ -128,7 +128,7 @@ impl Visitor for IRGenerator {
 					cfg.get_exit().borrow_mut().push(instr);
 
 					let instr = Box::new(StoreInstr {
-						value: get_zero(&self.loading_type.unwrap()),
+						value: var_type.default_value(),
 						addr: llvm::Value::Temp(store_addr),
 					});
 					cfg.get_exit().borrow_mut().push(instr);
@@ -428,13 +428,9 @@ impl Visitor for IRGenerator {
 		let (ret_type, params_type) = symbol.var_type;
 		for (param, type_t) in node.params.iter_mut().zip(params_type.iter()) {
 			param.accept(self)?;
-			let (mut cfg, val_in, addr) = self.stack.pop().unwrap();
+			let (mut cfg, val, addr) = self.stack.pop().unwrap();
 			let var_type = type_convert(type_t);
-			let val: Value = if !is_ptr(&var_type) {
-				self.solve(val_in, addr, &mut cfg)
-			} else {
-				addr.unwrap()
-			};
+			let val = self.solve(val, addr, &mut cfg);
 			let val = self.type_conv(val, var_type, &mut cfg);
 			cfgs.push(cfg);
 			params.push((var_type, val));
