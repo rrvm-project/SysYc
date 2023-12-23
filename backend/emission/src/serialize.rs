@@ -2,9 +2,13 @@ use std::collections::HashMap;
 
 use instruction::{
 	riscv::{
-		reg::RiscvReg::SP,
+		reg::{RiscvReg::SP, CALLEE_SAVE},
 		riscvinstr::{LabelInstr, *},
-		riscvop::ITriInstrOp::Addi,
+		riscvop::{
+			IBinInstrOp::{LW, SW},
+			ITriInstrOp::Addi,
+			NoArgInstrOp::Ret,
+		},
 	},
 	RiscvInstrSet,
 };
@@ -30,7 +34,27 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	}
 	nodes.sort_by(|x, y| x.borrow().id.cmp(&y.borrow().id));
 	let mut instrs = Vec::new();
+	let mut ret_instrs: RiscvInstrSet = Vec::new();
+
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-96).into()));
+	CALLEE_SAVE.iter().skip(1).enumerate().for_each(|(index, &reg)| {
+		// TODO: 精确的保存，以及使用寄存器进行 callee-saved
+		let instr =
+			IBinInstr::new(SW, reg.into(), ((index * 8) as i32, SP.into()).into());
+		instrs.push(instr);
+		let instr =
+			IBinInstr::new(LW, reg.into(), ((index * 8) as i32, SP.into()).into());
+		ret_instrs.push(instr);
+	});
+
 	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
+	ret_instrs.push(ITriInstr::new(
+		Addi,
+		SP.into(),
+		SP.into(),
+		(size + 96).into(),
+	));
+	ret_instrs.push(NoArgInstr::new(Ret));
 	let is_pre = Box::new(|u: i32, v: i32| -> bool {
 		pre.get(&v).map_or(false, |v| *v == u)
 	});
@@ -53,7 +77,16 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	}
 	nodes.into_iter().for_each(|v| v.borrow_mut().clear());
 	// TODO: solve callee saved
-	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
 	instrs.retain(|v| !v.useless());
+	instrs = instrs
+		.into_iter()
+		.flat_map(|instr| {
+			if !instr.is_ret() {
+				vec![instr]
+			} else {
+				ret_instrs.iter().map(|v| v.clone_box()).collect()
+			}
+		})
+		.collect();
 	(func.name, instrs)
 }

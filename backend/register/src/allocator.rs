@@ -10,7 +10,6 @@ pub struct RegAllocator {}
 
 impl RegAllocator {
 	pub fn alloc(&mut self, func: &mut RiscvFunc) {
-		eprintln!("{}\n", func);
 		let map: HashMap<_, _> = loop {
 			func.cfg.analysis();
 			let mut graph = InterferenceGraph::new(&func.cfg);
