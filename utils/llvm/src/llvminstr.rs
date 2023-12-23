@@ -38,6 +38,9 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn is_store(&self) -> bool {
 		false
 	}
+	fn is_call(&self) -> bool {
+		false
+	}
 	fn get_alloc(&self) -> Option<(Temp, Value)> {
 		None
 	}

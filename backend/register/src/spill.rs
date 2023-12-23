@@ -12,6 +12,7 @@ pub fn spill(func: &mut RiscvFunc, to_spill: Temp, cnt: i32) {
 	let mut mgr = TempManager::new(cnt);
 	let mut stack = vec![(func.cfg.get_entry(), func.spill_size)];
 	let mut visited = HashSet::new();
+	let mut flag = true;
 	while let Some((node, mut height)) = stack.pop() {
 		let id = node.borrow().id;
 		visited.insert(id);
@@ -22,7 +23,8 @@ pub fn spill(func: &mut RiscvFunc, to_spill: Temp, cnt: i32) {
 				instr.move_sp(&mut height);
 				let mut new_instrs = Vec::new();
 				let temp = if instr.get_read().into_iter().any(|v| v == to_spill) {
-					let new_temp = mgr.new_raw_temp(&to_spill);
+					let new_temp = mgr.new_raw_temp(&to_spill, flag);
+					flag = false;
 					let load_instr =
 						IBinInstr::new(LW, new_temp.into(), (height, SP.into()).into());
 					new_instrs.push(load_instr);
