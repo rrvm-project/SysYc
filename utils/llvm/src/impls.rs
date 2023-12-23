@@ -38,6 +38,15 @@ impl From<&Value> for i32 {
 	}
 }
 
+impl From<&Value> for Temp {
+	fn from(value: &Value) -> Self {
+		match value {
+			Value::Temp(v) => v.clone(),
+			_ => unreachable!(),
+		}
+	}
+}
+
 impl Display for ArithInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(
@@ -419,5 +428,8 @@ impl UseTemp<Temp> for CallInstr {
 impl LlvmInstrTrait for CallInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::CallInstr(self)
+	}
+	fn is_call(&self) -> bool {
+		true
 	}
 }

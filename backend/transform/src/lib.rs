@@ -4,7 +4,7 @@ use instr_dag::InstrDag;
 use instruction::{
 	riscv::{
 		convert::i32_to_reg,
-		reg::RiscvReg::SP,
+		reg::{RiscvReg::SP, PARAMETER_REGS},
 		riscvinstr::{ITriInstr, RTriInstr},
 		riscvop::{ITriInstrOp::Addi, RTriInstrOp::Add},
 		value::is_lower,
@@ -40,6 +40,9 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 				alloc_table.insert(temp, length);
 			}
 		}
+	}
+	for (temp, reg) in func.params.iter().zip(PARAMETER_REGS.iter()) {
+		let _ = mgr.get_pre_color(&temp.into(), *reg);
 	}
 	for block in func.cfg.blocks {
 		let kill_size = block

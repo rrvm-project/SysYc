@@ -16,6 +16,12 @@ impl PartialOrd for Temp {
 	}
 }
 
+impl Ord for Temp {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.id.cmp(&other.id)
+	}
+}
+
 impl Display for Temp {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "%{}", self.id)
@@ -51,17 +57,19 @@ impl TempManager {
 		self.total += 1;
 		RiscvTemp::VirtReg(Temp::new(self.total))
 	}
-	pub fn new_raw_temp(&mut self, temp: &Temp) -> Temp {
-		let id = if temp.pre_color.is_some() {
+	pub fn new_raw_temp(&mut self, temp: &Temp, flag: bool) -> Temp {
+		if temp.pre_color.is_some() && flag {
 			self.total_pre_color -= 1;
-			self.total_pre_color
+			Temp {
+				id: self.total_pre_color,
+				pre_color: temp.pre_color,
+			}
 		} else {
 			self.total += 1;
-			self.total
-		};
-		Temp {
-			id,
-			pre_color: temp.pre_color,
+			Temp {
+				id: self.total,
+				pre_color: None,
+			}
 		}
 	}
 	pub fn new_pre_color_temp(&mut self, reg: RiscvReg) -> RiscvTemp {
@@ -76,6 +84,19 @@ impl TempManager {
 			*v
 		} else {
 			let new = self.new_temp();
+			self.llvm2riscv.insert(temp.clone(), new);
+			new
+		}
+	}
+	pub fn get_pre_color(
+		&mut self,
+		temp: &llvm::temp::Temp,
+		reg: RiscvReg,
+	) -> RiscvTemp {
+		if let Some(v) = self.llvm2riscv.get(temp) {
+			*v
+		} else {
+			let new = self.new_pre_color_temp(reg);
 			self.llvm2riscv.insert(temp.clone(), new);
 			new
 		}

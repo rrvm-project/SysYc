@@ -79,6 +79,7 @@ impl InterferenceGraph {
 				}
 				for temp in read_set {
 					now.insert(temp);
+					graph.temps.push(temp);
 					*graph.spill_cost.entry(temp).or_default() += weight;
 				}
 				// calc benefit of merge & precolor
@@ -116,6 +117,15 @@ impl InterferenceGraph {
 		}
 	}
 
+	pub fn pre_color(&mut self) {
+		for temp in self.temps.iter() {
+			if let Some(reg) = temp.pre_color {
+				eprintln!("pre color {temp} {reg}");
+				self.color.insert(*temp, reg);
+			}
+		}
+	}
+
 	pub fn merge_nodes(&mut self) {
 		let mut edges: HashMap<Temp, Vec<Temp>> = HashMap::new();
 		for (u, v) in self.edges.iter() {
@@ -135,7 +145,13 @@ impl InterferenceGraph {
 				if !self.union_find.same(x, y) {
 					let x = self.union_find.find(x);
 					let y = self.union_find.find(y);
-					if edges.get(&x).map_or(true, |e| e.iter().all(|&v| v != y)) {
+					let color_conflict = match (self.color.get(&x), self.color.get(&y)) {
+						(Some(reg_x), Some(reg_y)) => reg_x != reg_y,
+						_ => false,
+					};
+					let not_adjust =
+						edges.get(&x).map_or(true, |e| e.iter().all(|&v| v != y));
+					if not_adjust && !color_conflict {
 						// x 和 y 的邻居节点中 >= N 的 小于 N ？
 						let a = edges.get(&x).cloned().unwrap_or_else(Vec::new);
 						let b = edges.get(&y).cloned().unwrap_or_else(Vec::new);
@@ -151,6 +167,9 @@ impl InterferenceGraph {
 							a.iter().for_each(|v| edges.entry(*v).or_default().push(y));
 							edges.entry(y).or_default().extend(a);
 							self.union_find.merge(x, y);
+							if let Some(reg_x) = self.color.get(&x) {
+								self.color.insert(y, *reg_x);
+							}
 							flag = false;
 						}
 					}
@@ -171,13 +190,13 @@ impl InterferenceGraph {
 
 	pub fn coloring(&mut self) -> bool {
 		let mut edges = HashMap::new();
-		self.color.clear();
 		for (u, v) in self.edges.iter() {
 			edges.entry(u).or_insert_with(Vec::new).push(v);
 		}
 		let mut temps = self
 			.temps
 			.iter()
+			.filter(|v| !self.color.contains_key(v))
 			.map(|v| {
 				let degree = edges.get(v).map(|arr| arr.len()).unwrap_or_default();
 				let weight = self.spill_cost.get(v).copied().unwrap_or(0.0);
@@ -207,6 +226,9 @@ impl InterferenceGraph {
 				let v = self.color.get(&self.union_find.find(temp)).unwrap();
 				self.color.insert(temp, *v);
 			}
+		}
+		for (temp, reg) in self.color.iter() {
+			eprintln!("{temp} {reg}")
 		}
 		true
 	}

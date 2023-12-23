@@ -289,10 +289,22 @@ pub fn riscv_call(
 ) -> Result<RiscvInstrSet> {
 	// caller-saved
 	let mut instrs: RiscvInstrSet = Vec::new();
-	CALLER_SAVE.iter().for_each(|&reg| {
-		let rd = mgr.new_pre_color_temp(reg);
-		let instr = RTriInstr::new(Add, rd, reg.into(), X0.into());
+	let mut end_instrs: RiscvInstrSet = Vec::new();
+
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-120).into()));
+	CALLER_SAVE.iter().skip(1).enumerate().for_each(|(index, &reg)| {
+		// TODO: 精确的保存，以及使用寄存器进行 caller-saved
+		// let rd = mgr.new_pre_color_temp(reg);
+		// let instr = RTriInstr::new(Add, rd, reg.into(), X0.into());
+		// instrs.push(instr);
+		// let instr = RTriInstr::new(Add, reg.into(), rd, X0.into());
+		// end_instrs.push(instr);
+		let instr =
+			IBinInstr::new(SW, reg.into(), ((index * 8) as i32, SP.into()).into());
 		instrs.push(instr);
+		let instr =
+			IBinInstr::new(LW, reg.into(), ((index * 8) as i32, SP.into()).into());
+		end_instrs.push(instr);
 	});
 
 	// load parameters
@@ -301,7 +313,7 @@ pub fn riscv_call(
 		get_arith(rd, llvm::ArithOp::Add, val, &0.into(), &mut instrs, mgr);
 	}
 
-	let cnt = max(0, instr.params.len() as i32 - 8) * 16; // 64 位的
+	let cnt = max(0, instr.params.len() as i32 - 8) * 8; // 64 位的
 	if cnt > 0 {
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-cnt).into()));
 	}
@@ -325,10 +337,7 @@ pub fn riscv_call(
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), cnt.into()));
 	}
 
-	CALLER_SAVE.iter().for_each(|&reg| {
-		let rd = mgr.new_pre_color_temp(reg);
-		let instr = RTriInstr::new(Add, reg.into(), rd, X0.into());
-		instrs.push(instr);
-	});
+	instrs.extend(end_instrs);
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), 120.into()));
 	Ok(instrs)
 }
