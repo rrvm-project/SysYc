@@ -120,7 +120,6 @@ impl InterferenceGraph {
 	pub fn pre_color(&mut self) {
 		for temp in self.temps.iter() {
 			if let Some(reg) = temp.pre_color {
-				eprintln!("pre color {temp} {reg}");
 				self.color.insert(*temp, reg);
 			}
 		}
@@ -226,9 +225,6 @@ impl InterferenceGraph {
 				let v = self.color.get(&self.union_find.find(temp)).unwrap();
 				self.color.insert(temp, *v);
 			}
-		}
-		for (temp, reg) in self.color.iter() {
-			eprintln!("{temp} {reg}")
 		}
 		true
 	}

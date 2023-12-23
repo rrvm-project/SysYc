@@ -285,7 +285,11 @@ impl Display for NoArgInstr {
 	}
 }
 
-impl RiscvInstrTrait for NoArgInstr {}
+impl RiscvInstrTrait for NoArgInstr {
+	fn is_ret(&self) -> bool {
+		true
+	}
+}
 
 impl NoArgInstr {
 	pub fn new(op: NoArgInstrOp) -> RiscvInstr {

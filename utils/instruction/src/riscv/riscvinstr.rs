@@ -42,6 +42,9 @@ pub trait RiscvInstrTrait:
 	fn get_label(&self) -> Label {
 		unreachable!()
 	}
+	fn is_ret(&self) -> bool {
+		false
+	}
 	fn map_label(&mut self, _map: &mut LabelMapper) {}
 	fn move_sp(&self, _height: &mut i32) {}
 	fn useless(&self) -> bool {
