@@ -12,7 +12,7 @@ pub fn compute_dominator_frontier(
 ) {
 	for bb in cfg.blocks.iter() {
 		if reverse {
-			if bb.borrow().prev.len() > 1 {
+			if bb.borrow().succ.len() > 1 {
 				for succ in bb.borrow().succ.iter() {
 					let mut runner = succ.clone();
 					let mut runner_id = runner.borrow().id;
@@ -20,7 +20,11 @@ pub fn compute_dominator_frontier(
 						&& runner_id != bb.borrow().id)
 					{
 						dominator_frontier.entry(runner_id).or_default().push(bb.clone());
-						runner = dominator.get(&runner_id).cloned().unwrap();
+						if let Some(d) = dominator.get(&runner_id) {
+							runner = d.clone();
+						} else {
+							break;
+						}
 						runner_id = runner.borrow().id;
 						// runner.dominance_frontier.borrow_mut().push(bb.clone());
 						// let runner_dominator =
@@ -47,4 +51,11 @@ pub fn compute_dominator_frontier(
 			}
 		}
 	}
+
+	println!("hello");
+	dominator_frontier.iter().for_each(|(k, v)| {
+		print!("dominator frontier {}: ", k);
+		v.iter().for_each(|x| print!("{}, ", x.borrow().id));
+		println!();
+	});
 }

@@ -30,6 +30,7 @@ impl Optimizer1 {
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
+			// break;
 			if !flag {
 				break;
 			}

@@ -9,6 +9,7 @@ use std::{
 
 use crate::{basicblock::BasicBlock, LlvmCFG, LlvmNode};
 
+// 如果要计算反向支配树，计算dominates时可能需要创建一个假的出口节点，但计算dominator和dominates_directly时会将这个假的出口节点排除在外，这会导致部分节点没有dominator
 pub fn compute_dominator(
 	cfg: &mut LlvmCFG,
 	reverse: bool,
@@ -72,12 +73,6 @@ pub fn compute_dominator(
 			}
 		});
 	}
-	println!("hello");
-	dominates.iter().for_each(|(k, v)| {
-		print!("dominates {}: ", k);
-		v.iter().for_each(|x| print!("{}, ", x.borrow().id));
-		println!();
-	});
 	// 计算完dominates后，计算dominates_directly
 	for bb in cfg.blocks.iter() {
 		let bb_id = bb.borrow().id;
@@ -105,6 +100,12 @@ pub fn compute_dominator(
 			}
 		});
 	}
+	println!("hello");
+	dominates.iter().for_each(|(k, v)| {
+		print!("dominates {}: ", k);
+		v.iter().for_each(|x| print!("{}, ", x.borrow().id));
+		println!();
+	});
 	dominates_directly.iter().for_each(|(k, v)| {
 		print!("dominates_directly {}: ", k);
 		v.iter().for_each(|x| print!("{}, ", x.borrow().id));

@@ -64,16 +64,17 @@ impl RrvmOptimizer for RemoveUselessCode {
 						instr.get_write().iter().for_each(|v| insert_worklist(v, id));
 					}
 				}
-				if let Some(jump) = block.jump_instr.as_ref() {
-					if jump.is_ret() {
-						jump.get_read().iter().for_each(|v| insert_worklist(v, id));
-					}
-				}
 				let virtual_temp = Temp {
 					name: format!("virtual_temp_{}", id),
 					is_global: false,
 					var_type: llvm::VarType::Void,
 				};
+				if let Some(jump) = block.jump_instr.as_ref() {
+					if jump.is_ret() {
+						jump.get_read().iter().for_each(|v| insert_worklist(v, id));
+						insert_worklist(&virtual_temp, id);
+					}
+				}
 				for instr in block.instrs.iter() {
 					if let Some(u) = instr.get_write() {
 						for v in instr.get_read() {
@@ -144,6 +145,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 
 				if let Some(jump) = block.jump_instr.as_ref() {
 					if jump.is_jump_cond() && !visited_block.contains(&block_id) {
+						println!("block_id: {}", block_id);
 						let mut domi = dominator.get(&block_id).unwrap();
 						while domi.borrow().jump_instr.as_ref().unwrap().is_jump_cond()
 							&& !visited_block.contains(&domi.borrow().id)
