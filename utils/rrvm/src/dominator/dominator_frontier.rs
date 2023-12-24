@@ -52,10 +52,10 @@ pub fn compute_dominator_frontier(
 		}
 	}
 
-	println!("hello");
-	dominator_frontier.iter().for_each(|(k, v)| {
-		print!("dominator frontier {}: ", k);
-		v.iter().for_each(|x| print!("{}, ", x.borrow().id));
-		println!();
-	});
+	// println!("hello");
+	// dominator_frontier.iter().for_each(|(k, v)| {
+	// 	print!("dominator frontier {}: ", k);
+	// 	v.iter().for_each(|x| print!("{}, ", x.borrow().id));
+	// 	println!();
+	// });
 }
