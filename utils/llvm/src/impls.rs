@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use utils::UseTemp;
+use utils::{Label, UseTemp};
 
 use crate::{
 	llvminstr::*,
@@ -236,6 +236,16 @@ impl UseTemp<Temp> for PhiInstr {
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+}
+
+impl PhiInstr {
+	pub fn get_read_with_label(&self) -> Vec<(Temp, Label)> {
+		self
+			.source
+			.iter()
+			.flat_map(|(v, l)| v.unwrap_temp().map(|v| (v, l.clone())))
+			.collect()
 	}
 }
 

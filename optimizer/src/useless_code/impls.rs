@@ -145,7 +145,6 @@ impl RrvmOptimizer for RemoveUselessCode {
 
 				if let Some(jump) = block.jump_instr.as_ref() {
 					if jump.is_jump_cond() && !visited_block.contains(&block_id) {
-						println!("block_id: {}", block_id);
 						let mut domi = dominator.get(&block_id).unwrap();
 						while domi.borrow().jump_instr.as_ref().unwrap().is_jump_cond()
 							&& !visited_block.contains(&domi.borrow().id)

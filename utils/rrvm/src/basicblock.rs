@@ -149,12 +149,28 @@ impl BasicBlock<LlvmInstr, llvm::Temp> {
 		}
 	}
 	pub fn init_phi(&mut self) {
+		// 建立 Label 到 BasicBlock 的映射
+		let mut label_to_bb = HashMap::new();
+		for bb in self.prev.iter() {
+			label_to_bb.insert(bb.borrow().label(), bb.clone());
+		}
 		for instr in self.phi_instrs.iter() {
-			for temp in instr.get_read() {
-				self.uses.insert(temp);
-			}
-			if let Some(temp) = instr.get_write() {
-				self.defs.insert(temp);
+			if let Some(target) = instr.get_write() {
+				for (temp, label) in instr.get_read_with_label() {
+					label_to_bb
+						.get(&label)
+						.unwrap()
+						.borrow_mut()
+						.uses
+						.insert(temp.clone());
+
+					label_to_bb
+						.get(&label)
+						.unwrap()
+						.borrow_mut()
+						.defs
+						.insert(target.clone());
+				}
 			}
 		}
 	}
