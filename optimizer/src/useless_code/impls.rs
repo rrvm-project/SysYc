@@ -46,6 +46,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 			let mut worklist: VecDeque<Temp> = VecDeque::new();
 			let mut visited: HashSet<Temp> = HashSet::new();
 			let mut visited_block: HashSet<i32> = HashSet::new();
+			let mut id_to_virtual_temp: HashMap<i32, Temp> = HashMap::new();
 			let mut insert_worklist = |t: &Temp, id: i32| {
 				if !visited.contains(t) {
 					visited.insert(t.clone());
@@ -59,16 +60,22 @@ impl RrvmOptimizer for RemoveUselessCode {
 			for block in cfg.blocks.iter() {
 				let block = block.borrow();
 				let id = block.id;
-				for instr in block.instrs.iter() {
-					if instr.has_sideeffect() {
-						instr.get_write().iter().for_each(|v| insert_worklist(v, id));
-					}
-				}
 				let virtual_temp = Temp {
 					name: format!("virtual_temp_{}", id),
 					is_global: false,
 					var_type: llvm::VarType::Void,
 				};
+				id_to_virtual_temp.insert(id, virtual_temp.clone());
+			}
+			for block in cfg.blocks.iter() {
+				let block = block.borrow();
+				let id = block.id;
+				for instr in block.instrs.iter() {
+					if instr.has_sideeffect() {
+						instr.get_write().iter().for_each(|v| insert_worklist(v, id));
+					}
+				}
+				let virtual_temp = id_to_virtual_temp[&id].clone();
 				if let Some(jump) = block.jump_instr.as_ref() {
 					if jump.is_ret() {
 						jump.get_read().iter().for_each(|v| insert_worklist(v, id));
@@ -87,6 +94,10 @@ impl RrvmOptimizer for RemoveUselessCode {
 					if let Some(u) = instr.get_write() {
 						for v in instr.get_read() {
 							add_edge(&u, &v, id);
+						}
+						for prev in block.prev.iter() {
+							let prev_id = prev.borrow().id;
+							add_edge(&u, &id_to_virtual_temp[&prev_id], prev_id);
 						}
 						add_edge(&u, &virtual_temp, id);
 					}
