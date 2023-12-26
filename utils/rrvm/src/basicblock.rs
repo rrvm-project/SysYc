@@ -64,9 +64,6 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			_ => Label::new(format!("B{}", self.id)),
 		}
 	}
-	pub fn is_empty(&self) -> bool {
-		self.instrs.is_empty() && self.jump_instr.is_none()
-	}
 	// Use this before drop a BasicBlock, or may lead to memory leak
 	pub fn clear(&mut self) {
 		self.prev.clear();
@@ -105,6 +102,21 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			unreachable!()
 		}
 	}
+	pub fn replace_prevs(&mut self, label: &Label, targets: Vec<Node<T, U>>) {
+		for instr in self.phi_instrs.iter_mut() {
+			let value =
+				instr.source.iter_mut().find(|(_, v)| v == label).unwrap().0.clone();
+			instr.source.retain(|(_, l)| l != label);
+			instr.source.append(
+				&mut targets
+					.iter()
+					.map(|t| (value.clone(), t.borrow().label().clone()))
+					.collect(),
+			);
+		}
+		self.prev.retain(|v| v.borrow().label() != *label);
+		self.prev.append(&mut targets.clone());
+	}
 	pub fn make_pretty(&mut self) {
 		self.phi_instrs.sort_by(|x, y| x.target.cmp(&y.target));
 	}
@@ -133,7 +145,6 @@ impl BasicBlock<LlvmInstr, llvm::Temp> {
 		if self.jump_instr.is_none() {
 			self.jump_instr = Some(match self.succ.len() {
 				1 => Box::new(JumpInstr {
-					_attrs: HashMap::new(),
 					target: get_other_label(
 						self,
 						self.label(),
@@ -141,7 +152,6 @@ impl BasicBlock<LlvmInstr, llvm::Temp> {
 					),
 				}),
 				0 => Box::new(RetInstr {
-					_attrs: HashMap::new(),
 					value: var_type.default_value_option(),
 				}),
 				_ => unreachable!(),

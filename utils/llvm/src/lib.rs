@@ -11,7 +11,6 @@ pub use llvminstr::*;
 pub use llvmop::{Value, *};
 pub use llvmvar::VarType;
 pub use temp::*;
-pub mod llvminstrattr;
 
 pub enum LlvmInstrVariant<'a> {
 	ArithInstr(&'a ArithInstr),

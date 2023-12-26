@@ -17,8 +17,8 @@ impl RrvmOptimizer for RemoveUselessCode {
 		Self {}
 	}
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
-		fn solve(cfg: &mut LlvmCFG) {
-			let mut _flag: bool = false;
+		fn solve(cfg: &mut LlvmCFG) -> bool {
+			let mut flag: bool = false;
 
 			let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 			let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
@@ -117,30 +117,23 @@ impl RrvmOptimizer for RemoveUselessCode {
 			// Sweep. Clear the useless code
 			for block in cfg.blocks.iter_mut() {
 				let mut block = block.borrow_mut();
-
 				block.instrs.retain(|instr| {
-					if let Some(u) = instr.get_write() {
-						if visited.contains(&u) {
-							return true;
-						}
+					instr.get_write().map_or(true, |v| visited.contains(&v)) || {
+						flag = true;
+						false
 					}
-					false
 				});
-
 				block.phi_instrs.retain(|instr| {
-					if let Some(u) = instr.get_write() {
-						if visited.contains(&u) {
-							return true;
-						}
+					instr.get_write().map_or(true, |v| visited.contains(&v)) || {
+						flag = true;
+						false
 					}
-					false
 				});
 			}
 
 			for block in cfg.blocks.iter_mut() {
 				let block_id = block.borrow().id;
 				let mut block = block.borrow_mut();
-
 				let mut new_target = None;
 
 				if let Some(jump) = block.jump_instr.as_ref() {
@@ -151,134 +144,27 @@ impl RrvmOptimizer for RemoveUselessCode {
 						{
 							domi = dominator.get(&domi.borrow().id).unwrap();
 						}
-						new_target = Some(domi.borrow().label())
+						new_target = Some(domi.borrow().label());
+						block.succ.clear();
+						block.succ.push(domi.clone());
 					}
 				}
 				if new_target.is_some() {
+					flag = true;
 					block.jump_instr = Some(Box::new(JumpInstr {
-						_attrs: HashMap::new(),
 						target: new_target.unwrap(),
 					}));
 				}
 			}
+			cfg.resolve_prev();
+			flag
 		}
-		// fn solve(cfg: &mut LlvmCFG) {
-		// 	let mut flag: bool = false;
-		// 	let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-		// 	let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-		// 	let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
-		// 	compute_dominator(
-		// 		cfg,
-		// 		true,
-		// 		&mut dominates,
-		// 		&mut dominates_directly,
-		// 		&mut dominator,
-		// 	);
-		// 	let mut effect_in = HashMap::<i32, HashSet<Temp>>::new();
-		// 	let mut effect_out = HashMap::<i32, HashSet<Temp>>::new();
-		// 	loop {
-		// 		let mut changed = false;
-		// 		for u in cfg.blocks.iter().rev() {
-		// 			let mut has_effective_instr = false;
 
-		// 			let mut new_effect_out = effect_out.get(&u.borrow().id).cloned().unwrap_or(HashSet::new());
-
-		// 			if let Some(jump_instr) = u.borrow().jump_instr.as_ref() {
-		// 				if jump_instr.is_ret() {
-		// 					has_effective_instr = true;
-		// 					new_effect_out.extend(jump_instr.get_read());
-		// 				}
-		// 				// 如果是无条件跳转（read为空）或有条件跳转且
-		// 				else if jump_instr.get_read().is_empty() ||{
-
-		// 				}
-		// 			}
-
-		// 			for v in u.borrow().succ.iter() {
-		// 				new_effect_out.extend(
-		// 					effect_in.get(&v.borrow().id).cloned().unwrap_or(HashSet::new()),
-		// 				);
-		// 			}
-
-		// 			let mut new_effect_in = new_effect_out.clone();
-		// 			for instr in u.borrow().instrs.iter().rev() {
-		// 				if instr
-		// 					.get_write()
-		// 					.map_or(false, |v| new_effect_in.remove(&v) || v.is_global)
-		// 					|| instr.is_store()
-		// 				{
-		// 					new_effect_in.extend(instr.get_read());
-		// 				}
-		// 			}
-		// 			for instr in u.borrow().phi_instrs.iter() {
-		// 				if instr
-		// 					.get_write()
-		// 					.map_or(false, |v| new_effect_in.remove(&v) || v.is_global)
-		// 				{
-		// 					new_effect_in.extend(instr.get_read());
-		// 				}
-		// 			}
-		// 			// TODO: can we not clone here?
-		// 			if new_effect_in
-		// 				!= effect_in.get(&u.borrow().id).cloned().unwrap_or(HashSet::new())
-		// 				|| new_effect_out
-		// 					!= effect_out
-		// 						.get(&u.borrow().id)
-		// 						.cloned()
-		// 						.unwrap_or(HashSet::new())
-		// 			{
-		// 				effect_in.insert(u.borrow().id, new_effect_in);
-		// 				effect_out.insert(u.borrow().id, new_effect_out);
-		// 				changed = true;
-		// 			}
-		// 		}
-		// 		if !changed {
-		// 			break;
-		// 		}
-		// 	}
-		// 	// println!("effect_in {:?}", effect_in);
-		// 	// println!("effect_out {:?}", effect_out);
-		// 	for u in cfg.blocks.iter().rev() {
-		// 		let mut u_effect_out =
-		// 			effect_out.get(&u.borrow().id).cloned().unwrap_or(HashSet::new());
-
-		// 		let mut new_instr = Vec::new();
-		// 		let mut new_phi_instr = Vec::new();
-		// 		for instr in u.borrow().instrs.iter().rev() {
-		// 			if instr
-		// 				.get_write()
-		// 				.map_or(false, |v| u_effect_out.remove(&v) || v.is_global)
-		// 				|| instr.is_store()
-		// 			{
-		// 				u_effect_out.extend(instr.get_read());
-		// 				new_instr.push(instr.clone_box());
-		// 			}
-		// 		}
-		// 		for instr in u.borrow().phi_instrs.iter() {
-		// 			if instr
-		// 				.get_write()
-		// 				.map_or(false, |v| u_effect_out.remove(&v) || v.is_global)
-		// 			{
-		// 				u_effect_out.extend(instr.get_read());
-		// 				new_phi_instr.push(instr.clone());
-		// 			}
-		// 		}
-		// 		new_instr.reverse();
-		// 		u.borrow_mut().instrs = new_instr;
-		// 		u.borrow_mut().phi_instrs = new_phi_instr;
-		// 	}
-		// }
-		Ok(program.funcs.iter_mut().fold(false, |last, func| {
-			let mut cnt = 0;
-			loop {
-				let size = func.cfg.size();
-				solve(&mut func.cfg);
-				if func.cfg.size() == size {
-					break;
-				}
-				cnt += 1;
-			}
-			cnt != 0 || last
-		}))
+		Ok(
+			program
+				.funcs
+				.iter_mut()
+				.fold(false, |last, func| solve(&mut func.cfg) || last),
+		)
 	}
 }

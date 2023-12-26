@@ -62,21 +62,7 @@ impl RrvmOptimizer for RemoveDeadCode {
 				}
 			});
 			// solve data flow
-			cfg.blocks.iter().for_each(|v| v.borrow_mut().prev.clear());
-			cfg.blocks.iter().for_each(|u| {
-				let succ = u.borrow().succ.clone();
-				for v in succ {
-					let p = u.clone();
-					v.borrow_mut().prev.push(p);
-				}
-			});
-			for block in cfg.blocks.iter() {
-				let labels: HashSet<_> =
-					block.borrow().prev.iter().map(|v| v.borrow().label()).collect();
-				for instr in block.borrow_mut().phi_instrs.iter_mut() {
-					instr.source.retain(|(_, label)| labels.contains(label))
-				}
-			}
+			cfg.resolve_prev();
 		}
 		Ok(program.funcs.iter_mut().fold(false, |last, func| {
 			let mut cnt = 0;

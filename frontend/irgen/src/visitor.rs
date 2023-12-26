@@ -158,7 +158,6 @@ impl Visitor for IRGenerator {
 				let temp = self.mgr.new_temp(var_type, false);
 				self.symbol_table.set(symbol.id, temp.clone().into());
 				let instr = Box::new(AllocInstr {
-					_attrs: HashMap::new(),
 					target: temp.clone(),
 					length: ((length * var_type.deref_type().get_size()) as i32).into(),
 					var_type,
@@ -259,7 +258,6 @@ impl Visitor for IRGenerator {
 				let val = self.type_conv(rhs_val, var_type, &mut rcfg);
 				if let Some(addr) = &lhs_addr {
 					let instr = Box::new(StoreInstr {
-						_attrs: HashMap::new(),
 						value: val.clone(),
 						addr: addr.clone(),
 					});
@@ -279,7 +277,6 @@ impl Visitor for IRGenerator {
 				let rhs = self.type_conv(rhs_val, I32, &mut rcfg);
 				let offset = self.mgr.new_temp(I32, false);
 				let instr = Box::new(ArithInstr {
-					_attrs: HashMap::new(),
 					target: offset.clone(),
 					lhs: rhs,
 					var_type: I32,
@@ -290,7 +287,6 @@ impl Visitor for IRGenerator {
 				let var_type = lhs_addr.as_ref().unwrap().get_type();
 				let temp = self.mgr.new_temp(var_type, false);
 				let instr = Box::new(GEPInstr {
-					_attrs: HashMap::new(),
 					target: temp.clone(),
 					var_type,
 					addr: lhs_addr.unwrap(),
@@ -312,7 +308,6 @@ impl Visitor for IRGenerator {
 						let op = to_arith(node.op, var_type);
 						let temp = self.mgr.new_temp(var_type, false);
 						let instr = Box::new(ArithInstr {
-							_attrs: HashMap::new(),
 							target: temp.clone(),
 							op,
 							lhs,
@@ -329,7 +324,6 @@ impl Visitor for IRGenerator {
 						let op = to_comp(node.op, var_type);
 						let temp = self.mgr.new_temp(var_type, false);
 						let instr = Box::new(CompInstr {
-							_attrs: HashMap::new(),
 							kind: get_comp_kind(var_type),
 							target: temp.clone(),
 							op,
@@ -364,7 +358,6 @@ impl Visitor for IRGenerator {
 						};
 						let temp = self.mgr.new_temp(I32, false);
 						let instr = PhiInstr {
-							_attrs: HashMap::new(),
 							target: temp.clone(),
 							var_type,
 							source,
@@ -391,7 +384,6 @@ impl Visitor for IRGenerator {
 				let op = to_arith(BinaryOp::Sub, var_type);
 				let target = self.mgr.new_temp(var_type, false);
 				let instr = Box::new(ArithInstr {
-					_attrs: HashMap::new(),
 					target: target.clone(),
 					op,
 					lhs: var_type.default_value(),
@@ -404,7 +396,6 @@ impl Visitor for IRGenerator {
 			UnaryOp::BitNot => {
 				let target = self.mgr.new_temp(var_type, false);
 				let instr = Box::new(ArithInstr {
-					_attrs: HashMap::new(),
 					target: target.clone(),
 					op: ArithOp::Xor,
 					lhs: (-1).into(),
@@ -417,7 +408,6 @@ impl Visitor for IRGenerator {
 			UnaryOp::Not => {
 				let target = self.mgr.new_temp(var_type, false);
 				let instr = Box::new(CompInstr {
-					_attrs: HashMap::new(),
 					kind: CompKind::Icmp,
 					target: target.clone(),
 					op: CompOp::EQ,
@@ -449,7 +439,6 @@ impl Visitor for IRGenerator {
 		let cfg = self.fold_cfgs(cfgs);
 		let temp = self.mgr.new_temp(var_type, false);
 		let instr = Box::new(CallInstr {
-			_attrs: HashMap::new(),
 			target: temp.clone(),
 			var_type,
 			func: Label::new(symbol.ident),
@@ -530,7 +519,6 @@ impl Visitor for IRGenerator {
 		link_cfg(&cond, &body);
 		link_cfg(&cond, &before_exit);
 		let instr = Box::new(JumpCondInstr {
-			_attrs: HashMap::new(),
 			var_type: cond_val.get_type(),
 			cond: cond_val,
 			target_true: body.entry_label(),
@@ -573,10 +561,7 @@ impl Visitor for IRGenerator {
 			let var_type = func_type_convert(&self.ret_type);
 			let val = self.solve(val, addr, &mut cfg);
 			let val = self.type_conv(val, var_type, &mut cfg);
-			let instr = Box::new(RetInstr {
-				_attrs: HashMap::new(),
-				value: Some(val),
-			});
+			let instr = Box::new(RetInstr { value: Some(val) });
 			cfg.get_exit().borrow_mut().set_jump(Some(instr));
 			self.stack.push((cfg, None, None));
 		} else {
@@ -586,10 +571,7 @@ impl Visitor for IRGenerator {
 				));
 			}
 			let cfg = self.new_cfg();
-			let instr = Box::new(RetInstr {
-				_attrs: HashMap::new(),
-				value: None,
-			});
+			let instr = Box::new(RetInstr { value: None });
 			cfg.get_exit().borrow_mut().set_jump(Some(instr));
 			self.stack.push((cfg, None, None));
 		}

@@ -1,12 +1,7 @@
 use utils::{InstrTrait, Label, UseTemp};
 
-use crate::{
-	llvminstrattr::{LlvmAttr, LlvmAttrs},
-	llvmop::*,
-	llvmvar::VarType,
-	LlvmInstrVariant, Temp,
-};
-use std::{collections::HashMap, fmt::Display};
+use crate::{llvmop::*, llvmvar::VarType, LlvmInstrVariant, Temp};
+use std::fmt::Display;
 
 pub type LlvmInstr = Box<dyn LlvmInstrTrait>;
 
@@ -23,9 +18,7 @@ where
 	}
 }
 
-pub trait LlvmInstrTrait:
-	Display + CloneLlvmInstr + UseTemp<Temp> + LlvmAttrs
-{
+pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn type_valid(&self) -> bool {
 		true
 	}
@@ -57,9 +50,6 @@ pub trait LlvmInstrTrait:
 	fn is_direct_jump(&self) -> bool {
 		false
 	}
-	fn is_call(&self) -> bool {
-		false
-	}
 	fn get_alloc(&self) -> Option<(Temp, Value)> {
 		None
 	}
@@ -83,7 +73,6 @@ pub struct ArithInstr {
 	pub var_type: VarType,
 	pub lhs: Value,
 	pub rhs: Value,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 #[derive(Clone)]
 pub struct CompInstr {
@@ -93,7 +82,6 @@ pub struct CompInstr {
 	pub var_type: VarType,
 	pub lhs: Value,
 	pub rhs: Value,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 
 #[derive(Clone)]
@@ -103,13 +91,11 @@ pub struct ConvertInstr {
 	pub from_type: VarType,
 	pub lhs: Value,
 	pub to_type: VarType,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 
 #[derive(Clone)]
 pub struct JumpInstr {
 	pub target: Label,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 
 #[derive(Clone)]
@@ -118,7 +104,6 @@ pub struct JumpCondInstr {
 	pub cond: Value,
 	pub target_true: Label,
 	pub target_false: Label,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 
 #[derive(Clone)]
@@ -126,13 +111,11 @@ pub struct PhiInstr {
 	pub target: Temp,
 	pub var_type: VarType,
 	pub source: Vec<(Value, Label)>,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 
 #[derive(Clone)]
 pub struct RetInstr {
 	pub value: Option<Value>,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 
 #[derive(Clone)]
@@ -140,14 +123,12 @@ pub struct AllocInstr {
 	pub target: Temp,
 	pub var_type: VarType,
 	pub length: Value,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 
 #[derive(Clone)]
 pub struct StoreInstr {
 	pub value: Value,
 	pub addr: Value,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 
 #[derive(Clone)]
@@ -155,7 +136,6 @@ pub struct LoadInstr {
 	pub target: Temp,
 	pub var_type: VarType,
 	pub addr: Value,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 
 #[derive(Clone)]
@@ -164,7 +144,6 @@ pub struct GEPInstr {
 	pub var_type: VarType,
 	pub addr: Value,
 	pub offset: Value,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }
 
 #[derive(Clone)]
@@ -173,5 +152,4 @@ pub struct CallInstr {
 	pub var_type: VarType,
 	pub func: Label,
 	pub params: Vec<(VarType, Value)>,
-	pub _attrs: HashMap<String, LlvmAttr>,
 }

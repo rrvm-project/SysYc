@@ -26,10 +26,6 @@ pub fn compute_dominator_frontier(
 							break;
 						}
 						runner_id = runner.borrow().id;
-						// runner.dominance_frontier.borrow_mut().push(bb.clone());
-						// let runner_dominator =
-						// 	runner.dominator.borrow().as_ref().unwrap().clone();
-						// runner = runner_dominator;
 					}
 				}
 			}
@@ -43,19 +39,8 @@ pub fn compute_dominator_frontier(
 					dominator_frontier.entry(runner_id).or_default().push(bb.clone());
 					runner = dominator.get(&runner_id).cloned().unwrap();
 					runner_id = runner.borrow().id;
-					// runner.dominance_frontier.borrow_mut().push(bb.clone());
-					// let runner_dominator =
-					// 	runner.dominator.borrow().as_ref().unwrap().clone();
-					// runner = runner_dominator;
 				}
 			}
 		}
 	}
-
-	// println!("hello");
-	// dominator_frontier.iter().for_each(|(k, v)| {
-	// 	print!("dominator frontier {}: ", k);
-	// 	v.iter().for_each(|x| print!("{}, ", x.borrow().id));
-	// 	println!();
-	// });
 }

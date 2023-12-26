@@ -100,18 +100,4 @@ pub fn compute_dominator(
 			}
 		});
 	}
-	// println!("hello");
-	// dominates.iter().for_each(|(k, v)| {
-	// 	print!("dominates {}: ", k);
-	// 	v.iter().for_each(|x| print!("{}, ", x.borrow().id));
-	// 	println!();
-	// });
-	// dominates_directly.iter().for_each(|(k, v)| {
-	// 	print!("dominates_directly {}: ", k);
-	// 	v.iter().for_each(|x| print!("{}, ", x.borrow().id));
-	// 	println!();
-	// });
-	// dominator.iter().for_each(|(k, v)| {
-	// 	println!("dominator {}: {}", k, v.borrow().id);
-	// });
 }
