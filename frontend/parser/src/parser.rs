@@ -338,6 +338,7 @@ pub fn parse(str: &str) -> Result<Program> {
 		_attrs: HashMap::new(),
 		global_vars: Vec::new(),
 		functions: Vec::new(),
+		next_temp: 0,
 	};
 	for pair in pairs.into_iter() {
 		parse_comp_unit(pair, &mut program);

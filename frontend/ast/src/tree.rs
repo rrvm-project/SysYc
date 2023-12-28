@@ -27,6 +27,7 @@ pub type NodeList = Vec<Node>;
 pub struct Program {
 	pub global_vars: NodeList,
 	pub functions: NodeList,
+	pub next_temp: u32,
 }
 
 #[derive(Debug, AstNode)]

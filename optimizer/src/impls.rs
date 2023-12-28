@@ -3,6 +3,7 @@ use utils::errors::Result;
 
 use crate::{RrvmOptimizer, *};
 use dead_code::RemoveDeadCode;
+use local_expression_rearrangement::LocalExpressionRearrangement;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
 
@@ -31,8 +32,9 @@ impl Optimizer1 {
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUnreachCode::new().apply(program)?;
+			flag |= LocalExpressionRearrangement::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
+			flag |= RemoveUnreachCode::new().apply(program)?;
 			if !flag {
 				break;
 			}

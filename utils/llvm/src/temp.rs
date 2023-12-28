@@ -44,7 +44,7 @@ impl Value {
 
 #[derive(Default)]
 pub struct TempManager {
-	total: u32,
+	pub total: u32,
 }
 
 impl TempManager {
