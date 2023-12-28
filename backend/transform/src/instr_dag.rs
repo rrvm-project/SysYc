@@ -52,7 +52,7 @@ impl InstrDag {
 				succ.append(&mut stores);
 				loads.push(node.clone());
 			}
-			if instr.is_store() || instr.is_load() {
+			if instr.has_sideeffect() {
 				succ.append(&mut loads);
 				stores.push(node.clone());
 			}
