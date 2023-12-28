@@ -4,8 +4,6 @@ use utils::errors::Result;
 use crate::{RrvmOptimizer, *};
 use dead_code::RemoveDeadCode;
 use unreachable::RemoveUnreachCode;
-use useless_code::RemoveUselessCode;
-use local_expression_rearrangement::LocalExpressionRearrangement;
 
 impl Optimizer0 {
 	pub fn new() -> Self {
