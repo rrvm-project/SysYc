@@ -73,6 +73,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 				for instr in block.instrs.iter() {
 					if instr.has_sideeffect() {
 						instr.get_write().iter().for_each(|v| insert_worklist(v, id));
+						instr.get_read().iter().for_each(|v| insert_worklist(v, id));
 					}
 				}
 				let virtual_temp = id_to_virtual_temp[&id].clone();
