@@ -100,4 +100,7 @@ pub fn compute_dominator(
 			}
 		});
 	}
+	block_has_ret.iter().for_each(|bb| {
+		bb.borrow_mut().succ.clear();
+	});
 }
