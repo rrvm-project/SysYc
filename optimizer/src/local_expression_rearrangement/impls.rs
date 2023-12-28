@@ -71,8 +71,6 @@ fn add_addicative_tree(
 	let mut new_add_part = vec![];
 	let mut new_minus_part = vec![];
 
-	dbg!(&add_part, &minus_part);
-
 	loop {
 		let add = add_part.pop();
 		let minus = minus_part.pop();
@@ -283,14 +281,19 @@ fn add_multiplitive_tree(
 
 	temp_part.sort_by(|t1, t2| t1.name.cmp(&t2.name));
 
-	// println!("after sorting {:?}", temp_part);
-
 	loop {
 		let mut new_temp_part = vec![];
 		let current_length = temp_part.len();
 
 		if current_length == 0 {
-			unreachable!();
+			instrs_list.push(Box::new(ArithInstr {
+				target,
+				op: ArithOp::Mul,
+				var_type: target_type,
+				lhs: 1.into(),
+				rhs: Value::Int(const_part),
+			}));
+			return temp_number;
 		}
 
 		if current_length == 1 {
