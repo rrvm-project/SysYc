@@ -29,10 +29,11 @@ impl Optimizer1 {
 		Self::default()
 	}
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
+		LocalExpressionRearrangement::new().apply(program)?;
+		RemoveUselessCode::new().apply(program)?;
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= LocalExpressionRearrangement::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			if !flag {
