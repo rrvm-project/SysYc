@@ -53,6 +53,7 @@ impl Visitor for IRGenerator {
 			self.total = 0;
 		}
 		self.symbol_table.pop();
+		node.next_temp = self.mgr.total + 1;
 		Ok(())
 	}
 	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<()> {

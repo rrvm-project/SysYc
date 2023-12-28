@@ -14,6 +14,7 @@ pub type RiscvProgram = RrvmProgram<RiscvInstr, temp::Temp>;
 pub struct RrvmProgram<T: InstrTrait<U>, U: TempTrait> {
 	pub global_values: HashMap<String, Vec<InitValueItem>>,
 	pub funcs: Vec<RrvmFunc<T, U>>,
+	pub next_temp: u32,
 }
 
 impl<T: InstrTrait<U>, U: TempTrait> RrvmProgram<T, U> {
@@ -21,6 +22,7 @@ impl<T: InstrTrait<U>, U: TempTrait> RrvmProgram<T, U> {
 		Self {
 			funcs: Vec::new(),
 			global_values: HashMap::new(),
+			next_temp: 0,
 		}
 	}
 }

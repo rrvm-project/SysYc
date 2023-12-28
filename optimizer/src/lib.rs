@@ -1,9 +1,11 @@
 mod dead_code;
 pub mod impls;
+mod local_expression_rearrangement;
 mod unreachable;
 mod useless_code;
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
+
 
 pub trait RrvmOptimizer {
 	fn new() -> Self;

@@ -32,7 +32,6 @@ impl Optimizer1 {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
-			flag |= RemoveUselessCode::new().apply(program)?;
 			if !flag {
 				break;
 			}
