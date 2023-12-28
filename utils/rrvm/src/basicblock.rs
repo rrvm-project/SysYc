@@ -102,6 +102,21 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			unreachable!()
 		}
 	}
+	pub fn replace_prevs(&mut self, label: &Label, targets: Vec<Node<T, U>>) {
+		for instr in self.phi_instrs.iter_mut() {
+			let value =
+				instr.source.iter_mut().find(|(_, v)| v == label).unwrap().0.clone();
+			instr.source.retain(|(_, l)| l != label);
+			instr.source.append(
+				&mut targets
+					.iter()
+					.map(|t| (value.clone(), t.borrow().label().clone()))
+					.collect(),
+			);
+		}
+		self.prev.retain(|v| v.borrow().label() != *label);
+		self.prev.append(&mut targets.clone());
+	}
 	pub fn make_pretty(&mut self) {
 		self.phi_instrs.sort_by(|x, y| x.target.cmp(&y.target));
 	}
@@ -144,12 +159,28 @@ impl BasicBlock<LlvmInstr, llvm::Temp> {
 		}
 	}
 	pub fn init_phi(&mut self) {
+		// 建立 Label 到 BasicBlock 的映射
+		let mut label_to_bb = HashMap::new();
+		for bb in self.prev.iter() {
+			label_to_bb.insert(bb.borrow().label(), bb.clone());
+		}
 		for instr in self.phi_instrs.iter() {
-			for temp in instr.get_read() {
-				self.uses.insert(temp);
-			}
-			if let Some(temp) = instr.get_write() {
-				self.defs.insert(temp);
+			if let Some(target) = instr.get_write() {
+				for (temp, label) in instr.get_read_with_label() {
+					label_to_bb
+						.get(&label)
+						.unwrap()
+						.borrow_mut()
+						.uses
+						.insert(temp.clone());
+
+					label_to_bb
+						.get(&label)
+						.unwrap()
+						.borrow_mut()
+						.defs
+						.insert(target.clone());
+				}
 			}
 		}
 	}
@@ -172,6 +203,12 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 			.partition(|v| get_other_label(now, now_label.clone(), v) == label);
 		self.succ = left;
 		self.succ.extend(right);
+	}
+}
+
+impl PartialEq for BasicBlock<LlvmInstr, llvm::Temp> {
+	fn eq(&self, other: &Self) -> bool {
+		self.id == other.id
 	}
 }
 

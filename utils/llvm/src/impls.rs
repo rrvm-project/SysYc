@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use utils::UseTemp;
+use utils::{Label, UseTemp};
 
 use crate::{
 	llvminstr::*,
@@ -158,6 +158,9 @@ impl LlvmInstrTrait for JumpInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::JumpInstr(self)
 	}
+	fn is_direct_jump(&self) -> bool {
+		true
+	}
 }
 
 impl Display for JumpCondInstr {
@@ -201,6 +204,9 @@ impl LlvmInstrTrait for JumpCondInstr {
 		}
 		None
 	}
+	fn is_jump_cond(&self) -> bool {
+		true
+	}
 }
 
 impl Display for PhiInstr {
@@ -226,6 +232,16 @@ impl UseTemp<Temp> for PhiInstr {
 	}
 	fn get_write(&self) -> Option<Temp> {
 		Some(self.target.clone())
+	}
+}
+
+impl PhiInstr {
+	pub fn get_read_with_label(&self) -> Vec<(Temp, Label)> {
+		self
+			.source
+			.iter()
+			.flat_map(|(v, l)| v.unwrap_temp().map(|v| (v, l.clone())))
+			.collect()
 	}
 }
 
@@ -265,6 +281,9 @@ impl UseTemp<Temp> for RetInstr {
 impl LlvmInstrTrait for RetInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::RetInstr(self)
+	}
+	fn is_ret(&self) -> bool {
+		true
 	}
 }
 
@@ -327,6 +346,9 @@ impl LlvmInstrTrait for StoreInstr {
 	}
 	fn type_valid(&self) -> bool {
 		type_match_ptr(self.value.get_type(), self.addr.get_type())
+	}
+	fn has_sideeffect(&self) -> bool {
+		true
 	}
 	fn is_store(&self) -> bool {
 		true
@@ -429,7 +451,7 @@ impl LlvmInstrTrait for CallInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::CallInstr(self)
 	}
-	fn is_call(&self) -> bool {
+	fn has_sideeffect(&self) -> bool {
 		true
 	}
 }

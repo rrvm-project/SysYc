@@ -70,6 +70,23 @@ impl LlvmCFG {
 	pub fn init_phi(&self) {
 		self.blocks.iter().for_each(|v| v.borrow_mut().init_phi());
 	}
+	pub fn resolve_prev(&mut self) {
+		self.blocks.iter().for_each(|v| v.borrow_mut().prev.clear());
+		self.blocks.iter().for_each(|u| {
+			let succ = u.borrow().succ.clone();
+			for v in succ {
+				let p = u.clone();
+				v.borrow_mut().prev.push(p);
+			}
+		});
+		for block in self.blocks.iter() {
+			let labels: HashSet<_> =
+				block.borrow().prev.iter().map(|v| v.borrow().label()).collect();
+			for instr in block.borrow_mut().phi_instrs.iter_mut() {
+				instr.source.retain(|(_, label)| labels.contains(label))
+			}
+		}
+	}
 }
 
 pub fn link_node<T: InstrTrait<U>, U: TempTrait>(

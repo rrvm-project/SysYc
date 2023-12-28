@@ -2,6 +2,9 @@ use rrvm::program::LlvmProgram;
 use utils::errors::Result;
 
 use crate::{RrvmOptimizer, *};
+use dead_code::RemoveDeadCode;
+use unreachable::RemoveUnreachCode;
+use useless_code::RemoveUselessCode;
 
 impl Optimizer0 {
 	pub fn new() -> Self {
@@ -29,6 +32,7 @@ impl Optimizer1 {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
+			flag |= RemoveUselessCode::new().apply(program)?;
 			if !flag {
 				break;
 			}

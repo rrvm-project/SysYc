@@ -38,7 +38,16 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn is_store(&self) -> bool {
 		false
 	}
-	fn is_call(&self) -> bool {
+	fn has_sideeffect(&self) -> bool {
+		false
+	}
+	fn is_ret(&self) -> bool {
+		false
+	}
+	fn is_jump_cond(&self) -> bool {
+		false
+	}
+	fn is_direct_jump(&self) -> bool {
 		false
 	}
 	fn get_alloc(&self) -> Option<(Temp, Value)> {
@@ -65,7 +74,6 @@ pub struct ArithInstr {
 	pub lhs: Value,
 	pub rhs: Value,
 }
-
 #[derive(Clone)]
 pub struct CompInstr {
 	pub kind: CompKind,
