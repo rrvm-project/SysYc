@@ -3,8 +3,8 @@ use utils::errors::Result;
 
 use crate::{RrvmOptimizer, *};
 use dead_code::RemoveDeadCode;
-use unreachable::RemoveUnreachCode;
 use local_expression_rearrangement::LocalExpressionRearrangement;
+use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
 
 impl Optimizer0 {
