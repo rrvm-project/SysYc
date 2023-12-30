@@ -88,5 +88,12 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 			}
 		})
 		.collect();
-	(func.name, instrs)
+	//add func header parse
+	let func_header = "  .text\n  .align 2\n  .globl ".to_owned()
+		+ &func.name
+		+ "\n  .type "
+		+ &func.name
+		+ ", @function\n"
+		+ &func.name;
+	(func_header, instrs)
 }
