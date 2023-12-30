@@ -62,4 +62,7 @@ impl VarType {
 	pub fn is_void(&self) -> bool {
 		matches!(self, Self::Void)
 	}
+	pub fn is_ptr(&self) -> bool {
+		matches!(self, Self::F32Ptr | Self::I32Ptr)
+	}
 }

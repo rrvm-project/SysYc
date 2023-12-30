@@ -59,6 +59,7 @@ impl Namer {
 impl Visitor for Namer {
 	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
 		self.ctx.push();
+		self.ctx.extern_init(&mut self.mgr);
 		self.is_global = true;
 		self.init_values.clear();
 		for v in node.global_vars.iter_mut() {

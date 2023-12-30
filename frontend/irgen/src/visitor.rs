@@ -431,7 +431,11 @@ impl Visitor for IRGenerator {
 			param.accept(self)?;
 			let (mut cfg, val, addr) = self.stack.pop().unwrap();
 			let var_type = type_convert(type_t);
-			let val = self.solve(val, addr, &mut cfg);
+			let val = if var_type.is_ptr() {
+				addr.unwrap()
+			} else {
+				self.solve(val, addr, &mut cfg)
+			};
 			let val = self.type_conv(val, var_type, &mut cfg);
 			cfgs.push(cfg);
 			params.push((var_type, val));
