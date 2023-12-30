@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use ast::{tree::*, Visitor};
 use attr::Attrs;
@@ -26,9 +26,6 @@ pub struct IRGenerator {
 	pub states: Vec<LoopState>,
 	pub weights: Vec<f64>,
 	pub is_global: bool,
-	pub loading_array: Option<Temp>,
-	pub loading_type: Option<llvm::VarType>,
-	pub initialized_stack_array_item: HashSet<usize>,
 }
 
 impl Default for IRGenerator {
@@ -88,62 +85,23 @@ impl Visitor for IRGenerator {
 		let var_type = type_convert(&symbol.var_type);
 
 		if self.is_global {
-			let temp = self.mgr.new_temp_with_name(
-				symbol.ident.split_whitespace().next().unwrap().to_string(),
-				var_type_to_ptr(&var_type),
-			);
-			self.symbol_table.set(symbol.id, temp.into());
-			let new_cfg = self.new_cfg();
-			self.stack.push((new_cfg, None, None));
-			return Ok(());
+			todo!()
 		}
-
 		if let Some(init) = node.init.as_mut() {
 			self.symbol_table.set(symbol.id, var_type.default_value());
 
 			if symbol.var_type.is_array() {
-				let temp = self.mgr.new_temp(var_type_to_ptr(&var_type), false); //往这个temp里store
-				self.symbol_table.set(symbol.id, temp.clone().into());
-				self.loading_array = Some(temp.clone());
-				self.loading_type = Some(var_type_to_scalar(&var_type));
-				self.initialized_stack_array_item.clear();
-				init.accept(self)?;
-				let (cfg, _, _) = self.stack.pop().unwrap(); // 这里的cfg中是一堆store指令
-
-				let length: usize = symbol.var_type.dims.iter().product();
-				for i in 0..length {
-					if self.initialized_stack_array_item.contains(&i) {
-						continue;
-					}
-					let store_addr = self
-						.mgr
-						.new_temp(var_type_to_ptr(&self.loading_type.unwrap()), false);
-
-					let instr = Box::new(GEPInstr {
-						target: store_addr.clone(),
-						var_type: var_type_to_ptr(&self.loading_type.unwrap()),
-						addr: llvm::Value::Temp(self.loading_array.clone().unwrap()),
-						offset: llvm::Value::Int((i * 4) as i32),
-					});
-
-					cfg.get_exit().borrow_mut().push(instr);
-
-					let instr = Box::new(StoreInstr {
-						value: var_type.default_value(),
-						addr: llvm::Value::Temp(store_addr),
-					});
-					cfg.get_exit().borrow_mut().push(instr);
-				}
-				self.initialized_stack_array_item.clear();
-
-				let instr = Box::new(AllocInstr {
-					target: temp.clone(),
-					length: ((length * var_type.deref_type().get_size()) as i32).into(),
-					var_type,
-				});
-				cfg.get_entry().borrow_mut().instrs.insert(0, instr);
-
-				self.stack.push((cfg, None, None));
+				todo!();
+			// let _temp = self.mgr.new_temp(var_type, false);
+			// init.accept(self)?;
+			// let (cfg, _, _) = self.stack.pop().unwrap(); // 这里的cfg中是一堆store指令
+			// let instr = Box::new(AllocInstr {
+			// 	target: temp.clone(),
+			// 	length: todo!(),
+			// 	var_type,
+			// });
+			// cfg.get_entry().borrow_mut().instrs.insert(0, instr);
+			// self.stack.push((cfg, None, None));
 			} else {
 				init.accept(self)?;
 				let (mut cfg, value, addr) = self.stack.pop().unwrap();
@@ -181,53 +139,15 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
-	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
-		let mut cfg_this = self.new_cfg();
-
-		for val in node.val_list.iter_mut() {
-			val.accept(self)?;
-			let (mut cfg_child, value, addr) = self.stack.pop().unwrap();
-
-			if !val.is_init_val_list() {
-				let rhs_val = self.solve(value.clone(), addr.clone(), &mut cfg_child);
-				let value_to_store =
-					self.type_conv(rhs_val, self.loading_type.unwrap(), &mut cfg_child);
-				if let Some(attr::Attr::InitValLIstPosition(position)) =
-					&val.get_attr("initvallist_index")
-				{
-					let store_addr = self
-						.mgr
-						.new_temp(var_type_to_ptr(&self.loading_type.unwrap()), false);
-
-					let instr = Box::new(GEPInstr {
-						target: store_addr.clone(),
-						var_type: var_type_to_ptr(&self.loading_type.unwrap()),
-						addr: llvm::Value::Temp(self.loading_array.clone().unwrap()),
-						offset: llvm::Value::Int((*position * 4) as i32),
-					});
-					self.initialized_stack_array_item.insert(*position);
-					cfg_child.get_exit().borrow_mut().push(instr);
-
-					let instr = Box::new(StoreInstr {
-						value: value_to_store,
-						addr: llvm::Value::Temp(store_addr),
-					});
-					cfg_child.get_exit().borrow_mut().push(instr);
-				} else {
-					unreachable!();
-				}
-			}
-			link_cfg(&cfg_this, &cfg_child);
-			cfg_this.append(cfg_child);
-		}
-		self.stack.push((cfg_this, None, None));
-		Ok(())
+	fn visit_init_val_list(&mut self, _node: &mut InitValList) -> Result<()> {
+		// TODO: solve init_val_list
+		todo!("I don't know how to solve this");
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let now: LlvmCFG = self.new_cfg();
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
 		let temp = self.symbol_table.get(&symbol.id);
-		if !symbol.var_type.is_array() && !is_global(&temp) {
+		if !symbol.var_type.is_array() && !temp.is_global() {
 			self.stack.push((now, Some(temp), None));
 		} else {
 			self.stack.push((now, None, Some(temp)));

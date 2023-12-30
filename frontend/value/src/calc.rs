@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use utils::{errors::Result, SysycError::*};
 
 use crate::{BType, BinaryOp, UnaryOp, Value};
@@ -38,14 +36,14 @@ where
 	}
 }
 
-fn get_index<T: Into<Value> + Default>(
+fn get_index<T: Into<Value>>(
 	index: &[usize],
-	x: &HashMap<usize, T>,
+	x: &[T],
 	pos: usize,
 ) -> Result<Value>
 where
 	T: Into<Value> + Default + Copy,
-	(Vec<usize>, HashMap<usize, T>): Into<Value>,
+	(Vec<usize>, Vec<T>): Into<Value>,
 {
 	let v = index
 		.first()
@@ -55,17 +53,9 @@ where
 		return Err(TypeError("Index out of bounds".to_string()));
 	}
 	if index.len() == 1 {
-		//应该在外界检查，使得非const的值不参与前端常量计算。
-		Ok(x.get(&pos).unwrap_or(&T::default()).to_owned().into())
+		Ok(x.get(pos).unwrap().to_owned().into())
 	} else {
-		let mut indexed = HashMap::new();
-		for i in pos * len..(pos + 1) * len {
-			if let Some(value) = x.get(&i) {
-				indexed.insert(i - pos * len, *value);
-			}
-		}
-
-		Ok((index[1..].to_vec(), indexed).into())
+		Ok((index[1..].to_vec(), x[pos * len..(pos + 1) * len].to_vec()).into())
 	}
 }
 
