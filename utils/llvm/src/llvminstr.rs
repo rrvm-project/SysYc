@@ -80,6 +80,9 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
 		None
 	}
+	fn swap_target(&mut self, _new: Temp) {
+		unreachable!()
+	}
 }
 
 impl UseTemp<LlvmTemp> for LlvmInstr {

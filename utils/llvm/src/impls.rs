@@ -122,6 +122,9 @@ impl LlvmInstrTrait for ArithInstr {
 	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
 		Some((self.lhs.clone(), self.rhs.clone()))
 	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
+	}
 }
 
 impl ArithInstr {
@@ -183,6 +186,9 @@ impl LlvmInstrTrait for CompInstr {
 	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
 	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
+	}
 }
 
 impl Display for ConvertInstr {
@@ -224,6 +230,9 @@ impl LlvmInstrTrait for ConvertInstr {
 	}
 	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
+	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
 	}
 }
 
@@ -369,6 +378,9 @@ impl LlvmInstrTrait for PhiInstr {
 			}
 		}
 	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
+	}
 }
 
 impl PhiInstr {
@@ -452,6 +464,9 @@ impl LlvmInstrTrait for AllocInstr {
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
 	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
+	}
 }
 
 impl Display for StoreInstr {
@@ -530,6 +545,9 @@ impl LlvmInstrTrait for LoadInstr {
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
 	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
+	}
 }
 
 impl Display for GEPInstr {
@@ -570,6 +588,9 @@ impl LlvmInstrTrait for GEPInstr {
 	}
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
+	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
 	}
 }
 
@@ -617,5 +638,8 @@ impl LlvmInstrTrait for CallInstr {
 	}
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
+	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
 	}
 }
