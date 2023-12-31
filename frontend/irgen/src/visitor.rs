@@ -49,6 +49,7 @@ impl Visitor for IRGenerator {
 		node.next_temp = self.mgr.total + 1;
 		Ok(())
 	}
+
 	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<()> {
 		self.symbol_table.push();
 		self.ret_type = node.ret_type;
@@ -76,6 +77,7 @@ impl Visitor for IRGenerator {
 		self.symbol_table.pop();
 		Ok(())
 	}
+
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
 		let var_type = type_convert(&symbol.var_type);
@@ -129,6 +131,7 @@ impl Visitor for IRGenerator {
 		}
 		Ok(())
 	}
+
 	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<()> {
 		let mut cfgs = Vec::new();
 		for var_def in node.defs.iter_mut() {
@@ -139,6 +142,7 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
+
 	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
 		let mut cfgs = Vec::new();
 		self.push();
@@ -162,6 +166,7 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
+
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let now: LlvmCFG = self.new_cfg();
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
@@ -173,16 +178,19 @@ impl Visitor for IRGenerator {
 		}
 		Ok(())
 	}
+
 	fn visit_literal_int(&mut self, node: &mut LiteralInt) -> Result<()> {
 		let now: LlvmCFG = self.new_cfg();
 		self.stack.push((now, Some(node.value.into()), None));
 		Ok(())
 	}
+
 	fn visit_literal_float(&mut self, node: &mut LiteralFloat) -> Result<()> {
 		let now: LlvmCFG = self.new_cfg();
 		self.stack.push((now, Some(node.value.into()), None));
 		Ok(())
 	}
+
 	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<()> {
 		use BinaryOp::*;
 		node.lhs.accept(self)?;
@@ -311,6 +319,7 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, ret_val, ret_addr));
 		Ok(())
 	}
+
 	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<()> {
 		let var_type = type_convert(&node.get_attr("type").unwrap().into());
 		node.rhs.accept(self)?;
@@ -359,6 +368,7 @@ impl Visitor for IRGenerator {
 		}
 		Ok(())
 	}
+
 	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<()> {
 		let symbol: FuncSymbol = node.get_attr("func_symbol").unwrap().into();
 		let mut cfgs = Vec::new();
@@ -390,12 +400,14 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, Some(temp.into()), None));
 		Ok(())
 	}
+
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
 		let temp = self.mgr.new_temp(type_convert(&symbol.var_type), false);
 		self.symbol_table.set(symbol.id, temp.into());
 		Ok(())
 	}
+
 	fn visit_block(&mut self, node: &mut Block) -> Result<()> {
 		let mut cfgs = Vec::new();
 		for stmt in node.stmts.iter_mut() {
@@ -409,6 +421,7 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
+
 	fn visit_if(&mut self, node: &mut If) -> Result<()> {
 		node.cond.accept(self)?;
 		let (mut cond, cond_val, cond_addr) = self.stack.pop().unwrap();
@@ -432,6 +445,7 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
+
 	fn visit_while(&mut self, node: &mut While) -> Result<()> {
 		self.enter_loop();
 		let mut counter = Counter::new();
@@ -477,6 +491,7 @@ impl Visitor for IRGenerator {
 		self.stack.push((init, None, None));
 		Ok(())
 	}
+
 	fn visit_continue(&mut self, _node: &mut Continue) -> Result<()> {
 		let cfg = self.new_cfg();
 		let diff = self.symbol_table.top(self.states.last().unwrap().size);
@@ -484,6 +499,7 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
+
 	fn visit_break(&mut self, _node: &mut Break) -> Result<()> {
 		let cfg = self.new_cfg();
 		let diff = self.symbol_table.top(self.states.last().unwrap().size);

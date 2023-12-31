@@ -65,6 +65,7 @@ impl Visitor for Namer {
 		self.ctx.pop()?;
 		Ok(())
 	}
+
 	fn visit_func_decl(&mut self, node: &mut FuncDecl) -> Result<()> {
 		self.ctx.push();
 		let mut func_type = Vec::new();
@@ -79,6 +80,7 @@ impl Visitor for Namer {
 		self.ctx.pop()?;
 		Ok(())
 	}
+
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let (is_const, btype) = self.decl_type.unwrap();
@@ -103,6 +105,7 @@ impl Visitor for Namer {
 		self.ctx.set_val(&node.ident, symbol)?;
 		Ok(())
 	}
+
 	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<()> {
 		self.decl_type = Some((node.is_const, node.type_t));
 		for var_def in node.defs.iter_mut() {
@@ -111,6 +114,7 @@ impl Visitor for Namer {
 		self.decl_type = None;
 		Ok(())
 	}
+
 	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
 		self.depth += 1;
 		for val in node.val_list.iter_mut() {
@@ -143,16 +147,19 @@ impl Visitor for Namer {
 		}
 		Ok(())
 	}
+
 	fn visit_literal_int(&mut self, node: &mut LiteralInt) -> Result<()> {
 		let value: Value = node.value.into();
 		node.set_attr("value", value.into());
 		Ok(())
 	}
+
 	fn visit_literal_float(&mut self, node: &mut LiteralFloat) -> Result<()> {
 		let value: Value = node.value.into();
 		node.set_attr("value", value.into());
 		Ok(())
 	}
+
 	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<()> {
 		node.lhs.accept(self)?;
 		node.rhs.accept(self)?;
@@ -170,6 +177,7 @@ impl Visitor for Namer {
 		}
 		Ok(())
 	}
+
 	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<()> {
 		node.rhs.accept(self)?;
 		shirink(&mut node.rhs);
@@ -179,6 +187,7 @@ impl Visitor for Namer {
 		}
 		Ok(())
 	}
+
 	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<()> {
 		let symbol = self.ctx.get_func(&node.ident)?.clone();
 		let v: Option<VarType> = symbol.var_type.0.into();
@@ -192,6 +201,7 @@ impl Visitor for Namer {
 		}
 		Ok(())
 	}
+
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let var_type: VarType = (false, node.type_t, &dim_list).into();
@@ -201,6 +211,7 @@ impl Visitor for Namer {
 		node.set_attr("type", var_type.into());
 		Ok(())
 	}
+
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let symbol = self.ctx.get_val(&node.ident)?.clone();
 		node.set_attr("symbol", symbol.clone().into());
@@ -210,6 +221,7 @@ impl Visitor for Namer {
 		}
 		Ok(())
 	}
+
 	fn visit_block(&mut self, node: &mut Block) -> Result<()> {
 		self.ctx.push();
 		for stmt in node.stmts.iter_mut() {
@@ -218,6 +230,7 @@ impl Visitor for Namer {
 		self.ctx.pop()?;
 		Ok(())
 	}
+
 	fn visit_if(&mut self, node: &mut If) -> Result<()> {
 		node.cond.accept(self)?;
 		shirink(&mut node.cond);
@@ -227,17 +240,21 @@ impl Visitor for Namer {
 		}
 		Ok(())
 	}
+
 	fn visit_while(&mut self, node: &mut While) -> Result<()> {
 		node.cond.accept(self)?;
 		shirink(&mut node.cond);
 		node.body.accept(self)
 	}
+
 	fn visit_continue(&mut self, _node: &mut Continue) -> Result<()> {
 		Ok(())
 	}
+
 	fn visit_break(&mut self, _node: &mut Break) -> Result<()> {
 		Ok(())
 	}
+
 	fn visit_return(&mut self, node: &mut Return) -> Result<()> {
 		if let Some(val) = &mut node.value {
 			val.accept(self)?;
