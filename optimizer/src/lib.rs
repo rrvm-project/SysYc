@@ -1,6 +1,7 @@
 mod dead_code;
 pub mod impls;
 mod local_expression_rearrangement;
+mod strength_reduce;
 mod unreachable;
 mod useless_code;
 use rrvm::program::LlvmProgram;

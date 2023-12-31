@@ -84,6 +84,21 @@ impl LlvmInstrTrait for ArithInstr {
 			&self.rhs.get_type(),
 		])
 	}
+	// 在强度削弱时使用，用于判断候选操作
+	fn is_candidate_operator(&self) -> Option<ArithOp> {
+		match self.op {
+			ArithOp::Add
+			| ArithOp::Fadd
+			| ArithOp::Mul
+			| ArithOp::Fmul
+			| ArithOp::Sub
+			| ArithOp::Fsub => Some(self.op.clone()),
+			_ => None,
+		}
+	}
+	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
+		Some((self.lhs.clone(), self.rhs.clone()))
+	}
 }
 
 impl Display for CompInstr {

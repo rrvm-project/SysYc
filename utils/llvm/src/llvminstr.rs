@@ -56,6 +56,12 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn get_alloc(&self) -> Option<(Temp, Value)> {
 		None
 	}
+	fn is_candidate_operator(&self) -> Option<ArithOp> {
+		None
+	}
+	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
+		None
+	}
 }
 
 impl UseTemp<Temp> for LlvmInstr {
