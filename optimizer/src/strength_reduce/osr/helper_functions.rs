@@ -120,4 +120,13 @@ impl OSR {
 		cfg.blocks[bb_id].borrow_mut().instrs[instr_id] = Box::new(copy_instr);
 		self.flag = true;
 	}
+	pub fn new_temp(&mut self, from: &Temp) -> Temp {
+		let new = Temp {
+			name: self.total_new_temp.to_string(),
+			var_type: from.var_type,
+			is_global: from.is_global,
+		};
+		self.total_new_temp += 1;
+		new
+	}
 }

@@ -27,12 +27,9 @@ pub struct OSR {
 	// 临时变量到（基本块id，基本块数组下标，指令数组下标）的映射
 	temp_to_instr: HashMap<Temp, (i32, usize, usize)>,
 
-	// 优化过程中可能需要插入新的指令，但由于我使用下标索引指令，所以这里用一个 Vec 来记录
-	// 记录 (基本块数组下标，要插在哪一条指令的后面，指令)
-	// 这里的Temp是指令的目标变量
-	// 不插入这些指令不会影响优化
-	// to_insert: Vec<(usize, Temp, LlvmInstr)>,
-	new_temp: HashMap<(ArithOp, HashableValue, HashableValue), Temp>,
+	// 记录因为候选操作而产生的指令，防止产生重复的指令
+	new_instr: HashMap<(ArithOp, HashableValue, HashableValue), Temp>,
+	total_new_temp: u32,
 	// 此过程是否做出了优化
 	flag: bool,
 
@@ -42,7 +39,7 @@ pub struct OSR {
 }
 
 impl OSR {
-	pub fn new(cfg: &mut LlvmCFG) -> Self {
+	pub fn new(cfg: &mut LlvmCFG, total_new_temp: u32) -> Self {
 		let dfsnum = HashMap::new();
 		let mut visited = HashMap::new();
 		let low = HashMap::new();
@@ -80,7 +77,8 @@ impl OSR {
 			header,
 			temp_to_instr,
 			// to_insert: Vec::new(),
-			new_temp: HashMap::new(),
+			new_instr: HashMap::new(),
+			total_new_temp,
 			flag: false,
 			dominates,
 			dominates_directly,
@@ -291,7 +289,7 @@ impl OSR {
 		iv: Temp,
 		rc: Value,
 	) -> Temp {
-		if let Some(t) = self.new_temp.get(&(
+		if let Some(t) = self.new_instr.get(&(
 			op,
 			HashableValue::from(Value::Temp(iv.clone())),
 			HashableValue::from(rc.clone()),
@@ -299,7 +297,7 @@ impl OSR {
 			return t.clone();
 		}
 		if op.is_commutative() {
-			if let Some(t) = self.new_temp.get(&(
+			if let Some(t) = self.new_instr.get(&(
 				op,
 				HashableValue::from(rc.clone()),
 				HashableValue::from(Value::Temp(iv.clone())),
@@ -307,6 +305,34 @@ impl OSR {
 				return t.clone();
 			}
 		}
+		let result =  self.new_temp(&iv);
+		self.new_instr.insert(
+			(
+				op,
+				HashableValue::from(Value::Temp(iv.clone())),
+				HashableValue::from(rc.clone()),
+			),
+			result.clone(),
+		);
+		let (id, bb_id, instr_id) = *self.temp_to_instr.get(&iv).unwrap();
+		let instr = &cfg.blocks[bb_id].borrow().instrs[instr_id];
+		let mut new_def = instr.clone_box();
+		new_def.swap_target(result.clone());
+
+		cfg.blocks[bb_id].borrow_mut().instrs[((instr_id)+1)..].iter().for_each(|i| i.get_write().iter().for_each(|t| {
+			self.temp_to_instr.entry(t.clone()).and_modify(|(_, _, instr_id)| {
+				*instr_id = *instr_id + 1;
+			});
+		}));
+		cfg.blocks[bb_id].borrow_mut().instrs.insert(instr_id + 1, new_def);
+
+		self.temp_to_instr.insert(result.clone(), (id, bb_id, instr_id + 1));
+		self.dfsnum.insert(result.clone(), self.dfsnum[&iv]);
+		self.visited.insert(result.clone(), self.visited[&iv]);
+		self.low.insert(result.clone(), self.low[&iv]);
+		self.header.insert(result.clone(), self.header[&iv].clone());
+
+		let new_def = &cfg.blocks[bb_id].borrow().instrs[instr_id + 1];
 		todo!()
 	}
 	pub fn apply(

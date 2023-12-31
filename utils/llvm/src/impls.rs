@@ -99,6 +99,9 @@ impl LlvmInstrTrait for ArithInstr {
 	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
 		Some((self.lhs.clone(), self.rhs.clone()))
 	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
+	}
 }
 
 impl Display for CompInstr {
@@ -132,6 +135,9 @@ impl LlvmInstrTrait for CompInstr {
 			&self.rhs.get_type(),
 		])
 	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
+	}
 }
 
 impl Display for ConvertInstr {
@@ -164,6 +170,9 @@ impl LlvmInstrTrait for ConvertInstr {
 			&self.lhs.get_type(),
 			&self.to_type,
 		])
+	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
 	}
 }
 
@@ -279,6 +288,9 @@ impl LlvmInstrTrait for PhiInstr {
 	fn is_phi(&self) -> bool {
 		true
 	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
+	}
 }
 
 impl Display for RetInstr {
@@ -339,6 +351,9 @@ impl LlvmInstrTrait for AllocInstr {
 	}
 	fn get_alloc(&self) -> Option<(Temp, Value)> {
 		Some((self.target.clone(), self.length.clone()))
+	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
 	}
 }
 
@@ -408,6 +423,9 @@ impl LlvmInstrTrait for LoadInstr {
 	fn is_load(&self) -> bool {
 		self.addr.unwrap_temp().map_or(true, |v| !v.is_global)
 	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
+	}
 }
 
 impl Display for GEPInstr {
@@ -441,6 +459,9 @@ impl LlvmInstrTrait for GEPInstr {
 		is_ptr(self.addr.get_type())
 			&& self.offset.get_type() == VarType::I32
 			&& type_match_ptr(self.var_type, self.addr.get_type())
+	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
 	}
 }
 
@@ -477,5 +498,8 @@ impl LlvmInstrTrait for CallInstr {
 	}
 	fn is_call(&self) -> bool {
 		true
+	}
+	fn swap_target(&mut self, _new: Temp) {
+		self.target = _new;
 	}
 }
