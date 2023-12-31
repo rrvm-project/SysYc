@@ -24,15 +24,13 @@ pub struct VarType {
 }
 
 pub type FuncType = (FuncRetType, Vec<VarType>);
-pub type IntPtr = (Vec<usize>, Vec<i32>);
-pub type FloatPtr = (Vec<usize>, Vec<f32>);
+pub type Array = (Vec<usize>, Vec<Value>);
 
 #[derive(Clone, Debug)]
 pub enum Value {
 	Int(i32),
 	Float(f32),
-	IntPtr(IntPtr),
-	FloatPtr(FloatPtr),
+	Array(Array),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

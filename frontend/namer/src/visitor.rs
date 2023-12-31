@@ -1,11 +1,9 @@
+use crate::utils::*;
 use ast::{shirink, tree::*, Visitor};
 use attr::Attrs;
 use rrvm_symbol::manager::SymbolManager;
 use scope::stack::ScopeStack;
-use utils::{
-	errors::Result,
-	SysycError::{SemanticError, TypeError},
-};
+use utils::errors::Result;
 use value::{
 	calc::{exec_binaryop, exec_unaryop},
 	BType, BinaryOp, FuncType, Value, VarType,
@@ -15,12 +13,20 @@ use value::{
 pub struct Namer {
 	mgr: SymbolManager,
 	ctx: ScopeStack,
-	cur_type: Option<(bool, BType)>,
+	decl_type: Option<(bool, BType)>,
+	decl_dims: Vec<usize>,
+	cur_dep: usize,
 }
 
 impl Namer {
 	pub fn transform(&mut self, program: &mut Program) -> Result<()> {
 		program.accept(self)
+	}
+	fn cur_size(&self) -> usize {
+		self.decl_dims.iter().skip(self.cur_dep).product()
+	}
+	fn cur_dims(&self) -> Vec<usize> {
+		self.decl_dims.iter().skip(self.cur_dep).cloned().collect()
 	}
 }
 
@@ -29,14 +35,14 @@ impl Namer {
 		let mut dim_list: Vec<usize> = Vec::new();
 		for dim in node_list.iter_mut() {
 			dim.accept(self)?;
-			let value: Value = dim
-				.get_attr("value")
-				.ok_or(TypeError(
-					"The length of array must be constant integer".to_string(),
-				))?
-				.into();
+			let value: Value =
+				dim.get_attr("value").ok_or_else(array_dims_error)?.into();
 			shirink(dim);
-			dim_list.push(value.to_int()? as usize);
+			if let Value::Int(v) = value {
+				dim_list.push(v as usize);
+			} else {
+				return Err(array_dims_error());
+			}
 		}
 		Ok(dim_list)
 	}
@@ -75,33 +81,66 @@ impl Visitor for Namer {
 	}
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
-		let (is_const, btype) = self.cur_type.unwrap();
-		let var_type: VarType = (!is_const, btype, dim_list).into();
+		let (is_const, btype) = self.decl_type.unwrap();
+		let var_type: VarType = (!is_const, btype, &dim_list).into();
 		let symbol = self.mgr.new_var_symbol(&node.ident, var_type);
 		node.set_attr("symbol", symbol.clone().into());
-		self.ctx.set_val(&node.ident, symbol)?;
 		if let Some(init) = node.init.as_mut() {
+			self.decl_dims = dim_list.clone();
 			init.accept(self)?;
-		} else if is_const {
-			return Err(SemanticError(format!(
-				"uninitialized 'const {}'",
-				node.ident
-			)))?;
+			shirink(init);
 		}
+		if is_const {
+			let value = node
+				.init
+				.as_ref()
+				.ok_or_else(|| uninitialized(&node.ident))?
+				.get_attr("value")
+				.ok_or_else(|| initialize_by_none(&node.ident))?;
+			self.ctx.set_constant(symbol.id, value.into())?;
+			node.init = None;
+		}
+		self.ctx.set_val(&node.ident, symbol)?;
 		Ok(())
 	}
 	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<()> {
-		self.cur_type = Some((node.is_const, node.type_t));
+		self.decl_type = Some((node.is_const, node.type_t));
 		for var_def in node.defs.iter_mut() {
 			var_def.accept(self)?;
 		}
-		self.cur_type = None;
+		self.decl_type = None;
 		Ok(())
 	}
 	//TODO: solve init value list
 	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
+		self.cur_dep += 1;
 		for val in node.val_list.iter_mut() {
 			val.accept(self)?;
+			shirink(val);
+		}
+		let len = self.cur_size();
+		self.cur_dep -= 1;
+
+		let (is_const, btype) = self.decl_type.unwrap();
+		if is_const {
+			let mut array: Vec<Value> = Vec::new();
+			for val in node.val_list.iter_mut() {
+				let value: Value = val
+					.get_attr("value")
+					.ok_or_else(|| initialize_by_none("array"))?
+					.into();
+				if let Value::Array((_, val_array)) = value {
+					let size = (len - array.len() % len) % len;
+					array.extend((0..size).map(|_| btype.to_value()));
+					array.extend(val_array);
+				} else {
+					array.push(value.to_type(btype)?);
+				};
+			}
+			let size = self.cur_size() - array.len();
+			array.extend((0..size).map(|_| btype.to_value()));
+			let value: Value = (self.cur_dims(), array).into();
+			node.set_attr("value", value.into());
 		}
 		Ok(())
 	}
@@ -142,7 +181,7 @@ impl Visitor for Namer {
 		Ok(())
 	}
 	fn visit_func_call(&mut self, node: &mut FuncCall) -> Result<()> {
-		let symbol = self.ctx.find_func(&node.ident)?.clone();
+		let symbol = self.ctx.get_func(&node.ident)?.clone();
 		let v: Option<VarType> = symbol.var_type.0.into();
 		if let Some(v) = v {
 			node.set_attr("type", v.into());
@@ -156,7 +195,7 @@ impl Visitor for Namer {
 	}
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
-		let var_type: VarType = (false, node.type_t, dim_list).into();
+		let var_type: VarType = (false, node.type_t, &dim_list).into();
 		let symbol = self.mgr.new_var_symbol(&node.ident, var_type.clone());
 		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol)?;
@@ -164,9 +203,12 @@ impl Visitor for Namer {
 		Ok(())
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
-		let symbol = self.ctx.find_val(&node.ident)?.clone();
+		let symbol = self.ctx.get_val(&node.ident)?.clone();
 		node.set_attr("symbol", symbol.clone().into());
 		node.set_attr("type", symbol.var_type.into());
+		if let Some(value) = self.ctx.get_constant(symbol.id) {
+			node.set_attr("value", value.clone().into())
+		}
 		Ok(())
 	}
 	fn visit_block(&mut self, node: &mut Block) -> Result<()> {

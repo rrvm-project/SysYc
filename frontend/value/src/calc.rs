@@ -36,15 +36,7 @@ where
 	}
 }
 
-fn get_index<T: Into<Value>>(
-	index: &[usize],
-	x: &[T],
-	pos: usize,
-) -> Result<Value>
-where
-	T: Into<Value> + Default + Copy,
-	(Vec<usize>, Vec<T>): Into<Value>,
-{
+fn get_index(index: &[usize], x: &[Value], pos: usize) -> Result<Value> {
 	let v = index
 		.first()
 		.ok_or(TypeError("Try to deref a non-pointer value".to_string()))?;
@@ -53,7 +45,7 @@ where
 		return Err(TypeError("Index out of bounds".to_string()));
 	}
 	if index.len() == 1 {
-		Ok(x.get(pos).unwrap().to_owned().into())
+		Ok(x.get(pos).unwrap().to_owned())
 	} else {
 		Ok((index[1..].to_vec(), x[pos * len..(pos + 1) * len].to_vec()).into())
 	}
@@ -68,8 +60,7 @@ pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Value> {
 				_ => Err(TypeError("array can only be indexed by int".to_string())),
 			}?;
 			match x {
-				Value::IntPtr((index, arr)) => get_index(index, arr, pos as usize),
-				Value::FloatPtr((index, arr)) => get_index(index, arr, pos as usize),
+				Value::Array((index, arr)) => get_index(index, arr, pos as usize),
 				_ => Err(TypeError("only array can be indexed".to_string())),
 			}
 		}

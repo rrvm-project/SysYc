@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{BType, FloatPtr, FuncRetType, IntPtr, Value, VarType};
+use crate::{Array, BType, FuncRetType, Value, VarType};
 use utils::{errors::Result, SysycError::TypeError};
 
 impl From<i32> for Value {
@@ -15,15 +15,9 @@ impl From<f32> for Value {
 	}
 }
 
-impl From<IntPtr> for Value {
-	fn from(value: IntPtr) -> Self {
-		Value::IntPtr(value)
-	}
-}
-
-impl From<FloatPtr> for Value {
-	fn from(value: FloatPtr) -> Self {
-		Value::FloatPtr(value)
+impl From<Array> for Value {
+	fn from(value: Array) -> Self {
+		Value::Array(value)
 	}
 }
 
@@ -42,15 +36,21 @@ impl Value {
 			_ => Err(TypeError("try to convert pointer to float".to_string())),
 		}
 	}
+	pub fn to_type(&self, btype: BType) -> Result<Self> {
+		match btype {
+			BType::Int => Ok(self.to_int()?.into()),
+			BType::Float => Ok(self.to_float()?.into()),
+		}
+	}
 }
 
-impl From<(bool, BType, Vec<usize>)> for VarType {
-	fn from(value: (bool, BType, Vec<usize>)) -> Self {
+impl From<(bool, BType, &Vec<usize>)> for VarType {
+	fn from(value: (bool, BType, &Vec<usize>)) -> Self {
 		let (is_lval, type_t, dims) = value;
 		Self {
 			is_lval,
 			type_t,
-			dims,
+			dims: dims.clone(),
 		}
 	}
 }
@@ -110,6 +110,12 @@ impl BType {
 		match self {
 			Self::Int => 4,
 			Self::Float => 4,
+		}
+	}
+	pub fn to_value(&self) -> Value {
+		match self {
+			Self::Int => 0.into(),
+			Self::Float => (0.0).into(),
 		}
 	}
 }
