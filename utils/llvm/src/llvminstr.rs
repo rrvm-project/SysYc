@@ -65,13 +65,20 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	fn get_alloc(&self) -> Option<(LlvmTemp, Value)> {
 		None
 	}
-	fn map_temp(&mut self, _map: &HashMap<LlvmTemp, Value>) {}
+	fn replace_read(&mut self, _old: Temp, _new: Value) {}
+	fn map_temp(&mut self, _map: &HashMap<Temp, Value>) {}
 	fn set_target(&mut self, _target: LlvmTemp) {}
 	fn map_label(&mut self, _map: &HashMap<Label, Label>) {
 		unreachable!()
 	}
-	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
+	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
 		false
+	}
+	fn is_candidate_operator(&self) -> Option<ArithOp> {
+		None
+	}
+	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
+		None
 	}
 }
 

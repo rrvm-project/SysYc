@@ -37,6 +37,13 @@ impl Hash for Value {
 	}
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum HashableValue {
+	Int(i32),
+	Float(u64, i16, i8),
+	Temp(Temp),
+}
+
 pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
 }
@@ -77,6 +84,34 @@ pub enum CompOp {
 	OLE, // ordered and less or equal
 }
 
+impl ArithOp {
+	pub fn is_commutative(&self) -> bool {
+		matches!(
+			self,
+			ArithOp::Add
+				| ArithOp::Mul
+				| ArithOp::And
+				| ArithOp::Or
+				| ArithOp::Xor
+				| ArithOp::Fadd
+				| ArithOp::Fmul
+		)
+	}
+}
+
+pub fn is_commutative(op: &ArithOp) -> bool {
+	matches!(
+		op,
+		ArithOp::Add
+			| ArithOp::Mul
+			| ArithOp::And
+			| ArithOp::Or
+			| ArithOp::Xor
+			| ArithOp::Fadd
+			| ArithOp::Fmul
+	)
+}
+
 #[derive(Fuyuki, Clone, Copy)]
 pub enum CompKind {
 	Icmp,
@@ -87,6 +122,34 @@ pub enum CompKind {
 pub enum ConvertOp {
 	Int2Float,
 	Float2Int,
+}
+
+// 从标准库偷的，为了让 f32 可以塞进 HashMap
+fn integer_decode(input: f32) -> (u64, i16, i8) {
+	let bits: u32 = unsafe { std::mem::transmute(input) };
+	let sign: i8 = if bits >> 31 == 0 { 1 } else { -1 };
+	let mut exponent: i16 = ((bits >> 23) & 0xff) as i16;
+	let mantissa = if exponent == 0 {
+		(bits & 0x7fffff) << 1
+	} else {
+		(bits & 0x7fffff) | 0x800000
+	};
+	// Exponent bias + mantissa shift
+	exponent -= 127 + 23;
+	(mantissa as u64, exponent, sign)
+}
+
+impl From<Value> for HashableValue {
+	fn from(v: Value) -> Self {
+		match v {
+			Value::Int(v) => Self::Int(v),
+			Value::Float(v) => {
+				let (mantissa, exponent, sign) = integer_decode(v);
+				Self::Float(mantissa, exponent, sign)
+			}
+			Value::Temp(v) => Self::Temp(v),
+		}
+	}
 }
 
 impl Value {
