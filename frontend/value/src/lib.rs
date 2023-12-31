@@ -9,10 +9,11 @@ pub enum BType {
 	Float,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum FuncRetType {
 	Int,
 	Float,
+	#[default]
 	Void,
 }
 

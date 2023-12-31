@@ -15,7 +15,7 @@ pub struct Namer {
 	ctx: ScopeStack,
 	decl_type: Option<(bool, BType)>,
 	decl_dims: Vec<usize>,
-	cur_dep: usize,
+	depth: usize,
 }
 
 impl Namer {
@@ -23,10 +23,10 @@ impl Namer {
 		program.accept(self)
 	}
 	fn cur_size(&self) -> usize {
-		self.decl_dims.iter().skip(self.cur_dep).product()
+		self.decl_dims.iter().skip(self.depth).product()
 	}
 	fn cur_dims(&self) -> Vec<usize> {
-		self.decl_dims.iter().skip(self.cur_dep).cloned().collect()
+		self.decl_dims.iter().skip(self.depth).cloned().collect()
 	}
 }
 
@@ -111,15 +111,14 @@ impl Visitor for Namer {
 		self.decl_type = None;
 		Ok(())
 	}
-	//TODO: solve init value list
 	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
-		self.cur_dep += 1;
+		self.depth += 1;
 		for val in node.val_list.iter_mut() {
 			val.accept(self)?;
 			shirink(val);
 		}
 		let len = self.cur_size();
-		self.cur_dep -= 1;
+		self.depth -= 1;
 
 		let (is_const, btype) = self.decl_type.unwrap();
 		if is_const {
