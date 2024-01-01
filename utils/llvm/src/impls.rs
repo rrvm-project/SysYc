@@ -115,7 +115,7 @@ impl LlvmInstrTrait for ArithInstr {
 			| ArithOp::Mul
 			| ArithOp::Fmul
 			| ArithOp::Sub
-			| ArithOp::Fsub => Some(self.op.clone()),
+			| ArithOp::Fsub => Some(self.op),
 			_ => None,
 		}
 	}
@@ -124,6 +124,16 @@ impl LlvmInstrTrait for ArithInstr {
 	}
 	fn swap_target(&mut self, _new: Temp) {
 		self.target = _new;
+	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		vec![self.lhs.clone(), self.rhs.clone()]
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		match id {
+			0 => self.lhs = value,
+			1 => self.rhs = value,
+			_ => unreachable!(),
+		}
 	}
 }
 
@@ -189,6 +199,16 @@ impl LlvmInstrTrait for CompInstr {
 	fn swap_target(&mut self, _new: Temp) {
 		self.target = _new;
 	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		vec![self.lhs.clone(), self.rhs.clone()]
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		match id {
+			0 => self.lhs = value,
+			1 => self.rhs = value,
+			_ => unreachable!(),
+		}
+	}
 }
 
 impl Display for ConvertInstr {
@@ -234,6 +254,15 @@ impl LlvmInstrTrait for ConvertInstr {
 	fn swap_target(&mut self, _new: Temp) {
 		self.target = _new;
 	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		vec![self.lhs.clone()]
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		match id {
+			0 => self.lhs = value,
+			_ => unreachable!(),
+		}
+	}
 }
 
 impl Display for JumpInstr {
@@ -250,6 +279,12 @@ impl LlvmInstrTrait for JumpInstr {
 	}
 	fn is_direct_jump(&self) -> bool {
 		true
+	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		Vec::new()
+	}
+	fn set_read_values(&mut self, _id: usize, _value: Value) {
+		unreachable!("JumpInstr has no read values")
 	}
 	fn get_label(&self) -> Label {
 		self.target.clone()
@@ -322,6 +357,15 @@ impl LlvmInstrTrait for JumpCondInstr {
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.cond, map);
 	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		vec![self.cond.clone()]
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		match id {
+			0 => self.cond = value,
+			_ => unreachable!(),
+		}
+	}
 }
 
 impl Display for PhiInstr {
@@ -381,6 +425,16 @@ impl LlvmInstrTrait for PhiInstr {
 	fn swap_target(&mut self, _new: Temp) {
 		self.target = _new;
 	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		self.source.iter().map(|(v, _)| v.clone()).collect()
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		assert!(
+			id < self.source.len(),
+			"id of read values out of range for phi"
+		);
+		self.source[id].0 = value;
+	}
 }
 
 impl PhiInstr {
@@ -424,6 +478,17 @@ impl LlvmInstrTrait for RetInstr {
 		}
 	}
 	fn map_label(&mut self, _map: &HashMap<Label, Label>) {}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		self.value.as_ref().map_or(Vec::new(), |v| vec![v.clone()])
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		if let Some(old) = self.value.as_mut() {
+			assert_eq!(id, 0, "id of read values out of range for ret");
+			*old = value;
+		} else {
+			unreachable!("set read values for ret void");
+		}
+	}
 }
 
 impl Display for AllocInstr {
@@ -467,6 +532,15 @@ impl LlvmInstrTrait for AllocInstr {
 	fn swap_target(&mut self, _new: Temp) {
 		self.target = _new;
 	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		vec![self.length.clone()]
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		match id {
+			0 => self.length = value,
+			_ => unreachable!("invalid id of read values for alloc"),
+		}
+	}
 }
 
 impl Display for StoreInstr {
@@ -504,6 +578,16 @@ impl LlvmInstrTrait for StoreInstr {
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.value, map);
 		map_llvm_temp(&mut self.addr, map);
+	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		vec![self.value.clone(), self.addr.clone()]
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		match id {
+			0 => self.value = value,
+			1 => self.addr = value,
+			_ => unreachable!("invalid id of read values for store"),
+		}
 	}
 }
 
@@ -548,6 +632,15 @@ impl LlvmInstrTrait for LoadInstr {
 	fn swap_target(&mut self, _new: Temp) {
 		self.target = _new;
 	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		vec![self.addr.clone()]
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		match id {
+			0 => self.addr = value,
+			_ => unreachable!("invalid id of read values for load"),
+		}
+	}
 }
 
 impl Display for GEPInstr {
@@ -591,6 +684,16 @@ impl LlvmInstrTrait for GEPInstr {
 	}
 	fn swap_target(&mut self, _new: Temp) {
 		self.target = _new;
+	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		vec![self.addr.clone(), self.offset.clone()]
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		match id {
+			0 => self.addr = value,
+			1 => self.offset = value,
+			_ => unreachable!("invalid id of read values for gep"),
+		}
 	}
 }
 
@@ -641,5 +744,15 @@ impl LlvmInstrTrait for CallInstr {
 	}
 	fn swap_target(&mut self, _new: Temp) {
 		self.target = _new;
+	}
+	fn get_read_values(&mut self) -> Vec<Value> {
+		self.params.iter().map(|(_, x)| x.clone()).collect()
+	}
+	fn set_read_values(&mut self, id: usize, value: Value) {
+		assert!(
+			id < self.params.len(),
+			"id of read values out of range for call"
+		);
+		self.params[id].1 = value;
 	}
 }

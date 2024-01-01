@@ -1,7 +1,7 @@
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
 
-use crate::{useless_phis::RemoveUselessPhis, RrvmOptimizer, *};
+use crate::{useless_phis::RemoveUselessPhis, strength_reduce::StrengthReduce, RrvmOptimizer, *};
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
@@ -50,6 +50,8 @@ impl Optimizer1 {
 	}
 }
 
+
+
 impl Optimizer2 {
 	pub fn new() -> Self {
 		Self::default()
@@ -65,6 +67,16 @@ impl Optimizer2 {
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
 			flag |= SolveTailRecursion::new().apply(program)?;
+			// 	}
+			// }
+
+			let (strength_reduce_flag, strength_reduce_total_new_temp) =
+				StrengthReduce::new_with_total_new_temp(
+					self.strength_reduce_total_new_temp,
+				)
+				.apply_strength_reduce(program)?;
+			flag |= strength_reduce_flag;
+			self.strength_reduce_total_new_temp = strength_reduce_total_new_temp;
 			if !flag {
 				break;
 			}

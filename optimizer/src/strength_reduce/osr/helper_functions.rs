@@ -1,6 +1,6 @@
 use super::OSR;
 
-use llvm::{ArithInstr, ArithOp, Temp, Value};
+use llvm::{ArithInstr, ArithOp, Temp, Value, VarType};
 use rrvm::LlvmCFG;
 
 impl OSR {
@@ -18,19 +18,21 @@ impl OSR {
 				ArithOp::Add | ArithOp::Mul | ArithOp::Fadd | ArithOp::Fmul => {
 					let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
 					if let Some((iv, header)) = self.is_induction_value(lhs.clone()) {
-						if let Some(rc) = self.is_regional_constant(header.clone(), rhs) {
-							Some((iv, rc))
-						} else {
-							None
-						}
+						self.is_regional_constant(header.clone(), rhs).map(|rc| (iv, rc))
+					// if let Some(rc) = self.is_regional_constant(header.clone(), rhs) {
+					// 	Some((iv, rc))
+					// } else {
+					// 	None
+					// }
 					} else if let Some((iv, header)) =
 						self.is_induction_value(rhs.clone())
 					{
-						if let Some(rc) = self.is_regional_constant(header.clone(), lhs) {
-							Some((iv, rc))
-						} else {
-							None
-						}
+						self.is_regional_constant(header.clone(), lhs).map(|rc| (iv, rc))
+					// if let Some(rc) = self.is_regional_constant(header.clone(), lhs) {
+					// 	Some((iv, rc))
+					// } else {
+					// 	None
+					// }
 					} else {
 						None
 					}
@@ -38,11 +40,12 @@ impl OSR {
 				ArithOp::Sub | ArithOp::Fsub => {
 					let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
 					if let Some((iv, header)) = self.is_induction_value(lhs.clone()) {
-						if let Some(rc) = self.is_regional_constant(header.clone(), rhs) {
-							Some((iv, rc))
-						} else {
-							None
-						}
+						self.is_regional_constant(header.clone(), rhs).map(|rc| (iv, rc))
+					// if let Some(rc) = self.is_regional_constant(header.clone(), rhs) {
+					// 	Some((iv, rc))
+					// } else {
+					// 	None
+					// }
 					} else {
 						None
 					}
@@ -57,11 +60,12 @@ impl OSR {
 	pub fn is_induction_value(&self, v: Value) -> Option<(Temp, Temp)> {
 		match v {
 			Value::Temp(t) => {
-				if let Some(h) = self.header.get(&t) {
-					Some((t, h.clone()))
-				} else {
-					None
-				}
+				self.header.get(&t).map(|h| (t, h.clone()))
+				// if let Some(h) = self.header.get(&t) {
+				// 	Some((t, h.clone()))
+				// } else {
+				// 	None
+				// }
 			}
 			_ => None,
 		}
@@ -120,11 +124,11 @@ impl OSR {
 		cfg.blocks[bb_id].borrow_mut().instrs[instr_id] = Box::new(copy_instr);
 		self.flag = true;
 	}
-	pub fn new_temp(&mut self, from: &Temp) -> Temp {
+	pub fn new_temp(&mut self, tp: VarType) -> Temp {
 		let new = Temp {
 			name: self.total_new_temp.to_string(),
-			var_type: from.var_type,
-			is_global: from.is_global,
+			var_type: tp,
+			is_global: false,
 		};
 		self.total_new_temp += 1;
 		new

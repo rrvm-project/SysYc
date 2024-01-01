@@ -97,6 +97,24 @@ impl ArithOp {
 				| ArithOp::Fmul
 		)
 	}
+	pub fn to_int_op(&self) -> Self {
+		match self {
+			Self::Fadd => Self::Add,
+			Self::Fsub => Self::Sub,
+			Self::Fdiv => Self::Div,
+			Self::Fmul => Self::Mul,
+			_ => *self,
+		}
+	}
+	pub fn to_float_op(&self) -> Self {
+		match self {
+			Self::Add => Self::Fadd,
+			Self::Sub => Self::Fsub,
+			Self::Div => Self::Fdiv,
+			Self::Mul => Self::Fmul,
+			_ => *self,
+		}
+	}
 }
 
 pub fn is_commutative(op: &ArithOp) -> bool {
@@ -124,9 +142,9 @@ pub enum ConvertOp {
 	Float2Int,
 }
 
-// 从标准库偷的，为了让 f32 可以塞进 HashMap
+// 从标准库偷的，将 f32 分解为底层用来表示小数的三个整数部分，为了让 f32 可以塞进 HashMap
 fn integer_decode(input: f32) -> (u64, i16, i8) {
-	let bits: u32 = unsafe { std::mem::transmute(input) };
+	let bits: u32 = input.to_bits();
 	let sign: i8 = if bits >> 31 == 0 { 1 } else { -1 };
 	let mut exponent: i16 = ((bits >> 23) & 0xff) as i16;
 	let mantissa = if exponent == 0 {
