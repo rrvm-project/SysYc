@@ -65,6 +65,8 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn swap_target(&mut self, _new: Temp) {
 		unreachable!()
 	}
+	fn get_read_values(&mut self) -> Vec<Value>;
+	fn set_read_values(&mut self, id: usize, value: Value);
 }
 
 impl UseTemp<Temp> for LlvmInstr {

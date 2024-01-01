@@ -1,7 +1,7 @@
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
 
-use crate::{RrvmOptimizer, *};
+use crate::{strength_reduce::StrengthReduce, RrvmOptimizer, *};
 use dead_code::RemoveDeadCode;
 use local_expression_rearrangement::LocalExpressionRearrangement;
 use unreachable::RemoveUnreachCode;
@@ -28,7 +28,7 @@ impl Optimizer1 {
 	pub fn new() -> Self {
 		Self::default()
 	}
-	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
+	pub fn apply(mut self, program: &mut LlvmProgram) -> Result<()> {
 		LocalExpressionRearrangement::new().apply(program)?;
 		RemoveUselessCode::new().apply(program)?;
 		loop {
@@ -36,6 +36,13 @@ impl Optimizer1 {
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
+			let (strength_reduce_flag, strength_reduce_total_new_temp) =
+				StrengthReduce::new_with_total_new_temp(
+					self.strength_reduce_total_new_temp,
+				)
+				.apply_strength_reduce(program)?;
+			flag |= strength_reduce_flag;
+			self.strength_reduce_total_new_temp = strength_reduce_total_new_temp;
 			if !flag {
 				break;
 			}

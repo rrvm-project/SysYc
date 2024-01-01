@@ -1,20 +1,19 @@
 // Ref：Engineering a Compiler 2nd Edition Page 433
 mod helper_functions;
-use std::{
-	collections::{HashMap, HashSet, VecDeque},
-	rc,
-};
+use std::collections::{HashMap, VecDeque};
 
-use llvm::{ArithInstr, ArithOp, HashableValue, LlvmInstr, Temp, Value};
+use llvm::{
+	ArithInstr, ArithOp, ConvertInstr, HashableValue, Temp, Value, VarType,
+};
 use rrvm::{dominator::naive::compute_dominator, LlvmCFG, LlvmNode};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InductionVariableState {
 	Valid,
-	InValid,
 	Unknown,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 pub struct OSR {
 	// dfs 过程中，访问到的次序
 	dfsnum: HashMap<Temp, i32>,
@@ -29,13 +28,13 @@ pub struct OSR {
 
 	// 记录因为候选操作而产生的指令，防止产生重复的指令
 	new_instr: HashMap<(ArithOp, HashableValue, HashableValue), Temp>,
-	total_new_temp: u32,
+	pub total_new_temp: u32,
 	// 此过程是否做出了优化
-	flag: bool,
+	pub flag: bool,
 
 	dominates: HashMap<i32, Vec<LlvmNode>>,
-	dominates_directly: HashMap<i32, Vec<LlvmNode>>,
-	dominator: HashMap<i32, LlvmNode>,
+	// dominates_directly: HashMap<i32, Vec<LlvmNode>>,
+	// dominator: HashMap<i32, LlvmNode>,
 }
 
 impl OSR {
@@ -81,8 +80,8 @@ impl OSR {
 			total_new_temp,
 			flag: false,
 			dominates,
-			dominates_directly,
-			dominator,
+			// dominates_directly,
+			// dominator,
 		}
 	}
 	pub fn run(&mut self, cfg: &mut LlvmCFG) {
@@ -170,8 +169,9 @@ impl OSR {
 				match op {
 					ArithOp::Add | ArithOp::Fadd => {
 						let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
-						if let Some((iv, header)) = self.is_induction_value(lhs.clone()) {
-							if let Some(rc) = self.is_regional_constant(header.clone(), rhs) {
+						if let Some((_iv, header)) = self.is_induction_value(lhs.clone()) {
+							if let Some(_rc) = self.is_regional_constant(header.clone(), rhs)
+							{
 								visited.insert(p.clone(), InductionVariableState::Valid);
 							} else {
 								is_induction_variable = false;
@@ -182,7 +182,7 @@ impl OSR {
 								.get(&t)
 								.map_or(false, |&v| v == InductionVariableState::Valid)
 						}) {
-							if let Some(rc) =
+							if let Some(_rc) =
 								self.is_regional_constant(scc_header.clone(), rhs)
 							{
 								visited.insert(p.clone(), InductionVariableState::Valid);
@@ -190,10 +190,11 @@ impl OSR {
 								is_induction_variable = false;
 								break;
 							}
-						} else if let Some((iv, header)) =
+						} else if let Some((_iv, header)) =
 							self.is_induction_value(rhs.clone())
 						{
-							if let Some(rc) = self.is_regional_constant(header.clone(), lhs) {
+							if let Some(_rc) = self.is_regional_constant(header.clone(), lhs)
+							{
 								visited.insert(p.clone(), InductionVariableState::Valid);
 							} else {
 								is_induction_variable = false;
@@ -204,7 +205,7 @@ impl OSR {
 								.get(&t)
 								.map_or(false, |&v| v == InductionVariableState::Valid)
 						}) {
-							if let Some(rc) =
+							if let Some(_rc) =
 								self.is_regional_constant(scc_header.clone(), lhs)
 							{
 								visited.insert(p.clone(), InductionVariableState::Valid);
@@ -216,8 +217,9 @@ impl OSR {
 					}
 					ArithOp::Sub | ArithOp::Fsub => {
 						let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
-						if let Some((iv, header)) = self.is_induction_value(lhs.clone()) {
-							if let Some(rc) = self.is_regional_constant(header.clone(), rhs) {
+						if let Some((_iv, header)) = self.is_induction_value(lhs.clone()) {
+							if let Some(_rc) = self.is_regional_constant(header.clone(), rhs)
+							{
 								visited.insert(p.clone(), InductionVariableState::Valid);
 							} else {
 								is_induction_variable = false;
@@ -228,7 +230,7 @@ impl OSR {
 								.get(&t)
 								.map_or(false, |&v| v == InductionVariableState::Valid)
 						}) {
-							if let Some(rc) =
+							if let Some(_rc) =
 								self.is_regional_constant(scc_header.clone(), rhs)
 							{
 								visited.insert(p.clone(), InductionVariableState::Valid);
@@ -273,8 +275,7 @@ impl OSR {
 		iv: Temp,
 		rc: Value,
 	) {
-		let (_, bb_id, instr_id) =
-			*self.temp_to_instr.get(&scc_member).unwrap();
+		let (_, bb_id, instr_id) = *self.temp_to_instr.get(&scc_member).unwrap();
 		let op = cfg.blocks[bb_id].borrow().instrs[instr_id]
 			.is_candidate_operator()
 			.unwrap();
@@ -305,7 +306,7 @@ impl OSR {
 				return t.clone();
 			}
 		}
-		let result =  self.new_temp(&iv);
+		let result = self.new_temp(iv.var_type);
 		self.new_instr.insert(
 			(
 				op,
@@ -315,15 +316,20 @@ impl OSR {
 			result.clone(),
 		);
 		let (id, bb_id, instr_id) = *self.temp_to_instr.get(&iv).unwrap();
-		let instr = &cfg.blocks[bb_id].borrow().instrs[instr_id];
-		let mut new_def = instr.clone_box();
+		// let instr = &cfg.blocks[bb_id].borrow().instrs[instr_id];
+		let mut new_def = cfg.blocks[bb_id].borrow().instrs[instr_id].clone_box();
+		let new_def_is_phi = new_def.is_phi();
 		new_def.swap_target(result.clone());
 
-		cfg.blocks[bb_id].borrow_mut().instrs[((instr_id)+1)..].iter().for_each(|i| i.get_write().iter().for_each(|t| {
-			self.temp_to_instr.entry(t.clone()).and_modify(|(_, _, instr_id)| {
-				*instr_id = *instr_id + 1;
-			});
-		}));
+		cfg.blocks[bb_id].borrow_mut().instrs[((instr_id) + 1)..].iter().for_each(
+			|i| {
+				i.get_write().iter().for_each(|t| {
+					self.temp_to_instr.entry(t.clone()).and_modify(|(_, _, instr_id)| {
+						*instr_id += 1;
+					});
+				})
+			},
+		);
 		cfg.blocks[bb_id].borrow_mut().instrs.insert(instr_id + 1, new_def);
 
 		self.temp_to_instr.insert(result.clone(), (id, bb_id, instr_id + 1));
@@ -332,8 +338,24 @@ impl OSR {
 		self.low.insert(result.clone(), self.low[&iv]);
 		self.header.insert(result.clone(), self.header[&iv].clone());
 
-		let new_def = &cfg.blocks[bb_id].borrow().instrs[instr_id + 1];
-		todo!()
+		// new_def = &mut cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1];
+		let new_def_read_values =
+			cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1].get_read_values();
+		for (id, operand) in new_def_read_values.iter().enumerate() {
+			if let Some(t) = operand.unwrap_temp() {
+				if self.header.get(&t).is_some_and(|h| *h == self.header[&iv]) {
+					let new_value =
+						Value::Temp(self.reduce(cfg, op, t.clone(), rc.clone()));
+					cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1]
+						.set_read_values(id, new_value);
+				}
+			} else if (op == ArithOp::Mul || op == ArithOp::Fmul) || new_def_is_phi {
+				let new_value = self.apply(cfg, op, operand.clone(), rc.clone());
+				cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1]
+					.set_read_values(id, new_value);
+			}
+		}
+		result
 	}
 	pub fn apply(
 		&mut self,
@@ -342,6 +364,247 @@ impl OSR {
 		operand1: Value,
 		operand2: Value,
 	) -> Value {
-		todo!()
+		if let Some(t) = self.new_instr.get(&(
+			op,
+			HashableValue::from(operand1.clone()),
+			HashableValue::from(operand2.clone()),
+		)) {
+			return Value::Temp(t.clone());
+		}
+		if op.is_commutative() {
+			if let Some(t) = self.new_instr.get(&(
+				op,
+				HashableValue::from(operand2.clone()),
+				HashableValue::from(operand1.clone()),
+			)) {
+				return Value::Temp(t.clone());
+			}
+		}
+		if let Some((iv, header)) = self.is_induction_value(operand1.clone()) {
+			if let Some(rc) =
+				self.is_regional_constant(header.clone(), operand2.clone())
+			{
+				let result = self.reduce(cfg, op, iv.clone(), rc);
+				return Value::Temp(result);
+			}
+		}
+		if let Some((iv, header)) = self.is_induction_value(operand2.clone()) {
+			if let Some(rc) =
+				self.is_regional_constant(header.clone(), operand1.clone())
+			{
+				let result = self.reduce(cfg, op, iv.clone(), rc);
+				return Value::Temp(result);
+			}
+		}
+		let result;
+		let bb_id_to_insert;
+		let bb_index_to_insert;
+
+		match (&operand1, &operand2) {
+			(Value::Temp(t1), Value::Temp(t2)) => {
+				let (t1_id, t1_bb_index, _) = *self.temp_to_instr.get(t1).unwrap();
+				let (t2_id, t2_bb_index, _) = *self.temp_to_instr.get(t2).unwrap();
+				if self.dominates[&t1_id].iter().any(|bb| bb.borrow().id == t2_id) {
+					bb_id_to_insert = t2_id;
+					bb_index_to_insert = t2_bb_index;
+				} else {
+					bb_id_to_insert = t1_id;
+					bb_index_to_insert = t1_bb_index;
+				}
+			}
+			(Value::Temp(t), _) | (_, Value::Temp(t)) => {
+				(bb_id_to_insert, bb_index_to_insert, _) =
+					*self.temp_to_instr.get(t).unwrap();
+			}
+			(Value::Int(i1), Value::Int(i2)) => match op {
+				ArithOp::Add | ArithOp::Fadd => {
+					return Value::Int(i1 + i2);
+				}
+				ArithOp::Sub | ArithOp::Fsub => {
+					return Value::Int(i1 - i2);
+				}
+				ArithOp::Mul | ArithOp::Fmul => {
+					return Value::Int(i1 * i2);
+				}
+				ArithOp::Div | ArithOp::Fdiv => {
+					return Value::Int(i1 / i2);
+				}
+				_ => unreachable!(),
+			},
+			(Value::Float(f1), Value::Float(f2)) => match op {
+				ArithOp::Add | ArithOp::Fadd => {
+					return Value::Float(f1 + f2);
+				}
+				ArithOp::Sub | ArithOp::Fsub => {
+					return Value::Float(f1 - f2);
+				}
+				ArithOp::Mul | ArithOp::Fmul => {
+					return Value::Float(f1 * f2);
+				}
+				ArithOp::Div | ArithOp::Fdiv => {
+					return Value::Float(f1 / f2);
+				}
+				_ => unreachable!(),
+			},
+			(Value::Int(i1), Value::Float(f1)) => match op {
+				ArithOp::Add | ArithOp::Fadd => {
+					return Value::Float(*i1 as f32 + f1);
+				}
+				ArithOp::Sub | ArithOp::Fsub => {
+					return Value::Float(*i1 as f32 - f1);
+				}
+				ArithOp::Mul | ArithOp::Fmul => {
+					return Value::Float(*i1 as f32 * f1);
+				}
+				ArithOp::Div | ArithOp::Fdiv => {
+					return Value::Float(*i1 as f32 / f1);
+				}
+				_ => unreachable!(),
+			},
+			(Value::Float(f1), Value::Int(i1)) => match op {
+				ArithOp::Add | ArithOp::Fadd => {
+					return Value::Float(f1 + *i1 as f32);
+				}
+				ArithOp::Sub | ArithOp::Fsub => {
+					return Value::Float(f1 - *i1 as f32);
+				}
+				ArithOp::Mul | ArithOp::Fmul => {
+					return Value::Float(f1 * *i1 as f32);
+				}
+				ArithOp::Div | ArithOp::Fdiv => {
+					return Value::Float(f1 / *i1 as f32);
+				}
+				_ => unreachable!(),
+			},
+		};
+		match (operand1.get_type(), operand2.get_type()) {
+			(VarType::I32, VarType::I32) => {
+				result = self.new_temp(VarType::I32);
+				self.new_instr.insert(
+					(
+						op,
+						HashableValue::from(operand1.clone()),
+						HashableValue::from(operand2.clone()),
+					),
+					result.clone(),
+				);
+				let new_instr = ArithInstr {
+					target: result.clone(),
+					op: op.to_int_op(),
+					var_type: VarType::I32,
+					lhs: operand1,
+					rhs: operand2,
+				};
+				cfg.blocks[bb_index_to_insert]
+					.borrow_mut()
+					.instrs
+					.push(Box::new(new_instr));
+
+				let instr_len = cfg.blocks[bb_index_to_insert].borrow().instrs.len();
+				self.temp_to_instr.insert(
+					result.clone(),
+					(bb_id_to_insert, bb_index_to_insert, instr_len),
+				);
+			}
+			(VarType::I32, VarType::F32) => {
+				result = self.new_temp(VarType::F32);
+
+				let convert_result = self.new_temp(VarType::F32);
+				let new_convert_instr = ConvertInstr {
+					target: convert_result.clone(),
+					op: llvm::ConvertOp::Int2Float,
+					from_type: VarType::I32,
+					lhs: operand1,
+					to_type: VarType::F32,
+				};
+
+				let new_instr = ArithInstr {
+					target: result.clone(),
+					op: op.to_float_op(),
+					var_type: VarType::F32,
+					lhs: Value::Temp(convert_result.clone()),
+					rhs: operand2,
+				};
+
+				let instr_len = cfg.blocks[bb_index_to_insert].borrow().instrs.len();
+				cfg.blocks[bb_index_to_insert]
+					.borrow_mut()
+					.instrs
+					.push(Box::new(new_convert_instr));
+				cfg.blocks[bb_index_to_insert]
+					.borrow_mut()
+					.instrs
+					.push(Box::new(new_instr));
+
+				self.temp_to_instr.insert(
+					convert_result.clone(),
+					(bb_id_to_insert, bb_index_to_insert, instr_len),
+				);
+				self.temp_to_instr.insert(
+					result.clone(),
+					(bb_id_to_insert, bb_index_to_insert, instr_len + 1),
+				);
+			}
+			(VarType::F32, VarType::I32) => {
+				result = self.new_temp(VarType::F32);
+
+				let convert_result = self.new_temp(VarType::F32);
+				let new_convert_instr = ConvertInstr {
+					target: convert_result.clone(),
+					op: llvm::ConvertOp::Int2Float,
+					from_type: VarType::I32,
+					lhs: operand2,
+					to_type: VarType::F32,
+				};
+
+				let new_instr = ArithInstr {
+					target: result.clone(),
+					op: op.to_float_op(),
+					var_type: VarType::F32,
+					lhs: operand1,
+					rhs: Value::Temp(convert_result.clone()),
+				};
+
+				let instr_len = cfg.blocks[bb_index_to_insert].borrow().instrs.len();
+				cfg.blocks[bb_index_to_insert]
+					.borrow_mut()
+					.instrs
+					.push(Box::new(new_convert_instr));
+				cfg.blocks[bb_index_to_insert]
+					.borrow_mut()
+					.instrs
+					.push(Box::new(new_instr));
+
+				self.temp_to_instr.insert(
+					convert_result.clone(),
+					(bb_id_to_insert, bb_index_to_insert, instr_len),
+				);
+				self.temp_to_instr.insert(
+					result.clone(),
+					(bb_id_to_insert, bb_index_to_insert, instr_len + 1),
+				);
+			}
+			(VarType::F32, VarType::F32) => {
+				result = self.new_temp(VarType::F32);
+				let new_instr = ArithInstr {
+					target: result.clone(),
+					op: op.to_float_op(),
+					var_type: VarType::F32,
+					lhs: operand1,
+					rhs: operand2,
+				};
+				let instr_len = cfg.blocks[bb_index_to_insert].borrow().instrs.len();
+				cfg.blocks[bb_index_to_insert]
+					.borrow_mut()
+					.instrs
+					.push(Box::new(new_instr));
+				self.temp_to_instr.insert(
+					result.clone(),
+					(bb_id_to_insert, bb_index_to_insert, instr_len),
+				);
+			}
+			_ => unreachable!(),
+		}
+		Value::Temp(result)
 	}
 }
