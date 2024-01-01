@@ -199,7 +199,7 @@ impl Visitor for Namer {
 
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
-		let var_type: VarType = (false, node.type_t, &dim_list).into();
+		let var_type: VarType = (true, node.type_t, &dim_list).into();
 		let symbol = self.mgr.new_var_symbol(&node.ident, var_type.clone());
 		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol)?;
