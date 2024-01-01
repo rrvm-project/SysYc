@@ -4,7 +4,7 @@ use utils::{
 	errors::Result,
 	SysycError::{FatalError, SyntaxError},
 };
-use value::{FuncRetType, FuncType, VarType};
+use value::{FuncRetType, FuncType, Value, VarType};
 
 #[derive(Default)]
 pub struct ScopeStack {
@@ -15,6 +15,9 @@ pub struct ScopeStack {
 const UNDERFLOW_ERR_MSG: &str = "stack of scopes underFlow";
 
 impl ScopeStack {
+	fn top(&mut self) -> Result<&mut Scope<VarType>> {
+		self.scopes.last_mut().ok_or(FatalError(UNDERFLOW_ERR_MSG.to_owned()))
+	}
 	pub fn push(&mut self) {
 		self.scopes.push(Scope::new())
 	}
@@ -26,16 +29,12 @@ impl ScopeStack {
 		}
 	}
 	pub fn set_val(&mut self, ident: &str, symbol: VarSymbol) -> Result<()> {
-		if let Some(scope) = self.scopes.last_mut() {
-			scope.new_symbol(ident, symbol)
-		} else {
-			Err(FatalError(UNDERFLOW_ERR_MSG.to_owned()))
-		}
+		self.top()?.new_symbol(ident, symbol)
 	}
 	pub fn set_func(&mut self, ident: &str, symbol: FuncSymbol) -> Result<()> {
 		self.func_scope.new_symbol(ident, symbol)
 	}
-	pub fn find_val(&self, ident: &str) -> Result<&VarSymbol> {
+	pub fn get_val(&self, ident: &str) -> Result<&VarSymbol> {
 		self
 			.scopes
 			.iter()
@@ -43,11 +42,21 @@ impl ScopeStack {
 			.find_map(|v| v.get_symbol(ident))
 			.ok_or(SyntaxError(format!("{} is not found", ident)))
 	}
-	pub fn find_func(&self, ident: &str) -> Result<&FuncSymbol> {
+	pub fn get_func(&self, ident: &str) -> Result<&FuncSymbol> {
 		self
 			.func_scope
 			.get_symbol(ident)
 			.ok_or(SyntaxError(format!("{} is not found", ident)))
+	}
+	pub fn set_constant(&mut self, id: i32, value: Value) -> Result<()> {
+		self.top()?.set_constant(id, value);
+		Ok(())
+	}
+	pub fn get_constant(&mut self, id: i32) -> Option<&Value> {
+		self.scopes.iter().rev().find_map(|v| v.get_constant(id))
+	}
+	pub fn is_global(&self) -> bool {
+		self.scopes.len() == 1
 	}
 	pub fn extern_init(&mut self, mgr: &mut SymbolManager) {
 		let intvoid: FuncType = (FuncRetType::Int, Vec::new());

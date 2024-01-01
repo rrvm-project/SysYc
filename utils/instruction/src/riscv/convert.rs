@@ -1,7 +1,10 @@
 use std::cmp::max;
 
 use llvm::llvmop::*;
-use utils::errors::{Result, SysycError::*};
+use utils::{
+	errors::{Result, SysycError::*},
+	Label,
+};
 
 use crate::{
 	riscv::{reg::*, riscvinstr::*, riscvop::*, value::*},
@@ -35,8 +38,13 @@ pub fn i32_to_reg(
 	if is_lower(num) {
 		instrs.push(IBinInstr::new(Li, rd, num.into()));
 	} else {
-		instrs.push(IBinInstr::new(Lui, rd, (num >> 12).into()));
-		instrs.push(ITriInstr::new(Addi, rd, rd, (num & 0xFFF).into()));
+		let (high, low) = if (num & 0x800) != 0 {
+			((num >> 12) + 1, num & 0xFFF | (-1 << 12))
+		} else {
+			(num >> 12, num & 0xFFF)
+		};
+		instrs.push(IBinInstr::new(Lui, rd, high.into()));
+		instrs.push(ITriInstr::new(Addi, rd, rd, low.into()));
 	}
 	rd
 }
@@ -266,9 +274,15 @@ pub fn riscv_load(
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
-	let addr = into_reg(&instr.addr, &mut instrs, mgr);
-	let rd = mgr.get(&instr.target);
-	instrs.push(IBinInstr::new(LW, rd, (0, addr).into()));
+	if instr.addr.is_global() {
+		let name = instr.addr.unwrap_temp().unwrap().name;
+		let rd = mgr.get(&instr.target);
+		instrs.push(IBinInstr::new(LA, rd, Label::new(name).into()));
+	} else {
+		let addr = into_reg(&instr.addr, &mut instrs, mgr);
+		let rd = mgr.get(&instr.target);
+		instrs.push(IBinInstr::new(LW, rd, (0, addr).into()));
+	}
 	Ok(instrs)
 }
 

@@ -1,12 +1,12 @@
 pub mod errors;
-pub mod init_value_item;
+pub mod global_var;
 pub mod label;
 pub mod mapper;
 pub mod union_find;
 use std::{fmt::Display, hash::Hash};
 
 pub use errors::*;
-pub use init_value_item::*;
+pub use global_var::*;
 pub use label::*;
 
 pub fn fatal_error(str: impl Display) {

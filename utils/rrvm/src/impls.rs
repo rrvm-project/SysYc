@@ -37,7 +37,7 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for RrvmProgram<T, U> {
 		let funcs =
 			self.funcs.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("\n");
 
-		for item in &self.global_values {
+		for item in &self.global_vars {
 			writeln!(f, "{:?}", &item)?;
 		}
 

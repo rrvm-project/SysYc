@@ -23,6 +23,12 @@ impl From<i32> for Value {
 	}
 }
 
+impl From<usize> for Value {
+	fn from(value: usize) -> Self {
+		Value::Int(value as i32)
+	}
+}
+
 impl From<f32> for Value {
 	fn from(value: f32) -> Self {
 		Value::Float(value)

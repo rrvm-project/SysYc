@@ -5,12 +5,11 @@ use ast::tree::*;
 use llvm::{Value, VarType::*, *};
 use rrvm::{
 	cfg::{link_cfg, link_node, CFG},
-	program::{LlvmProgram, RrvmProgram},
+	program::LlvmProgram,
 	LlvmCFG, LlvmNode,
 };
 
 use utils::errors::Result;
-use value::FuncRetType;
 
 use crate::{
 	loop_state::LoopState,
@@ -19,22 +18,6 @@ use crate::{
 };
 
 impl IRGenerator {
-	pub fn new() -> Self {
-		Self {
-			program: RrvmProgram::new(),
-			stack: Vec::new(),
-			total: 0,
-			mgr: TempManager::new(),
-			symbol_table: SymbolTable::default(),
-			ret_type: FuncRetType::Void,
-			states: Vec::new(),
-			weights: Vec::new(),
-			is_global: false,
-			loading_array: None,
-			loading_type: None,
-			initialized_stack_array_item: HashSet::new(),
-		}
-	}
 	pub fn to_rrvm(mut self, mut program: Program) -> Result<LlvmProgram> {
 		program.accept(&mut self)?;
 		self.program.next_temp = program.next_temp;
@@ -50,7 +33,6 @@ impl IRGenerator {
 		if target == value.get_type() {
 			return value;
 		}
-
 		let (from_type, to_type, op) = match target {
 			I32 => (F32, I32, Float2Int),
 			F32 => (I32, F32, Int2Float),
@@ -234,5 +216,20 @@ impl IRGenerator {
 	}
 	pub fn enter_branch(&mut self) {
 		self.weights.push(*self.weights.last().unwrap() * 0.5);
+	}
+	pub fn cur_size(&self) -> usize {
+		self.init_state.as_ref().unwrap().cur_size()
+	}
+	pub fn push(&mut self) {
+		self.init_state.as_mut().unwrap().push()
+	}
+	pub fn pop(&mut self) {
+		self.init_state.as_mut().unwrap().pop()
+	}
+	pub fn store(&mut self, value: Value, cfg: &mut LlvmCFG) {
+		self.init_state.as_mut().unwrap().store(value, cfg, &mut self.mgr)
+	}
+	pub fn assign(&mut self, size: usize, cfg: &mut LlvmCFG) {
+		self.init_state.as_mut().unwrap().assign(size, cfg, &mut self.mgr)
 	}
 }

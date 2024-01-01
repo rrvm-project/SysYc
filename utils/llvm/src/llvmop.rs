@@ -104,6 +104,9 @@ impl Value {
 			_ => false,
 		}
 	}
+	pub fn is_global(&self) -> bool {
+		matches!(self, Self::Temp(v) if v.is_global)
+	}
 }
 
 impl Display for Value {

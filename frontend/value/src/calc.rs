@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use utils::{errors::Result, SysycError::*};
 
 use crate::{BType, BinaryOp, UnaryOp, Value};
@@ -38,15 +36,7 @@ where
 	}
 }
 
-fn get_index<T: Into<Value> + Default>(
-	index: &[usize],
-	x: &HashMap<usize, T>,
-	pos: usize,
-) -> Result<Value>
-where
-	T: Into<Value> + Default + Copy,
-	(Vec<usize>, HashMap<usize, T>): Into<Value>,
-{
+fn get_index(index: &[usize], x: &[Value], pos: usize) -> Result<Value> {
 	let v = index
 		.first()
 		.ok_or(TypeError("Try to deref a non-pointer value".to_string()))?;
@@ -55,17 +45,9 @@ where
 		return Err(TypeError("Index out of bounds".to_string()));
 	}
 	if index.len() == 1 {
-		//应该在外界检查，使得非const的值不参与前端常量计算。
-		Ok(x.get(&pos).unwrap_or(&T::default()).to_owned().into())
+		Ok(x.get(pos).unwrap().to_owned())
 	} else {
-		let mut indexed = HashMap::new();
-		for i in pos * len..(pos + 1) * len {
-			if let Some(value) = x.get(&i) {
-				indexed.insert(i - pos * len, *value);
-			}
-		}
-
-		Ok((index[1..].to_vec(), indexed).into())
+		Ok((index[1..].to_vec(), x[pos * len..(pos + 1) * len].to_vec()).into())
 	}
 }
 
@@ -78,8 +60,7 @@ pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Value> {
 				_ => Err(TypeError("array can only be indexed by int".to_string())),
 			}?;
 			match x {
-				Value::IntPtr((index, arr)) => get_index(index, arr, pos as usize),
-				Value::FloatPtr((index, arr)) => get_index(index, arr, pos as usize),
+				Value::Array((index, arr)) => get_index(index, arr, pos as usize),
 				_ => Err(TypeError("only array can be indexed".to_string())),
 			}
 		}

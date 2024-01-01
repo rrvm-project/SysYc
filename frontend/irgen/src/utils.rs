@@ -61,31 +61,3 @@ pub fn func_type_convert(from: &value::FuncRetType) -> VarType {
 		FuncRetType::Void => VarType::Void,
 	}
 }
-
-pub fn var_type_to_ptr(from: &VarType) -> VarType {
-	match from {
-		VarType::I32 => VarType::I32Ptr,
-		VarType::F32 => VarType::F32Ptr,
-		VarType::I32Ptr => VarType::I32Ptr,
-		VarType::F32Ptr => VarType::F32Ptr,
-		VarType::Void => unreachable!(),
-	}
-}
-
-pub fn var_type_to_scalar(from: &VarType) -> VarType {
-	match from {
-		VarType::I32 => VarType::I32,
-		VarType::F32 => VarType::F32,
-		VarType::I32Ptr => VarType::I32,
-		VarType::F32Ptr => VarType::F32,
-		VarType::Void => unreachable!(),
-	}
-}
-
-pub fn is_global(temp: &llvm::Value) -> bool {
-	if let llvm::Value::Temp(t) = temp {
-		t.is_global
-	} else {
-		false
-	}
-}
