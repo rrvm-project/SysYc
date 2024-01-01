@@ -4,7 +4,7 @@ use utils::{
 	errors::Result,
 	SysycError::{FatalError, SyntaxError},
 };
-use value::{FuncRetType, FuncType, VarType};
+use value::{FuncRetType, FuncType, Value, VarType};
 
 #[derive(Default)]
 pub struct ScopeStack {

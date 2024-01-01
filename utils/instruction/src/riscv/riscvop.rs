@@ -34,6 +34,16 @@ pub enum RTriInstrOp {
 	Sll,
 	Srl,
 	Sra,
+
+	Addw,
+	Subw,
+	Mulw,
+	Remw,
+	Divw,
+	Sllw,
+	Srlw,
+	Sraw,
+
 	Slt,
 	Sltu,
 
@@ -125,14 +135,14 @@ pub fn to_iop(op: &ArithOp) -> ITriInstrOp {
 
 pub fn to_rop(op: &ArithOp) -> RTriInstrOp {
 	match op {
-		ArithOp::Add => Add,
-		ArithOp::Sub => Sub,
-		ArithOp::Mul => Mul,
-		ArithOp::Div => Div,
-		ArithOp::Rem => Rem,
-		ArithOp::Shl => Sll,
-		ArithOp::Lshr => Srl,
-		ArithOp::Ashr => Sra,
+		ArithOp::Add => Addw,
+		ArithOp::Sub => Subw,
+		ArithOp::Mul => Mulw,
+		ArithOp::Div => Divw,
+		ArithOp::Rem => Remw,
+		ArithOp::Shl => Sllw,
+		ArithOp::Lshr => Srlw,
+		ArithOp::Ashr => Sraw,
 		ArithOp::Fadd => Fadd,
 		ArithOp::Fsub => Fsub,
 		ArithOp::Fmul => Fmul,

@@ -38,8 +38,13 @@ pub fn i32_to_reg(
 	if is_lower(num) {
 		instrs.push(IBinInstr::new(Li, rd, num.into()));
 	} else {
-		instrs.push(IBinInstr::new(Lui, rd, (num >> 12).into()));
-		instrs.push(ITriInstr::new(Addi, rd, rd, (num & 0xFFF).into()));
+		let (high, low) = if (num & 0x800) != 0 {
+			((num >> 12) + 1, num & 0xFFF | (-1 << 12))
+		} else {
+			(num >> 12, num & 0xFFF)
+		};
+		instrs.push(IBinInstr::new(Lui, rd, high.into()));
+		instrs.push(ITriInstr::new(Addi, rd, rd, low.into()));
 	}
 	rd
 }
