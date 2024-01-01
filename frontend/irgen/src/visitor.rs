@@ -9,8 +9,10 @@ use rrvm::{
 	LlvmCFG,
 };
 use rrvm_symbol::{FuncSymbol, VarSymbol};
-use utils::{errors::Result, Label, SysycError::TypeError};
-use value::{BinaryOp, FuncRetType, UnaryOp};
+use utils::{
+	errors::Result, GlobalVar, Label, SysycError::TypeError, ValueItem::Zero,
+};
+use value::{utils::to_data, BinaryOp, FuncRetType, UnaryOp};
 
 use crate::{
 	counter::Counter, initlist_state::InitlistState, loop_state::LoopState,
@@ -38,7 +40,6 @@ impl Visitor for IRGenerator {
 		self.is_global = true;
 		for v in node.global_vars.iter_mut() {
 			v.accept(self)?;
-			self.total = 0;
 		}
 		self.is_global = false;
 		for v in node.functions.iter_mut() {
@@ -82,7 +83,16 @@ impl Visitor for IRGenerator {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
 		let var_type = type_convert(&symbol.var_type);
 		if self.is_global {
-			todo!()
+			let temp = Temp::new(&node.ident, var_type, true);
+			self.symbol_table.set(symbol.id, temp.into());
+			let data = if let Some(init) = node.init.as_ref() {
+				to_data(init.get_attr("value").unwrap().into())
+			} else {
+				let length = symbol.var_type.dims.iter().product::<usize>();
+				vec![Zero(length * var_type.deref_type().get_size())]
+			};
+			self.program.global_vars.push(GlobalVar::new(node.ident.clone(), data));
+			return Ok(());
 		}
 		if let Some(init) = node.init.as_mut() {
 			self.symbol_table.set(symbol.id, var_type.default_value());
@@ -133,6 +143,12 @@ impl Visitor for IRGenerator {
 	}
 
 	fn visit_var_decl(&mut self, node: &mut VarDecl) -> Result<()> {
+		if self.is_global {
+			for var_def in node.defs.iter_mut() {
+				var_def.accept(self)?;
+			}
+			return Ok(());
+		}
 		let mut cfgs = Vec::new();
 		for var_def in node.defs.iter_mut() {
 			var_def.accept(self)?;
@@ -168,13 +184,23 @@ impl Visitor for IRGenerator {
 	}
 
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
-		let now: LlvmCFG = self.new_cfg();
+		let cfg: LlvmCFG = self.new_cfg();
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
 		let temp = self.symbol_table.get(&symbol.id);
-		if !symbol.var_type.is_array() && !temp.is_global() {
-			self.stack.push((now, Some(temp), None));
+		if temp.is_global() {
+			let var_type = type_convert(&symbol.var_type).to_ptr();
+			let target = self.mgr.new_temp(var_type, false);
+			let instr = Box::new(LoadInstr {
+				target: target.clone(),
+				var_type,
+				addr: temp,
+			});
+			cfg.get_exit().borrow_mut().push(instr);
+			self.stack.push((cfg, None, Some(target.into())));
+		} else if symbol.var_type.is_array() {
+			self.stack.push((cfg, None, Some(temp)));
 		} else {
-			self.stack.push((now, None, Some(temp)));
+			self.stack.push((cfg, Some(temp), None));
 		}
 		Ok(())
 	}
@@ -198,7 +224,8 @@ impl Visitor for IRGenerator {
 		self.symbol_table.push();
 		node.rhs.accept(self)?;
 		let (mut rcfg, rhs_val, rhs_addr) = self.stack.pop().unwrap();
-		let var_type = type_convert(&node.get_attr("type").unwrap().into());
+		let type_t = node.get_attr("type").unwrap().into();
+		let var_type = type_convert(&type_t);
 		let (cfg, ret_val, ret_addr) = match node.op {
 			Assign => {
 				let rhs_val = self.solve(rhs_val, rhs_addr, &mut rcfg);
@@ -228,7 +255,7 @@ impl Visitor for IRGenerator {
 					lhs: rhs,
 					var_type: I32,
 					op: ArithOp::Mul,
-					rhs: var_type.get_size().into(),
+					rhs: (type_t.size() as usize).into(),
 				});
 				rcfg.get_exit().borrow_mut().push(instr);
 				let var_type = lhs_addr.as_ref().unwrap().get_type();

@@ -65,6 +65,7 @@ pub enum IBinInstrOp {
 	SH,
 	SW,
 	SD,
+	LA,
 }
 
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]

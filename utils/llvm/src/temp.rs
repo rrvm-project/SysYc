@@ -24,7 +24,7 @@ impl Display for Temp {
 impl TempTrait for Temp {}
 
 impl Temp {
-	fn new(name: impl Display, var_type: VarType, is_global: bool) -> Self {
+	pub fn new(name: impl Display, var_type: VarType, is_global: bool) -> Self {
 		Self {
 			name: name.to_string(),
 			var_type,

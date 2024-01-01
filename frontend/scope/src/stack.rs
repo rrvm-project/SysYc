@@ -55,6 +55,9 @@ impl ScopeStack {
 	pub fn get_constant(&mut self, id: i32) -> Option<&Value> {
 		self.scopes.iter().rev().find_map(|v| v.get_constant(id))
 	}
+	pub fn is_global(&self) -> bool {
+		self.scopes.len() == 1
+	}
 	pub fn extern_init(&mut self, mgr: &mut SymbolManager) {
 		let intvoid: FuncType = (FuncRetType::Int, Vec::new());
 		let _ =

@@ -1,7 +1,10 @@
 use std::cmp::max;
 
 use llvm::llvmop::*;
-use utils::errors::{Result, SysycError::*};
+use utils::{
+	errors::{Result, SysycError::*},
+	Label,
+};
 
 use crate::{
 	riscv::{reg::*, riscvinstr::*, riscvop::*, value::*},
@@ -266,9 +269,15 @@ pub fn riscv_load(
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
-	let addr = into_reg(&instr.addr, &mut instrs, mgr);
-	let rd = mgr.get(&instr.target);
-	instrs.push(IBinInstr::new(LW, rd, (0, addr).into()));
+	if instr.addr.is_global() {
+		let name = instr.addr.unwrap_temp().unwrap().name;
+		let rd = mgr.get(&instr.target);
+		instrs.push(IBinInstr::new(LA, rd, Label::new(name).into()));
+	} else {
+		let addr = into_reg(&instr.addr, &mut instrs, mgr);
+		let rd = mgr.get(&instr.target);
+		instrs.push(IBinInstr::new(LW, rd, (0, addr).into()));
+	}
 	Ok(instrs)
 }
 

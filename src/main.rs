@@ -24,11 +24,8 @@ use transform::convert_func;
 use typer::visitor::Typer;
 use utils::{fatal_error, map_sys_err, warning};
 
-fn step_parse(name: Option<String>) -> Result<Program> {
-	if name.is_none() {
-		fatal_error("no input files");
-	}
-	let code = fs::read_to_string(name.unwrap())
+fn step_parse(file_name: &str) -> Result<Program> {
+	let code = fs::read_to_string(file_name)
 		.map_err(|_| fatal_error("no input files"))
 		.unwrap();
 	Ok(parse(&code)?)
@@ -53,6 +50,7 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 
 fn step_riscv(program: LlvmProgram, _level: i32) -> Result<RiscvProgram> {
 	let mut riscv_program = RiscvProgram::new();
+	riscv_program.global_vars = program.global_vars;
 	for func in program.funcs.into_iter() {
 		riscv_program.funcs.push(convert_func(func)?);
 	}
@@ -71,7 +69,12 @@ fn main() -> Result<()> {
 
 	let level = args.opimizer.unwrap_or(0);
 
-	let program = step_parse(args.input)?;
+	let file_name = args.input.unwrap_or_else(|| {
+		fatal_error("no input files");
+		unreachable!()
+	});
+
+	let program = step_parse(&file_name)?;
 	if args.parse {
 		let x = format!("{:#?}", program);
 		write!(writer, "{}", trans_indent(&x, PARSER_INDENT))?;
@@ -90,7 +93,7 @@ fn main() -> Result<()> {
 		return Ok(());
 	}
 
-	let code = code_emission(riscv);
+	let code = code_emission(riscv, file_name);
 	write!(writer, "{}", code)?;
 
 	Ok(())

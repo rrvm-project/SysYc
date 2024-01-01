@@ -1,21 +1,31 @@
 use ::utils::mapper::LabelMapper;
 use rrvm::program::RiscvProgram;
 
-use crate::{label_mapper::map_label, serialize::func_serialize};
+use crate::{label_mapper::map_label, serialize::func_serialize, utils::*};
 
 mod label_mapper;
 mod serialize;
-//TODO: 加完整program header,全局变量信息加上
-const PROGRAM_HEAD: &str = "  .attribute arch, \"rv64i2p0_m2p0\"\n  .attribute unaligned_access, 0\n  .attribute stack_align, 16\n";
+mod utils;
 
-pub fn code_emission(program: RiscvProgram) -> String {
+pub fn code_emission(program: RiscvProgram, file_name: String) -> String {
 	let mut map = LabelMapper::default();
 	let funcs = program
 		.funcs
 		.into_iter()
 		.map(func_serialize)
-		.map(|(name, instrs)| format!("{name}:\n{}", map_label(instrs, &mut map)))
+		.map(|(name, instrs)| format_func(name, map_label(instrs, &mut map)))
 		.collect::<Vec<_>>()
 		.join("\n");
-	format!("{}{}\n", PROGRAM_HEAD, funcs)
+	let (bss, data): (Vec<_>, Vec<_>) =
+		program.global_vars.into_iter().partition(|v| v.is_bss());
+	let data = data.into_iter().map(format_data).collect::<Vec<_>>().join("\n");
+	let bss = bss.into_iter().map(format_bss).collect::<Vec<_>>().join("\n");
+	format!(
+		"{}\n{}\n{}{}  .ident {}\n",
+		program_head(file_name),
+		funcs,
+		set_section("  .data", data),
+		set_section("  .bss", bss),
+		PROGRAM_IDENT
+	)
 }

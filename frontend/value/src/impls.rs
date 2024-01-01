@@ -22,6 +22,13 @@ impl From<Array> for Value {
 }
 
 impl Value {
+	pub fn get_type(&self) -> BType {
+		match &self {
+			Self::Int(_) => BType::Int,
+			Self::Float(_) => BType::Float,
+			_ => unreachable!(),
+		}
+	}
 	pub fn to_int(&self) -> Result<i32> {
 		match self {
 			Self::Int(v) => Ok(*v),

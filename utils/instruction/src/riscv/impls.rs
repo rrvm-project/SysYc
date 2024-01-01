@@ -152,14 +152,14 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		match self.op {
-			Li | Lui | LD | LW | LWU => vec![self.rd],
+			Li | Lui | LD | LW | LWU | LA => vec![self.rd],
 			SB | SH | SW | SD => vec![],
 		}
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		[
 			match self.op {
-				Li | Lui | LD | LW | LWU => vec![],
+				Li | Lui | LD | LW | LWU | LA => vec![],
 				SB | SH | SW | SD => vec![self.rd],
 			},
 			unwarp_imms(vec![&self.rs1]),
@@ -167,7 +167,9 @@ impl RiscvInstrTrait for IBinInstr {
 		.concat()
 	}
 	fn map_label(&mut self, map: &mut LabelMapper) {
-		map_imm_label(&mut self.rs1, map);
+		if self.op != LA {
+			map_imm_label(&mut self.rs1, map);
+		}
 	}
 }
 

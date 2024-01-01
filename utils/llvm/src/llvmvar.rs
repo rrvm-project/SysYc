@@ -46,6 +46,13 @@ impl VarType {
 			_ => unreachable!(),
 		}
 	}
+	pub fn to_ptr(&self) -> VarType {
+		match self {
+			Self::I32 => Self::I32Ptr,
+			Self::F32 => Self::F32Ptr,
+			_ => *self,
+		}
+	}
 	pub fn move_op(&self) -> ArithOp {
 		match self {
 			Self::F32 => ArithOp::Fadd,

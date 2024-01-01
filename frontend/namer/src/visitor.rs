@@ -51,14 +51,9 @@ impl Namer {
 impl Visitor for Namer {
 	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
 		self.ctx.push();
-		self.ctx.extern_init(&mut self.mgr);
-		self.is_global = true;
-		self.init_values.clear();
 		for v in node.global_vars.iter_mut() {
 			v.accept(self)?;
 		}
-		self.is_global = false;
-
 		for v in node.functions.iter_mut() {
 			v.accept(self)?;
 		}
@@ -125,7 +120,7 @@ impl Visitor for Namer {
 		self.depth -= 1;
 
 		let (is_const, btype) = self.decl_type.unwrap();
-		if is_const {
+		if is_const || self.ctx.is_global() {
 			let mut array: Vec<Value> = Vec::new();
 			for val in node.val_list.iter_mut() {
 				let value: Value = val
