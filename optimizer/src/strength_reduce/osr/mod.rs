@@ -292,6 +292,8 @@ impl OSR {
 			.is_candidate_operator()
 			.unwrap();
 		let result = self.reduce(cfg, op, iv.clone(), rc);
+		let (_, bb_id, instr_id, _is_phi) =
+			*self.temp_to_instr.get(&scc_member).unwrap();
 		self.replace_to_copy(cfg, bb_id, instr_id, result);
 		self.flag = true;
 		self.header.insert(scc_member, self.header[&iv].clone());
@@ -418,7 +420,7 @@ impl OSR {
 						cfg.blocks[bb_id].borrow_mut().instrs[instr_id]
 							.set_read_values(id, new_value);
 					}
-				} else {
+				} else if op == ArithOp::Mul || op == ArithOp::Fmul {
 					let new_value = self.apply(cfg, op, operand.clone(), rc.clone());
 					let (_, bb_id, instr_id, _) =
 						*self.temp_to_instr.get(&result).unwrap();
