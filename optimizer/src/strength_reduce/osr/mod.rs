@@ -3,9 +3,11 @@ mod helper_functions;
 use std::collections::{HashMap, VecDeque};
 
 use llvm::{
-	ArithInstr, ArithOp, ConvertInstr, HashableValue, Temp, Value, VarType,
+	ArithInstr, ArithOp, ConvertInstr, HashableValue, LlvmInstrTrait, Temp,
+	Value, VarType,
 };
 use rrvm::{dominator::naive::compute_dominator, LlvmCFG, LlvmNode};
+use utils::UseTemp;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InductionVariableState {
@@ -23,8 +25,8 @@ pub struct OSR {
 	low: HashMap<Temp, i32>,
 	stack: Vec<Temp>,
 	header: HashMap<Temp, Temp>,
-	// 临时变量到（基本块id，基本块数组下标，指令数组下标）的映射
-	temp_to_instr: HashMap<Temp, (i32, usize, usize)>,
+	// 临时变量到（基本块id，基本块数组下标，指令数组下标，是否是 phi 指令）的映射
+	temp_to_instr: HashMap<Temp, (i32, usize, usize, bool)>,
 
 	// 记录因为候选操作而产生的指令，防止产生重复的指令
 	new_instr: HashMap<(ArithOp, HashableValue, HashableValue), Temp>,
@@ -51,8 +53,14 @@ impl OSR {
 			for (instr_id, instr) in block.instrs.iter().enumerate() {
 				instr.get_write().iter().for_each(|temp| {
 					visited.insert(temp.clone(), false);
-					temp_to_instr.insert(temp.clone(), (block.id, bb_id, instr_id));
+					temp_to_instr
+						.insert(temp.clone(), (block.id, bb_id, instr_id, false));
 				});
+			}
+			for (instr_id, instr) in block.phi_instrs.iter().enumerate() {
+				let temp = instr.target.clone();
+				visited.insert(temp.clone(), false);
+				temp_to_instr.insert(temp.clone(), (block.id, bb_id, instr_id, true));
 			}
 		}
 
@@ -96,8 +104,7 @@ impl OSR {
 		self.low.insert(temp.clone(), self.next_dfsnum);
 		self.next_dfsnum += 1;
 		self.stack.push(temp.clone());
-		let (_, bb_id, instr_id) = self.temp_to_instr.get(&temp).unwrap();
-		let reads = &cfg.blocks[*bb_id].borrow().instrs[*instr_id].get_read();
+		let reads = self.get_instr_reads(cfg, temp.clone());
 		reads.iter().for_each(|operand| {
 			if !self.visited[operand] {
 				self.dfs(cfg, operand.clone());
@@ -126,9 +133,10 @@ impl OSR {
 	pub fn process(&mut self, cfg: &mut LlvmCFG, scc: Vec<Temp>) {
 		if scc.len() == 1 {
 			let member = &scc[0];
-			let (_, bb_id, instr_id) = self.temp_to_instr.get(member).unwrap();
+			let (_, bb_id, instr_id, is_phi) =
+				self.temp_to_instr.get(member).unwrap();
 			if let Some((iv, rc)) =
-				self.is_candidate_operation(cfg, *bb_id, *instr_id)
+				self.is_candidate_operation(cfg, *bb_id, *instr_id, *is_phi)
 			{
 				self.replace(cfg, member.clone(), iv, rc);
 			} else {
@@ -154,11 +162,13 @@ impl OSR {
 			}
 		}
 		while let Some(p) = worklist.pop_front() {
-			let (_, bb_id, instr_id) = self.temp_to_instr.get(&p).unwrap();
-			let instr = &cfg.blocks[*bb_id].borrow().instrs[*instr_id];
-			if instr.is_phi() {
+			let (_, bb_id, instr_id, is_phi) = self.temp_to_instr.get(&p).unwrap();
+			if *is_phi {
 				visited.insert(p.clone(), InductionVariableState::Valid);
-			} else if instr.get_read().iter().any(|operand| {
+				continue;
+			}
+			let instr = &cfg.blocks[*bb_id].borrow().instrs[*instr_id];
+			if instr.get_read().iter().any(|operand| {
 				visited
 					.get(operand)
 					.map_or(false, |&v| v == InductionVariableState::Unknown)
@@ -256,9 +266,9 @@ impl OSR {
 			}
 		} else {
 			for p in scc.iter() {
-				let (_, bb_id, instr_id) = self.temp_to_instr.get(p).unwrap();
+				let (_, bb_id, instr_id, is_phi) = self.temp_to_instr.get(p).unwrap();
 				if let Some((iv, rc)) =
-					self.is_candidate_operation(cfg, *bb_id, *instr_id)
+					self.is_candidate_operation(cfg, *bb_id, *instr_id, *is_phi)
 				{
 					self.replace(cfg, p.clone(), iv, rc);
 				} else {
@@ -268,6 +278,7 @@ impl OSR {
 		}
 	}
 	// 对候选操作进行替换
+	// phi 指令一定不是候选操作
 	pub fn replace(
 		&mut self,
 		cfg: &mut LlvmCFG,
@@ -275,12 +286,13 @@ impl OSR {
 		iv: Temp,
 		rc: Value,
 	) {
-		let (_, bb_id, instr_id) = *self.temp_to_instr.get(&scc_member).unwrap();
+		let (_, bb_id, instr_id, _) = *self.temp_to_instr.get(&scc_member).unwrap();
 		let op = cfg.blocks[bb_id].borrow().instrs[instr_id]
 			.is_candidate_operator()
 			.unwrap();
 		let result = self.reduce(cfg, op, iv.clone(), rc);
 		self.replace_to_copy(cfg, bb_id, instr_id, result);
+		self.flag = true;
 		self.header.insert(scc_member, self.header[&iv].clone());
 	}
 	pub fn reduce(
@@ -315,44 +327,104 @@ impl OSR {
 			),
 			result.clone(),
 		);
-		let (id, bb_id, instr_id) = *self.temp_to_instr.get(&iv).unwrap();
+		let (id, bb_id, instr_id, is_phi) = *self.temp_to_instr.get(&iv).unwrap();
 		// let instr = &cfg.blocks[bb_id].borrow().instrs[instr_id];
-		let mut new_def = cfg.blocks[bb_id].borrow().instrs[instr_id].clone_box();
-		let new_def_is_phi = new_def.is_phi();
-		new_def.swap_target(result.clone());
+		if is_phi {
+			let mut new_def = cfg.blocks[bb_id].borrow().phi_instrs[instr_id].clone();
+			new_def.swap_target(result.clone());
 
-		cfg.blocks[bb_id].borrow_mut().instrs[((instr_id) + 1)..].iter().for_each(
-			|i| {
-				i.get_write().iter().for_each(|t| {
-					self.temp_to_instr.entry(t.clone()).and_modify(|(_, _, instr_id)| {
-						*instr_id += 1;
-					});
-				})
-			},
-		);
-		cfg.blocks[bb_id].borrow_mut().instrs.insert(instr_id + 1, new_def);
+			cfg.blocks[bb_id].borrow_mut().phi_instrs[((instr_id) + 1)..]
+				.iter()
+				.for_each(|i| {
+					i.get_write().iter().for_each(|t| {
+						self.temp_to_instr.entry(t.clone()).and_modify(
+							|(_, _, instr_id, _)| {
+								*instr_id += 1;
+							},
+						);
+					})
+				});
+			cfg.blocks[bb_id].borrow_mut().phi_instrs.insert(instr_id + 1, new_def);
+			self.flag = true;
 
-		self.temp_to_instr.insert(result.clone(), (id, bb_id, instr_id + 1));
-		self.dfsnum.insert(result.clone(), self.dfsnum[&iv]);
-		self.visited.insert(result.clone(), self.visited[&iv]);
-		self.low.insert(result.clone(), self.low[&iv]);
-		self.header.insert(result.clone(), self.header[&iv].clone());
+			self
+				.temp_to_instr
+				.insert(result.clone(), (id, bb_id, instr_id + 1, true));
+			self.dfsnum.insert(result.clone(), self.dfsnum[&iv]);
+			self.visited.insert(result.clone(), self.visited[&iv]);
+			self.low.insert(result.clone(), self.low[&iv]);
+			self.header.insert(result.clone(), self.header[&iv].clone());
 
-		// new_def = &mut cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1];
-		let new_def_read_values =
-			cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1].get_read_values();
-		for (id, operand) in new_def_read_values.iter().enumerate() {
-			if let Some(t) = operand.unwrap_temp() {
-				if self.header.get(&t).is_some_and(|h| *h == self.header[&iv]) {
-					let new_value =
-						Value::Temp(self.reduce(cfg, op, t.clone(), rc.clone()));
-					cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1]
+			// new_def = &mut cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1];
+			let new_def_read_values = cfg.blocks[bb_id].borrow_mut().phi_instrs
+				[instr_id + 1]
+				.get_read_values();
+			for (id, operand) in new_def_read_values.iter().enumerate() {
+				if let Some(t) = operand.unwrap_temp() {
+					if self.header.get(&t).is_some_and(|h| *h == self.header[&iv]) {
+						let new_value =
+							Value::Temp(self.reduce(cfg, op, t.clone(), rc.clone()));
+						// 重新获得一次语句的位置
+						let (_, bb_id, instr_id, _) =
+							*self.temp_to_instr.get(&result).unwrap();
+						cfg.blocks[bb_id].borrow_mut().phi_instrs[instr_id]
+							.set_read_values(id, new_value);
+					}
+				} else {
+					let new_value = self.apply(cfg, op, operand.clone(), rc.clone());
+					let (_, bb_id, instr_id, _) =
+						*self.temp_to_instr.get(&result).unwrap();
+					cfg.blocks[bb_id].borrow_mut().phi_instrs[instr_id]
 						.set_read_values(id, new_value);
 				}
-			} else if (op == ArithOp::Mul || op == ArithOp::Fmul) || new_def_is_phi {
-				let new_value = self.apply(cfg, op, operand.clone(), rc.clone());
-				cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1]
-					.set_read_values(id, new_value);
+			}
+		} else {
+			let mut new_def = cfg.blocks[bb_id].borrow().instrs[instr_id].clone_box();
+			new_def.swap_target(result.clone());
+
+			cfg.blocks[bb_id].borrow_mut().instrs[((instr_id) + 1)..]
+				.iter()
+				.for_each(|i| {
+					i.get_write().iter().for_each(|t| {
+						self.temp_to_instr.entry(t.clone()).and_modify(
+							|(_, _, instr_id, _)| {
+								*instr_id += 1;
+							},
+						);
+					})
+				});
+			cfg.blocks[bb_id].borrow_mut().instrs.insert(instr_id + 1, new_def);
+			self.flag = true;
+
+			self
+				.temp_to_instr
+				.insert(result.clone(), (id, bb_id, instr_id + 1, false));
+			self.dfsnum.insert(result.clone(), self.dfsnum[&iv]);
+			self.visited.insert(result.clone(), self.visited[&iv]);
+			self.low.insert(result.clone(), self.low[&iv]);
+			self.header.insert(result.clone(), self.header[&iv].clone());
+
+			// new_def = &mut cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1];
+			let new_def_read_values =
+				cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1].get_read_values();
+			for (id, operand) in new_def_read_values.iter().enumerate() {
+				if let Some(t) = operand.unwrap_temp() {
+					if self.header.get(&t).is_some_and(|h| *h == self.header[&iv]) {
+						let new_value =
+							Value::Temp(self.reduce(cfg, op, t.clone(), rc.clone()));
+						// 重新获得一次语句的位置
+						let (_, bb_id, instr_id, _) =
+							*self.temp_to_instr.get(&result).unwrap();
+						cfg.blocks[bb_id].borrow_mut().instrs[instr_id]
+							.set_read_values(id, new_value);
+					}
+				} else {
+					let new_value = self.apply(cfg, op, operand.clone(), rc.clone());
+					let (_, bb_id, instr_id, _) =
+						*self.temp_to_instr.get(&result).unwrap();
+					cfg.blocks[bb_id].borrow_mut().instrs[instr_id]
+						.set_read_values(id, new_value);
+				}
 			}
 		}
 		result
@@ -402,8 +474,8 @@ impl OSR {
 
 		match (&operand1, &operand2) {
 			(Value::Temp(t1), Value::Temp(t2)) => {
-				let (t1_id, t1_bb_index, _) = *self.temp_to_instr.get(t1).unwrap();
-				let (t2_id, t2_bb_index, _) = *self.temp_to_instr.get(t2).unwrap();
+				let (t1_id, t1_bb_index, _, _) = *self.temp_to_instr.get(t1).unwrap();
+				let (t2_id, t2_bb_index, _, _) = *self.temp_to_instr.get(t2).unwrap();
 				if self.dominates[&t1_id].iter().any(|bb| bb.borrow().id == t2_id) {
 					bb_id_to_insert = t2_id;
 					bb_index_to_insert = t2_bb_index;
@@ -413,7 +485,7 @@ impl OSR {
 				}
 			}
 			(Value::Temp(t), _) | (_, Value::Temp(t)) => {
-				(bb_id_to_insert, bb_index_to_insert, _) =
+				(bb_id_to_insert, bb_index_to_insert, _, _) =
 					*self.temp_to_instr.get(t).unwrap();
 			}
 			(Value::Int(i1), Value::Int(i2)) => match op {
@@ -503,7 +575,7 @@ impl OSR {
 				let instr_len = cfg.blocks[bb_index_to_insert].borrow().instrs.len();
 				self.temp_to_instr.insert(
 					result.clone(),
-					(bb_id_to_insert, bb_index_to_insert, instr_len),
+					(bb_id_to_insert, bb_index_to_insert, instr_len, false),
 				);
 			}
 			(VarType::I32, VarType::F32) => {
@@ -538,11 +610,11 @@ impl OSR {
 
 				self.temp_to_instr.insert(
 					convert_result.clone(),
-					(bb_id_to_insert, bb_index_to_insert, instr_len),
+					(bb_id_to_insert, bb_index_to_insert, instr_len, false),
 				);
 				self.temp_to_instr.insert(
 					result.clone(),
-					(bb_id_to_insert, bb_index_to_insert, instr_len + 1),
+					(bb_id_to_insert, bb_index_to_insert, instr_len + 1, false),
 				);
 			}
 			(VarType::F32, VarType::I32) => {
@@ -577,11 +649,11 @@ impl OSR {
 
 				self.temp_to_instr.insert(
 					convert_result.clone(),
-					(bb_id_to_insert, bb_index_to_insert, instr_len),
+					(bb_id_to_insert, bb_index_to_insert, instr_len, false),
 				);
 				self.temp_to_instr.insert(
 					result.clone(),
-					(bb_id_to_insert, bb_index_to_insert, instr_len + 1),
+					(bb_id_to_insert, bb_index_to_insert, instr_len + 1, false),
 				);
 			}
 			(VarType::F32, VarType::F32) => {
@@ -600,7 +672,7 @@ impl OSR {
 					.push(Box::new(new_instr));
 				self.temp_to_instr.insert(
 					result.clone(),
-					(bb_id_to_insert, bb_index_to_insert, instr_len),
+					(bb_id_to_insert, bb_index_to_insert, instr_len, false),
 				);
 			}
 			_ => unreachable!(),
