@@ -286,7 +286,8 @@ impl OSR {
 		iv: Temp,
 		rc: Value,
 	) {
-		let (_, bb_id, instr_id, _) = *self.temp_to_instr.get(&scc_member).unwrap();
+		let (_, bb_id, instr_id, _is_phi) =
+			*self.temp_to_instr.get(&scc_member).unwrap();
 		let op = cfg.blocks[bb_id].borrow().instrs[instr_id]
 			.is_candidate_operator()
 			.unwrap();
@@ -328,7 +329,6 @@ impl OSR {
 			result.clone(),
 		);
 		let (id, bb_id, instr_id, is_phi) = *self.temp_to_instr.get(&iv).unwrap();
-		// let instr = &cfg.blocks[bb_id].borrow().instrs[instr_id];
 		if is_phi {
 			let mut new_def = cfg.blocks[bb_id].borrow().phi_instrs[instr_id].clone();
 			new_def.swap_target(result.clone());
@@ -549,6 +549,7 @@ impl OSR {
 				_ => unreachable!(),
 			},
 		};
+		self.flag = true;
 		match (operand1.get_type(), operand2.get_type()) {
 			(VarType::I32, VarType::I32) => {
 				result = self.new_temp(VarType::I32);

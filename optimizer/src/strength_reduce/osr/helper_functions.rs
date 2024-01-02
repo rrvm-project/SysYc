@@ -114,16 +114,16 @@ impl OSR {
 		let copy_instr = ArithInstr {
 			target: target.clone(),
 			op: if is_float {
-				ArithOp::Add
-			} else {
 				ArithOp::Fadd
+			} else {
+				ArithOp::Add
 			},
 			var_type: target.var_type,
 			lhs: Value::Temp(from),
 			rhs: if is_float {
-				Value::Int(0)
-			} else {
 				Value::Float(0.0)
+			} else {
+				Value::Int(0)
 			},
 		};
 		cfg.blocks[bb_id].borrow_mut().instrs[instr_id] = Box::new(copy_instr);

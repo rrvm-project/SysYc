@@ -36,17 +36,29 @@ impl Optimizer1 {
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
-			let (strength_reduce_flag, strength_reduce_total_new_temp) =
-				StrengthReduce::new_with_total_new_temp(
-					self.strength_reduce_total_new_temp,
-				)
-				.apply_strength_reduce(program)?;
-			flag |= strength_reduce_flag;
-			self.strength_reduce_total_new_temp = strength_reduce_total_new_temp;
 			if !flag {
 				break;
 			}
 		}
+
+		let (_, strength_reduce_total_new_temp) =
+			StrengthReduce::new_with_total_new_temp(
+				self.strength_reduce_total_new_temp,
+			)
+			.apply_strength_reduce(program)?;
+		self.strength_reduce_total_new_temp = strength_reduce_total_new_temp;
+
+		loop {
+			let mut flag = false;
+			flag |= RemoveDeadCode::new().apply(program)?;
+			flag |= LocalExpressionRearrangement::new().apply(program)?;
+			flag |= RemoveUselessCode::new().apply(program)?;
+			flag |= RemoveUnreachCode::new().apply(program)?;
+			if !flag {
+				break;
+			}
+		}
+
 		program.analysis();
 		Ok(())
 	}
