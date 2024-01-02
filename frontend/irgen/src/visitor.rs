@@ -475,7 +475,7 @@ impl Visitor for IRGenerator {
 
 	fn visit_while(&mut self, node: &mut While) -> Result<()> {
 		self.enter_loop();
-		let mut counter = Counter::new();
+		let mut counter = Counter::new(&self.symbol_table);
 		node.cond.accept(&mut counter)?;
 		node.body.accept(&mut counter)?;
 		let (mut init, init_diff, need_phi) = self.copy_symbols(counter.symbols);
@@ -534,6 +534,7 @@ impl Visitor for IRGenerator {
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
+
 	fn visit_return(&mut self, node: &mut Return) -> Result<()> {
 		if let Some(val) = &mut node.value {
 			if self.ret_type == FuncRetType::Void {

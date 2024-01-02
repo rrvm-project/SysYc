@@ -150,6 +150,10 @@ impl Visitor for Typer {
 	fn visit_return(&mut self, node: &mut Return) -> Result<()> {
 		if let Some(val) = &mut node.value {
 			val.accept(self)?;
+			let val_t: VarType = val.get_attr("type").unwrap().into();
+			if val_t.is_array() {
+				return Err(TypeError("function cannot return an array".to_string()));
+			}
 		}
 		Ok(())
 	}
