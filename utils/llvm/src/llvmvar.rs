@@ -72,4 +72,7 @@ impl VarType {
 	pub fn is_ptr(&self) -> bool {
 		matches!(self, Self::F32Ptr | Self::I32Ptr)
 	}
+	pub fn is_float(&self) -> bool {
+		matches!(self, Self::F32)
+	}
 }

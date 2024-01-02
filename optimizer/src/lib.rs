@@ -1,6 +1,7 @@
 mod dead_code;
 pub mod impls;
 mod local_expression_rearrangement;
+mod strength_reduce;
 mod unreachable;
 mod useless_code;
 use rrvm::program::LlvmProgram;
@@ -14,6 +15,8 @@ pub trait RrvmOptimizer {
 #[derive(Default)]
 pub struct Optimizer0 {}
 #[derive(Default)]
-pub struct Optimizer1 {}
+pub struct Optimizer1 {
+	strength_reduce_total_new_temp: u32,
+}
 #[derive(Default)]
 pub struct Optimizer2 {}
