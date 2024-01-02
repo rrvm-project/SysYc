@@ -89,7 +89,7 @@ impl Visitor for IRGenerator {
 				to_data(init.get_attr("value").unwrap().into())
 			} else {
 				let length = symbol.var_type.dims.iter().product::<usize>();
-				vec![Zero(length * var_type.deref_type().get_size())]
+				vec![Zero(length * var_type.to_ptr().deref_type().get_size())]
 			};
 			self.program.global_vars.push(GlobalVar::new(node.ident.clone(), data));
 			return Ok(());

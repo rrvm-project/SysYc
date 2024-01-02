@@ -138,16 +138,32 @@ impl InterferenceGraph {
 			.collect();
 		to_merge.sort_by(|(_, _, x), (_, _, y)| y.total_cmp(x));
 
+		//HACK: this is shit
 		loop {
 			let mut flag = true;
 			for (&x, &y, _) in to_merge.iter() {
 				if !self.union_find.same(x, y) {
 					let x = self.union_find.find(x);
 					let y = self.union_find.find(y);
-					let color_conflict = match (self.color.get(&x), self.color.get(&y)) {
-						(Some(reg_x), Some(reg_y)) => reg_x != reg_y,
-						_ => false,
-					};
+					let colx = self.color.get(&x);
+					let coly = self.color.get(&y);
+					let color_conflict = matches!((colx, coly), (Some(regx), Some(regy)) if regx != regy)
+						|| {
+							let a = edges.get(&x).cloned().unwrap_or_else(Vec::new);
+							let b = edges.get(&y).cloned().unwrap_or_else(Vec::new);
+							let mut flag = false;
+							if let Some(regx) = self.color.get(&x) {
+								flag |= b.into_iter().any(|v| {
+									v != x && self.color.get(&v).map_or(false, |v| v == regx)
+								})
+							}
+							if let Some(regy) = self.color.get(&y) {
+								flag |= a.into_iter().any(|v| {
+									v != y && self.color.get(&v).map_or(false, |v| v == regy)
+								})
+							}
+							flag
+						};
 					let not_adjust =
 						edges.get(&x).map_or(true, |e| e.iter().all(|&v| v != y));
 					if not_adjust && !color_conflict {
@@ -166,8 +182,8 @@ impl InterferenceGraph {
 							a.iter().for_each(|v| edges.entry(*v).or_default().push(y));
 							edges.entry(y).or_default().extend(a);
 							self.union_find.merge(x, y);
-							if let Some(reg_x) = self.color.get(&x) {
-								self.color.insert(y, *reg_x);
+							if let Some(regx) = colx {
+								self.color.insert(y, *regx);
 							}
 							flag = false;
 						}

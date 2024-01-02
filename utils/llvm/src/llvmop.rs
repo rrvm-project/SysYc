@@ -32,6 +32,7 @@ pub enum ArithOp {
 	And,
 	Or,
 	Xor,
+	AddD,
 }
 
 #[derive(Fuyuki, Clone, Copy)]
@@ -137,6 +138,7 @@ impl LlvmOp for ArithOp {
 			Self::And => VarType::I32,
 			Self::Or => VarType::I32,
 			Self::Xor => VarType::I32,
+			_ => unreachable!(),
 		}
 	}
 }

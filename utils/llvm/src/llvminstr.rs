@@ -38,6 +38,9 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn is_store(&self) -> bool {
 		false
 	}
+	fn is_call(&self) -> bool {
+		false
+	}
 	fn has_sideeffect(&self) -> bool {
 		false
 	}
@@ -64,7 +67,11 @@ impl UseTemp<Temp> for LlvmInstr {
 	}
 }
 
-impl InstrTrait<Temp> for LlvmInstr {}
+impl InstrTrait<Temp> for LlvmInstr {
+	fn is_call(&self) -> bool {
+		self.as_ref().is_call()
+	}
+}
 
 #[derive(Clone)]
 pub struct ArithInstr {

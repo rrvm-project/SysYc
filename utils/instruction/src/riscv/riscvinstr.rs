@@ -36,13 +36,16 @@ pub trait RiscvInstrTrait:
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		Vec::new()
 	}
-	fn is_move(&self) -> bool {
-		false
-	}
 	fn get_label(&self) -> Label {
 		unreachable!()
 	}
+	fn is_move(&self) -> bool {
+		false
+	}
 	fn is_ret(&self) -> bool {
+		false
+	}
+	fn is_call(&self) -> bool {
 		false
 	}
 	fn map_label(&mut self, _map: &mut LabelMapper) {}
@@ -61,7 +64,11 @@ impl UseTemp<Temp> for RiscvInstr {
 	}
 }
 
-impl InstrTrait<Temp> for RiscvInstr {}
+impl InstrTrait<Temp> for RiscvInstr {
+	fn is_call(&self) -> bool {
+		self.as_ref().is_call()
+	}
+}
 
 #[has_riscv_attrs]
 #[derive(UseTemp, Clone)]
