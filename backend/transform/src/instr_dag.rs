@@ -28,13 +28,22 @@ impl InstrNode {
 	}
 }
 
+#[derive(PartialEq, Eq)]
+enum LastState {
+	Load,
+	Store,
+	Call,
+}
+
 impl InstrDag {
 	pub fn new(instrs: &LlvmInstrSet, mgr: &mut TempManager) -> Result<InstrDag> {
+		use LastState::*;
 		let mut nodes = Vec::new();
 		let mut uses = HashMap::new();
 		let mut defs = HashMap::new();
 		let mut loads = Vec::new();
 		let mut stores = Vec::new();
+		let mut last_state = Call;
 		for instr in instrs.iter().rev() {
 			let mut succ: Vec<Node> = Vec::new();
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, mgr)?));
@@ -49,12 +58,27 @@ impl InstrDag {
 				uses.entry(temp).or_insert_with(Vec::new).push(node.clone());
 			}
 			if instr.is_load() {
-				succ.append(&mut stores);
+				if last_state != Load {
+					last_state = Load;
+					loads.clear();
+				}
+				succ.extend(stores.clone());
 				loads.push(node.clone());
 			}
-			if instr.has_sideeffect() {
-				succ.append(&mut loads);
+			if instr.is_store() {
+				if last_state != Store {
+					last_state = Store;
+					stores.clear();
+				}
+				succ.extend(loads.clone());
 				stores.push(node.clone());
+			}
+			if instr.is_call() {
+				succ.extend(loads.clone());
+				succ.extend(stores.clone());
+				stores = vec![node.clone()];
+				loads = vec![node.clone()];
+				last_state = Call;
 			}
 			node.borrow_mut().succ = succ;
 			nodes.push(node);

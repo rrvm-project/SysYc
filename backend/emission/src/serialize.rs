@@ -4,11 +4,7 @@ use instruction::{
 	riscv::{
 		reg::{RiscvReg::SP, CALLEE_SAVE},
 		riscvinstr::{LabelInstr, *},
-		riscvop::{
-			IBinInstrOp::{LW, SW},
-			ITriInstrOp::Addi,
-			NoArgInstrOp::Ret,
-		},
+		riscvop::{IBinInstrOp::*, ITriInstrOp::Addi, NoArgInstrOp::Ret},
 	},
 	RiscvInstrSet,
 };
@@ -40,10 +36,10 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	CALLEE_SAVE.iter().skip(1).enumerate().for_each(|(index, &reg)| {
 		// TODO: 精确的保存，以及使用寄存器进行 callee-saved
 		let instr =
-			IBinInstr::new(SW, reg.into(), ((index * 8) as i32, SP.into()).into());
+			IBinInstr::new(SD, reg.into(), ((index * 8) as i32, SP.into()).into());
 		instrs.push(instr);
 		let instr =
-			IBinInstr::new(LW, reg.into(), ((index * 8) as i32, SP.into()).into());
+			IBinInstr::new(LD, reg.into(), ((index * 8) as i32, SP.into()).into());
 		ret_instrs.push(instr);
 	});
 
@@ -88,12 +84,5 @@ pub fn func_serialize(func: RiscvFunc) -> (String, RiscvInstrSet) {
 			}
 		})
 		.collect();
-	//add func header parse
-	let func_header = "  .text\n  .align 2\n  .globl ".to_owned()
-		+ &func.name
-		+ "\n  .type "
-		+ &func.name
-		+ ", @function\n"
-		+ &func.name;
-	(func_header, instrs)
+	(func.name, instrs)
 }

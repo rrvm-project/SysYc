@@ -19,6 +19,12 @@ pub enum ITriInstrOp {
 	Srai,
 	Slti,
 	Sltiu,
+
+	Addiw,
+	Slliw,
+	Srliw,
+	Sraiw,
+	Sltiw,
 }
 
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
@@ -88,18 +94,12 @@ pub enum RBinInstrOp {
 
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum BranInstrOp {
-	#[style("BEQ")]
-	BEQ,
-	#[style("BNE")]
-	BNE,
-	#[style("BLT")]
-	BLT,
-	#[style("BGE")]
-	BGE,
-	#[style("BLTU")]
-	BLTU,
-	#[style("BGEU")]
-	BGEU,
+	Beq,
+	Bne,
+	Blt,
+	Bge,
+	Bltu,
+	Bgeu,
 }
 
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
@@ -150,5 +150,6 @@ pub fn to_rop(op: &ArithOp) -> RTriInstrOp {
 		ArithOp::And => And,
 		ArithOp::Or => Or,
 		ArithOp::Xor => Xor,
+		ArithOp::AddD => Add,
 	}
 }

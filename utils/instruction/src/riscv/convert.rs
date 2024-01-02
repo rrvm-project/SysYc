@@ -197,7 +197,7 @@ pub fn riscv_jump(
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let to = instr.target.clone().into();
-	instrs.push(BranInstr::new(BEQ, X0.into(), X0.into(), to));
+	instrs.push(BranInstr::new(Beq, X0.into(), X0.into(), to));
 	Ok(instrs)
 }
 
@@ -209,8 +209,8 @@ pub fn riscv_cond(
 	let cond = into_reg(&instr.cond, &mut instrs, mgr);
 	let to_true = instr.target_true.clone().into();
 	let to_false = instr.target_false.clone().into();
-	instrs.push(BranInstr::new(BNE, cond, X0.into(), to_true));
-	instrs.push(BranInstr::new(BEQ, X0.into(), X0.into(), to_false));
+	instrs.push(BranInstr::new(Bne, cond, X0.into(), to_true));
+	instrs.push(BranInstr::new(Beq, X0.into(), X0.into(), to_false));
 	Ok(instrs)
 }
 
@@ -293,7 +293,7 @@ pub fn riscv_gep(
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let rd = mgr.get(&instr.target);
 	let (lhs, rhs) = (&instr.addr, &instr.offset);
-	get_arith(rd, llvm::ArithOp::Add, lhs, rhs, &mut instrs, mgr);
+	get_arith(rd, llvm::ArithOp::AddD, lhs, rhs, &mut instrs, mgr);
 	Ok(instrs)
 }
 
@@ -305,19 +305,14 @@ pub fn riscv_call(
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let mut end_instrs: RiscvInstrSet = Vec::new();
 
-	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-120).into()));
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-128).into()));
 	CALLER_SAVE.iter().skip(1).enumerate().for_each(|(index, &reg)| {
-		// TODO: 精确的保存，以及使用寄存器进行 caller-saved
-		// let rd = mgr.new_pre_color_temp(reg);
-		// let instr = RTriInstr::new(Add, rd, reg.into(), X0.into());
-		// instrs.push(instr);
-		// let instr = RTriInstr::new(Add, reg.into(), rd, X0.into());
-		// end_instrs.push(instr);
+		// TODO: 使用寄存器进行 caller-saved
 		let instr =
-			IBinInstr::new(SW, reg.into(), ((index * 8) as i32, SP.into()).into());
+			IBinInstr::new(SD, reg.into(), ((index * 8) as i32, SP.into()).into());
 		instrs.push(instr);
 		let instr =
-			IBinInstr::new(LW, reg.into(), ((index * 8) as i32, SP.into()).into());
+			IBinInstr::new(LD, reg.into(), ((index * 8) as i32, SP.into()).into());
 		end_instrs.push(instr);
 	});
 
@@ -334,24 +329,28 @@ pub fn riscv_call(
 	for (index, (_, val)) in instr.params.iter().skip(8).enumerate() {
 		let value = into_reg(val, &mut instrs, mgr);
 		instrs.push(IBinInstr::new(
-			SW,
+			SD,
 			value,
 			((index * 8) as i32, SP.into()).into(),
 		));
 	}
 
 	instrs.push(CallInstr::new(instr.func.clone()));
-	if !instr.target.var_type.is_void() {
-		let rd = mgr.get(&instr.target);
-		let instr = RTriInstr::new(Add, rd, A0.into(), X0.into());
-		instrs.push(instr);
-	}
 
 	if cnt > 0 {
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), cnt.into()));
 	}
-
 	instrs.extend(end_instrs);
-	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), 120.into()));
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), 128.into()));
+
+	if !instr.target.var_type.is_void() {
+		let ret_val = mgr.new_pre_color_temp(A0);
+		let ret_instr = RTriInstr::new(Add, ret_val, A0.into(), X0.into());
+		instrs.push(ret_instr);
+		let rd = mgr.get(&instr.target);
+		let instr = RTriInstr::new(Add, rd, ret_val, X0.into());
+		instrs.push(instr);
+	}
+
 	Ok(instrs)
 }

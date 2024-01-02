@@ -312,6 +312,9 @@ impl RiscvInstrTrait for CallInstr {
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		self.params.clone()
 	}
+	fn is_call(&self) -> bool {
+		true
+	}
 }
 
 impl CallInstr {

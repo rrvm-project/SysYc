@@ -391,7 +391,7 @@ impl LlvmInstrTrait for LoadInstr {
 		type_match_ptr(self.var_type, self.addr.get_type())
 	}
 	fn is_load(&self) -> bool {
-		true
+		self.addr.unwrap_temp().map_or(true, |v| !v.is_global)
 	}
 }
 
@@ -458,6 +458,9 @@ impl LlvmInstrTrait for CallInstr {
 		LlvmInstrVariant::CallInstr(self)
 	}
 	fn has_sideeffect(&self) -> bool {
+		true
+	}
+	fn is_call(&self) -> bool {
 		true
 	}
 }

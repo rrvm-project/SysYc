@@ -26,7 +26,7 @@ pub fn spill(func: &mut RiscvFunc, to_spill: Temp, cnt: i32) {
 					let new_temp = mgr.new_raw_temp(&to_spill, flag);
 					flag = false;
 					let load_instr =
-						IBinInstr::new(LW, new_temp.into(), (height, SP.into()).into());
+						IBinInstr::new(LD, new_temp.into(), (height, SP.into()).into());
 					new_instrs.push(load_instr);
 					instr.map_temp(&[(to_spill, new_temp.into())].into_iter().collect());
 					new_temp
@@ -37,7 +37,7 @@ pub fn spill(func: &mut RiscvFunc, to_spill: Temp, cnt: i32) {
 				match instr.get_write() {
 					Some(v) if v == temp => {
 						let store_instr =
-							IBinInstr::new(SW, temp.into(), (height, SP.into()).into());
+							IBinInstr::new(SD, temp.into(), (height, SP.into()).into());
 						new_instrs.push(store_instr);
 					}
 					_ => {}
