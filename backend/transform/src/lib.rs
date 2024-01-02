@@ -4,7 +4,10 @@ use instr_dag::InstrDag;
 use instruction::{
 	riscv::{
 		convert::i32_to_reg,
-		reg::{RiscvReg::SP, PARAMETER_REGS},
+		reg::{
+			RiscvReg::{SP, X0},
+			PARAMETER_REGS,
+		},
 		riscvinstr::{ITriInstr, RTriInstr},
 		riscvop::{ITriInstrOp::Addi, RTriInstrOp::Add},
 		value::is_lower,
@@ -41,9 +44,7 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 			}
 		}
 	}
-	for (temp, reg) in func.params.iter().zip(PARAMETER_REGS.iter()) {
-		let _ = mgr.get_pre_color(&temp.into(), *reg);
-	}
+
 	for block in func.cfg.blocks {
 		let kill_size = block
 			.borrow()
@@ -76,6 +77,14 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 		let instr = node.borrow_mut().instrs.pop().unwrap();
 		node.borrow_mut().set_jump(Some(instr));
 	}
+
+	for (temp, reg) in func.params.iter().zip(PARAMETER_REGS.iter()).rev() {
+		let reg = mgr.new_pre_color_temp(*reg);
+		let temp = mgr.get(&temp.into());
+		let instr = RTriInstr::new(Add, temp, reg, X0.into());
+		nodes.first().unwrap().borrow_mut().instrs.insert(0, instr);
+	}
+
 	Ok(RiscvFunc {
 		total: mgr.total,
 		spill_size: 0,

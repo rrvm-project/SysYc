@@ -1,21 +1,24 @@
+use crate::symbol_table::SymbolTable;
 use ast::*;
 use attr::Attrs;
 use rrvm_symbol::VarSymbol;
 use utils::errors::Result;
 
-pub struct Counter {
+pub struct Counter<'a> {
 	pub symbols: Vec<i32>,
+	pub symbol_table: &'a SymbolTable,
 }
 
-impl Counter {
-	pub fn new() -> Self {
+impl<'a> Counter<'a> {
+	pub fn new(symbol_table: &'a SymbolTable) -> Self {
 		Self {
 			symbols: Vec::new(),
+			symbol_table,
 		}
 	}
 }
 
-impl Visitor for Counter {
+impl<'a> Visitor for Counter<'a> {
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		if let Some(init) = node.init.as_mut() {
 			init.accept(self)?;
@@ -36,7 +39,10 @@ impl Visitor for Counter {
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
-		self.symbols.push(symbol.id);
+		if self.symbol_table.get_option(&symbol.id).map_or(true, |v| !v.is_global())
+		{
+			self.symbols.push(symbol.id);
+		}
 		Ok(())
 	}
 	fn visit_literal_int(&mut self, _node: &mut LiteralInt) -> Result<()> {

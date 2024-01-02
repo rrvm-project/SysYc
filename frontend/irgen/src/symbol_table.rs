@@ -36,7 +36,10 @@ impl SymbolTable {
 		out
 	}
 	pub fn get(&self, id: &i32) -> Value {
-		self.get_skip(id, 0).unwrap()
+		self.get_option(id).unwrap()
+	}
+	pub fn get_option(&self, id: &i32) -> Option<Value> {
+		self.get_skip(id, 0)
 	}
 	pub fn contains(&self, id: &i32) -> bool {
 		self.get_skip(id, 0).is_some()

@@ -39,6 +39,9 @@ impl Namer {
 				dim.get_attr("value").ok_or_else(array_dims_error)?.into();
 			shirink(dim);
 			if let Value::Int(v) = value {
+				if v <= 0 {
+					return Err(non_positive_dim_length());
+				}
 				dim_list.push(v as usize);
 			} else {
 				return Err(array_dims_error());
@@ -82,6 +85,7 @@ impl Visitor for Namer {
 		let var_type: VarType = (!is_const, btype, &dim_list).into();
 		let symbol = self.mgr.new_var_symbol(&node.ident, var_type);
 		node.set_attr("symbol", symbol.clone().into());
+		self.ctx.set_val(&node.ident, symbol.clone())?;
 		if let Some(init) = node.init.as_mut() {
 			self.decl_dims = dim_list.clone();
 			init.accept(self)?;
@@ -97,7 +101,6 @@ impl Visitor for Namer {
 			self.ctx.set_constant(symbol.id, value.into())?;
 			node.init = None;
 		}
-		self.ctx.set_val(&node.ident, symbol)?;
 		Ok(())
 	}
 

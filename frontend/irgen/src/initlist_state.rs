@@ -37,6 +37,11 @@ impl InitlistState {
 		mgr: &mut TempManager,
 	) {
 		self.cnt += 1;
+		let instr = Box::new(StoreInstr {
+			addr: self.target.clone().into(),
+			value,
+		});
+		cfg.get_exit().borrow_mut().push(instr);
 		let new_temp = mgr.new_temp(self.var_type, false);
 		let instr = Box::new(GEPInstr {
 			var_type: self.var_type,
@@ -46,11 +51,6 @@ impl InitlistState {
 		});
 		cfg.get_exit().borrow_mut().push(instr);
 		self.target = new_temp;
-		let instr = Box::new(StoreInstr {
-			addr: self.target.clone().into(),
-			value,
-		});
-		cfg.get_exit().borrow_mut().push(instr);
 	}
 	pub fn assign(
 		&mut self,
