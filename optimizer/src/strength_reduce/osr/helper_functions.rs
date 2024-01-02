@@ -2,6 +2,7 @@ use super::OSR;
 
 use llvm::{ArithInstr, ArithOp, Temp, Value, VarType};
 use rrvm::LlvmCFG;
+use utils::UseTemp;
 
 impl OSR {
 	// helper function
@@ -11,7 +12,11 @@ impl OSR {
 		cfg: &LlvmCFG,
 		bb_id: usize,
 		instr_id: usize,
+		is_phi: bool,
 	) -> Option<(Temp, Value)> {
+		if is_phi {
+			return None;
+		}
 		let instr = &cfg.blocks[bb_id].borrow().instrs[instr_id];
 		if let Some(op) = instr.is_candidate_operator() {
 			match op {
@@ -126,11 +131,19 @@ impl OSR {
 	}
 	pub fn new_temp(&mut self, tp: VarType) -> Temp {
 		let new = Temp {
-			name: self.total_new_temp.to_string(),
+			name: self.total_new_temp.to_string() + "_osr",
 			var_type: tp,
 			is_global: false,
 		};
 		self.total_new_temp += 1;
 		new
+	}
+	pub fn get_instr_reads(&self, cfg: &LlvmCFG, temp: Temp) -> Vec<Temp> {
+		let (_, bb_index, instr_index, is_phi) = self.temp_to_instr[&temp];
+		if is_phi {
+			cfg.blocks[bb_index].borrow().phi_instrs[instr_index].get_read()
+		} else {
+			cfg.blocks[bb_index].borrow().instrs[instr_index].get_read()
+		}
 	}
 }
