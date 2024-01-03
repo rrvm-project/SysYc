@@ -39,7 +39,7 @@ impl Namer {
 				dim.get_attr("value").ok_or_else(array_dims_error)?.into();
 			shirink(dim);
 			if let Value::Int(v) = value {
-				if v <= 0 {
+				if v < 0 {
 					return Err(non_positive_dim_length());
 				}
 				dim_list.push(v as usize);
@@ -54,6 +54,7 @@ impl Namer {
 impl Visitor for Namer {
 	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
 		self.ctx.push();
+		self.ctx.extern_init(&mut self.mgr);
 		for v in node.global_vars.iter_mut() {
 			v.accept(self)?;
 		}

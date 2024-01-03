@@ -8,7 +8,7 @@ use rrvm::program::RiscvFunc;
 
 pub fn spill(func: &mut RiscvFunc, to_spill: Temp, cnt: i32) {
 	// TODO: need more test
-	eprintln!("register spill happened! this may lead unknown fault");
+	// eprintln!("register spill happened! this may lead unknown fault");
 	let mut mgr = TempManager::new(cnt);
 	let mut stack = vec![(func.cfg.get_entry(), func.spill_size)];
 	let mut visited = HashSet::new();
