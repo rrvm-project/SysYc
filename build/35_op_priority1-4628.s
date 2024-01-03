@@ -1,0 +1,57 @@
+  .file "project-eval/testcases/functional/35_op_priority1.sy"
+  .option nopic
+  .attribute unaligned_access, 0
+  .attribute stack_align, 16
+  .text
+  .align 1
+  .global main
+  .type main, @function
+main:
+    addi sp, sp, -96
+    sd s1, 0(sp)
+    sd s2, 8(sp)
+    sd s3, 16(sp)
+    sd s4, 24(sp)
+    sd s5, 32(sp)
+    sd s6, 40(sp)
+    sd s7, 48(sp)
+    sd s8, 56(sp)
+    sd s9, 64(sp)
+    sd s10, 72(sp)
+    sd s11, 80(sp)
+  L_1:
+  L_2:
+  L_3:
+  L_4:
+  L_5:
+  L_6:
+  L_7:
+  L_8:
+  L_9:
+  L_10:
+  L_11:
+  L_12:
+  L_13:
+  L_14:
+  L_15:
+    li a0, 10
+    li a1, 4
+    mulw a0, a0, a1
+    addi a1, a0, 2
+  L_16:
+    li a0, 2
+    subw a0, a1, a0
+    ld s1, 0(sp)
+    ld s2, 8(sp)
+    ld s3, 16(sp)
+    ld s4, 24(sp)
+    ld s5, 32(sp)
+    ld s6, 40(sp)
+    ld s7, 48(sp)
+    ld s8, 56(sp)
+    ld s9, 64(sp)
+    ld s10, 72(sp)
+    ld s11, 80(sp)
+    addi sp, sp, 96
+    ret
+  .ident "SYSYC: (made by RRVM) 0.0.1"
