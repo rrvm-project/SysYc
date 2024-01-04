@@ -305,7 +305,7 @@ pub fn riscv_call(
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let mut end_instrs: RiscvInstrSet = Vec::new();
 
-	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-128).into()));
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-112).into()));
 	CALLER_SAVE.iter().skip(1).enumerate().for_each(|(index, &reg)| {
 		// TODO: 使用寄存器进行 caller-saved
 		let instr =
@@ -341,7 +341,7 @@ pub fn riscv_call(
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), cnt.into()));
 	}
 	instrs.extend(end_instrs);
-	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), 128.into()));
+	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), 112.into()));
 
 	if !instr.target.var_type.is_void() {
 		let ret_val = mgr.new_pre_color_temp(A0);
