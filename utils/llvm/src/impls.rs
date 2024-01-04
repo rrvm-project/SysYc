@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use utils::{Label, UseTemp};
 
+use std::collections::HashMap;
+
 use crate::{
 	llvminstr::*,
 	llvmop::*,
@@ -72,6 +74,14 @@ impl UseTemp<Temp> for ArithInstr {
 	}
 }
 
+fn map_llvm_temp(temp: &mut Value, map: &HashMap<Temp, Value>) {
+	if let Value::Temp(t) = temp {
+		if let Some(new_value) = map.get(t) {
+			*temp = new_value.clone();
+		}
+	}
+}
+
 impl LlvmInstrTrait for ArithInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::ArithInstr(self)
@@ -83,6 +93,15 @@ impl LlvmInstrTrait for ArithInstr {
 			&self.lhs.get_type(),
 			&self.rhs.get_type(),
 		])
+	}
+
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+		map_llvm_temp(&mut self.lhs, map);
+		map_llvm_temp(&mut self.rhs, map);
+	}
+
+	fn replaceable(&self, map: &HashMap<Temp, Value>) -> bool {
+		map.get(&self.target).is_some()
 	}
 }
 
@@ -117,6 +136,15 @@ impl LlvmInstrTrait for CompInstr {
 			&self.rhs.get_type(),
 		])
 	}
+
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+		map_llvm_temp(&mut self.lhs, map);
+		map_llvm_temp(&mut self.rhs, map);
+	}
+
+	fn replaceable(&self, map: &HashMap<Temp, Value>) -> bool {
+		map.get(&self.target).is_some()
+	}
 }
 
 impl Display for ConvertInstr {
@@ -150,6 +178,14 @@ impl LlvmInstrTrait for ConvertInstr {
 			&self.to_type,
 		])
 	}
+
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+		map_llvm_temp(&mut self.lhs, map);
+	}
+
+	fn replaceable(&self, map: &HashMap<Temp, Value>) -> bool {
+		map.get(&self.target).is_some()
+	}
 }
 
 impl Display for JumpInstr {
@@ -169,6 +205,14 @@ impl LlvmInstrTrait for JumpInstr {
 	}
 	fn get_label(&self) -> Label {
 		self.target.clone()
+	}
+
+	fn map_temp(&mut self, _map: &HashMap<Temp, Value>) {
+		//noting to do
+	}
+
+	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+		false
 	}
 }
 
@@ -215,6 +259,14 @@ impl LlvmInstrTrait for JumpCondInstr {
 	}
 	fn is_jump_cond(&self) -> bool {
 		true
+	}
+
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+		map_llvm_temp(&mut self.cond, map);
+	}
+
+	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+		false
 	}
 }
 
@@ -267,6 +319,15 @@ impl LlvmInstrTrait for PhiInstr {
 	fn is_phi(&self) -> bool {
 		true
 	}
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+		for (value, _label) in &mut self.source {
+			map_llvm_temp(value, map);
+		}
+	}
+
+	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+		false
+	}
 }
 
 impl Display for RetInstr {
@@ -293,6 +354,15 @@ impl LlvmInstrTrait for RetInstr {
 	}
 	fn is_ret(&self) -> bool {
 		true
+	}
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+		if let Some(value) = &mut self.value {
+			map_llvm_temp(value, map);
+		}
+	}
+
+	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+		false
 	}
 }
 
@@ -328,6 +398,14 @@ impl LlvmInstrTrait for AllocInstr {
 	fn get_alloc(&self) -> Option<(Temp, Value)> {
 		Some((self.target.clone(), self.length.clone()))
 	}
+
+	fn map_temp(&mut self, _map: &HashMap<Temp, Value>) {
+		//noting to do
+	}
+
+	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+		false
+	}
 }
 
 impl Display for StoreInstr {
@@ -361,6 +439,15 @@ impl LlvmInstrTrait for StoreInstr {
 	}
 	fn is_store(&self) -> bool {
 		true
+	}
+
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+		map_llvm_temp(&mut self.value, map);
+		map_llvm_temp(&mut self.addr, map);
+	}
+
+	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+		false
 	}
 }
 
@@ -396,6 +483,14 @@ impl LlvmInstrTrait for LoadInstr {
 	fn is_load(&self) -> bool {
 		self.addr.unwrap_temp().map_or(true, |v| !v.is_global)
 	}
+
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+		map_llvm_temp(&mut self.addr, map);
+	}
+
+	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+		false
+	}
 }
 
 impl Display for GEPInstr {
@@ -429,6 +524,15 @@ impl LlvmInstrTrait for GEPInstr {
 		is_ptr(self.addr.get_type())
 			&& self.offset.get_type() == VarType::I32
 			&& type_match_ptr(self.var_type, self.addr.get_type())
+	}
+
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+		map_llvm_temp(&mut self.addr, map);
+		map_llvm_temp(&mut self.offset, map);
+	}
+
+	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+		false
 	}
 }
 
@@ -465,5 +569,14 @@ impl LlvmInstrTrait for CallInstr {
 	}
 	fn is_call(&self) -> bool {
 		true
+	}
+
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+		for (_vartype, value) in &mut self.params {
+			map_llvm_temp(value, map);
+		}
+	}
+	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+		false
 	}
 }
