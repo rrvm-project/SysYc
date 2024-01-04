@@ -135,8 +135,8 @@ pub fn to_iop(op: &ArithOp) -> ITriInstrOp {
 
 pub fn to_rop(op: &ArithOp) -> RTriInstrOp {
 	match op {
-		ArithOp::Add => Addw,
-		ArithOp::Sub => Subw,
+		ArithOp::Add => Add,
+		ArithOp::Sub => Sub,
 		ArithOp::Mul => Mulw,
 		ArithOp::Div => Divw,
 		ArithOp::Rem => Remw,

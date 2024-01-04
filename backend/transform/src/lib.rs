@@ -87,7 +87,7 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 
 	Ok(RiscvFunc {
 		total: mgr.total,
-		spill_size: 0,
+		spills: 0,
 		cfg: RiscvCFG { blocks: nodes },
 		name: func.name,
 		params: func.params,

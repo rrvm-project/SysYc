@@ -69,7 +69,7 @@ impl Visitor for IRGenerator {
 		cfg.make_pretty();
 		self.program.funcs.push(LlvmFunc {
 			total: 0,
-			spill_size: 0,
+			spills: 0,
 			cfg,
 			name: node.ident.clone(),
 			ret_type: var_type,

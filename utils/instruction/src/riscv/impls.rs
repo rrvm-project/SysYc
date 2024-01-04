@@ -304,13 +304,16 @@ impl NoArgInstr {
 
 impl Display for CallInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "  jal ra, {}", self.func_label)
+		write!(f, "  call {}", self.func_label)
 	}
 }
 
 impl RiscvInstrTrait for CallInstr {
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		self.params.clone()
+	}
+	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
+		vec![RA.into(), A0.into()]
 	}
 	fn is_call(&self) -> bool {
 		true
