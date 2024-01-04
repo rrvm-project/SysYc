@@ -1,4 +1,5 @@
 mod dead_code;
+mod fuyuki_vn;
 pub mod impls;
 mod local_expression_rearrangement;
 mod unreachable;

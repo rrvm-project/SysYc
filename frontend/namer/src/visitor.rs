@@ -39,7 +39,7 @@ impl Namer {
 				dim.get_attr("value").ok_or_else(array_dims_error)?.into();
 			shirink(dim);
 			if let Value::Int(v) = value {
-				if v <= 0 {
+				if v < 0 {
 					return Err(non_positive_dim_length());
 				}
 				dim_list.push(v as usize);
