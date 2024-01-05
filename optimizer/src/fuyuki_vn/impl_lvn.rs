@@ -181,7 +181,7 @@ fn get_value_vec(
 		Value::Int(v) => vec![*v; length],
 		Value::Float(_) => unreachable!(),
 		Value::Temp(t) => {
-			if let Some(vec) = temp_to_vec.get(&t) {
+			if let Some(vec) = temp_to_vec.get(t) {
 				vec.clone()
 			} else {
 				let random = get_random_vec(length);
@@ -239,7 +239,7 @@ fn get_vector_lvn_value(
 	(value, dst)
 }
 
-fn check_all_equal(v: &Vec<i32>) -> Option<i32> {
+fn check_all_equal(v: &[i32]) -> Option<i32> {
 	if let Some((&first, rest)) = v.split_first() {
 		if rest.iter().all(|&x| x == first) {
 			Some(first)
@@ -286,13 +286,11 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 			temp_to_vec.insert(target.clone(), lvn_value.clone());
 			if let Some(value) = vec_table.get(&lvn_value) {
 				rewrite.insert(target, value.clone());
+			} else if let Some(const_value) = check_all_equal(&lvn_value) {
+				rewrite.insert(target, Value::Int(const_value));
+				vec_table.insert(lvn_value, Value::Int(const_value));
 			} else {
-				if let Some(const_value) = check_all_equal(&lvn_value) {
-					rewrite.insert(target, Value::Int(const_value));
-					vec_table.insert(lvn_value, Value::Int(const_value));
-				} else {
-					vec_table.insert(lvn_value, Value::Temp(target));
-				}
+				vec_table.insert(lvn_value, Value::Temp(target));
 			}
 		}
 	}
