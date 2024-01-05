@@ -12,7 +12,7 @@ pub struct InstrNode {
 	pub in_deg: usize,
 	pub instr: RiscvInstrSet,
 	pub succ: Vec<Node>,
-	pub last_use:usize,
+	pub last_use: usize,
 }
 
 pub struct InstrDag {
@@ -46,8 +46,8 @@ impl InstrDag {
 		let mut loads = Vec::new();
 		let mut stores = Vec::new();
 		let mut last_state = Call;
-		let mut last_use=HashMap::new();
-		for (index,instr) in instrs.iter().enumerate().rev() {
+		let mut last_use = HashMap::new();
+		for (index, instr) in instrs.iter().enumerate().rev() {
 			let mut succ: Vec<Node> = Vec::new();
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, mgr)?));
 			if let Some(target) = instr.get_write() {
@@ -87,8 +87,9 @@ impl InstrDag {
 			node.borrow_mut().succ = succ;
 			nodes.push(node);
 		}
-		for (index,instr) in nodes.iter_mut().enumerate().rev(){
-			instr.borrow_mut().last_use+=last_use.iter().filter(|x| *x.1==index).count();
+		for (index, instr) in nodes.iter_mut().enumerate().rev() {
+			instr.borrow_mut().last_use +=
+				last_use.iter().filter(|x| *x.1 == index).count();
 		}
 		Ok(InstrDag { nodes })
 	}
