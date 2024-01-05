@@ -104,7 +104,8 @@ impl OSR {
 		self.low.insert(temp.clone(), self.next_dfsnum);
 		self.next_dfsnum += 1;
 		self.stack.push(temp.clone());
-		let reads = self.get_instr_reads(cfg, temp.clone());
+		let mut reads = self.get_instr_reads(cfg, temp.clone());
+		reads.retain(|t| !t.is_global);
 		reads.iter().for_each(|operand| {
 			if !self.visited[operand] {
 				self.dfs(cfg, operand.clone());
