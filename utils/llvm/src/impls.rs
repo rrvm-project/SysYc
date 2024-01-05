@@ -167,6 +167,9 @@ impl LlvmInstrTrait for JumpInstr {
 	fn is_direct_jump(&self) -> bool {
 		true
 	}
+	fn get_label(&self) -> Label {
+		self.target.clone()
+	}
 }
 
 impl Display for JumpCondInstr {

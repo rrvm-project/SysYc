@@ -245,7 +245,9 @@ pub fn riscv_alloc(
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let size = &instr.length;
 	if let Some(num) = end_num(size) {
-		let num = (num + 15) & -16;
+		if num % 16 != 0 {
+			return Err(RiscvGenError("stack should be aligned to 16".to_string()));
+		}
 		let target = mgr.get(&instr.target);
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-num).into()));
 		instrs.push(RTriInstr::new(Add, target, X0.into(), SP.into()));
@@ -319,7 +321,7 @@ pub fn riscv_call(
 	// load parameters
 	for (&reg, (_, val)) in PARAMETER_REGS.iter().zip(instr.params.iter()) {
 		let rd = mgr.new_pre_color_temp(reg);
-		get_arith(rd, llvm::ArithOp::Add, val, &0.into(), &mut instrs, mgr);
+		get_arith(rd, llvm::ArithOp::AddD, val, &0.into(), &mut instrs, mgr);
 	}
 
 	let cnt = max(0, instr.params.len() as i32 - 8) * 8; // 64 位的

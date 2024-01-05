@@ -46,13 +46,7 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 	}
 
 	for block in func.cfg.blocks {
-		let kill_size = block
-			.borrow()
-			.kills
-			.iter() // TODO: alloc size which is variable?
-			.map(|v| alloc_table.get(v).map_or(0, |v| v.into()))
-			.sum::<i32>();
-		let kill_size = (kill_size + 15) & -16;
+		let kill_size = (block.borrow().kill_size + 15) & -16;
 		let id = block.borrow().id;
 		edge.extend(block.borrow().succ.iter().map(|v| (id, v.borrow().id)));
 		let node = transform_basicblock(&block, mgr)?;
@@ -101,6 +95,7 @@ fn _transform_basicblock_by_dag(
 ) -> Result<RiscvNode> {
 	let instr_dag = InstrDag::new(&node.borrow().instrs, mgr)?;
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
+	block.kill_size = node.borrow().kill_size;
 	block.instrs = instr_schedule(instr_dag)?;
 	Ok(Rc::new(RefCell::new(block)))
 }
@@ -112,6 +107,7 @@ fn transform_basicblock(
 	let instrs: Result<Vec<_>, _> =
 		node.borrow().instrs.iter().map(|v| to_riscv(v, mgr)).collect();
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
+	block.kill_size = node.borrow().kill_size;
 	block.instrs = instrs?.into_iter().flatten().collect();
 	Ok(Rc::new(RefCell::new(block)))
 }

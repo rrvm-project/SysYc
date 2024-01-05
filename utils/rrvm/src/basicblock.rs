@@ -14,11 +14,11 @@ pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
 pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub id: i32,
 	pub weight: f64,
+	pub kill_size: i32,
 	pub prev: Vec<Node<T, U>>,
 	pub succ: Vec<Node<T, U>>,
 	pub defs: HashSet<U>,
 	pub uses: HashSet<U>,
-	pub kills: HashSet<U>,
 	pub live_in: HashSet<U>,
 	pub live_out: HashSet<U>,
 	pub phi_instrs: Vec<PhiInstr>,
@@ -43,11 +43,11 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 		BasicBlock {
 			id,
 			weight,
+			kill_size: 0,
 			prev: Vec::new(),
 			succ: Vec::new(),
 			defs: HashSet::new(),
 			uses: HashSet::new(),
-			kills: HashSet::new(),
 			live_in: HashSet::new(),
 			live_out: HashSet::new(),
 			phi_instrs: Vec::new(),
@@ -123,7 +123,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 	pub fn set_jump(&mut self, instr: Option<T>) {
 		self.jump_instr = instr;
 	}
-	pub fn init(&mut self) {
+	pub fn init_data_flow(&mut self) {
 		for instr in self.instrs.iter().chain(self.jump_instr.iter()) {
 			for temp in instr.get_read() {
 				if !self.defs.contains(&temp) {
@@ -135,9 +135,11 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			}
 		}
 	}
-	pub fn calc_kill(&mut self) {
-		let lives: HashSet<_> = self.defs.union(&self.live_in).cloned().collect();
-		self.kills = lives.difference(&self.live_out).cloned().collect();
+	pub fn clear_data_flow(&mut self) {
+		self.uses.clear();
+		self.defs.clear();
+		self.live_in.clear();
+		self.live_out.clear();
 	}
 }
 
@@ -160,28 +162,9 @@ impl BasicBlock<LlvmInstr, llvm::Temp> {
 		}
 	}
 	pub fn init_phi(&mut self) {
-		// 建立 Label 到 BasicBlock 的映射
-		let mut label_to_bb = HashMap::new();
-		for bb in self.prev.iter() {
-			label_to_bb.insert(bb.borrow().label(), bb.clone());
-		}
 		for instr in self.phi_instrs.iter() {
-			if let Some(target) = instr.get_write() {
-				for (temp, label) in instr.get_read_with_label() {
-					label_to_bb
-						.get(&label)
-						.unwrap()
-						.borrow_mut()
-						.uses
-						.insert(temp.clone());
-
-					label_to_bb
-						.get(&label)
-						.unwrap()
-						.borrow_mut()
-						.defs
-						.insert(target.clone());
-				}
+			if let Some(temp) = instr.get_write() {
+				self.defs.insert(temp);
 			}
 		}
 	}
@@ -235,7 +218,6 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
 		let succ: Vec<_> = self.succ.iter().map(|v| v.borrow().id).collect();
 		let defs: Vec<_> = self.defs.iter().map(|v| v.to_string()).collect();
 		let uses: Vec<_> = self.uses.iter().map(|v| v.to_string()).collect();
-		let kills: Vec<_> = self.kills.iter().map(|v| v.to_string()).collect();
 		let live_in: Vec<_> = self.live_in.iter().map(|v| v.to_string()).collect();
 		let live_out: Vec<_> =
 			self.live_out.iter().map(|v| v.to_string()).collect();
@@ -253,17 +235,17 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
     prev: {:?} succ: {:?}
     uses: {:?}
     defs: {:?}
-    kills: {:?}
     livein: {:?}
-    liveout: {:?}\n{}",
+    liveout: {:?}
+    kill_size: {}\n{}",
 			self.label(),
 			prev,
 			succ,
 			uses,
 			defs,
-			kills,
 			live_in,
 			live_out,
+			self.kill_size,
 			instrs
 		)
 	}

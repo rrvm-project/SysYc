@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use ast::{tree::*, Visitor};
 use attr::Attrs;
@@ -10,7 +10,8 @@ use rrvm::{
 };
 use rrvm_symbol::{FuncSymbol, VarSymbol};
 use utils::{
-	errors::Result, GlobalVar, Label, SysycError::TypeError, ValueItem::Zero,
+	errors::Result, math::align16, GlobalVar, Label, SysycError::TypeError,
+	ValueItem::Zero,
 };
 use value::{utils::to_data, BinaryOp, FuncRetType, UnaryOp};
 
@@ -33,6 +34,7 @@ pub struct IRGenerator {
 	pub weights: Vec<f64>,
 	pub is_global: bool,
 	pub init_state: Option<InitlistState>,
+	pub alloc_size: Vec<i32>,
 }
 
 impl Visitor for IRGenerator {
@@ -101,13 +103,16 @@ impl Visitor for IRGenerator {
 			if symbol.var_type.is_array() {
 				let mut temp = self.mgr.new_temp(var_type, false);
 				let length = symbol.var_type.dims.iter().product::<usize>();
+				let length =
+					align16((length * var_type.deref_type().get_size()) as i32);
+				*self.alloc_size.last_mut().unwrap() += length;
 				self.init_state =
 					Some(InitlistState::new(var_type, symbol.var_type.dims));
 				self.symbol_table.set(symbol.id, temp.clone().into());
 				let mut now = self.new_cfg();
 				let instr = Box::new(AllocInstr {
 					target: temp.clone(),
-					length: ((length * var_type.deref_type().get_size()) as i32).into(),
+					length: length.into(),
 					var_type,
 				});
 				now.get_entry().borrow_mut().push(instr);
@@ -143,11 +148,14 @@ impl Visitor for IRGenerator {
 			let cfg: LlvmCFG = self.new_cfg();
 			if symbol.var_type.is_array() {
 				let length: usize = symbol.var_type.dims.iter().product();
+				let length =
+					align16((length * var_type.deref_type().get_size()) as i32);
 				let temp = self.mgr.new_temp(var_type, false);
 				self.symbol_table.set(symbol.id, temp.clone().into());
+				*self.alloc_size.last_mut().unwrap() += length;
 				let instr = Box::new(AllocInstr {
 					target: temp.clone(),
-					length: ((length * var_type.deref_type().get_size()) as i32).into(),
+					length: length.into(),
 					var_type,
 				});
 				cfg.get_entry().borrow_mut().push(instr);
@@ -469,15 +477,36 @@ impl Visitor for IRGenerator {
 	}
 
 	fn visit_block(&mut self, node: &mut Block) -> Result<()> {
+		self.alloc_size.push(0);
 		let mut cfgs = Vec::new();
+		let mut labels: HashSet<Label> = HashSet::new();
 		for stmt in node.stmts.iter_mut() {
+			let size = self.alloc_size.last().copied().unwrap();
 			stmt.accept(self)?;
-			cfgs.push(self.stack.pop().unwrap().0);
+			let (cfg, _, _) = self.stack.pop().unwrap();
+			for node in cfg.blocks.iter() {
+				labels.insert(node.borrow().label());
+			}
+			for node in cfg.blocks.iter() {
+				let node = &mut node.borrow_mut();
+				if let Some(instr) = node.jump_instr.as_ref() {
+					if instr.is_ret()
+						|| instr.is_direct_jump() && !labels.contains(&instr.get_label())
+					{
+						node.kill_size += size;
+					}
+				}
+			}
+			cfgs.push(cfg);
 			if stmt.is_end() {
 				break;
 			}
 		}
 		let cfg = self.fold_cfgs(cfgs);
+		let size = self.alloc_size.pop().unwrap();
+		if cfg.get_exit().borrow().jump_instr.is_none() {
+			cfg.get_exit().borrow_mut().kill_size += size;
+		}
 		self.stack.push((cfg, None, None));
 		Ok(())
 	}
