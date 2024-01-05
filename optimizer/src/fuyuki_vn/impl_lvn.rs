@@ -1,4 +1,5 @@
-use std::{collections::HashMap, hash::Hasher};
+use rand::Rng;
+use std::{collections::HashMap, hash::Hasher, vec};
 
 use llvm::{
 	llvmop::{ArithOp, CompOp},
@@ -101,24 +102,24 @@ fn try_const(value: &SimpleLvnValue, backup_temp: Temp) -> Value {
 	}
 }
 
+fn try_rewrite(value: Value, rewrite: &HashMap<Temp, Value>) -> Value {
+	match value {
+		Value::Temp(t) => {
+			if let Some(v) = rewrite.get(&t) {
+				v.clone()
+			} else {
+				Value::Temp(t)
+			}
+		}
+		_ => value,
+	}
+}
+
 #[allow(clippy::borrowed_box)]
 fn get_simple_lvn_value(
 	instr: &Box<dyn LlvmInstrTrait>,
 	rewrite: &HashMap<Temp, Value>,
 ) -> (Option<SimpleLvnValue>, Option<Temp>) {
-	fn try_rewrite(value: Value, rewrite: &HashMap<Temp, Value>) -> Value {
-		match value {
-			Value::Temp(t) => {
-				if let Some(v) = rewrite.get(&t) {
-					v.clone()
-				} else {
-					Value::Temp(t)
-				}
-			}
-			_ => value,
-		}
-	}
-
 	let mut dst = None;
 
 	let value: Option<SimpleLvnValue> = match instr.get_variant() {
@@ -164,8 +165,97 @@ fn get_simple_lvn_value(
 	(value, dst)
 }
 
+fn get_random_vec(len: usize) -> Vec<i32> {
+	let mut rng = rand::thread_rng();
+	(0..len).map(|_| rng.gen()).collect()
+}
+
+fn get_value_vec(
+	value: &Value,
+	temp_to_vec: &mut HashMap<Temp, Vec<i32>>,
+	vec_table: &mut HashMap<Vec<i32>, Value>,
+) -> Vec<i32> {
+	let length = 16;
+
+	match value {
+		Value::Int(v) => vec![*v; length],
+		Value::Float(_) => unreachable!(),
+		Value::Temp(t) => {
+			if let Some(vec) = temp_to_vec.get(&t) {
+				vec.clone()
+			} else {
+				let random = get_random_vec(length);
+				temp_to_vec.insert(t.clone(), random.clone());
+				vec_table.insert(random.clone(), Value::Temp(t.clone()));
+				random
+			}
+		}
+	}
+}
+fn calculate_vecs(
+	v1: Vec<i32>,
+	v2: Vec<i32>,
+	f: fn(i32, i32) -> i32,
+) -> Vec<i32> {
+	let min_len = v1.len().min(v2.len());
+	v1.iter().zip(v2.iter()).take(min_len).map(|(&x, &y)| f(x, y)).collect()
+}
+
+#[allow(clippy::borrowed_box)]
+fn get_vector_lvn_value(
+	instr: &Box<dyn LlvmInstrTrait>,
+	_rewrite: &HashMap<Temp, Value>,
+	temp_to_vec: &mut HashMap<Temp, Vec<i32>>,
+	vec_table: &mut HashMap<Vec<i32>, Value>,
+) -> (Option<Vec<i32>>, Option<Temp>) {
+	let mut dst = None;
+
+	let value: Option<Vec<i32>> = match instr.get_variant() {
+		llvm::LlvmInstrVariant::ArithInstr(i) => {
+			dst = i.target.clone().into();
+			if i.var_type == VarType::I32 {
+				let vec_left = get_value_vec(&i.lhs, temp_to_vec, vec_table);
+				let vec_right = get_value_vec(&i.rhs, temp_to_vec, vec_table);
+
+				match i.op {
+					ArithOp::Add => Some(calculate_vecs(vec_left, vec_right, |x, y| {
+						x.wrapping_add(y)
+					})),
+					ArithOp::Sub => Some(calculate_vecs(vec_left, vec_right, |x, y| {
+						x.wrapping_sub(y)
+					})),
+					ArithOp::Mul => Some(calculate_vecs(vec_left, vec_right, |x, y| {
+						x.wrapping_mul(y)
+					})),
+					_ => None,
+				}
+			} else {
+				None
+			}
+		}
+		// TODO 添加对比较指令的支持？
+		_ => None,
+	};
+	(value, dst)
+}
+
+fn check_all_equal(v: &Vec<i32>) -> Option<i32> {
+	if let Some((&first, rest)) = v.split_first() {
+		if rest.iter().all(|&x| x == first) {
+			Some(first)
+		} else {
+			None
+		}
+	} else {
+		None
+	}
+}
+
 pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 	let mut table: HashMap<SimpleLvnValue, Value> = HashMap::new();
+
+	let mut remain_instr = vec![];
+
 	for instr in &block.borrow_mut().instrs {
 		if let (Some(lvn_value), Some(target)) =
 			get_simple_lvn_value(instr, rewrite)
@@ -177,6 +267,31 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 				table.insert(lvn_value, value_try.clone());
 				if value_try.is_num() {
 					rewrite.insert(target, value_try);
+				} else {
+					remain_instr.push(instr.clone_box());
+				}
+			}
+		}
+	}
+
+	drop(table);
+
+	let mut vec_table: HashMap<Vec<i32>, Value> = HashMap::new();
+	let mut temp_to_vec: HashMap<Temp, Vec<i32>> = HashMap::new();
+
+	for instr in remain_instr {
+		if let (Some(lvn_value), Some(target)) =
+			get_vector_lvn_value(&instr, rewrite, &mut temp_to_vec, &mut vec_table)
+		{
+			temp_to_vec.insert(target.clone(), lvn_value.clone());
+			if let Some(value) = vec_table.get(&lvn_value) {
+				rewrite.insert(target, value.clone());
+			} else {
+				if let Some(const_value) = check_all_equal(&lvn_value) {
+					rewrite.insert(target, Value::Int(const_value));
+					vec_table.insert(lvn_value, Value::Int(const_value));
+				} else {
+					vec_table.insert(lvn_value, Value::Temp(target));
 				}
 			}
 		}

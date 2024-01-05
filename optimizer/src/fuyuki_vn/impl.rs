@@ -48,7 +48,7 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 
 	//TODO: move down
 
-	false
+	rewirte.len() > 0
 }
 
 impl RrvmOptimizer for FuyukiLocalValueNumber {
