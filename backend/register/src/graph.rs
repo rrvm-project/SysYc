@@ -53,6 +53,7 @@ impl InterferenceGraph {
 			}
 			let weight = node.borrow().weight;
 			let mut now = node.borrow().live_out.clone();
+			// eprintln!("{} {:?}", node.borrow().id, now);
 			let mut last_end = HashSet::new();
 			for instr in node.borrow().instrs.iter().rev() {
 				// calc graph

@@ -537,7 +537,7 @@ impl Visitor for IRGenerator {
 
 	fn visit_while(&mut self, node: &mut While) -> Result<()> {
 		self.enter_loop();
-		let mut counter = Counter::new(&self.symbol_table);
+		let mut counter = Counter::new();
 		node.cond.accept(&mut counter)?;
 		node.body.accept(&mut counter)?;
 		let (mut init, init_diff, need_phi) = self.copy_symbols(counter.symbols);
