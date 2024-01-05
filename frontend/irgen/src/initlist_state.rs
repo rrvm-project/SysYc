@@ -1,24 +1,21 @@
-use llvm::{GEPInstr, StoreInstr, Temp, TempManager, Value, VarType};
-use rrvm::LlvmCFG;
+use llvm::{Value, VarType};
+
+use crate::visitor::Item;
 
 pub struct InitlistState {
 	pub var_type: VarType,
-	pub init_items: Vec<Value>,
 	pub decl_dims: Vec<usize>,
-	pub target: Temp,
 	pub depth: usize,
-	pub cnt: usize,
+	pub values: Vec<Vec<Item>>,
 }
 
 impl InitlistState {
-	pub fn new(var_type: VarType, decl_dims: Vec<usize>, target: Temp) -> Self {
+	pub fn new(var_type: VarType, decl_dims: Vec<usize>) -> Self {
 		Self {
 			var_type,
 			decl_dims,
-			init_items: Vec::new(),
-			target,
 			depth: 0,
-			cnt: 0,
+			values: Vec::new(),
 		}
 	}
 	pub fn cur_size(&self) -> usize {
@@ -26,40 +23,19 @@ impl InitlistState {
 	}
 	pub fn push(&mut self) {
 		self.depth += 1;
+		self.values.push(Vec::new());
 	}
-	pub fn pop(&mut self) {
+	pub fn pop(&mut self) -> Vec<Item> {
 		self.depth -= 1;
+		self.values.pop().unwrap()
 	}
-	pub fn store(
-		&mut self,
-		value: Value,
-		cfg: &mut LlvmCFG,
-		mgr: &mut TempManager,
-	) {
-		self.cnt += 1;
-		let instr = Box::new(StoreInstr {
-			addr: self.target.clone().into(),
-			value,
-		});
-		cfg.get_exit().borrow_mut().push(instr);
-		let new_temp = mgr.new_temp(self.var_type, false);
-		let instr = Box::new(GEPInstr {
-			var_type: self.var_type,
-			target: new_temp.clone(),
-			addr: self.target.clone().into(),
-			offset: self.var_type.deref_type().get_size().into(),
-		});
-		cfg.get_exit().borrow_mut().push(instr);
-		self.target = new_temp;
+	pub fn store(&mut self, item: Item) {
+		self.values.last_mut().unwrap().push(item)
 	}
-	pub fn assign(
-		&mut self,
-		size: usize,
-		cfg: &mut LlvmCFG,
-		mgr: &mut TempManager,
-	) {
-		while self.cnt % size != 0 {
-			self.store(self.var_type.default_value(), cfg, mgr)
-		}
+	pub fn default_init_val(&mut self) -> Value {
+		self.var_type.default_value()
+	}
+	pub fn top_len(&self) -> usize {
+		self.values.last().unwrap().len()
 	}
 }

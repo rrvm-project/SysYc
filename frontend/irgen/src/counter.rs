@@ -39,8 +39,7 @@ impl<'a> Visitor for Counter<'a> {
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
-		if self.symbol_table.get_option(&symbol.id).map_or(true, |v| !v.is_global())
-		{
+		if !symbol.is_global {
 			self.symbols.push(symbol.id);
 		}
 		Ok(())

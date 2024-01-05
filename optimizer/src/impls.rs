@@ -29,12 +29,9 @@ impl Optimizer1 {
 		Self::default()
 	}
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
-		LocalExpressionRearrangement::new().apply(program)?;
-		RemoveUselessCode::new().apply(program)?;
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			if !flag {
 				break;
@@ -49,7 +46,19 @@ impl Optimizer2 {
 	pub fn new() -> Self {
 		Self::default()
 	}
-	pub fn apply(self, _program: &mut LlvmProgram) -> Result<bool> {
-		todo!()
+	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
+		LocalExpressionRearrangement::new().apply(program)?;
+		RemoveUselessCode::new().apply(program)?;
+		loop {
+			let mut flag = false;
+			flag |= RemoveDeadCode::new().apply(program)?;
+			flag |= RemoveUselessCode::new().apply(program)?;
+			flag |= RemoveUnreachCode::new().apply(program)?;
+			if !flag {
+				break;
+			}
+		}
+		program.analysis();
+		Ok(())
 	}
 }

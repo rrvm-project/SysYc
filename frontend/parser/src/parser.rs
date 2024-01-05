@@ -282,16 +282,25 @@ fn parse_return(pair: Pair<Rule>) -> Node {
 }
 
 fn parse_stmt(pair: Pair<Rule>) -> Node {
-	let pair = pair.into_inner().next().unwrap();
-	match pair.as_rule() {
-		Rule::Expr => parse_expr(pair),
-		Rule::Block => parse_block(pair),
-		Rule::IfStmt => parse_if_stmt(pair),
-		Rule::WhileStmt => parse_while_stmt(pair),
-		Rule::Break => Box::<Break>::default(),
-		Rule::Continue => Box::<Continue>::default(),
-		Rule::Return => parse_return(pair),
-		_ => unreachable!(),
+	let pair = pair.into_inner().next();
+	fn parse_unwrap_stmt(pair: Pair<Rule>) -> Node {
+		match pair.as_rule() {
+			Rule::Expr => parse_expr(pair),
+			Rule::Block => parse_block(pair),
+			Rule::IfStmt => parse_if_stmt(pair),
+			Rule::WhileStmt => parse_while_stmt(pair),
+			Rule::Break => Box::<Break>::default(),
+			Rule::Continue => Box::<Continue>::default(),
+			Rule::Return => parse_return(pair),
+			_ => unreachable!(),
+		}
+	}
+	match pair {
+		Some(pair) => parse_unwrap_stmt(pair),
+		None => Box::new(Block {
+			_attrs: HashMap::new(),
+			stmts: Vec::new(),
+		}),
 	}
 }
 

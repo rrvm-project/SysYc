@@ -22,9 +22,10 @@ Number = _{ Float | Integer}
 // 怎么能不支持下划线，我给他加上了
 Identifier = ${ (ASCII_ALPHA | "_") ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
 
-int_t = { "int " }
-float_t = { "float " }
-void_t = { "void " }
+int_t = ${ "int" ~ WHITESPACE }
+float_t = ${ "float" ~ WHITESPACE }
+void_t = ${ "void" ~ WHITESPACE }
+const = _{ "const " | "const\n" | "const\t" }
 BType = _{ int_t | float_t }
 FuncType = _{ int_t | float_t | void_t }
 
@@ -63,7 +64,7 @@ CompUnit = _{ Decl | FuncDecl }
 DimList = { ("[" ~ Expr ~ "]")* }
 
 Decl = { ConstDecl | VarDecl }
-ConstDecl = { "const " ~ BType ~ VarDef ~ ("," ~ VarDef)* ~ ";" }
+ConstDecl = { const ~ BType ~ VarDef ~ ("," ~ VarDef)* ~ ";" }
 VarDecl = { BType ~ VarDef ~ ("," ~ VarDef)* ~ ";" }
 VarDef = { Identifier ~ DimList ~ ("=" ~ InitVal)? }
 InitVal = _{ Expr | InitValList }
@@ -73,7 +74,7 @@ FuncDecl = {
 }
 
 FormalParams = { (FormalParam ~ ("," ~ FormalParam)*)? }
-FormalParam = { BType ~ Identifier ~ ("[]" ~ DimList)? }
+FormalParam = { BType ~ Identifier ~ ("[" ~ "]" ~ DimList)? }
 RealParams = _{ (Expr ~ ("," ~ Expr)*)? }
 
 Block = { "{" ~ BlockItem* ~ "}" }
@@ -92,9 +93,9 @@ Stmt = {
   | Continue ~ ";"
   | Break ~ ";"
   | WhileStmt
-  | Expr ~ ";"
   | Block
   | IfStmt
+  | Expr ~ ";"
 }
 
 Lval = { Identifier ~ DimList }

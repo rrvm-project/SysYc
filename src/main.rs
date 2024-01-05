@@ -38,6 +38,7 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 	match level {
 		0 => Optimizer0::new().apply(&mut program)?,
 		1 => Optimizer1::new().apply(&mut program)?,
+		2 => Optimizer2::new().apply(&mut program)?,
 		_ => {
 			warning(format!(
 				"optimization level '-O{level}' is not supported; using '-O0' instead",

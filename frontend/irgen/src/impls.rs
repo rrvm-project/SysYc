@@ -14,6 +14,7 @@ use utils::errors::Result;
 use crate::{
 	loop_state::LoopState,
 	symbol_table::{SymbolTable, Table},
+	visitor::Item,
 	IRGenerator,
 };
 
@@ -223,13 +224,16 @@ impl IRGenerator {
 	pub fn push(&mut self) {
 		self.init_state.as_mut().unwrap().push()
 	}
-	pub fn pop(&mut self) {
+	pub fn pop(&mut self) -> Vec<Item> {
 		self.init_state.as_mut().unwrap().pop()
 	}
-	pub fn store(&mut self, value: Value, cfg: &mut LlvmCFG) {
-		self.init_state.as_mut().unwrap().store(value, cfg, &mut self.mgr)
+	pub fn store(&mut self, item: Item) {
+		self.init_state.as_mut().unwrap().store(item)
 	}
-	pub fn assign(&mut self, size: usize, cfg: &mut LlvmCFG) {
-		self.init_state.as_mut().unwrap().assign(size, cfg, &mut self.mgr)
+	pub fn default_init_val(&mut self) -> Value {
+		self.init_state.as_mut().unwrap().default_init_val()
+	}
+	pub fn top_len(&mut self) -> usize {
+		self.init_state.as_mut().unwrap().top_len()
 	}
 }

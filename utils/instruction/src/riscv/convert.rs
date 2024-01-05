@@ -343,14 +343,14 @@ pub fn riscv_call(
 	instrs.extend(end_instrs);
 	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), 112.into()));
 
-	if !instr.target.var_type.is_void() {
-		let ret_val = mgr.new_pre_color_temp(A0);
-		let ret_instr = RTriInstr::new(Add, ret_val, A0.into(), X0.into());
-		instrs.push(ret_instr);
-		let rd = mgr.get(&instr.target);
-		let instr = RTriInstr::new(Add, rd, ret_val, X0.into());
-		instrs.push(instr);
-	}
+	// if !instr.target.var_type.is_void() {
+	let ret_val = mgr.new_pre_color_temp(A0);
+	let ret_instr = RTriInstr::new(Add, ret_val, A0.into(), X0.into());
+	instrs.push(ret_instr);
+	let rd = mgr.get(&instr.target);
+	let instr = RTriInstr::new(Add, rd, ret_val, X0.into());
+	instrs.push(instr);
+	// }
 
 	Ok(instrs)
 }

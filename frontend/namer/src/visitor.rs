@@ -13,6 +13,7 @@ use value::{
 pub struct Namer {
 	mgr: SymbolManager,
 	ctx: ScopeStack,
+	is_global: bool,
 	decl_type: Option<(bool, BType)>,
 	decl_dims: Vec<usize>,
 	depth: usize,
@@ -39,8 +40,8 @@ impl Namer {
 				dim.get_attr("value").ok_or_else(array_dims_error)?.into();
 			shirink(dim);
 			if let Value::Int(v) = value {
-				if v <= 0 {
-					return Err(non_positive_dim_length());
+				if v < 0 {
+					return Err(negative_dim_length());
 				}
 				dim_list.push(v as usize);
 			} else {
@@ -55,9 +56,11 @@ impl Visitor for Namer {
 	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
 		self.ctx.push();
 		self.ctx.extern_init(&mut self.mgr);
+		self.is_global = true;
 		for v in node.global_vars.iter_mut() {
 			v.accept(self)?;
 		}
+		self.is_global = false;
 		for v in node.functions.iter_mut() {
 			v.accept(self)?;
 		}
@@ -84,7 +87,7 @@ impl Visitor for Namer {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let (is_const, btype) = self.decl_type.unwrap();
 		let var_type: VarType = (!is_const, btype, &dim_list).into();
-		let symbol = self.mgr.new_var_symbol(&node.ident, var_type);
+		let symbol = self.mgr.new_var_symbol(&node.ident, var_type, self.is_global);
 		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol.clone())?;
 		if let Some(init) = node.init.as_mut() {
@@ -139,7 +142,12 @@ impl Visitor for Namer {
 					array.push(value.to_type(btype)?);
 				};
 			}
-			let size = self.cur_size() - array.len();
+			let size = if array.is_empty() {
+				self.cur_size()
+			} else {
+				let len = self.cur_size();
+				(len - array.len() % len) % len
+			};
 			array.extend((0..size).map(|_| btype.to_value()));
 			let value: Value = (self.cur_dims(), array).into();
 			node.set_attr("value", value.into());
@@ -204,7 +212,7 @@ impl Visitor for Namer {
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let var_type: VarType = (true, node.type_t, &dim_list).into();
-		let symbol = self.mgr.new_var_symbol(&node.ident, var_type.clone());
+		let symbol = self.mgr.new_var_symbol(&node.ident, var_type.clone(), false);
 		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol)?;
 		node.set_attr("type", var_type.into());

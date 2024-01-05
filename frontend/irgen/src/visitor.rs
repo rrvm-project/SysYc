@@ -19,6 +19,8 @@ use crate::{
 	symbol_table::SymbolTable, utils::*,
 };
 
+pub type Item = (LlvmCFG, Option<Value>, Option<Value>);
+
 #[derive(Default)]
 pub struct IRGenerator {
 	pub total: i32,
@@ -26,7 +28,7 @@ pub struct IRGenerator {
 	pub mgr: TempManager,
 	pub program: LlvmProgram,
 	pub symbol_table: SymbolTable,
-	pub stack: Vec<(LlvmCFG, Option<Value>, Option<Value>)>,
+	pub stack: Vec<Item>,
 	pub states: Vec<LoopState>,
 	pub weights: Vec<f64>,
 	pub is_global: bool,
@@ -75,7 +77,7 @@ impl Visitor for IRGenerator {
 			ret_type: var_type,
 			params,
 		});
-		self.symbol_table.pop();
+		let _ = self.symbol_table.drop();
 		Ok(())
 	}
 
@@ -97,23 +99,38 @@ impl Visitor for IRGenerator {
 		if let Some(init) = node.init.as_mut() {
 			self.symbol_table.set(symbol.id, var_type.default_value());
 			if symbol.var_type.is_array() {
-				let temp = self.mgr.new_temp(var_type, false);
+				let mut temp = self.mgr.new_temp(var_type, false);
 				let length = symbol.var_type.dims.iter().product::<usize>();
-				self.init_state = Some(InitlistState::new(
-					var_type,
-					symbol.var_type.dims,
-					temp.clone(),
-				));
-				init.accept(self)?;
-				let (cfg, _, _) = self.stack.pop().unwrap();
+				self.init_state =
+					Some(InitlistState::new(var_type, symbol.var_type.dims));
+				self.symbol_table.set(symbol.id, temp.clone().into());
+				let mut now = self.new_cfg();
 				let instr = Box::new(AllocInstr {
 					target: temp.clone(),
 					length: ((length * var_type.deref_type().get_size()) as i32).into(),
 					var_type,
 				});
-				cfg.get_entry().borrow_mut().instrs.insert(0, instr);
-				self.symbol_table.set(symbol.id, temp.into());
-				self.stack.push((cfg, None, None));
+				now.get_entry().borrow_mut().push(instr);
+				init.accept(self)?;
+				let _ = self.stack.pop().unwrap();
+				for (mut cfg, value, addr) in self.pop() {
+					let value = self.solve(value, addr, &mut cfg);
+					let new_temp = self.mgr.new_temp(var_type, false);
+					cfg.get_exit().borrow_mut().push(Box::new(StoreInstr {
+						value,
+						addr: temp.clone().into(),
+					}));
+					cfg.get_exit().borrow_mut().push(Box::new(GEPInstr {
+						target: new_temp.clone(),
+						var_type,
+						addr: temp.into(),
+						offset: (var_type.deref_type().get_size() as i32).into(),
+					}));
+					link_cfg(&now, &cfg);
+					now.append(cfg);
+					temp = new_temp;
+				}
+				self.stack.push((now, None, None));
 			} else {
 				init.accept(self)?;
 				let (mut cfg, value, addr) = self.stack.pop().unwrap();
@@ -160,26 +177,40 @@ impl Visitor for IRGenerator {
 	}
 
 	fn visit_init_val_list(&mut self, node: &mut InitValList) -> Result<()> {
-		let mut cfgs = Vec::new();
+		let cur_len = self.cur_size();
 		self.push();
-		let size = self.cur_size();
+		let len = self.cur_size();
 		for val in node.val_list.iter_mut() {
 			val.accept(self)?;
 			let (mut cfg, value, addr) = self.stack.pop().unwrap();
 			match (&value, &addr) {
-				(None, None) => self.assign(size, &mut cfg),
+				(None, None) => {
+					let array = self.pop();
+					let size = (len - array.len() % len) % len;
+					for _ in 0..size {
+						let item = (self.new_cfg(), Some(self.default_init_val()), None);
+						self.store(item);
+					}
+					array.into_iter().for_each(|item| self.store(item));
+				}
 				_ => {
 					let value = self.solve(value, addr, &mut cfg);
-					self.store(value, &mut cfg)
+					self.store((cfg, Some(value), None));
 				}
 			}
-			cfgs.push(cfg);
 		}
-		self.pop();
-		let mut cfg = self.fold_cfgs(cfgs);
-		let size = self.cur_size();
-		self.assign(size, &mut cfg);
-		self.stack.push((cfg, None, None));
+		let top_len = self.top_len();
+		let size = if top_len == 0 {
+			cur_len
+		} else {
+			(cur_len - top_len % cur_len) % cur_len
+		};
+		for _ in 0..size {
+			let item = (self.new_cfg(), Some(self.default_init_val()), None);
+			self.store(item);
+		}
+		let item = (self.new_cfg(), None, None);
+		self.stack.push(item);
 		Ok(())
 	}
 
@@ -239,7 +270,9 @@ impl Visitor for IRGenerator {
 				}
 				if let Some(symbol) = node.lhs.get_attr("symbol") {
 					let symbol: VarSymbol = symbol.into();
-					self.symbol_table.set(symbol.id, val.clone());
+					if !symbol.is_global {
+						self.symbol_table.set(symbol.id, val.clone());
+					}
 				}
 				link_cfg(&lcfg, &rcfg);
 				lcfg.append(rcfg);

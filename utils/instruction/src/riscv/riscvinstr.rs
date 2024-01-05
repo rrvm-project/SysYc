@@ -36,8 +36,11 @@ pub trait RiscvInstrTrait:
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		Vec::new()
 	}
-	fn get_label(&self) -> Label {
-		unreachable!()
+	fn get_read_label(&self) -> Option<Label> {
+		None
+	}
+	fn get_write_label(&self) -> Option<Label> {
+		None
 	}
 	fn is_move(&self) -> bool {
 		false

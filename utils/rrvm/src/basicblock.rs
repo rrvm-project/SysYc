@@ -126,13 +126,14 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 	pub fn init(&mut self) {
 		for instr in self.instrs.iter().chain(self.jump_instr.iter()) {
 			for temp in instr.get_read() {
-				self.uses.insert(temp);
+				if !self.defs.contains(&temp) {
+					self.uses.insert(temp);
+				}
 			}
 			if let Some(temp) = instr.get_write() {
 				self.defs.insert(temp);
 			}
 		}
-		self.uses.retain(|v| !self.defs.contains(v));
 	}
 	pub fn calc_kill(&mut self) {
 		let lives: HashSet<_> = self.defs.union(&self.live_in).cloned().collect();
@@ -194,7 +195,7 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 		if self.succ.is_empty() {
 			return;
 		}
-		let label = self.jump_instr.as_ref().unwrap().get_label();
+		let label = self.jump_instr.as_ref().unwrap().get_read_label().unwrap();
 		let now_label = self.label();
 		let now = self as *const BasicBlock<_, _>;
 		let (left, right) = self

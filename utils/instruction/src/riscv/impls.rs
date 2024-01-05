@@ -33,7 +33,8 @@ impl RiscvInstrTrait for RTriInstr {
 		vec![self.rd]
 	}
 	fn is_move(&self) -> bool {
-		self.op == Add && (self.rs1.is_zero() || self.rs2.is_zero())
+		matches!(self.op, Add | Addw | Or | Xor)
+			&& (self.rs1.is_zero() || self.rs2.is_zero())
 	}
 	fn move_sp(&self, _height: &mut i32) {
 		if let (Add, PhysReg(SP), PhysReg(SP), _) =
@@ -44,17 +45,11 @@ impl RiscvInstrTrait for RTriInstr {
 	}
 	fn useless(&self) -> bool {
 		match (&self.op, &self.rd, &self.rs1, &self.rs2) {
-			(Add, PhysReg(x), PhysReg(y), PhysReg(z))
+			(Add | Addw | Xor | Or, PhysReg(x), PhysReg(y), PhysReg(z))
 				if x == y && *z == X0 || x == z && *y == X0 =>
 			{
 				true
 			}
-			(Xor, PhysReg(x), PhysReg(y), PhysReg(z))
-				if x == y && *z == X0 || x == z && *y == X0 =>
-			{
-				true
-			}
-			(Or, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
 			(Srl, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
 			(Sra, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
 			(Slt, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
@@ -191,11 +186,11 @@ impl Display for LabelInstr {
 }
 
 impl RiscvInstrTrait for LabelInstr {
-	fn get_label(&self) -> Label {
-		self.label.clone()
-	}
 	fn map_label(&mut self, map: &mut LabelMapper) {
 		map_label(&mut self.label, map);
+	}
+	fn get_write_label(&self) -> Option<Label> {
+		Some(self.label.clone())
 	}
 }
 
@@ -256,9 +251,9 @@ impl RiscvInstrTrait for BranInstr {
 	fn map_label(&mut self, map: &mut LabelMapper) {
 		map_imm_label(&mut self.to, map);
 	}
-	fn get_label(&self) -> Label {
+	fn get_read_label(&self) -> Option<Label> {
 		match &self.to {
-			RiscvImm::Label(label) => label.clone(),
+			RiscvImm::Label(label) => Some(label.clone()),
 			_ => unreachable!(),
 		}
 	}

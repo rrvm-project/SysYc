@@ -95,12 +95,23 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 	})
 }
 
-pub fn transform_basicblock(
+fn _transform_basicblock_by_dag(
 	node: &LlvmNode,
 	mgr: &mut TempManager,
 ) -> Result<RiscvNode> {
 	let instr_dag = InstrDag::new(&node.borrow().instrs, mgr)?;
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
 	block.instrs = instr_schedule(instr_dag)?;
+	Ok(Rc::new(RefCell::new(block)))
+}
+
+fn transform_basicblock(
+	node: &LlvmNode,
+	mgr: &mut TempManager,
+) -> Result<RiscvNode> {
+	let instrs: Result<Vec<_>, _> =
+		node.borrow().instrs.iter().map(|v| to_riscv(v, mgr)).collect();
+	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
+	block.instrs = instrs?.into_iter().flatten().collect();
 	Ok(Rc::new(RefCell::new(block)))
 }

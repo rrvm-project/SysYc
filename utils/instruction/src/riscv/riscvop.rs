@@ -90,6 +90,8 @@ pub enum RBinInstrOp {
 	Int2Float,
 	#[style("fcvt.w.s")]
 	Float2Int,
+	#[style("sext.w")]
+	Sextw,
 }
 
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
@@ -111,6 +113,7 @@ pub fn can_to_iop(op: &ArithOp) -> bool {
 	matches!(
 		op,
 		ArithOp::Add
+			| ArithOp::AddD
 			| ArithOp::Shl
 			| ArithOp::Lshr
 			| ArithOp::Ashr
@@ -122,6 +125,7 @@ pub fn can_to_iop(op: &ArithOp) -> bool {
 
 pub fn to_iop(op: &ArithOp) -> ITriInstrOp {
 	match op {
+		ArithOp::AddD => Addi,
 		ArithOp::Add => Addiw,
 		ArithOp::Shl => Slli,
 		ArithOp::Lshr => Srli,
@@ -135,8 +139,8 @@ pub fn to_iop(op: &ArithOp) -> ITriInstrOp {
 
 pub fn to_rop(op: &ArithOp) -> RTriInstrOp {
 	match op {
-		ArithOp::Add => Add,
-		ArithOp::Sub => Sub,
+		ArithOp::Add => Addw,
+		ArithOp::Sub => Subw,
 		ArithOp::Mul => Mulw,
 		ArithOp::Div => Divw,
 		ArithOp::Rem => Remw,

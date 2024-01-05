@@ -64,19 +64,12 @@ pub fn func_emission(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	let name = func.name;
 	let mut prelude = Vec::new();
 	let mut exit = vec![LabelInstr::new(Label::new("exit"))];
-	// for instr in instrs.iter() {
-	// 	eprintln!("{} {:?}", instr, instr.get_riscv_write());
-	// }
-	// let temp_arr = instrs
-	// .iter()
-	// .flat_map(|v| v.get_riscv_write());
 	let saves: HashSet<_> = instrs
 		.iter()
 		.flat_map(|v| v.get_riscv_write())
 		.filter_map(|v| v.get_phys())
 		.filter(|v| CALLEE_SAVE.iter().any(|reg| reg == v))
 		.collect();
-	// eprintln!("{name}: {:?}", (saves.len() as i32 + func.spills + 1) & !1);
 	let size = ((saves.len() as i32 + func.spills + 1) & !1) * 8;
 	if size > 0 {
 		prelude.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
@@ -96,7 +89,11 @@ pub fn func_emission(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	for instr in instrs.iter_mut().filter(|v| v.is_ret()) {
 		*instr = BranInstr::new(Beq, X0.into(), X0.into(), exit_addr.clone());
 	}
-	instrs.pop();
+	if let Some(instr) = instrs.last() {
+		if instr.get_read_label() == Some(Label::new("exit")) {
+			instrs.pop();
+		}
+	}
 	prelude.extend(instrs);
 	prelude.extend(exit);
 	(name, prelude)

@@ -40,6 +40,7 @@ impl InterferenceGraph {
 				);
 			}};
 		}
+		cfg.analysis();
 
 		for node in cfg.blocks.iter() {
 			let mut now = node.borrow().live_in.clone();
