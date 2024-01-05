@@ -68,7 +68,7 @@ pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
 }
 
-#[derive(Fuyuki, Clone, Copy, Debug, PartialEq, Hash)]
+#[derive(Fuyuki, Clone, Copy, Debug, PartialEq, Hash, Eq)]
 pub enum ArithOp {
 	Add,
 	Sub,

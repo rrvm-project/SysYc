@@ -261,9 +261,10 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 			get_simple_lvn_value(instr, rewrite)
 		{
 			if let Some(value) = table.get(&lvn_value) {
-				rewrite.insert(target, value.clone());
+				rewrite.insert(target, try_rewrite(value.clone(), rewrite));
 			} else {
 				let value_try = try_const(&lvn_value, target.clone());
+				let value_try = try_rewrite(value_try, rewrite);
 				table.insert(lvn_value, value_try.clone());
 				if value_try.is_num() {
 					rewrite.insert(target, value_try);
@@ -285,7 +286,7 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 		{
 			temp_to_vec.insert(target.clone(), lvn_value.clone());
 			if let Some(value) = vec_table.get(&lvn_value) {
-				rewrite.insert(target, value.clone());
+				rewrite.insert(target, try_rewrite(value.clone(), rewrite));
 			} else if let Some(const_value) = check_all_equal(&lvn_value) {
 				rewrite.insert(target, Value::Int(const_value));
 				vec_table.insert(lvn_value, Value::Int(const_value));
