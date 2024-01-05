@@ -62,7 +62,7 @@ impl Optimizer2 {
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUselessCode::new().apply(program)?;
+
 			flag |= RemoveUnreachCode::new().apply(program)?;
 
 			if let Ok(val) = std::env::var("beta") {
@@ -70,11 +70,15 @@ impl Optimizer2 {
 					flag |= FuyukiLocalValueNumber::new().apply(program)?;
 				}
 			}
+
+			flag |= RemoveUselessCode::new().apply(program)?;
+
 			if !flag {
 				break;
 			}
 		}
 		program.analysis();
+
 		Ok(())
 	}
 }
