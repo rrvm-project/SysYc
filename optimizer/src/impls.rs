@@ -64,14 +64,13 @@ impl Optimizer2 {
 			flag |= RemoveDeadCode::new().apply(program)?;
 
 			flag |= RemoveUnreachCode::new().apply(program)?;
+			flag |= RemoveUselessCode::new().apply(program)?;
 
 			if let Ok(val) = std::env::var("beta") {
 				if val != "n" {
 					flag |= FuyukiLocalValueNumber::new().apply(program)?;
 				}
 			}
-
-			flag |= RemoveUselessCode::new().apply(program)?;
 
 			if !flag {
 				break;
