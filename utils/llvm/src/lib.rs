@@ -1,3 +1,4 @@
+pub mod calc;
 pub mod llvminstr;
 pub mod llvmop;
 pub mod llvmvar;
