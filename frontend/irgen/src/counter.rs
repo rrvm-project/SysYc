@@ -36,7 +36,7 @@ impl Visitor for Counter {
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
-		if !symbol.is_global {
+		if !symbol.is_global && !symbol.var_type.is_array() {
 			self.symbols.push(symbol.id);
 		}
 		Ok(())

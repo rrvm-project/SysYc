@@ -309,7 +309,6 @@ pub fn riscv_call(
 
 	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-112).into()));
 	CALLER_SAVE.iter().skip(1).enumerate().for_each(|(index, &reg)| {
-		// TODO: 使用寄存器进行 caller-saved
 		let instr =
 			IBinInstr::new(SD, reg.into(), ((index * 8) as i32, SP.into()).into());
 		instrs.push(instr);

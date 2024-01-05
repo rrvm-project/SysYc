@@ -40,37 +40,23 @@ impl InterferenceGraph {
 				);
 			}};
 		}
+		cfg.blocks.iter().for_each(|v| v.borrow_mut().clear_data_flow());
 		cfg.analysis();
 
 		for node in cfg.blocks.iter() {
-			let mut now = node.borrow().live_in.clone();
-			for instr in node.borrow_mut().instrs.iter_mut() {
-				if let Some(temp) = instr.get_write() {
-					if instr.set_start(!now.contains(&temp)) {
-						now.insert(temp);
-					}
-				}
-			}
 			let weight = node.borrow().weight;
 			let mut now = node.borrow().live_out.clone();
-			// eprintln!("{} {:?}", node.borrow().id, now);
 			let mut last_end = HashSet::new();
 			for instr in node.borrow().instrs.iter().rev() {
 				// calc graph
-				if instr.is_start() {
-					instr.get_write().iter().for_each(|v| {
-						if !now.remove(v) {
-							edge_extend!(Some(v), &now);
-						}
-					});
-				}
+				edge_extend!(&instr.get_write(), &now);
 				edge_extend!(&instr.get_read(), &now);
-				edge_extend!(&instr.get_read(), &instr.get_read());
 				// calc spill cost
 				if let Some(temp) = instr.get_write() {
 					if last_end.contains(&temp) {
 						*graph.spill_cost.entry(temp).or_default() = INFINITY;
 					}
+					now.remove(&temp);
 					graph.temps.push(temp);
 					*graph.spill_cost.entry(temp).or_default() += weight;
 				}
@@ -87,7 +73,6 @@ impl InterferenceGraph {
 				// calc benefit of merge & precolor
 				graph.calc_w(instr, weight);
 			}
-			edge_extend!(&now, &now);
 		}
 		graph.edges =
 			graph.edges.into_iter().collect::<HashSet<_>>().into_iter().collect();

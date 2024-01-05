@@ -1,5 +1,5 @@
 use std::{collections::HashMap, fmt::Display};
-use sysyc_derive::{has_riscv_attrs, UseTemp};
+use sysyc_derive::UseTemp;
 use utils::{mapper::LabelMapper, InstrTrait, Label, UseTemp};
 
 use crate::temp::Temp;
@@ -7,11 +7,6 @@ use crate::temp::Temp;
 use super::{riscvop::*, value::*};
 
 pub type RiscvInstr = Box<dyn RiscvInstrTrait>;
-
-pub trait RiscvAttr {
-	fn is_start(&self) -> bool;
-	fn set_start(&mut self, val: bool) -> bool;
-}
 
 pub trait CloneRiscvInstr {
 	fn clone_box(&self) -> Box<dyn RiscvInstrTrait>;
@@ -26,9 +21,7 @@ where
 	}
 }
 
-pub trait RiscvInstrTrait:
-	Display + UseTemp<Temp> + RiscvAttr + CloneRiscvInstr
-{
+pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 	fn map_temp(&mut self, _map: &HashMap<Temp, RiscvTemp>) {}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		Vec::new()
@@ -73,7 +66,6 @@ impl InstrTrait<Temp> for RiscvInstr {
 	}
 }
 
-#[has_riscv_attrs]
 #[derive(UseTemp, Clone)]
 pub struct RTriInstr {
 	pub op: RTriInstrOp,
@@ -82,7 +74,6 @@ pub struct RTriInstr {
 	pub rs2: RiscvTemp,
 }
 
-#[has_riscv_attrs]
 #[derive(UseTemp, Clone)]
 pub struct ITriInstr {
 	pub op: ITriInstrOp,
@@ -91,7 +82,6 @@ pub struct ITriInstr {
 	pub rs2: RiscvImm,
 }
 
-#[has_riscv_attrs]
 #[derive(UseTemp, Clone)]
 pub struct IBinInstr {
 	pub op: IBinInstrOp,
@@ -99,7 +89,6 @@ pub struct IBinInstr {
 	pub rs1: RiscvImm,
 }
 
-#[has_riscv_attrs]
 #[derive(UseTemp, Clone)]
 pub struct RBinInstr {
 	pub op: RBinInstrOp,
@@ -107,13 +96,11 @@ pub struct RBinInstr {
 	pub rs1: RiscvTemp,
 }
 
-#[has_riscv_attrs]
 #[derive(UseTemp, Clone)]
 pub struct LabelInstr {
 	pub label: Label,
 }
 
-#[has_riscv_attrs]
 #[derive(UseTemp, Clone)]
 pub struct BranInstr {
 	pub op: BranInstrOp,
@@ -122,13 +109,11 @@ pub struct BranInstr {
 	pub to: RiscvImm,
 }
 
-#[has_riscv_attrs]
 #[derive(UseTemp, Clone)]
 pub struct NoArgInstr {
 	pub op: NoArgInstrOp,
 }
 
-#[has_riscv_attrs]
 #[derive(UseTemp, Clone)]
 pub struct CallInstr {
 	pub func_label: Label,

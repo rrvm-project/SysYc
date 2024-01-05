@@ -45,15 +45,10 @@ impl RiscvInstrTrait for RTriInstr {
 	}
 	fn useless(&self) -> bool {
 		match (&self.op, &self.rd, &self.rs1, &self.rs2) {
-			(Add | Addw | Xor | Or, PhysReg(x), PhysReg(y), PhysReg(z))
-				if x == y && *z == X0 || x == z && *y == X0 =>
-			{
-				true
+			(Add | Addw | Xor | Or, PhysReg(x), PhysReg(y), PhysReg(z)) => {
+				x == y && *z == X0 || x == z && *y == X0
 			}
-			(Srl, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
-			(Sra, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
-			(Slt, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
-			(Sltu, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
+			(Srl | Sra | Slt | Sltu, PhysReg(x), PhysReg(y), PhysReg(X0)) => x == y,
 			_ => false,
 		}
 	}
@@ -66,13 +61,7 @@ impl RTriInstr {
 		rs1: RiscvTemp,
 		rs2: RiscvTemp,
 	) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-			rs1,
-			rs2,
-			rd,
-		})
+		Box::new(Self { op, rs1, rs2, rd })
 	}
 }
 
@@ -124,13 +113,7 @@ impl ITriInstr {
 		rs1: RiscvTemp,
 		rs2: RiscvImm,
 	) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-			rs1,
-			rs2,
-			rd,
-		})
+		Box::new(Self { op, rs1, rs2, rd })
 	}
 }
 
@@ -170,12 +153,7 @@ impl RiscvInstrTrait for IBinInstr {
 
 impl IBinInstr {
 	pub fn new(op: IBinInstrOp, rd: RiscvTemp, rs1: RiscvImm) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-			rs1,
-			rd,
-		})
+		Box::new(Self { op, rs1, rd })
 	}
 }
 
@@ -196,10 +174,7 @@ impl RiscvInstrTrait for LabelInstr {
 
 impl LabelInstr {
 	pub fn new(label: Label) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			label,
-		})
+		Box::new(Self { label })
 	}
 }
 
@@ -224,12 +199,7 @@ impl RiscvInstrTrait for RBinInstr {
 
 impl RBinInstr {
 	pub fn new(op: RBinInstrOp, rd: RiscvTemp, rs1: RiscvTemp) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-			rs1,
-			rd,
-		})
+		Box::new(Self { op, rs1, rd })
 	}
 }
 
@@ -266,13 +236,7 @@ impl BranInstr {
 		rs2: RiscvTemp,
 		to: RiscvImm,
 	) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-			rs1,
-			rs2,
-			to,
-		})
+		Box::new(Self { op, rs1, rs2, to })
 	}
 }
 
@@ -290,10 +254,7 @@ impl RiscvInstrTrait for NoArgInstr {
 
 impl NoArgInstr {
 	pub fn new(op: NoArgInstrOp) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-		})
+		Box::new(Self { op })
 	}
 }
 
@@ -318,7 +279,6 @@ impl RiscvInstrTrait for CallInstr {
 impl CallInstr {
 	pub fn new(func_label: Label) -> RiscvInstr {
 		Box::new(Self {
-			is_start: false,
 			func_label,
 			params: Vec::new(),
 		})
