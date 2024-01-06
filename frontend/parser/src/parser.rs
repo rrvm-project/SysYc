@@ -68,6 +68,13 @@ fn parse_dim_list(pair: Pair<Rule>) -> NodeList {
 	pair.into_inner().map(parse_expr).collect()
 }
 
+fn to_block(node: Node) -> Node {
+	Box::new(Block {
+		_attrs: HashMap::new(),
+		stmts: vec![node],
+	})
+}
+
 lazy_static::lazy_static! {
 	static ref PRATT_PARSER: PrattParser<Rule> = {
 		use pest::pratt_parser::{Assoc::*, Op};
@@ -257,8 +264,8 @@ fn parse_if_stmt(pair: Pair<Rule>) -> Node {
 	let if_stmt = If {
 		_attrs: HashMap::new(),
 		cond: parse_expr(pairs.next().unwrap()),
-		body: parse_stmt(pairs.next().unwrap()),
-		then: pairs.next().map(parse_stmt),
+		body: to_block(parse_stmt(pairs.next().unwrap())),
+		then: pairs.next().map(parse_stmt).map(to_block),
 	};
 	Box::new(if_stmt)
 }
@@ -268,7 +275,7 @@ fn parse_while_stmt(pair: Pair<Rule>) -> Node {
 	let while_stmt = While {
 		_attrs: HashMap::new(),
 		cond: parse_expr(pairs.next().unwrap()),
-		body: parse_stmt(pairs.next().unwrap()),
+		body: to_block(parse_stmt(pairs.next().unwrap())),
 	};
 	Box::new(while_stmt)
 }
@@ -282,16 +289,25 @@ fn parse_return(pair: Pair<Rule>) -> Node {
 }
 
 fn parse_stmt(pair: Pair<Rule>) -> Node {
-	let pair = pair.into_inner().next().unwrap();
-	match pair.as_rule() {
-		Rule::Expr => parse_expr(pair),
-		Rule::Block => parse_block(pair),
-		Rule::IfStmt => parse_if_stmt(pair),
-		Rule::WhileStmt => parse_while_stmt(pair),
-		Rule::Break => Box::<Break>::default(),
-		Rule::Continue => Box::<Continue>::default(),
-		Rule::Return => parse_return(pair),
-		_ => unreachable!(),
+	let pair = pair.into_inner().next();
+	fn parse_unwrap_stmt(pair: Pair<Rule>) -> Node {
+		match pair.as_rule() {
+			Rule::Expr => parse_expr(pair),
+			Rule::Block => parse_block(pair),
+			Rule::IfStmt => parse_if_stmt(pair),
+			Rule::WhileStmt => parse_while_stmt(pair),
+			Rule::Break => Box::<Break>::default(),
+			Rule::Continue => Box::<Continue>::default(),
+			Rule::Return => parse_return(pair),
+			_ => unreachable!(),
+		}
+	}
+	match pair {
+		Some(pair) => parse_unwrap_stmt(pair),
+		None => Box::new(Block {
+			_attrs: HashMap::new(),
+			stmts: Vec::new(),
+		}),
 	}
 }
 

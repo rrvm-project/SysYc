@@ -13,7 +13,7 @@ pub fn is_lower(x: i32) -> bool {
 	RISCV_IMM_MIN < x && x < RISCV_IMM_MAX
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum RiscvTemp {
 	VirtReg(Temp),
 	PhysReg(RiscvReg),
@@ -81,6 +81,12 @@ impl RiscvTemp {
 	}
 	pub fn is_virtual(&self) -> bool {
 		matches!(self, VirtReg(_))
+	}
+	pub fn get_phys(&self) -> Option<RiscvReg> {
+		match self {
+			VirtReg(_) => None,
+			PhysReg(v) => Some(*v),
+		}
 	}
 }
 

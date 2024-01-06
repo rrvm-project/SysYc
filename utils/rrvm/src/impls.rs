@@ -62,6 +62,7 @@ impl<T: InstrTrait<U>, U: TempTrait> RrvmProgram<T, U> {
 impl LlvmProgram {
 	pub fn analysis(&mut self) {
 		for func in self.funcs.iter() {
+			func.cfg.clear_data_flow();
 			func.cfg.init_phi();
 			func.cfg.analysis();
 		}

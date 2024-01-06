@@ -1,6 +1,6 @@
 use utils::SysycError::{self, *};
 
-pub fn non_positive_dim_length() -> SysycError {
+pub fn negative_dim_length() -> SysycError {
 	TypeError("The size of array must be positive".to_string())
 }
 

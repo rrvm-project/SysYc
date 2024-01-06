@@ -14,11 +14,13 @@ impl SymbolManager {
 		&mut self,
 		ident: impl Display,
 		var_type: VarType,
+		is_global: bool,
 	) -> VarSymbol {
 		self.cnt += 1;
 		Symbol {
 			id: self.cnt,
 			var_type,
+			is_global,
 			ident: format!("{} {}", ident, self.cnt),
 		}
 	}
@@ -31,6 +33,7 @@ impl SymbolManager {
 		Symbol {
 			id: self.cnt,
 			var_type,
+			is_global: true,
 			ident: ident.to_string(),
 		}
 	}

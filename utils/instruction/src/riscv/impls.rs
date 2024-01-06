@@ -33,7 +33,8 @@ impl RiscvInstrTrait for RTriInstr {
 		vec![self.rd]
 	}
 	fn is_move(&self) -> bool {
-		self.op == Add && (self.rs1.is_zero() || self.rs2.is_zero())
+		matches!(self.op, Add | Addw | Or | Xor)
+			&& (self.rs1.is_zero() || self.rs2.is_zero())
 	}
 	fn move_sp(&self, _height: &mut i32) {
 		if let (Add, PhysReg(SP), PhysReg(SP), _) =
@@ -44,21 +45,10 @@ impl RiscvInstrTrait for RTriInstr {
 	}
 	fn useless(&self) -> bool {
 		match (&self.op, &self.rd, &self.rs1, &self.rs2) {
-			(Add, PhysReg(x), PhysReg(y), PhysReg(z))
-				if x == y && *z == X0 || x == z && *y == X0 =>
-			{
-				true
+			(Add | Addw | Xor | Or, PhysReg(x), PhysReg(y), PhysReg(z)) => {
+				x == y && *z == X0 || x == z && *y == X0
 			}
-			(Xor, PhysReg(x), PhysReg(y), PhysReg(z))
-				if x == y && *z == X0 || x == z && *y == X0 =>
-			{
-				true
-			}
-			(Or, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
-			(Srl, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
-			(Sra, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
-			(Slt, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
-			(Sltu, PhysReg(x), PhysReg(y), PhysReg(X0)) if x == y => true,
+			(Srl | Sra | Slt | Sltu, PhysReg(x), PhysReg(y), PhysReg(X0)) => x == y,
 			_ => false,
 		}
 	}
@@ -71,13 +61,7 @@ impl RTriInstr {
 		rs1: RiscvTemp,
 		rs2: RiscvTemp,
 	) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-			rs1,
-			rs2,
-			rd,
-		})
+		Box::new(Self { op, rs1, rs2, rd })
 	}
 }
 
@@ -129,13 +113,7 @@ impl ITriInstr {
 		rs1: RiscvTemp,
 		rs2: RiscvImm,
 	) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-			rs1,
-			rs2,
-			rd,
-		})
+		Box::new(Self { op, rs1, rs2, rd })
 	}
 }
 
@@ -175,12 +153,7 @@ impl RiscvInstrTrait for IBinInstr {
 
 impl IBinInstr {
 	pub fn new(op: IBinInstrOp, rd: RiscvTemp, rs1: RiscvImm) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-			rs1,
-			rd,
-		})
+		Box::new(Self { op, rs1, rd })
 	}
 }
 
@@ -191,20 +164,17 @@ impl Display for LabelInstr {
 }
 
 impl RiscvInstrTrait for LabelInstr {
-	fn get_label(&self) -> Label {
-		self.label.clone()
-	}
 	fn map_label(&mut self, map: &mut LabelMapper) {
 		map_label(&mut self.label, map);
+	}
+	fn get_write_label(&self) -> Option<Label> {
+		Some(self.label.clone())
 	}
 }
 
 impl LabelInstr {
 	pub fn new(label: Label) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			label,
-		})
+		Box::new(Self { label })
 	}
 }
 
@@ -229,12 +199,7 @@ impl RiscvInstrTrait for RBinInstr {
 
 impl RBinInstr {
 	pub fn new(op: RBinInstrOp, rd: RiscvTemp, rs1: RiscvTemp) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-			rs1,
-			rd,
-		})
+		Box::new(Self { op, rs1, rd })
 	}
 }
 
@@ -256,9 +221,9 @@ impl RiscvInstrTrait for BranInstr {
 	fn map_label(&mut self, map: &mut LabelMapper) {
 		map_imm_label(&mut self.to, map);
 	}
-	fn get_label(&self) -> Label {
+	fn get_read_label(&self) -> Option<Label> {
 		match &self.to {
-			RiscvImm::Label(label) => label.clone(),
+			RiscvImm::Label(label) => Some(label.clone()),
 			_ => unreachable!(),
 		}
 	}
@@ -271,13 +236,7 @@ impl BranInstr {
 		rs2: RiscvTemp,
 		to: RiscvImm,
 	) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-			rs1,
-			rs2,
-			to,
-		})
+		Box::new(Self { op, rs1, rs2, to })
 	}
 }
 
@@ -295,22 +254,22 @@ impl RiscvInstrTrait for NoArgInstr {
 
 impl NoArgInstr {
 	pub fn new(op: NoArgInstrOp) -> RiscvInstr {
-		Box::new(Self {
-			is_start: false,
-			op,
-		})
+		Box::new(Self { op })
 	}
 }
 
 impl Display for CallInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "  jal ra, {}", self.func_label)
+		write!(f, "  call {}", self.func_label)
 	}
 }
 
 impl RiscvInstrTrait for CallInstr {
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		self.params.clone()
+	}
+	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
+		vec![RA.into(), A0.into()]
 	}
 	fn is_call(&self) -> bool {
 		true
@@ -320,7 +279,6 @@ impl RiscvInstrTrait for CallInstr {
 impl CallInstr {
 	pub fn new(func_label: Label) -> RiscvInstr {
 		Box::new(Self {
-			is_start: false,
 			func_label,
 			params: Vec::new(),
 		})

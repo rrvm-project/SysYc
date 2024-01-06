@@ -4,7 +4,7 @@ use utils::TempTrait;
 
 use crate::riscv::{reg::RiscvReg, value::RiscvTemp};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Debug)]
 pub struct Temp {
 	pub id: i32,
 	pub pre_color: Option<RiscvReg>,

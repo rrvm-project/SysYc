@@ -1,24 +1,21 @@
-use crate::symbol_table::SymbolTable;
 use ast::*;
 use attr::Attrs;
 use rrvm_symbol::VarSymbol;
 use utils::errors::Result;
 
-pub struct Counter<'a> {
+pub struct Counter {
 	pub symbols: Vec<i32>,
-	pub symbol_table: &'a SymbolTable,
 }
 
-impl<'a> Counter<'a> {
-	pub fn new(symbol_table: &'a SymbolTable) -> Self {
+impl Counter {
+	pub fn new() -> Self {
 		Self {
 			symbols: Vec::new(),
-			symbol_table,
 		}
 	}
 }
 
-impl<'a> Visitor for Counter<'a> {
+impl Visitor for Counter {
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		if let Some(init) = node.init.as_mut() {
 			init.accept(self)?;
@@ -39,8 +36,7 @@ impl<'a> Visitor for Counter<'a> {
 	}
 	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
-		if self.symbol_table.get_option(&symbol.id).map_or(true, |v| !v.is_global())
-		{
+		if !symbol.is_global && !symbol.var_type.is_array() {
 			self.symbols.push(symbol.id);
 		}
 		Ok(())
@@ -71,7 +67,12 @@ impl<'a> Visitor for Counter<'a> {
 		Ok(())
 	}
 	fn visit_if(&mut self, node: &mut If) -> Result<()> {
-		node.cond.accept(self)
+		node.cond.accept(self)?;
+		node.body.accept(self)?;
+		if let Some(then) = node.then.as_mut() {
+			then.accept(self)?;
+		}
+		Ok(())
 	}
 	fn visit_while(&mut self, node: &mut While) -> Result<()> {
 		node.cond.accept(self)?;

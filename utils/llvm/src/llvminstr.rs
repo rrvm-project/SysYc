@@ -32,6 +32,9 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn new_jump(&self) -> Option<JumpInstr> {
 		None
 	}
+	fn get_label(&self) -> Label {
+		unreachable!()
+	}
 	fn is_load(&self) -> bool {
 		false
 	}

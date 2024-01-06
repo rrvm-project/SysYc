@@ -1,9 +1,13 @@
 use ::utils::mapper::LabelMapper;
 use rrvm::program::RiscvProgram;
 
-use crate::{label_mapper::map_label, serialize::func_serialize, utils::*};
+use crate::{
+	label_mapper::map_label, optimizer::remove_useless_label,
+	serialize::func_emission, utils::*,
+};
 
 mod label_mapper;
+mod optimizer;
 mod serialize;
 mod utils;
 
@@ -12,7 +16,8 @@ pub fn code_emission(program: RiscvProgram, file_name: String) -> String {
 	let funcs = program
 		.funcs
 		.into_iter()
-		.map(func_serialize)
+		.map(func_emission)
+		.map(|(name, instrs)| (name, remove_useless_label(instrs)))
 		.map(|(name, instrs)| format_func(name, map_label(instrs, &mut map)))
 		.collect::<Vec<_>>()
 		.join("\n");
@@ -21,11 +26,11 @@ pub fn code_emission(program: RiscvProgram, file_name: String) -> String {
 	let data = data.into_iter().map(format_data).collect::<Vec<_>>().join("\n");
 	let bss = bss.into_iter().map(format_bss).collect::<Vec<_>>().join("\n");
 	format!(
-		"{}\n{}\n{}{}  .ident {}\n",
+		"{}\n{}{}  .text\n{}\n  .ident {}\n",
 		program_head(file_name),
+		set_section("  .section	.sbss, \"aw\", @nobits", bss),
+		set_section("  .section	.sdata, \"aw\"", data),
 		funcs,
-		set_section("  .data", data),
-		set_section("  .bss", bss),
 		PROGRAM_IDENT
 	)
 }
