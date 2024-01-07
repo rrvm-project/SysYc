@@ -384,7 +384,6 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG, next_temp: u32) -> (bool, u32) {
 			cfg.analysis();
-			// println!("next_temp:{:?}", next_temp);
 			let mut temp_counter = next_temp;
 			// let mut current_out = HashSet::new();
 			let mut current_i32_calculation: HashMap<
@@ -395,7 +394,6 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 				current_i32_calculation.clear();
 				let mut new_instr = vec![];
 				for instr in &item.borrow_mut().instrs {
-					// println!("{:#}", &instr.get_variant());
 					let mut flag = true;
 
 					if let llvm::LlvmInstrVariant::ArithInstr(arith) =
@@ -463,7 +461,6 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 										}
 									}
 
-									// println!("{:#}", &instr);
 									temp_counter = add_expression_tree(
 										temp_counter,
 										&mut new_instr,
@@ -489,8 +486,6 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 				}
 
 				item.borrow_mut().instrs = new_instr;
-
-				// println!("in  :{:?}\n\n", &current_i32_calculation);
 			}
 			(false, temp_counter)
 		}
