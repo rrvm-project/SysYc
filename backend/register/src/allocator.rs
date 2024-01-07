@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use instruction::{
-	riscv::{reg::RiscvReg::FP, value::RiscvTemp::PhysReg},
-	temp::TempManager,
-};
+use instruction::{riscv::prelude::*, temp::TempManager};
 use rrvm::program::RiscvFunc;
 
 use crate::{graph::InterferenceGraph, spill::spill};

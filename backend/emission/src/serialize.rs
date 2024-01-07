@@ -1,19 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use instruction::{
-	riscv::{
-		reg::{
-			RiscvReg::{FP, SP, X0},
-			CALLEE_SAVE,
-		},
-		riscvinstr::{LabelInstr, *},
-		riscvop::{
-			BranInstrOp::Beq, IBinInstrOp::*, ITriInstrOp::Addi, NoArgInstrOp::Ret,
-		},
-		value::RiscvImm,
-	},
-	RiscvInstrSet,
-};
+use instruction::{riscv::prelude::*, RiscvInstrSet};
 use rrvm::{program::RiscvFunc, RiscvNode};
 use utils::{union_find::UnionFind, Label};
 

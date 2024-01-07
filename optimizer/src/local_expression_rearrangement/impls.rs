@@ -6,9 +6,7 @@ use std::collections::HashMap;
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::errors::Result;
 
-use llvm::{
-	llvmop::ArithOp, llvmvar::VarType, ArithInstr, LlvmInstrTrait, Temp, Value,
-};
+use llvm::{llvmop::ArithOp, llvmvar::VarType, *};
 
 #[derive(Debug, PartialEq)]
 enum ArithType {

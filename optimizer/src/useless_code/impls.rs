@@ -3,13 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use super::RemoveUselessCode;
 use crate::RrvmOptimizer;
 use llvm::{JumpInstr, Temp};
-use rrvm::{
-	dominator::{
-		dominator_frontier::compute_dominator_frontier, naive::compute_dominator,
-	},
-	program::LlvmProgram,
-	LlvmCFG, LlvmNode,
-};
+use rrvm::{dominator::*, program::LlvmProgram, LlvmCFG, LlvmNode};
 use utils::{errors::Result, UseTemp};
 
 impl RrvmOptimizer for RemoveUselessCode {

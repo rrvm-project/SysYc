@@ -17,7 +17,6 @@ impl RrvmOptimizer for RemoveDeadCode {
 			while let Some(u) = stack.pop() {
 				let id = u.borrow().id;
 				visited.insert(id);
-				//TODO: skip empty block
 				// remove unreachable branch
 				let new_jump = u.borrow().jump_instr.as_ref().unwrap().new_jump();
 				if let Some(instr) = new_jump {
