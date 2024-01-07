@@ -1,7 +1,6 @@
 # SysYc
 Compiler of Sysy2022, a programming language for ..what?
 
-
 ## 使用方法
 
 `cargo run -- <input_file>`，编译指定的文件。
@@ -20,8 +19,7 @@ Compiler of Sysy2022, a programming language for ..what?
 
 `-o`: 指定输出文件，未指定则在标准输出流输出。
 
-`-Ox`：指定优化方式/等级（未实现）
-
+`-Ox`：指定优化方式/等级（支持 `-O0`，`-O1`，`-O2` 三种优化等级，其中 `-O2` 可能产生错误）。
 
 ## Usage
 
@@ -41,4 +39,4 @@ An error occurs in case of no output mode is specified.
 
 `-o`: Specify the output file. Will output into standard output if not specified.
 
-`-Ox`: Specify the optimization level. Not implemented yet!
+`-Ox`: Specify the optimization level. supports three levels of optimization: `-O0`, `-O1`, `-O2`, where `-O2` may produce errors

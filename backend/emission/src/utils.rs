@@ -1,6 +1,6 @@
 use utils::GlobalVar;
 
-pub const PROGRAM_IDENT: &str = "\"SYSYC: (made by RRVM) 0.0.1\"";
+pub const PROGRAM_IDENT: &str = "\"SYSYC: (made by RRVM) 1.0.0\"";
 
 pub fn program_head(file_name: String) -> String {
 	format!(

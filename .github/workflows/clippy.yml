@@ -9,11 +9,7 @@
 
 name: rust clippy and fmt analyze
 
-on:
-  push:
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ main ]
+on: [push]
 
 jobs:
   rust-clippy-analyze:
