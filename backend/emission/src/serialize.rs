@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use instruction::{
 	riscv::{
 		reg::{
-			RiscvReg::{SP, X0},
+			RiscvReg::{FP, SP, X0},
 			CALLEE_SAVE,
 		},
 		riscvinstr::{LabelInstr, *},
@@ -70,19 +70,20 @@ pub fn func_emission(func: RiscvFunc) -> (String, RiscvInstrSet) {
 		.filter_map(|v| v.get_phys())
 		.filter(|v| CALLEE_SAVE.iter().any(|reg| reg == v))
 		.collect();
-	let size = ((saves.len() as i32 + func.spills + 1) & !1) * 8;
+	let size = ((saves.len() as i32 + func.spills + 2) * 8) & -16;
 	if size > 0 {
 		prelude.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
 	}
 	for (index, &reg) in
-		CALLEE_SAVE.iter().filter(|v| saves.contains(v)).enumerate()
+		CALLEE_SAVE.iter().filter(|v| saves.contains(v) || **v == FP).enumerate()
 	{
-		let addr: RiscvImm = ((index as i32 + func.spills) * 8, SP.into()).into();
+		let addr: RiscvImm = (index as i32 * 8, SP.into()).into();
 		prelude.push(IBinInstr::new(SD, reg.into(), addr.clone()));
 		exit.push(IBinInstr::new(LD, reg.into(), addr));
 	}
+	prelude.push(ITriInstr::new(Addi, FP.into(), SP.into(), size.into()));
 	if size > 0 {
-		exit.push(ITriInstr::new(Addi, SP.into(), SP.into(), (size).into()));
+		exit.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
 	}
 	exit.push(NoArgInstr::new(Ret));
 	let exit_addr: RiscvImm = Label::new("exit").into();

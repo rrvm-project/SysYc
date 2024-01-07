@@ -1,5 +1,5 @@
 use std::{
-	collections::{HashMap, HashSet},
+	collections::{BTreeMap, HashMap, HashSet},
 	f64::INFINITY,
 };
 
@@ -191,7 +191,7 @@ impl InterferenceGraph {
 	}
 
 	pub fn coloring(&mut self) -> bool {
-		let mut edges = HashMap::new();
+		let mut edges = BTreeMap::new();
 		for (u, v) in self.edges.iter() {
 			edges.entry(u).or_insert_with(Vec::new).push(v);
 		}

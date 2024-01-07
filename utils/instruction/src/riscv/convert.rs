@@ -3,6 +3,7 @@ use std::cmp::max;
 use llvm::llvmop::*;
 use utils::{
 	errors::{Result, SysycError::*},
+	math::align16,
 	Label,
 };
 
@@ -308,24 +309,18 @@ pub fn riscv_call(
 	let mut end_instrs: RiscvInstrSet = Vec::new();
 
 	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-112).into()));
-	CALLER_SAVE.iter().skip(1).enumerate().for_each(|(index, &reg)| {
+	CALLER_SAVE.iter().skip(1).enumerate().for_each(|(index, &v)| {
 		let instr =
-			IBinInstr::new(SD, reg.into(), ((index * 8) as i32, SP.into()).into());
+			IBinInstr::new(SD, v.into(), ((index * 8) as i32, SP.into()).into());
 		instrs.push(instr);
 		let instr =
-			IBinInstr::new(LD, reg.into(), ((index * 8) as i32, SP.into()).into());
+			IBinInstr::new(LD, v.into(), ((index * 8) as i32, SP.into()).into());
 		end_instrs.push(instr);
 	});
 
-	// load parameters
-	for (&reg, (_, val)) in PARAMETER_REGS.iter().zip(instr.params.iter()) {
-		let rd = mgr.new_pre_color_temp(reg);
-		get_arith(rd, llvm::ArithOp::AddD, val, &0.into(), &mut instrs, mgr);
-	}
-
-	let cnt = max(0, instr.params.len() as i32 - 8) * 8; // 64 位的
-	if cnt > 0 {
-		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-cnt).into()));
+	let size = align16(max(0, instr.params.len() as i32 - 8) * 8);
+	if size > 0 {
+		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
 	}
 	for (index, (_, val)) in instr.params.iter().skip(8).enumerate() {
 		let value = into_reg(val, &mut instrs, mgr);
@@ -336,22 +331,26 @@ pub fn riscv_call(
 		));
 	}
 
+	// load parameters
+	for (&reg, (_, val)) in PARAMETER_REGS.iter().zip(instr.params.iter()) {
+		let rd = mgr.new_pre_color_temp(reg);
+		get_arith(rd, llvm::ArithOp::AddD, val, &0.into(), &mut instrs, mgr);
+	}
+
 	instrs.push(CallInstr::new(instr.func.clone()));
 
-	if cnt > 0 {
-		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), cnt.into()));
+	if size > 0 {
+		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
 	}
 	instrs.extend(end_instrs);
 	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), 112.into()));
 
-	// if !instr.target.var_type.is_void() {
 	let ret_val = mgr.new_pre_color_temp(A0);
 	let ret_instr = RTriInstr::new(Add, ret_val, A0.into(), X0.into());
 	instrs.push(ret_instr);
 	let rd = mgr.get(&instr.target);
 	let instr = RTriInstr::new(Add, rd, ret_val, X0.into());
 	instrs.push(instr);
-	// }
 
 	Ok(instrs)
 }

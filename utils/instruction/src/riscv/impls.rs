@@ -16,7 +16,16 @@ use super::{
 
 impl Display for RTriInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "  {} {}, {}, {}", self.op, self.rd, self.rs1, self.rs2)
+		if self.is_move() {
+			let val = if self.rs1.is_zero() {
+				self.rs2
+			} else {
+				self.rs1
+			};
+			write!(f, "  mv {}, {}", self.rd, val)
+		} else {
+			write!(f, "  {} {}, {}, {}", self.op, self.rd, self.rs1, self.rs2)
+		}
 	}
 }
 
@@ -35,13 +44,6 @@ impl RiscvInstrTrait for RTriInstr {
 	fn is_move(&self) -> bool {
 		matches!(self.op, Add | Addw | Or | Xor)
 			&& (self.rs1.is_zero() || self.rs2.is_zero())
-	}
-	fn move_sp(&self, _height: &mut i32) {
-		if let (Add, PhysReg(SP), PhysReg(SP), _) =
-			(&self.op, &self.rd, &self.rs1, &self.rs2)
-		{
-			todo!()
-		}
 	}
 	fn useless(&self) -> bool {
 		match (&self.op, &self.rd, &self.rs1, &self.rs2) {
@@ -67,7 +69,15 @@ impl RTriInstr {
 
 impl Display for ITriInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "  {} {}, {}, {}", self.op, self.rd, self.rs1, self.rs2)
+		match self.op {
+			Addi | Addiw | Xori | Ori if self.rs1.is_zero() => {
+				write!(f, "  li {}, {}", self.rd, self.rs2)
+			}
+			Addi | Addiw | Xori | Ori if self.rs2.is_zero() => {
+				write!(f, "  mv {}, {}", self.rd, self.rs1)
+			}
+			_ => write!(f, "  {} {}, {}, {}", self.op, self.rd, self.rs1, self.rs2),
+		}
 	}
 }
 
@@ -84,17 +94,10 @@ impl RiscvInstrTrait for ITriInstr {
 		vec![self.rd]
 	}
 	fn is_move(&self) -> bool {
-		self.op == Addi && !self.rs1.is_zero() && self.rs2.is_zero()
+		matches!(self.op, Addi | Xori | Ori if self.rs2.is_zero())
 	}
 	fn map_label(&mut self, map: &mut LabelMapper) {
 		map_imm_label(&mut self.rs2, map);
-	}
-	fn move_sp(&self, height: &mut i32) {
-		if let (Addi, PhysReg(SP), PhysReg(SP), Int(dis)) =
-			(&self.op, &self.rd, &self.rs1, &self.rs2)
-		{
-			*height += dis
-		}
 	}
 	fn useless(&self) -> bool {
 		match (&self.op, &self.rd, &self.rs1, &self.rs2) {
@@ -205,7 +208,11 @@ impl RBinInstr {
 
 impl Display for BranInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "  {} {}, {}, {}", self.op, self.rs1, self.rs2, self.to)
+		if self.op == Beq && self.rs1.is_zero() && self.rs2.is_zero() {
+			write!(f, "  j {}", self.to)
+		} else {
+			write!(f, "  {} {}, {}, {}", self.op, self.rs1, self.rs2, self.to)
+		}
 	}
 }
 

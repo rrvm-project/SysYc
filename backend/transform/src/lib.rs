@@ -5,11 +5,11 @@ use instruction::{
 	riscv::{
 		convert::i32_to_reg,
 		reg::{
-			RiscvReg::{SP, X0},
+			RiscvReg::{FP, SP, X0},
 			PARAMETER_REGS,
 		},
-		riscvinstr::{ITriInstr, RTriInstr},
-		riscvop::{ITriInstrOp::Addi, RTriInstrOp::Add},
+		riscvinstr::{IBinInstr, ITriInstr, RTriInstr},
+		riscvop::{IBinInstrOp::LD, ITriInstrOp::Addi, RTriInstrOp::Add},
 		value::is_lower,
 	},
 	temp::TempManager,
@@ -76,6 +76,12 @@ pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
 		let reg = mgr.new_pre_color_temp(*reg);
 		let temp = mgr.get(&temp.into());
 		let instr = RTriInstr::new(Add, temp, reg, X0.into());
+		nodes.first().unwrap().borrow_mut().instrs.insert(0, instr);
+	}
+
+	for (index, temp) in func.params.iter().skip(8).enumerate() {
+		let reg = mgr.get(temp.unwrap_temp().as_ref().unwrap());
+		let instr = IBinInstr::new(LD, reg, (index as i32 * 8, FP.into()).into());
 		nodes.first().unwrap().borrow_mut().instrs.insert(0, instr);
 	}
 

@@ -1,7 +1,7 @@
 use ast::*;
-use attr::Attrs;
 use rrvm_symbol::VarSymbol;
 use utils::errors::Result;
+use value::BinaryOp;
 
 pub struct Counter {
 	pub symbols: Vec<i32>,
@@ -34,11 +34,7 @@ impl Visitor for Counter {
 		}
 		Ok(())
 	}
-	fn visit_variable(&mut self, node: &mut Variable) -> Result<()> {
-		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
-		if !symbol.is_global && !symbol.var_type.is_array() {
-			self.symbols.push(symbol.id);
-		}
+	fn visit_variable(&mut self, _node: &mut Variable) -> Result<()> {
 		Ok(())
 	}
 	fn visit_literal_int(&mut self, _node: &mut LiteralInt) -> Result<()> {
@@ -48,6 +44,14 @@ impl Visitor for Counter {
 		Ok(())
 	}
 	fn visit_binary_expr(&mut self, node: &mut BinaryExpr) -> Result<()> {
+		if node.op == BinaryOp::Assign {
+			if let Some(symbol) = node.lhs.get_attr("symbol") {
+				let symbol: VarSymbol = symbol.into();
+				if !symbol.is_global {
+					self.symbols.push(symbol.id);
+				}
+			}
+		}
 		node.lhs.accept(self)?;
 		node.rhs.accept(self)
 	}

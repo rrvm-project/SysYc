@@ -21,7 +21,6 @@ use crate::{
 impl IRGenerator {
 	pub fn to_rrvm(mut self, mut program: Program) -> Result<LlvmProgram> {
 		program.accept(&mut self)?;
-		self.program.next_temp = program.next_temp;
 		Ok(self.program)
 	}
 	pub fn type_conv(
