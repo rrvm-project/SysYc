@@ -1,7 +1,4 @@
-use instruction::{
-	riscv::{riscvinstr::IBinInstr, riscvop::IBinInstrOp::*, value::RiscvImm},
-	temp::{Temp, TempManager},
-};
+use instruction::{riscv::prelude::*, temp::*};
 use rrvm::program::RiscvFunc;
 
 pub fn spill(

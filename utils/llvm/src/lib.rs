@@ -1,8 +1,6 @@
-pub mod calc;
 pub mod llvminstr;
 pub mod llvmop;
 pub mod llvmvar;
-pub mod parser;
 pub mod temp;
 
 mod impls;

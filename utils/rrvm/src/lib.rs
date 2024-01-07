@@ -8,6 +8,7 @@ pub mod cfg;
 pub mod dominator;
 pub mod func;
 pub mod impls;
+pub mod prelude;
 pub mod program;
 
 pub type LlvmCFG = CFG<LlvmInstr, llvm::Temp>;

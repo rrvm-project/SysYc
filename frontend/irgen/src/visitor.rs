@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use ast::{tree::*, Visitor};
 use attr::Attrs;
-use llvm::{calc::exec_binaryop, llvmop::*, Value, VarType::*, *};
+use llvm::{llvmop::*, Value, VarType::*, *};
 use rrvm::{
 	cfg::link_cfg,
 	program::{LlvmFunc, LlvmProgram},
@@ -321,26 +321,19 @@ impl Visitor for IRGenerator {
 				match node.op {
 					Add | Sub | Mul | Div | Mod => {
 						let op = to_arith(node.op, var_type);
-						if let Some(value) = exec_binaryop(&lhs, op, &rhs) {
-							link_cfg(&lcfg, &rcfg);
-							lcfg.append(rcfg);
-							self.symbol_table.pop();
-							(lcfg, Some(value), None)
-						} else {
-							let temp = self.mgr.new_temp(var_type, false);
-							let instr = Box::new(ArithInstr {
-								target: temp.clone(),
-								op,
-								lhs,
-								rhs,
-								var_type,
-							});
-							rcfg.get_exit().borrow_mut().push(instr);
-							link_cfg(&lcfg, &rcfg);
-							lcfg.append(rcfg);
-							self.symbol_table.pop();
-							(lcfg, Some(temp.into()), None)
-						}
+						let temp = self.mgr.new_temp(var_type, false);
+						let instr = Box::new(ArithInstr {
+							target: temp.clone(),
+							op,
+							lhs,
+							rhs,
+							var_type,
+						});
+						rcfg.get_exit().borrow_mut().push(instr);
+						link_cfg(&lcfg, &rcfg);
+						lcfg.append(rcfg);
+						self.symbol_table.pop();
+						(lcfg, Some(temp.into()), None)
 					}
 					LT | LE | GE | GT | EQ | NE => {
 						let op = to_comp(node.op, var_type);

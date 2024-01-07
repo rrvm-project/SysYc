@@ -3,14 +3,7 @@ use std::{
 	f64::INFINITY,
 };
 
-use instruction::{
-	riscv::{
-		reg::{RiscvReg, ALLOACBLE_COUNT, ALLOCABLE_REGS},
-		value::RiscvTemp::VirtReg,
-		RiscvInstr,
-	},
-	temp::Temp,
-};
+use instruction::{riscv::prelude::*, temp::Temp};
 use rrvm::RiscvCFG;
 use utils::union_find::UnionFind;
 

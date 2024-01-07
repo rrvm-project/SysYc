@@ -1,24 +1,11 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use instr_dag::InstrDag;
-use instruction::{
-	riscv::{
-		convert::i32_to_reg,
-		reg::{
-			RiscvReg::{FP, SP, X0},
-			PARAMETER_REGS,
-		},
-		riscvinstr::{IBinInstr, ITriInstr, RTriInstr},
-		riscvop::{IBinInstrOp::LD, ITriInstrOp::Addi, RTriInstrOp::Add},
-		value::is_lower,
-	},
-	temp::TempManager,
-};
+use instruction::{riscv::prelude::*, temp::TempManager};
 
 use rrvm::{
 	cfg::{link_node, BasicBlock},
-	program::*,
-	LlvmNode, RiscvCFG, RiscvNode,
+	prelude::*,
 };
 use transformer::to_riscv;
 use utils::errors::Result;
