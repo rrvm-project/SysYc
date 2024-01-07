@@ -103,7 +103,6 @@ impl Visitor for Namer {
 				.get_attr("value")
 				.ok_or_else(|| initialize_by_none(&node.ident))?;
 			self.ctx.set_constant(symbol.id, value.into())?;
-			node.init = None;
 		}
 		Ok(())
 	}

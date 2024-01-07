@@ -45,7 +45,6 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 		false
 	}
 	fn map_label(&mut self, _map: &mut LabelMapper) {}
-	fn move_sp(&self, _height: &mut i32) {}
 	fn useless(&self) -> bool {
 		false
 	}

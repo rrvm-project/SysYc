@@ -24,7 +24,11 @@ impl Ord for Temp {
 
 impl Display for Temp {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "%{}", self.id)
+		// if self.pre_color
+		match self.pre_color {
+			None => write!(f, "%{}", self.id),
+			Some(v) => write!(f, "{}", v),
+		}
 	}
 }
 
