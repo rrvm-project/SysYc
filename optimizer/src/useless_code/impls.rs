@@ -45,8 +45,8 @@ impl RrvmOptimizer for RemoveUselessCode {
 				if !visited.contains(t) {
 					visited.insert(t.clone());
 					worklist.push_back(t.clone());
-					visited_block.insert(id);
 				}
+				visited_block.insert(id);
 			};
 			let mut add_edge = |u: &Temp, v: &Temp, id: i32| {
 				temp_graph.entry(u.clone()).or_default().insert((v.clone(), id));
@@ -114,8 +114,8 @@ impl RrvmOptimizer for RemoveUselessCode {
 						if !visited.contains(v) {
 							visited.insert(v.clone());
 							worklist.push_back(v.clone());
-							visited_block.insert(*id);
 						}
+						visited_block.insert(*id);
 					}
 				}
 			}
