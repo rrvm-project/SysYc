@@ -92,6 +92,8 @@ pub enum RBinInstrOp {
 	Float2Int,
 	#[style("sext.w")]
 	Sextw,
+	Negw,
+	Neg,
 }
 
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]

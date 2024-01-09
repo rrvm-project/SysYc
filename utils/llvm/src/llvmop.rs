@@ -51,19 +51,6 @@ pub enum CompOp {
 	OLE, // ordered and less or equal
 }
 
-pub fn is_commutative(op: &ArithOp) -> bool {
-	matches!(
-		op,
-		ArithOp::Add
-			| ArithOp::Mul
-			| ArithOp::And
-			| ArithOp::Or
-			| ArithOp::Xor
-			| ArithOp::Fadd
-			| ArithOp::Fmul
-	)
-}
-
 #[derive(Fuyuki, Clone, Copy)]
 pub enum CompKind {
 	Icmp,

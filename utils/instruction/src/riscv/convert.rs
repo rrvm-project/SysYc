@@ -13,20 +13,6 @@ use crate::{
 	RiscvInstrSet,
 };
 
-fn reg_cost(val: &llvm::llvmop::Value) -> i32 {
-	fn i32_cost(num: i32) -> i32 {
-		match num {
-			0 => 0,
-			_ => 1 + (!is_lower(num) as i32),
-		}
-	}
-	match val {
-		Value::Int(num) => i32_cost(*num),
-		Value::Float(num) => i32_cost(num.to_bits() as i32),
-		Value::Temp(_) => 0,
-	}
-}
-
 pub fn i32_to_reg(
 	num: i32,
 	instrs: &mut RiscvInstrSet,
@@ -77,6 +63,41 @@ fn into_reg(
 	}
 }
 
+fn solve_mul(
+	rd: RiscvTemp,
+	lhs: RiscvTemp,
+	num: i32,
+	instrs: &mut RiscvInstrSet,
+	mgr: &mut TempManager,
+) -> bool {
+	if num == 0 {
+		instrs.push(RTriInstr::new(Add, rd, X0.into(), X0.into()));
+		return true;
+	}
+	let offset = num.trailing_zeros() as i32;
+	if is_pow2(num) {
+		instrs.push(ITriInstr::new(Slliw, rd, lhs, offset.into()));
+		return true;
+	}
+	let base = num >> offset;
+	let temp = mgr.new_temp();
+	if is_pow2(base - 1) {
+		let offset_temp = (base - 1).trailing_zeros() as i32;
+		instrs.push(ITriInstr::new(Slliw, temp, lhs, offset_temp.into()));
+		instrs.push(RTriInstr::new(Addw, rd, temp, lhs));
+		instrs.push(ITriInstr::new(Slliw, rd, rd, offset.into()));
+		true
+	} else if is_pow2(base + 1) {
+		let offset_temp = (base + 1).trailing_zeros() as i32;
+		instrs.push(ITriInstr::new(Slliw, temp, lhs, offset_temp.into()));
+		instrs.push(RTriInstr::new(Subw, rd, temp, lhs));
+		instrs.push(ITriInstr::new(Slliw, rd, rd, offset.into()));
+		true
+	} else {
+		false
+	}
+}
+
 fn get_arith(
 	rd: RiscvTemp,
 	op: ArithOp,
@@ -84,29 +105,35 @@ fn get_arith(
 	rhs: &Value,
 	instrs: &mut RiscvInstrSet,
 	mgr: &mut TempManager,
-) {
-	if can_to_iop(&op) {
-		match end_num(lhs) {
-			Some(num) if is_commutative(&op) && reg_cost(lhs) > reg_cost(rhs) => {
-				let rhs = into_reg(rhs, instrs, mgr);
-				instrs.push(ITriInstr::new(to_iop(&op), rd, rhs, num.into()));
-			}
-			_ => {
-				if let Some(num) = end_num(rhs) {
-					let lhs = into_reg(lhs, instrs, mgr);
-					instrs.push(ITriInstr::new(to_iop(&op), rd, lhs, num.into()));
-				} else {
-					let lhs = into_reg(lhs, instrs, mgr);
-					let rhs = into_reg(rhs, instrs, mgr);
-					instrs.push(RTriInstr::new(to_rop(&op), rd, lhs, rhs));
-				}
+) -> Result<()> {
+	let lhs = into_reg(lhs, instrs, mgr);
+	match (op, end_num(rhs)) {
+		(ArithOp::Sub, _) if lhs.is_zero() => {
+			let rhs = into_reg(rhs, instrs, mgr);
+			instrs.push(RBinInstr::new(Negw, rd, rhs));
+		}
+		(ArithOp::Sub, Some(num)) if is_lower(-num) => {
+			instrs.push(ITriInstr::new(Addiw, rd, lhs, (-num).into()));
+		}
+		(ArithOp::Mul, Some(num)) if solve_mul(rd, lhs, num.abs(), instrs, mgr) => {
+			if num < 0 {
+				instrs.push(RBinInstr::new(Negw, rd, rd));
 			}
 		}
-	} else {
-		let lhs = into_reg(lhs, instrs, mgr);
-		let rhs = into_reg(rhs, instrs, mgr);
-		instrs.push(RTriInstr::new(to_rop(&op), rd, lhs, rhs));
-	}
+		(ArithOp::Div, Some(num)) if num == 0 => {
+			if num == 0 {
+				return Err(SemanticError("divided by zero".to_string()));
+			}
+		}
+		(_, Some(num)) if can_to_iop(&op) => {
+			instrs.push(ITriInstr::new(to_iop(&op), rd, lhs, num.into()));
+		}
+		_ => {
+			let rhs = into_reg(rhs, instrs, mgr);
+			instrs.push(RTriInstr::new(to_rop(&op), rd, lhs, rhs));
+		}
+	};
+	Ok(())
 }
 
 pub fn riscv_arith(
@@ -116,7 +143,7 @@ pub fn riscv_arith(
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let (lhs, rhs) = (&instr.lhs, &instr.rhs);
 	let target = mgr.get(&instr.target);
-	get_arith(target, instr.op, lhs, rhs, &mut instrs, mgr);
+	get_arith(target, instr.op, lhs, rhs, &mut instrs, mgr)?;
 	Ok(instrs)
 }
 
@@ -146,12 +173,12 @@ pub fn riscv_comp(
 	match &instr.op {
 		CompOp::EQ | CompOp::OEQ => {
 			let tmp = mgr.new_temp();
-			get_arith(tmp, ArithOp::Xor, lhs, rhs, &mut instrs, mgr);
+			get_arith(tmp, ArithOp::Xor, lhs, rhs, &mut instrs, mgr)?;
 			instrs.push(ITriInstr::new(Sltiu, target, tmp, 1.into()));
 		}
 		CompOp::NE | CompOp::ONE => {
 			let tmp = mgr.new_temp();
-			get_arith(tmp, ArithOp::Xor, lhs, rhs, &mut instrs, mgr);
+			get_arith(tmp, ArithOp::Xor, lhs, rhs, &mut instrs, mgr)?;
 			instrs.push(RTriInstr::new(Sltu, target, X0.into(), tmp));
 		}
 		CompOp::SLT | CompOp::OLT => {
@@ -296,7 +323,7 @@ pub fn riscv_gep(
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let rd = mgr.get(&instr.target);
 	let (lhs, rhs) = (&instr.addr, &instr.offset);
-	get_arith(rd, llvm::ArithOp::AddD, lhs, rhs, &mut instrs, mgr);
+	get_arith(rd, llvm::ArithOp::AddD, lhs, rhs, &mut instrs, mgr)?;
 	Ok(instrs)
 }
 
@@ -334,7 +361,7 @@ pub fn riscv_call(
 	// load parameters
 	for (&reg, (_, val)) in PARAMETER_REGS.iter().zip(instr.params.iter()) {
 		let rd = mgr.new_pre_color_temp(reg);
-		get_arith(rd, llvm::ArithOp::AddD, val, &0.into(), &mut instrs, mgr);
+		get_arith(rd, llvm::ArithOp::AddD, val, &0.into(), &mut instrs, mgr)?;
 	}
 
 	instrs.push(CallInstr::new(instr.func.clone()));

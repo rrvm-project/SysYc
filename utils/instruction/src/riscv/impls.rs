@@ -6,13 +6,7 @@ use utils::{mapper::LabelMapper, Label};
 
 use crate::temp::Temp;
 
-use super::{
-	reg::RiscvReg::*,
-	riscvinstr::*,
-	riscvop::*,
-	utils::{map_imm_label, map_imm_temp, map_label, map_temp, unwarp_imms},
-	value::*,
-};
+use super::{reg::RiscvReg::*, riscvinstr::*, riscvop::*, utils::*, value::*};
 
 impl Display for RTriInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

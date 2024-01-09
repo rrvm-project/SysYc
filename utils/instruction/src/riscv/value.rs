@@ -13,6 +13,15 @@ pub fn is_lower(x: i32) -> bool {
 	RISCV_IMM_MIN < x && x < RISCV_IMM_MAX
 }
 
+pub fn is_pow2(x: i32) -> bool {
+	x & (x - 1) == 0
+}
+
+pub fn can_optimized_mul(x: i32) -> bool {
+	let x = x.abs() >> x.abs().trailing_zeros();
+	is_pow2(x) || is_pow2(x - 1) || is_pow2(x + 1)
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum RiscvTemp {
 	VirtReg(Temp),
