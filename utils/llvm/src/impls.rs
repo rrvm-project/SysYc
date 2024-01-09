@@ -252,6 +252,13 @@ impl PhiInstr {
 			.flat_map(|(v, l)| v.unwrap_temp().map(|v| (v, l.clone())))
 			.collect()
 	}
+	pub fn all_has_the_same_value(&self) -> Option<Value> {
+		let v = self.source.iter().map(|(v, _)| v.clone()).collect::<Vec<_>>();
+		if !all_equal::<Value>(&v) {
+			return None;
+		}
+		Some(v[0].clone())
+	}
 }
 
 impl LlvmInstrTrait for PhiInstr {
