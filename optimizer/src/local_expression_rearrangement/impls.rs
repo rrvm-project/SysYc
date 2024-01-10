@@ -138,7 +138,14 @@ fn add_addicative_tree(
 
 	loop {
 		if remain.is_empty() {
-			unreachable!();
+			instrs_list.push(Box::new(ArithInstr {
+				target: target.clone(),
+				op: ArithOp::Add,
+				var_type: target_type,
+				lhs: 0.into(),
+				rhs: 0.into(),
+			}));
+			return temp_number;
 		}
 		if remain.len() == 1 {
 			let (op, value) = remain.first().unwrap();

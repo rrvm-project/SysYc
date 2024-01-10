@@ -12,7 +12,7 @@ use rrvm::{dominator::naive::compute_dominator, LlvmNode};
 
 use super::traverse;
 
-use super::impl_lvn;
+use super::{impl_lvn, impl_up};
 
 fn solve(cfg: &mut LlvmCFG) -> bool {
 	// cfg.analysis();
@@ -26,7 +26,24 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 	let (dfs_order_to_block, _id_to_dfs_order) =
 		traverse::init_dfs(cfg, &subtree, &children, &father);
 
-	//TODO: move up
+	//move up
+
+	let total = dfs_order_to_block.len();
+	for i in 0..total {
+		let current = post_order_to_block.get_mut(&i).unwrap();
+		let block_id = current.borrow().id;
+		if let Some(father_node) = father.get_mut(&block_id) {
+			// dbg!(block_id, father_node.borrow().id);
+			father_node.borrow_mut().init();
+			father_node.borrow_mut().update_phi_def();
+			// dbg!(&father_node.borrow().defs, &father_node.borrow().phi_defs);
+			impl_up::solve(current, father_node);
+		} else {
+			break;
+		};
+
+		//
+	}
 
 	// lvn: find
 	let mut rewirte: HashMap<Temp, Value> = HashMap::new();
