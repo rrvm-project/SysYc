@@ -96,7 +96,11 @@ fn main() -> Result<()> {
 		simulator.run_program(&llvm);
 		let return_value = simulator.return_scratch;
 		let output = simulator.output.to_owned().join("");
-		dbg!(return_value, output);
+		dbg!(return_value);
+
+		let out = return_value.unwrap().as_i32() as u8;
+
+		println!("exit code: {:?} \n{:?}", out, output);
 
 		return Ok(());
 	}

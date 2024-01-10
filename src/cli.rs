@@ -11,7 +11,6 @@ pub struct Args {
 	#[arg(long)]
 	pub riscv: bool,
 
-
 	#[arg(long)]
 	pub sim: bool,
 

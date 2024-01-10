@@ -86,6 +86,7 @@ impl Visitor for IRGenerator {
 	fn visit_var_def(&mut self, node: &mut VarDef) -> Result<()> {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
 		let var_type = type_convert(&symbol.var_type);
+		let is_float = var_type == VarType::F32 || var_type == VarType::F32Ptr; //用于中端模拟器
 		if self.is_global {
 			let temp = Temp::new(&node.ident, var_type, true);
 			self.symbol_table.set(symbol.id, temp.into());
@@ -95,7 +96,11 @@ impl Visitor for IRGenerator {
 				let length = symbol.var_type.dims.iter().product::<usize>();
 				vec![Zero(length * var_type.to_ptr().deref_type().get_size())]
 			};
-			self.program.global_vars.push(GlobalVar::new(node.ident.clone(), data));
+			self.program.global_vars.push(GlobalVar::new(
+				node.ident.clone(),
+				data,
+				is_float,
+			));
 			return Ok(());
 		}
 		if let Some(init) = node.init.as_mut() {
