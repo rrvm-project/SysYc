@@ -102,16 +102,24 @@ fn try_const(value: &SimpleLvnValue, backup_temp: Temp) -> Value {
 	}
 }
 
-fn try_rewrite(value: Value, rewrite: &HashMap<Temp, Value>) -> Value {
+fn try_rewrite(value: &Value, rewrite: &HashMap<Temp, Value>) -> Value {
 	match value {
 		Value::Temp(t) => {
-			if let Some(v) = rewrite.get(&t) {
-				v.clone()
-			} else {
-				Value::Temp(t)
+			let mut result = Value::Temp(t.clone());
+			loop {
+				if let Value::Temp(ref t0) = result {
+					if let Some(new_value) = rewrite.get(&t0) {
+						result = new_value.clone();
+					} else {
+						break;
+					}
+				} else {
+					break;
+				}
 			}
+			result
 		}
-		_ => value,
+		_ => value.clone(),
 	}
 }
 
@@ -128,8 +136,8 @@ fn get_simple_lvn_value(
 			SimpleLvnValue::Arith((
 				i.op,
 				i.var_type,
-				try_rewrite(i.lhs.clone(), rewrite),
-				try_rewrite(i.rhs.clone(), rewrite),
+				try_rewrite(&i.lhs, rewrite),
+				try_rewrite(&i.rhs, rewrite),
 			))
 			.into()
 		}
@@ -138,8 +146,8 @@ fn get_simple_lvn_value(
 			SimpleLvnValue::Comp((
 				i.op,
 				i.var_type,
-				try_rewrite(i.lhs.clone(), rewrite),
-				try_rewrite(i.rhs.clone(), rewrite),
+				try_rewrite(&i.lhs, rewrite),
+				try_rewrite(&i.rhs, rewrite),
 			))
 			.into()
 		}
@@ -148,15 +156,15 @@ fn get_simple_lvn_value(
 			SimpleLvnValue::Convert((
 				i.from_type,
 				i.to_type,
-				try_rewrite(i.lhs.clone(), rewrite),
+				try_rewrite(&i.lhs, rewrite),
 			))
 			.into()
 		}
 		llvm::LlvmInstrVariant::GEPInstr(i) => {
 			dst = i.target.clone().into();
 			SimpleLvnValue::Gep(
-				try_rewrite(i.addr.clone(), rewrite),
-				try_rewrite(i.offset.clone(), rewrite),
+				try_rewrite(&i.addr, rewrite),
+				try_rewrite(&i.offset, rewrite),
 			)
 			.into()
 		}
@@ -261,10 +269,10 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 			get_simple_lvn_value(instr, rewrite)
 		{
 			if let Some(value) = table.get(&lvn_value) {
-				rewrite.insert(target, try_rewrite(value.clone(), rewrite));
+				rewrite.insert(target, try_rewrite(value, rewrite));
 			} else {
 				let value_try = try_const(&lvn_value, target.clone());
-				let value_try = try_rewrite(value_try, rewrite);
+				let value_try = try_rewrite(&value_try, rewrite);
 				table.insert(lvn_value, value_try.clone());
 				if value_try.is_num() {
 					rewrite.insert(target, value_try);
@@ -286,7 +294,7 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 		{
 			temp_to_vec.insert(target.clone(), lvn_value.clone());
 			if let Some(value) = vec_table.get(&lvn_value) {
-				rewrite.insert(target, try_rewrite(value.clone(), rewrite));
+				rewrite.insert(target, try_rewrite(&value, rewrite));
 			} else if let Some(const_value) = check_all_equal(&lvn_value) {
 				rewrite.insert(target, Value::Int(const_value));
 				vec_table.insert(lvn_value, Value::Int(const_value));
@@ -295,6 +303,14 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 			}
 		}
 	}
+
+	let mut new_rewirte = HashMap::new();
+
+	for (key, value) in rewrite.clone() {
+		new_rewirte.insert(key.clone(), try_rewrite(&value, rewrite));
+	}
+
+	*rewrite = new_rewirte;
 }
 
 pub fn rewrite_block(block: &mut LlvmNode, map: &mut HashMap<Temp, Value>) {

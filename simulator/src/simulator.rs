@@ -53,6 +53,7 @@ impl StackValue {
 	}
 }
 
+#[derive(Debug)]
 pub struct FuncStackFrame {
 	pub ra: Option<usize>,
 	pub name: String,
@@ -384,6 +385,7 @@ fn get_stack(
 			} else if let Some(v) = frame.temp.get(&t.name) {
 				*v
 			} else {
+				dbg!(&t, &frame);
 				unreachable!();
 			}
 		}

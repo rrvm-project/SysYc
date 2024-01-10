@@ -34,7 +34,7 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 		let block_id = current.borrow().id;
 		if let Some(father_node) = father.get_mut(&block_id) {
 			// dbg!(block_id, father_node.borrow().id);
-			father_node.borrow_mut().init();
+			father_node.borrow_mut().init_data_flow();
 			father_node.borrow_mut().update_phi_def();
 			// dbg!(&father_node.borrow().defs, &father_node.borrow().phi_defs);
 			impl_up::solve(current, father_node);
@@ -52,7 +52,7 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 	for i in 0..total {
 		impl_lvn::solve(post_order_to_block.get(&i).unwrap(), &mut rewirte);
 	}
-
+	println!("rewirte{:?}", &rewirte);
 	// lvn: rewrite
 
 	let total = dfs_order_to_block.len();

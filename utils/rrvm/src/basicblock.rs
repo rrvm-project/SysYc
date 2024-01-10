@@ -49,6 +49,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			prev: Vec::new(),
 			succ: Vec::new(),
 			defs: HashSet::new(),
+			kills: HashSet::new(),
 			uses: HashSet::new(),
 			live_in: HashSet::new(),
 			live_out: HashSet::new(),

@@ -35,7 +35,7 @@ impl Optimizer1 {
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
-			
+
 			if !flag {
 				break;
 			}
@@ -44,8 +44,6 @@ impl Optimizer1 {
 		Ok(())
 	}
 }
-
-
 
 impl Optimizer2 {
 	pub fn new() -> Self {

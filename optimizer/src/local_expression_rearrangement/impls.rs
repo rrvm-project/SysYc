@@ -6,7 +6,9 @@ use std::collections::{BTreeMap, HashMap};
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::errors::Result;
 
-use llvm::{llvmop::ArithOp, llvmvar::VarType, *};
+use llvm::{
+	llvmop::ArithOp, llvmvar::VarType, ArithInstr, LlvmInstrTrait, Temp, Value,
+};
 
 #[derive(Debug, PartialEq)]
 enum ArithType {
@@ -504,6 +506,7 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG, next_temp: u32) -> (bool, u32) {
 			cfg.analysis();
+			// println!("next_temp:{:?}", next_temp);
 			let mut temp_counter = next_temp;
 			// let mut current_out = HashSet::new();
 			type ArithMap = HashMap<String, (ArithType, Vec<(ArithOp, Value, i32)>)>;
@@ -512,6 +515,7 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 				current_i32_calculation.clear();
 				let mut new_instr = vec![];
 				for instr in &item.borrow_mut().instrs {
+					// println!("{:#}", &instr.get_variant());
 					let mut flag = true;
 
 					if let llvm::LlvmInstrVariant::ArithInstr(arith) =
@@ -618,6 +622,8 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 				}
 
 				item.borrow_mut().instrs = new_instr;
+
+				// println!("in  :{:?}\n\n", &current_i32_calculation);
 			}
 			(false, temp_counter)
 		}
