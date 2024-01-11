@@ -12,6 +12,8 @@ use llvm::{
 };
 use utils::{instr_format, to_label, InstrTrait, Label, TempTrait, UseTemp};
 
+use crate::rrvm_loop::LoopPtr;
+
 pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
 pub type LlvmBasicBlock = BasicBlock<LlvmInstr, llvm::LlvmTemp>;
 
@@ -30,6 +32,10 @@ pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub phi_defs: HashSet<LlvmTemp>,
 	pub instrs: Vec<T>,
 	pub jump_instr: Option<T>,
+	pub dominates: HashSet<Node<T, U>>,
+	pub dominates_directly: HashSet<Node<T, U>>,
+	pub dominator: Option<Node<T, U>>,
+	pub loop_: Option<LoopPtr>,
 }
 
 fn get_other_label<T: InstrTrait<U>, U: TempTrait>(
@@ -61,6 +67,10 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			phi_defs: HashSet::new(),
 			instrs: Vec::new(),
 			jump_instr: None,
+			dominates: HashSet::new(),
+			dominates_directly: HashSet::new(),
+			dominator: None,
+			loop_: None,
 		}
 	}
 	pub fn new_node(id: i32, weight: f64) -> Node<T, U> {
