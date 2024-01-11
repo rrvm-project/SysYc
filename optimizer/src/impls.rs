@@ -59,6 +59,7 @@ impl Optimizer2 {
 		RemoveUselessCode::new().apply(program)?;
 		loop {
 			let mut flag = false;
+
 			flag |= RemoveDeadCode::new().apply(program)?;
 
 			flag |= RemoveUnreachCode::new().apply(program)?;

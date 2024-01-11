@@ -38,6 +38,7 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 			father_node.borrow_mut().update_phi_def();
 			// dbg!(&father_node.borrow().defs, &father_node.borrow().phi_defs);
 			impl_up::solve(current, father_node);
+		// println!("{:?} {:?}", block_id, father_node.borrow().id);
 		} else {
 			break;
 		};
@@ -52,7 +53,6 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 	for i in 0..total {
 		impl_lvn::solve(post_order_to_block.get(&i).unwrap(), &mut rewirte);
 	}
-	println!("rewirte{:?}", &rewirte);
 	// lvn: rewrite
 
 	let total = dfs_order_to_block.len();
@@ -64,6 +64,13 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 	}
 
 	//TODO: move down
+	// let total = dfs_order_to_block.len();
+	// for i in 0..total {
+	// 	let current = dfs_order_to_block.get_mut(&i).unwrap();
+	// 	// dbg!(current.borrow().id, current.borrow().weight);
+
+	// 	//
+	// }
 
 	!rewirte.is_empty()
 }
@@ -74,6 +81,6 @@ impl RrvmOptimizer for FuyukiLocalValueNumber {
 	}
 
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
-		Ok(program.funcs.iter_mut().fold(false, |_last, func| solve(&mut func.cfg)))
+		Ok(program.funcs.iter_mut().any(|func| solve(&mut func.cfg)))
 	}
 }

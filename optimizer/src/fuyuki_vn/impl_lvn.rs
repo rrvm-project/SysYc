@@ -106,17 +106,14 @@ fn try_rewrite(value: &Value, rewrite: &HashMap<Temp, Value>) -> Value {
 	match value {
 		Value::Temp(t) => {
 			let mut result = Value::Temp(t.clone());
-			loop {
-				if let Value::Temp(ref t0) = result {
-					if let Some(new_value) = rewrite.get(&t0) {
-						result = new_value.clone();
-					} else {
-						break;
-					}
+			while let Value::Temp(ref t0) = result {
+				if let Some(new_value) = rewrite.get(t0) {
+					result = new_value.clone();
 				} else {
 					break;
 				}
 			}
+
 			result
 		}
 		_ => value.clone(),
@@ -294,7 +291,7 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 		{
 			temp_to_vec.insert(target.clone(), lvn_value.clone());
 			if let Some(value) = vec_table.get(&lvn_value) {
-				rewrite.insert(target, try_rewrite(&value, rewrite));
+				rewrite.insert(target, try_rewrite(value, rewrite));
 			} else if let Some(const_value) = check_all_equal(&lvn_value) {
 				rewrite.insert(target, Value::Int(const_value));
 				vec_table.insert(lvn_value, Value::Int(const_value));
