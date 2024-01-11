@@ -1,5 +1,5 @@
 use crate::RrvmOptimizer;
-use llvm::{ArithInstr, ArithOp, Value, VarType};
+use llvm::Temp;
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::errors::Result;
 
@@ -14,37 +14,45 @@ impl RrvmOptimizer for RemoveUselessPhis {
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG) -> bool {
 			let mut flag = false;
+			let mut to_replace: Vec<(Temp, llvm::Value)> = Vec::new();
 			for block in cfg.blocks.iter_mut() {
 				let mut block = block.borrow_mut();
-				let mut to_replace = Vec::new();
 				for phi in block.phi_instrs.iter_mut() {
 					if let Some(v) = phi.all_has_the_same_value() {
+						// 防止出现链式消除的情况
+						if v
+							.unwrap_temp()
+							.is_some_and(|temp| to_replace.iter().any(|(t, _)| t == &temp))
+						{
+							let new_v = to_replace
+								.iter()
+								.find_map(|(t, v)| {
+									if t == &v.unwrap_temp().unwrap() {
+										Some(v.clone())
+									} else {
+										None
+									}
+								})
+								.unwrap();
+							to_replace.push((phi.target.clone(), new_v.clone()));
+						}
 						to_replace.push((phi.target.clone(), v.clone()));
 					}
 				}
+			}
+			// 替换应当是全局的
+			for block in cfg.blocks.iter_mut() {
+				let mut block = block.borrow_mut();
 				block
 					.phi_instrs
 					.retain(|phi| !to_replace.iter().any(|(t, _)| t == &phi.target));
-				for (t, v) in to_replace {
-					let op;
-					let rhs;
-					if t.var_type == VarType::F32 {
-						op = ArithOp::Fadd;
-						rhs = Value::Float(0.0);
-					} else {
-						op = ArithOp::Add;
-						rhs = Value::Int(0);
-					}
-					block.instrs.insert(
-						0,
-						Box::new(ArithInstr {
-							target: t.clone(),
-							op,
-							var_type: t.var_type,
-							lhs: v,
-							rhs,
-						}),
-					);
+				for (t, v) in to_replace.iter() {
+					block.instrs.iter_mut().for_each(|instr| {
+						instr.replace_read(t.clone(), v.clone());
+					});
+					block.jump_instr.iter_mut().for_each(|instr| {
+						instr.replace_read(t.clone(), v.clone());
+					});
 					flag = true;
 				}
 			}

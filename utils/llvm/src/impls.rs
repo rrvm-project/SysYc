@@ -84,6 +84,14 @@ impl LlvmInstrTrait for ArithInstr {
 			&self.rhs.get_type(),
 		])
 	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		if self.lhs == Value::Temp(old.clone()) {
+			self.lhs = new.clone();
+		}
+		if self.rhs == Value::Temp(old.clone()) {
+			self.rhs = new;
+		}
+	}
 }
 
 impl Display for CompInstr {
@@ -117,6 +125,14 @@ impl LlvmInstrTrait for CompInstr {
 			&self.rhs.get_type(),
 		])
 	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		if self.lhs == Value::Temp(old.clone()) {
+			self.lhs = new.clone();
+		}
+		if self.rhs == Value::Temp(old.clone()) {
+			self.rhs = new;
+		}
+	}
 }
 
 impl Display for ConvertInstr {
@@ -149,6 +165,11 @@ impl LlvmInstrTrait for ConvertInstr {
 			&self.lhs.get_type(),
 			&self.to_type,
 		])
+	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		if self.lhs == Value::Temp(old.clone()) {
+			self.lhs = new;
+		}
 	}
 }
 
@@ -216,6 +237,11 @@ impl LlvmInstrTrait for JumpCondInstr {
 	fn is_jump_cond(&self) -> bool {
 		true
 	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		if self.cond == Value::Temp(old.clone()) {
+			self.cond = new;
+		}
+	}
 }
 
 impl Display for PhiInstr {
@@ -274,6 +300,13 @@ impl LlvmInstrTrait for PhiInstr {
 	fn is_phi(&self) -> bool {
 		true
 	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		for (v, _) in self.source.iter_mut() {
+			if v == &Value::Temp(old.clone()) {
+				*v = new.clone();
+			}
+		}
+	}
 }
 
 impl Display for RetInstr {
@@ -300,6 +333,11 @@ impl LlvmInstrTrait for RetInstr {
 	}
 	fn is_ret(&self) -> bool {
 		true
+	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		if self.value == Some(Value::Temp(old.clone())) {
+			self.value = Some(new);
+		}
 	}
 }
 
@@ -335,6 +373,11 @@ impl LlvmInstrTrait for AllocInstr {
 	fn get_alloc(&self) -> Option<(Temp, Value)> {
 		Some((self.target.clone(), self.length.clone()))
 	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		if self.length == Value::Temp(old.clone()) {
+			self.length = new;
+		}
+	}
 }
 
 impl Display for StoreInstr {
@@ -368,6 +411,14 @@ impl LlvmInstrTrait for StoreInstr {
 	}
 	fn is_store(&self) -> bool {
 		true
+	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		if self.value == Value::Temp(old.clone()) {
+			self.value = new.clone();
+		}
+		if self.addr == Value::Temp(old.clone()) {
+			self.addr = new;
+		}
 	}
 }
 
@@ -403,6 +454,11 @@ impl LlvmInstrTrait for LoadInstr {
 	fn is_load(&self) -> bool {
 		self.addr.unwrap_temp().map_or(true, |v| !v.is_global)
 	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		if self.addr == Value::Temp(old.clone()) {
+			self.addr = new;
+		}
+	}
 }
 
 impl Display for GEPInstr {
@@ -436,6 +492,14 @@ impl LlvmInstrTrait for GEPInstr {
 		is_ptr(self.addr.get_type())
 			&& self.offset.get_type() == VarType::I32
 			&& type_match_ptr(self.var_type, self.addr.get_type())
+	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		if self.addr == Value::Temp(old.clone()) {
+			self.addr = new.clone();
+		}
+		if self.offset == Value::Temp(old.clone()) {
+			self.offset = new;
+		}
 	}
 }
 
@@ -472,5 +536,12 @@ impl LlvmInstrTrait for CallInstr {
 	}
 	fn is_call(&self) -> bool {
 		true
+	}
+	fn replace_read(&mut self, old: Temp, new: Value) {
+		for (_, v) in self.params.iter_mut() {
+			if v == &Value::Temp(old.clone()) {
+				*v = new.clone();
+			}
+		}
 	}
 }
