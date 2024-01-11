@@ -1,12 +1,14 @@
 use super::LocalExpressionRearrangement;
 
 use crate::RrvmOptimizer;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::errors::Result;
 
-use llvm::{llvmop::ArithOp, llvmvar::VarType, *};
+use llvm::{
+	llvmop::ArithOp, llvmvar::VarType, ArithInstr, LlvmInstrTrait, Temp, Value,
+};
 
 #[derive(Debug, PartialEq)]
 enum ArithType {
@@ -41,86 +43,111 @@ fn add_addicative_tree(
 	next_temp: u32,
 	instrs_list: &mut Vec<Box<dyn LlvmInstrTrait>>,
 	target: Temp,
-	info: &Vec<(ArithOp, Value)>,
+	info: &Vec<(ArithOp, Value, i32)>,
 	target_type: VarType,
 ) -> u32 {
 	let mut const_part: i32 = 0;
-	let mut add_part = vec![];
-	let mut minus_part = vec![];
+	let mut count: BTreeMap<Temp, i32> = BTreeMap::new();
 	let mut temp_number = next_temp;
-	for (op, value) in info {
+
+	for (op, value, times) in info {
 		match op {
 			ArithOp::Add => match value {
-				Value::Int(v) => const_part = const_part.wrapping_add(*v),
+				Value::Int(v) => {
+					assert_eq!(*times, 1);
+					const_part = const_part.wrapping_add(*v)
+				}
 				Value::Float(_) => unreachable!(),
-				Value::Temp(t) => add_part.push(t.clone()),
+				Value::Temp(t) => {
+					if let Some(former) = count.insert(t.clone(), *times) {
+						count.insert(t.clone(), *times + former);
+					}
+				}
 			},
 			ArithOp::Sub => match value {
-				Value::Int(v) => const_part = const_part.wrapping_sub(*v),
+				Value::Int(v) => {
+					assert_eq!(*times, 1);
+					const_part = const_part.wrapping_sub(*v)
+				}
 				Value::Float(_) => unreachable!(),
-				Value::Temp(t) => minus_part.push(t.clone()),
+				Value::Temp(t) => {
+					if let Some(former) = count.insert(t.clone(), -*times) {
+						count.insert(t.clone(), -*times + former);
+					}
+				}
 			},
 			_ => unreachable!(),
 		}
 	}
-	add_part.sort_by(|t1, t2| t1.name.cmp(&t2.name));
-	minus_part.sort_by(|t1, t2| t1.name.cmp(&t2.name));
 
-	let mut new_add_part = vec![];
-	let mut new_minus_part = vec![];
-
-	loop {
-		let add = add_part.pop();
-		let minus = minus_part.pop();
-		if add.is_none() && minus.is_none() {
-			break;
-		}
-		if add.is_some() && minus.is_none() {
-			if let Some(v) = add {
-				new_add_part.push(v);
-			}
-			continue;
-		}
-		if add.is_none() && minus.is_some() {
-			if let Some(v) = minus {
-				new_minus_part.push(v);
-			}
-			continue;
-		}
-		let add = add.unwrap();
-		let minus = minus.unwrap();
-
-		match &add.name.cmp(&minus.name) {
-			std::cmp::Ordering::Less => {
-				add_part.push(add);
-				new_minus_part.push(minus);
-			}
-			std::cmp::Ordering::Equal => {}
-			std::cmp::Ordering::Greater => {
-				minus_part.push(minus);
-				new_add_part.push(add);
-			}
-		}
-	}
-
-	add_part = new_add_part;
-	minus_part = new_minus_part;
+	// println!("{:?}",  count);
 
 	let mut remain: Vec<(ArithOp, Value)> = vec![];
 
-	while !minus_part.is_empty() {
-		remain.push((ArithOp::Sub, minus_part.pop().unwrap().into()));
-	}
-	while !add_part.is_empty() {
-		remain.push((ArithOp::Add, add_part.pop().unwrap().into()));
-	}
-	if const_part != 0 || remain.is_empty() {
+	if const_part != 0 {
 		remain.push((ArithOp::Add, const_part.into()));
 	}
 
+	let mut add_part: Vec<(ArithOp, Value)> = vec![];
+	let mut sub_part: Vec<(ArithOp, Value)> = vec![];
+
+	for (t, times) in count.into_iter() {
+		if times == 1 {
+			add_part.push((ArithOp::Add, Value::Temp(t)));
+		} else if times == 2 {
+			add_part.push((ArithOp::Add, Value::Temp(t.clone())));
+			add_part.push((ArithOp::Add, Value::Temp(t)));
+		} else if times > 2 {
+			let new_temp = Temp {
+				name: temp_number.to_string(),
+				is_global: false,
+				var_type: VarType::I32,
+			};
+			temp_number += 1;
+			instrs_list.push(Box::new(ArithInstr {
+				target: new_temp.clone(),
+				op: ArithOp::Mul,
+				var_type: VarType::I32,
+				lhs: Value::Temp(t),
+				rhs: times.into(),
+			}));
+			add_part.push((ArithOp::Add, Value::Temp(new_temp)));
+		} else if times == -1 {
+			sub_part.push((ArithOp::Sub, Value::Temp(t)));
+		} else if times == -2 {
+			sub_part.push((ArithOp::Sub, Value::Temp(t.clone())));
+			sub_part.push((ArithOp::Sub, Value::Temp(t)));
+		} else if times < -2 {
+			let new_temp = Temp {
+				name: temp_number.to_string(),
+				is_global: false,
+				var_type: VarType::I32,
+			};
+			temp_number += 1;
+			instrs_list.push(Box::new(ArithInstr {
+				target: new_temp.clone(),
+				op: ArithOp::Mul,
+				var_type: VarType::I32,
+				lhs: Value::Temp(t),
+				rhs: (-times).into(),
+			}));
+			sub_part.push((ArithOp::Sub, Value::Temp(new_temp)));
+		}
+	}
+
+	remain.append(&mut add_part);
+	remain.append(&mut sub_part);
+
 	loop {
 		if remain.is_empty() {
-			unreachable!();
+			instrs_list.push(Box::new(ArithInstr {
+				target: target.clone(),
+				op: ArithOp::Add,
+				var_type: target_type,
+				lhs: 0.into(),
+				rhs: 0.into(),
+			}));
+			return temp_number;
 		}
 		if remain.len() == 1 {
 			let (op, value) = remain.first().unwrap();
@@ -248,18 +275,27 @@ fn add_multiplitive_tree(
 	next_temp: u32,
 	instrs_list: &mut Vec<Box<dyn LlvmInstrTrait>>,
 	target: Temp,
-	info: &Vec<(ArithOp, Value)>,
+	info: &Vec<(ArithOp, Value, i32)>,
 	target_type: VarType,
 ) -> u32 {
 	let mut const_part: i32 = 1;
 	let mut temp_part = vec![];
 	let mut temp_number = next_temp;
+
+	let mut count: BTreeMap<Temp, i32> = BTreeMap::new();
+
 	for item in info {
 		match item.0 {
 			ArithOp::Mul => match &item.1 {
 				Value::Int(v) => const_part = const_part.wrapping_mul(*v),
 				Value::Float(_) => unreachable!(),
-				Value::Temp(t) => temp_part.push(t.clone()),
+				Value::Temp(t) => {
+					if let Some(former) = count.get(t) {
+						count.insert(t.clone(), former + item.2);
+					} else {
+						count.insert(t.clone(), item.2);
+					}
+				}
 			},
 			_ => unreachable!(),
 		}
@@ -277,7 +313,43 @@ fn add_multiplitive_tree(
 		return temp_number;
 	}
 
-	temp_part.sort_by(|t1, t2| t1.name.cmp(&t2.name));
+	let mut stack: Vec<(Temp, i32)>;
+	stack = count.into_iter().collect();
+
+	while let Some((target, mut power)) = stack.pop() {
+		if power < 1 {
+			continue;
+		}
+		let mut next_power = 2;
+		let mut powers = vec![target];
+
+		while next_power <= power {
+			let new_temp = Temp {
+				name: temp_number.to_string(),
+				is_global: false,
+				var_type: VarType::I32,
+			};
+			temp_number += 1;
+			instrs_list.push(Box::new(ArithInstr {
+				target: new_temp.clone(),
+				op: ArithOp::Mul,
+				var_type: VarType::I32,
+				lhs: Value::Temp(powers.last().unwrap().clone()),
+				rhs: Value::Temp(powers.last().unwrap().clone()),
+			}));
+			next_power *= 2;
+			powers.push(new_temp);
+		}
+
+		for item in powers {
+			if power % 2 == 1 {
+				temp_part.push(item);
+			}
+			power >>= 1;
+		}
+	}
+
+	// temp_part.sort_by(|t1, t2| t1.name.cmp(&t2.name));
 
 	loop {
 		let mut new_temp_part = vec![];
@@ -347,13 +419,63 @@ fn add_multiplitive_tree(
 	}
 }
 
+fn squash(info: &mut Vec<(ArithOp, Value, i32)>) {
+	let mut addicative_part: i32 = 0;
+	let mut multi_part: i32 = 1;
+	let mut variable_part = HashMap::new();
+
+	while let Some((op, v, times)) = info.pop() {
+		match v {
+			Value::Temp(t) => {
+				if let Some(former) = variable_part.insert((op, t.clone()), times) {
+					variable_part.insert((op, t), times + former);
+				}
+			}
+			Value::Int(v) => match op {
+				ArithOp::Add => addicative_part = addicative_part.wrapping_add(v),
+				ArithOp::Sub => addicative_part = addicative_part.wrapping_sub(v),
+				ArithOp::Mul => multi_part = multi_part.wrapping_mul(v),
+				_ => (),
+			},
+			_ => {
+				unreachable!();
+			}
+		}
+	}
+
+	assert_eq!(info.len(), 0);
+
+	if addicative_part != 0 {
+		info.push((ArithOp::Add, addicative_part.into(), 1));
+	}
+
+	if multi_part != 1 {
+		info.push((ArithOp::Mul, multi_part.into(), 1));
+	}
+
+	for (key, times) in variable_part.into_iter() {
+		match key.0 {
+			ArithOp::Add | ArithOp::Sub | ArithOp::Mul => {
+				if times != 0 {
+					info.push((key.0, Value::Temp(key.1), times));
+				}
+			}
+			_ => {
+				for _ in 0..times {
+					info.push((key.0, Value::Temp(key.1.clone()), 1));
+				}
+			}
+		}
+	}
+}
+
 fn add_expression_tree(
 	next_temp: u32,
 	instrs_list: &mut Vec<Box<dyn LlvmInstrTrait>>,
 	target: Temp,
 	target_type: VarType,
 	arith_type: ArithType,
-	info: &Vec<(ArithOp, Value)>,
+	info: &Vec<(ArithOp, Value, i32)>,
 ) -> u32 {
 	assert_eq!(target_type, llvm::VarType::I32);
 	match arith_type {
@@ -384,16 +506,16 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG, next_temp: u32) -> (bool, u32) {
 			cfg.analysis();
+			// println!("next_temp:{:?}", next_temp);
 			let mut temp_counter = next_temp;
 			// let mut current_out = HashSet::new();
-			let mut current_i32_calculation: HashMap<
-				String,
-				(ArithType, Vec<(ArithOp, Value)>),
-			> = HashMap::new();
+			type ArithMap = HashMap<String, (ArithType, Vec<(ArithOp, Value, i32)>)>;
+			let mut current_i32_calculation: ArithMap = HashMap::new();
 			for item in cfg.blocks.as_slice() {
 				current_i32_calculation.clear();
 				let mut new_instr = vec![];
 				for instr in &item.borrow_mut().instrs {
+					// println!("{:#}", &instr.get_variant());
 					let mut flag = true;
 
 					if let llvm::LlvmInstrVariant::ArithInstr(arith) =
@@ -408,8 +530,11 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 
 									match &arith.lhs {
 										Value::Int(_) => {
-											to_insert
-												.push((get_op_for_lhs(arith.op), arith.lhs.clone()));
+											to_insert.push((
+												get_op_for_lhs(arith.op),
+												arith.lhs.clone(),
+												1,
+											));
 										}
 										Value::Float(_) => unreachable!(),
 										Value::Temp(t) => {
@@ -423,19 +548,23 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 													to_insert.push((
 														get_op_for_lhs(arith.op),
 														arith.lhs.clone(),
+														1,
 													));
 												}
 											} else {
 												//atom!
-												to_insert
-													.push((get_op_for_lhs(arith.op), arith.lhs.clone()));
+												to_insert.push((
+													get_op_for_lhs(arith.op),
+													arith.lhs.clone(),
+													1,
+												));
 											}
 										}
 									}
 
 									match &arith.rhs {
 										Value::Int(_) => {
-											to_insert.push((arith.op, arith.rhs.clone()));
+											to_insert.push((arith.op, arith.rhs.clone(), 1));
 										}
 										Value::Float(_) => unreachable!(),
 										Value::Temp(t) => {
@@ -446,21 +575,28 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 													let mut cloned_vec = vec.clone();
 													if neg {
 														for item in cloned_vec {
-															to_insert.push((get_neg(item.0), item.1.clone()));
+															to_insert.push((
+																get_neg(item.0),
+																item.1.clone(),
+																item.2,
+															));
 														}
 													} else {
 														to_insert.append(&mut cloned_vec);
 													}
 												} else {
-													to_insert.push((arith.op, arith.rhs.clone()));
+													to_insert.push((arith.op, arith.rhs.clone(), 1));
 												}
 											} else {
 												//atom!
-												to_insert.push((arith.op, arith.rhs.clone()));
+												to_insert.push((arith.op, arith.rhs.clone(), 1));
 											}
 										}
 									}
 
+									squash(&mut to_insert);
+
+									// println!("{:#}", &instr);
 									temp_counter = add_expression_tree(
 										temp_counter,
 										&mut new_instr,
@@ -486,6 +622,8 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 				}
 
 				item.borrow_mut().instrs = new_instr;
+
+				// println!("in  :{:?}\n\n", &current_i32_calculation);
 			}
 			(false, temp_counter)
 		}

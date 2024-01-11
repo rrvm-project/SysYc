@@ -1,7 +1,7 @@
 use utils::{InstrTrait, Label, UseTemp};
 
 use crate::{llvmop::*, llvmvar::VarType, LlvmInstrVariant, Temp};
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 pub type LlvmInstr = Box<dyn LlvmInstrTrait>;
 
@@ -60,6 +60,8 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 		None
 	}
 	fn replace_read(&mut self, _old: Temp, _new: Value) {}
+	fn map_temp(&mut self, map: &HashMap<Temp, Value>);
+	fn replaceable(&self, map: &HashMap<Temp, Value>) -> bool;
 }
 
 impl UseTemp<Temp> for LlvmInstr {
