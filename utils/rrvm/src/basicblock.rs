@@ -33,9 +33,13 @@ pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub phi_defs: HashSet<LlvmTemp>,
 	pub instrs: Vec<T>,
 	pub jump_instr: Option<T>,
+	// 自己支配的所有节点
 	pub dominates: Vec<Node<T, U>>,
+	// 自己直接支配的节点，即支配树上的边
 	pub dominates_directly: Vec<Node<T, U>>,
+	// 自己的严格支配者，即支配树上的父亲，entry 没有父亲
 	pub dominator: Option<Node<T, U>>,
+	// 自己所有的支配边界
 	pub dominate_frontier: Vec<Node<T, U>>,
 	pub loop_: Option<LoopPtr>,
 }
@@ -316,7 +320,8 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
     defs: {:?}
     livein: {:?}
     liveout: {:?}
-    kill_size: {}\n{}",
+    kill_size: {}
+    loop_header: {}\n{}",
 			self.label(),
 			prev,
 			succ,
@@ -325,6 +330,12 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
 			live_in,
 			live_out,
 			self.kill_size,
+			self.loop_.as_ref().map_or("None".to_string(), |v| v
+				.borrow()
+				.header
+				.borrow()
+				.id
+				.to_string()),
 			instrs
 		)
 	}

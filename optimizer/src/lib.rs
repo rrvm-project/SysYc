@@ -6,6 +6,7 @@ pub mod impls;
 mod pure_check;
 mod strength_reduce;
 mod tail_recursion;
+mod loops;
 mod unreachable;
 mod useless_code;
 mod useless_phis;
