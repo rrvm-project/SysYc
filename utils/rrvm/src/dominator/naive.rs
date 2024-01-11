@@ -104,3 +104,63 @@ pub fn compute_dominator(
 		bb.borrow_mut().succ.clear();
 	});
 }
+
+impl LlvmCFG {
+	// 计算正向支配树并将信息存在每一个节点中
+	pub fn compute_dominator(&mut self) {
+		for bb in self.blocks.iter() {
+			// 尝试将这个 bb 从图中移除，移除后无法访问的节点是被它支配的节点
+			let to_be_removed = bb.borrow().id;
+
+			let mut reachable = HashSet::new();
+			let mut worklist = VecDeque::new();
+			if to_be_removed != self.get_entry().borrow().id {
+				worklist.push_back(self.get_entry().clone());
+			}
+			while let Some(bb) = worklist.pop_front() {
+				if reachable.contains(&bb.borrow().id) {
+					continue;
+				}
+				reachable.insert(bb.borrow().id);
+				for succ in bb.borrow().succ.iter() {
+					if succ.borrow().id != to_be_removed {
+						worklist.push_back(succ.clone());
+					}
+				}
+			}
+			self.blocks.iter().for_each(|bb_inner| {
+				if !reachable.contains(&bb_inner.borrow().id) {
+					bb.borrow_mut().dominates.push(bb_inner.clone());
+				}
+			});
+		}
+		// 计算完dominates后，计算dominates_directly
+		for bb in self.blocks.iter() {
+			let bb_id = bb.borrow().id;
+			let bb_dominates = bb.borrow().dominates.clone();
+			bb_dominates.iter().for_each(|bb_inner| {
+				let bb_inner_id = bb_inner.borrow().id;
+				if bb_inner_id == bb_id {
+					return;
+				}
+				let bb_inner_dominator = bb_inner.borrow().dominator.clone();
+				if let Some(dominator) = bb_inner_dominator {
+					let is_contained = dominator.borrow().dominates.contains(bb);
+					// 如果bb_inner的支配者支配了bb
+					if is_contained {
+						bb.borrow_mut().dominates_directly.push(bb_inner.clone());
+						bb_inner.borrow_mut().dominator = Some(bb.clone());
+						dominator
+							.borrow_mut()
+							.dominates_directly
+							.retain(|x| x.borrow().id != bb_inner_id);
+					}
+				// 如果bb_inner没有支配者
+				} else {
+					bb.borrow_mut().dominates_directly.push(bb_inner.clone());
+					bb_inner.borrow_mut().dominator = Some(bb.clone());
+				}
+			});
+		}
+	}
+}
