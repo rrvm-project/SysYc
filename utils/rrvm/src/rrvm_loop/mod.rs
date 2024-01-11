@@ -4,7 +4,7 @@ use crate::LlvmNode;
 
 pub type LoopPtr = Rc<RefCell<Loop>>;
 
-pub mod find_loop;
+pub mod loop_analysis;
 
 #[allow(unused)]
 #[derive(Clone, PartialEq, Eq)]
