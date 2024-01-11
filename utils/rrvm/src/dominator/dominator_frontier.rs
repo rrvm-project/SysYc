@@ -30,8 +30,8 @@ pub fn compute_dominator_frontier(
 				}
 			}
 		} else if bb.borrow().prev.len() > 1 {
-			for pred in bb.borrow().prev.iter() {
-				let mut runner = pred.clone();
+			for prev in bb.borrow().prev.iter() {
+				let mut runner = prev.clone();
 				let mut runner_id = runner.borrow().id;
 				while !(dominates.get(&runner_id).map_or(false, |v| v.contains(bb))
 					&& runner_id != bb.borrow().id)
@@ -39,6 +39,28 @@ pub fn compute_dominator_frontier(
 					dominator_frontier.entry(runner_id).or_default().push(bb.clone());
 					runner = dominator.get(&runner_id).cloned().unwrap();
 					runner_id = runner.borrow().id;
+				}
+			}
+		}
+	}
+}
+
+impl LlvmCFG {
+	// 计算正向支配边界, 将结果存储在每个节点中
+	pub fn compute_dominate_frontier(&mut self) {
+		for bb in self.blocks.iter() {
+			if bb.borrow().prev.len() > 1 {
+				for prev in bb.borrow().prev.iter() {
+					let mut runner = prev.clone();
+					let mut runner_id = runner.borrow().id;
+					while !(runner.borrow().dominates.contains(bb)
+						&& runner_id != bb.borrow().id)
+					{
+						runner.borrow_mut().dominate_frontier.push(bb.clone());
+						let new_runner = runner.borrow().dominator.clone().unwrap();
+						runner = new_runner;
+						runner_id = runner.borrow().id;
+					}
 				}
 			}
 		}

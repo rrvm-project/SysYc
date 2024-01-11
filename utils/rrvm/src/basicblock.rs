@@ -2,6 +2,7 @@ use std::{
 	cell::RefCell,
 	collections::{HashMap, HashSet},
 	fmt::Display,
+	hash::Hash,
 	rc::Rc,
 };
 
@@ -32,9 +33,10 @@ pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub phi_defs: HashSet<LlvmTemp>,
 	pub instrs: Vec<T>,
 	pub jump_instr: Option<T>,
-	pub dominates: HashSet<Node<T, U>>,
-	pub dominates_directly: HashSet<Node<T, U>>,
+	pub dominates: Vec<Node<T, U>>,
+	pub dominates_directly: Vec<Node<T, U>>,
 	pub dominator: Option<Node<T, U>>,
+	pub dominate_frontier: Vec<Node<T, U>>,
 	pub loop_: Option<LoopPtr>,
 }
 
@@ -47,6 +49,20 @@ fn get_other_label<T: InstrTrait<U>, U: TempTrait>(
 		now_label
 	} else {
 		other.borrow().label()
+	}
+}
+
+impl<T: InstrTrait<U>, U: TempTrait> PartialEq for BasicBlock<T, U> {
+	fn eq(&self, other: &Self) -> bool {
+		self.id == other.id
+	}
+}
+
+impl<T: InstrTrait<U>, U: TempTrait> Eq for BasicBlock<T, U> {}
+
+impl<T: InstrTrait<U>, U: TempTrait> Hash for BasicBlock<T, U> {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.id.hash(state);
 	}
 }
 
@@ -67,9 +83,10 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			phi_defs: HashSet::new(),
 			instrs: Vec::new(),
 			jump_instr: None,
-			dominates: HashSet::new(),
-			dominates_directly: HashSet::new(),
+			dominates: Vec::new(),
+			dominates_directly: Vec::new(),
 			dominator: None,
+			dominate_frontier: Vec::new(),
 			loop_: None,
 		}
 	}
