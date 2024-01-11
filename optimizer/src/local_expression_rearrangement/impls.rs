@@ -513,6 +513,9 @@ impl RrvmOptimizer for LocalExpressionRearrangement {
 			let mut current_i32_calculation: ArithMap = HashMap::new();
 			for item in cfg.blocks.as_slice() {
 				current_i32_calculation.clear();
+				if item.borrow().instrs.len() > 2000 {
+					continue;
+				}
 				let mut new_instr = vec![];
 				for instr in &item.borrow_mut().instrs {
 					// println!("{:#}", &instr.get_variant());
