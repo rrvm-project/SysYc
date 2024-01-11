@@ -51,7 +51,7 @@ UnaryBitNot = { "~" }
 
 Break = { "break" }
 Continue = { "continue" }
-Return = { "return" ~ Expr? }
+Return = { ("return "|"return\t") ~ Expr | "return"}
 
 BinaryOp = _{
   Add | Sub | Mul | Div | Mod | LE | LT | GE | GT | EQ | NE | LOr | LAnd | Assign
