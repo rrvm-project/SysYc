@@ -11,6 +11,7 @@ pub enum ValueItem {
 #[derive(Debug)]
 pub struct GlobalVar {
 	pub ident: String,
+	pub is_float: bool, //在模拟器中使用
 	pub data: Vec<ValueItem>,
 }
 
@@ -41,10 +42,15 @@ impl Display for GlobalVar {
 }
 
 impl GlobalVar {
-	pub fn new(ident: impl Display, data: Vec<ValueItem>) -> Self {
+	pub fn new(
+		ident: impl Display,
+		data: Vec<ValueItem>,
+		is_float: bool,
+	) -> Self {
 		Self {
 			ident: ident.to_string(),
 			data,
+			is_float,
 		}
 	}
 	pub fn size(&self) -> usize {

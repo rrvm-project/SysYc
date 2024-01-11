@@ -22,6 +22,7 @@ members = [
   "frontend/value",
   "frontend/parser",
   "optimizer",
+  "simulator",
   "backend/transform",
   "backend/register",
   "backend/emission",
@@ -44,6 +45,8 @@ optimizer = { path = "optimizer" }
 transform = { path = "backend/transform" }
 register = { path = "backend/register" }
 emission = { path = "backend/emission" }
+
+simulator = {path = "simulator"}
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"
