@@ -106,8 +106,13 @@ pub fn compute_dominator(
 }
 
 impl LlvmCFG {
-	// 计算正向支配树并将信息存在每一个节点中
+	// 计算正向支配树并将信息存在每一个节点中, 计算前会清空支配树信息
 	pub fn compute_dominator(&mut self) {
+		self.blocks.iter().for_each(|v| {
+			v.borrow_mut().dominates.clear();
+			v.borrow_mut().dominates_directly.clear();
+			v.borrow_mut().dominator = None;
+		});
 		for bb in self.blocks.iter() {
 			// 尝试将这个 bb 从图中移除，移除后无法访问的节点是被它支配的节点
 			let to_be_removed = bb.borrow().id;

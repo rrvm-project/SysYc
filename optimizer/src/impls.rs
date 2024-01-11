@@ -1,5 +1,5 @@
 use crate::{
-	strength_reduce::StrengthReduce, useless_phis::RemoveUselessPhis, *,
+	strength_reduce::StrengthReduce, loops::HandleLoops, useless_phis::RemoveUselessPhis, *,
 };
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;

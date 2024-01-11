@@ -4,12 +4,16 @@ use crate::LlvmNode;
 
 pub type LoopPtr = Rc<RefCell<Loop>>;
 
+pub mod loop_analysis;
+pub mod loop_info;
+
 #[allow(unused)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Loop {
-	outer: Option<LoopPtr>,
-	header: LlvmNode,
-	level: i32,
-	no_inner: bool,
+	pub outer: Option<LoopPtr>,
+	pub header: LlvmNode,
+	pub level: i32,
+	pub no_inner: bool,
 }
 
 #[allow(unused)]
