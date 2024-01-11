@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 
 rand = "0.8.4"
+chrono = "0.4"
 
 utils = { path = "../utils" }
 rrvm = { path = "../utils/rrvm" }

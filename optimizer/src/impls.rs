@@ -8,6 +8,8 @@ use local_expression_rearrangement::LocalExpressionRearrangement;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
 
+// use chrono::prelude::*;
+
 impl Optimizer0 {
 	pub fn new() -> Self {
 		Self::default()
@@ -30,11 +32,23 @@ impl Optimizer1 {
 		Self::default()
 	}
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
+		// 需在表达式重排前进行，否则，运算指令分布在不同的基本块中， LER做不了任何事情
+		RemoveDeadCode::new().apply(program)?;
+		RemoveUselessCode::new().apply(program)?;
+		RemoveUnreachCode::new().apply(program)?;
+
+		LocalExpressionRearrangement::new().apply(program)?;
+		RemoveUselessCode::new().apply(program)?;
+		let mut cnt = 10;
 		loop {
+			cnt -= 1;
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
+			flag |= RemoveUselessCode::new().apply(program)?;
+			flag |= FuyukiLocalValueNumber::new().apply(program)?;
+
+			flag &= cnt > 0;
 
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			if !flag {
@@ -42,6 +56,7 @@ impl Optimizer1 {
 			}
 		}
 		program.analysis();
+
 		Ok(())
 	}
 }
@@ -72,7 +87,6 @@ impl Optimizer2 {
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			// 	}
 			// }
-			program.analysis();
 
 			if !flag {
 				break;
