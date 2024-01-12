@@ -12,6 +12,7 @@ pub fn get_loop_info(
 	loop_: LoopPtr,
 	loop_bbs: Vec<LlvmNode>,
 	exit: LlvmNode,
+	exit_prev: LlvmNode,
 ) -> SimpleLoopInfo {
 	let mut info = SimpleLoopInfo::new();
 	for block in loop_bbs.iter() {
@@ -28,5 +29,22 @@ pub fn get_loop_info(
 			0
 		};
 	}
+	let entry = loop_.borrow().header.clone();
+	info.exit_prev = Some(exit_prev.clone());
+
+	let mut into_entry = None;
+	for prev in entry.borrow().prev.iter() {
+		if prev.borrow().loop_.as_ref().is_some_and(|l| *l == loop_) {
+			if *prev != exit_prev {
+				return info; // 有多条回边，可能存在 continue
+			}
+		} else if into_entry.is_none() {
+			into_entry = Some(prev.clone());
+		} else {
+			return info; // 有多个进入 entry 的块，这里可能可以尝试处理
+		}
+	}
+	info.into_entry = into_entry;
+
 	info
 }

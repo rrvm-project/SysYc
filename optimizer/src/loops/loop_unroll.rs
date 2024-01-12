@@ -22,8 +22,9 @@ pub fn loop_unroll(loop_: LoopPtr) {
 			stack.append(&mut stack_bb.borrow().dominates_directly.clone());
 		}
 	}
-	// 确保循环只有一个 exit
+	// 确保循环只有一个 exit 和一个 exit_prev
 	let mut exit_bb = None;
+	let mut exit_prev = None;
 	let mut check = true;
 	for bb in loop_bbs.iter() {
 		if !check {
@@ -31,17 +32,19 @@ pub fn loop_unroll(loop_: LoopPtr) {
 		}
 		for succ in bb.borrow().succ.iter() {
 			if !succ.borrow().loop_.as_ref().is_some_and(|l| *l == loop_) {
-				if exit_bb.as_ref().is_some_and(|bb| succ != bb) {
+				if exit_bb.as_ref().is_some() {
 					check = false;
 					break;
 				}
 				exit_bb = Some(succ.clone());
+				exit_prev = Some(bb.clone());
 			}
 		}
 	}
 	if exit_bb.is_none() || !check {
 		return;
 	}
-	let loop_info = get_loop_info(loop_, loop_bbs, exit_bb.unwrap());
+	let loop_info =
+		get_loop_info(loop_, loop_bbs, exit_bb.unwrap(), exit_prev.unwrap());
 	todo!()
 }
