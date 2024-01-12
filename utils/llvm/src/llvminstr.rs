@@ -59,6 +59,7 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn get_alloc(&self) -> Option<(Temp, Value)> {
 		None
 	}
+	fn replace_read(&mut self, _old: Temp, _new: Value) {}
 }
 
 impl UseTemp<Temp> for LlvmInstr {

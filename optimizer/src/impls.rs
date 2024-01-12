@@ -1,7 +1,7 @@
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
 
-use crate::{RrvmOptimizer, *};
+use crate::{useless_phis::RemoveUselessPhis, RrvmOptimizer, *};
 use dead_code::RemoveDeadCode;
 use local_expression_rearrangement::LocalExpressionRearrangement;
 use unreachable::RemoveUnreachCode;
@@ -34,6 +34,7 @@ impl Optimizer1 {
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
+			flag |= RemoveUselessPhis::new().apply(program)?;
 			if !flag {
 				break;
 			}
@@ -55,6 +56,7 @@ impl Optimizer2 {
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
+			flag |= RemoveUselessPhis::new().apply(program)?;
 			if !flag {
 				break;
 			}
