@@ -15,7 +15,6 @@ pub fn program_head(file_name: String) -> String {
 pub fn format_func(name: String, instrs: String) -> String {
 	format!(
 		"  .align 1
-  .global {name}
   .type {name}, @function\n{name}:\n{instrs}
   .size {name}, .-{name}"
 	)

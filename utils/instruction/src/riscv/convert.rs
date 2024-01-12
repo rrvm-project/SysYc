@@ -26,11 +26,11 @@ pub fn i32_to_reg(
 		instrs.push(IBinInstr::new(Li, rd, num.into()));
 	} else {
 		let (high, low) = if (num & 0x800) != 0 {
-			((num >> 12) + 1, num & 0xFFF | (-1 << 12))
+			((num as u32 >> 12) + 1, num & 0xFFF | (-1 << 12))
 		} else {
-			(num >> 12, num & 0xFFF)
+			(num as u32 >> 12, num & 0xFFF)
 		};
-		instrs.push(IBinInstr::new(Lui, rd, high.into()));
+		instrs.push(IBinInstr::new(Lui, rd, (high as i32).into()));
 		instrs.push(ITriInstr::new(Addi, rd, rd, low.into()));
 	}
 	rd

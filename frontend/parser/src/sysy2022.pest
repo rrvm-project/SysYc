@@ -26,6 +26,7 @@ int_t = ${ "int" ~ WHITESPACE }
 float_t = ${ "float" ~ WHITESPACE }
 void_t = ${ "void" ~ WHITESPACE }
 const = _{ "const " | "const\n" | "const\t" }
+return = _{ "return " | "return\n" | "return\t" }
 BType = _{ int_t | float_t }
 FuncType = _{ int_t | float_t | void_t }
 
@@ -51,7 +52,7 @@ UnaryBitNot = { "~" }
 
 Break = { "break" }
 Continue = { "continue" }
-Return = { "return" ~ Expr? }
+Return = { return ~ Expr? | "return" }
 
 BinaryOp = _{
   Add | Sub | Mul | Div | Mod | LE | LT | GE | GT | EQ | NE | LOr | LAnd | Assign
