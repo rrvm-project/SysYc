@@ -1,7 +1,8 @@
 use super::FuyukiLocalValueNumber;
 
-use crate::RrvmOptimizer;
+use crate::{fuyuki_vn::impl_down, RrvmOptimizer};
 use std::collections::HashMap;
+use utils::UseTemp;
 
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::errors::Result;
@@ -14,6 +15,8 @@ use super::traverse;
 
 use super::{impl_lvn, impl_up};
 
+use super::fvn_utils::MaxMin;
+
 fn solve(cfg: &mut LlvmCFG) -> bool {
 	// cfg.analysis();
 
@@ -23,12 +26,10 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 	compute_dominator(cfg, false, &mut subtree, &mut children, &mut father);
 	let (mut post_order_to_block, _id_to_post_order) =
 		traverse::init_post(cfg, &subtree, &children, &father);
-	let (dfs_order_to_block, _id_to_dfs_order) =
-		traverse::init_dfs(cfg, &subtree, &children, &father);
 
 	//move up
 
-	let total = dfs_order_to_block.len();
+	let total = post_order_to_block.len();
 	for i in 0..total {
 		let current = post_order_to_block.get_mut(&i).unwrap();
 		let block_id = current.borrow().id;
@@ -49,28 +50,83 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 	// lvn: find
 	let mut rewirte: HashMap<Temp, Value> = HashMap::new();
 
-	let total = dfs_order_to_block.len();
+	let total = post_order_to_block.len();
 	for i in 0..total {
 		impl_lvn::solve(post_order_to_block.get(&i).unwrap(), &mut rewirte);
 	}
 	// lvn: rewrite
 
-	let total = dfs_order_to_block.len();
+	let total = post_order_to_block.len();
 	for i in 0..total {
 		impl_lvn::rewrite_block(
 			post_order_to_block.get_mut(&i).as_mut().unwrap(),
 			&mut rewirte,
 		);
 	}
+	//move down
 
-	//TODO: move down
-	// let total = dfs_order_to_block.len();
-	// for i in 0..total {
-	// 	let current = dfs_order_to_block.get_mut(&i).unwrap();
-	// 	// dbg!(current.borrow().id, current.borrow().weight);
+	let mut weights = HashMap::new();
+	let mut uses: HashMap<Temp, MaxMin<usize>> = HashMap::new();
 
-	// 	//
-	// }
+	fn update_use(uses: &mut HashMap<Temp, MaxMin<usize>>, i: usize, temp: Temp) {
+		if let Some(use_item) = uses.get_mut(&temp) {
+			use_item.update(i);
+		} else {
+			uses.insert(temp.clone(), MaxMin::new_with_init(i));
+		}
+	}
+
+	let (mut dfs_order_to_block, id_to_dfs_order) =
+		traverse::init_dfs(cfg, &subtree, &children, &father);
+
+	let total = dfs_order_to_block.len();
+
+	let mut dfs_order_to_id: HashMap<usize, i32> = HashMap::new();
+	for (key, value) in id_to_dfs_order.iter() {
+		dfs_order_to_id.insert(*value, *key);
+	}
+
+	for i in 0..total {
+		let current = dfs_order_to_block.get(&i).unwrap();
+		weights.insert(current.borrow().id, current.borrow().weight);
+
+		// 这里i是dfs序！
+		for instr in &current.borrow().phi_instrs {
+			let father_id = father
+				.get(dfs_order_to_id.get(&i).unwrap())
+				.unwrap()
+				.as_ref()
+				.borrow()
+				.id;
+			let father_dfs = *id_to_dfs_order.get(&father_id).unwrap();
+			for temp in instr.get_read() {
+				update_use(&mut uses, father_dfs, temp);
+			}
+		}
+
+		for instr in &current.borrow().instrs {
+			for temp in instr.get_read() {
+				update_use(&mut uses, i, temp);
+			}
+		}
+
+		for instr in &current.borrow().jump_instr {
+			for temp in instr.get_read() {
+				update_use(&mut uses, i, temp);
+			}
+		}
+	}
+
+	let mut known_lca: HashMap<(usize, usize), usize> = HashMap::new();
+
+	impl_down::solve(
+		&mut uses,
+		&mut known_lca,
+		&mut dfs_order_to_block,
+		&id_to_dfs_order,
+		&dfs_order_to_id,
+		&father,
+	);
 
 	!rewirte.is_empty()
 }
