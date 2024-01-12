@@ -5,12 +5,22 @@ use crate::{LlvmCFG, LlvmNode};
 use super::LoopPtr;
 
 impl LlvmCFG {
-	pub fn loop_analysis(&mut self) {
+	pub fn loop_analysis(&mut self) -> Vec<LoopPtr> {
 		self.compute_dominator();
 		loop_dfs(self.get_entry(), self);
 		for bb in self.blocks.iter() {
 			calc_loop_level(bb.borrow().loop_.clone());
 		}
+		// 收集所有的 loop
+		let mut loops = Vec::new();
+		for bb in self.blocks.iter() {
+			if let Some(loop_) = bb.borrow().loop_.clone() {
+				if !loops.contains(&loop_) {
+					loops.push(loop_);
+				}
+			}
+		}
+		loops
 	}
 }
 

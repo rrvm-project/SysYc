@@ -1,4 +1,4 @@
-use crate::RrvmOptimizer;
+use crate::{loops::loop_unroll::loop_unroll, RrvmOptimizer};
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::errors::Result;
 
@@ -11,8 +11,11 @@ impl RrvmOptimizer for HandleLoops {
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG) -> bool {
 			let flag: bool = false;
-			cfg.loop_analysis();
-
+			cfg.compute_dominator();
+			let loops = cfg.loop_analysis();
+			for loop_ in loops {
+				loop_unroll(loop_);
+			}
 			flag
 		}
 

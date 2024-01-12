@@ -5,6 +5,7 @@ use crate::LlvmNode;
 pub type LoopPtr = Rc<RefCell<Loop>>;
 
 pub mod loop_analysis;
+pub mod loop_info;
 
 #[allow(unused)]
 #[derive(Clone, PartialEq, Eq)]
