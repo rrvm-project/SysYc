@@ -50,8 +50,6 @@ impl Optimizer1 {
 	}
 }
 
-
-
 impl Optimizer2 {
 	pub fn new() -> Self {
 		Self::default()
@@ -85,7 +83,6 @@ impl Optimizer2 {
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= LocalExpressionRearrangement::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			if !flag {

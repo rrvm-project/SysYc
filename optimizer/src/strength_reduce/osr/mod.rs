@@ -143,7 +143,7 @@ impl OSR {
 			} else {
 				self.header.remove(member);
 			}
-		} else {
+		} else if scc.len() == 2 {
 			self.classify_induction_variables(cfg, scc);
 		}
 	}
