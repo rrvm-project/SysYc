@@ -41,16 +41,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 			let mut visited: HashSet<Temp> = HashSet::new();
 			let mut visited_block: HashSet<i32> = HashSet::new();
 			let mut id_to_virtual_temp: HashMap<i32, Temp> = HashMap::new();
-			let mut insert_worklist = |t: &Temp, id: i32| {
-				if !visited.contains(t) {
-					visited.insert(t.clone());
-					worklist.push_back(t.clone());
-				}
-				visited_block.insert(id);
-			};
-			let mut add_edge = |u: &Temp, v: &Temp, id: i32| {
-				temp_graph.entry(u.clone()).or_default().insert((v.clone(), id));
-			};
+
 			for block in cfg.blocks.iter() {
 				let block = block.borrow();
 				let id = block.id;
@@ -61,6 +52,27 @@ impl RrvmOptimizer for RemoveUselessCode {
 				};
 				id_to_virtual_temp.insert(id, virtual_temp.clone());
 			}
+
+			let mut insert_worklist = |t: &Temp, id: i32| {
+				if !visited.contains(t) {
+					visited.insert(t.clone());
+					worklist.push_back(t.clone());
+				}
+
+				// virtual_temp 用来表示一个基本块是否有用，它将与这个基本块内所有定义的TEMP连边，但是基本块内可能没有定义temp,
+				// 所以这里在发现这个块有用时，直接将 virtual temp 插入
+				if !visited_block.contains(&id) {
+					visited_block.insert(id);
+					let v_temp = id_to_virtual_temp[&id].clone();
+					if !visited.contains(&v_temp) {
+						visited.insert(id_to_virtual_temp[&id].clone());
+						worklist.push_back(id_to_virtual_temp[&id].clone())
+					}
+				}
+			};
+			let mut add_edge = |u: &Temp, v: &Temp, id: i32| {
+				temp_graph.entry(u.clone()).or_default().insert((v.clone(), id));
+			};
 			for block in cfg.blocks.iter() {
 				let block = block.borrow();
 				let id = block.id;
@@ -115,7 +127,15 @@ impl RrvmOptimizer for RemoveUselessCode {
 							visited.insert(v.clone());
 							worklist.push_back(v.clone());
 						}
-						visited_block.insert(*id);
+
+						if !visited_block.contains(id) {
+							visited_block.insert(*id);
+							let v_temp = id_to_virtual_temp[id].clone();
+							if !visited.contains(&v_temp) {
+								visited.insert(id_to_virtual_temp[id].clone());
+								worklist.push_back(id_to_virtual_temp[id].clone())
+							}
+						}
 					}
 				}
 			}
