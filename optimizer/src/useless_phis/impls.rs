@@ -1,9 +1,8 @@
+use super::RemoveUselessPhis;
 use crate::RrvmOptimizer;
-use llvm::Temp;
+use llvm::{LlvmInstrTrait, Temp};
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::errors::Result;
-
-use super::RemoveUselessPhis;
 
 // 如果 phi 指令每一项的值都是一样的，则将phi替换为赋值指令（这里覆盖了只有一项的 phi 指令）
 
@@ -22,21 +21,22 @@ impl RrvmOptimizer for RemoveUselessPhis {
 						// 防止出现链式消除的情况
 						if v
 							.unwrap_temp()
-							.is_some_and(|temp| to_replace.iter().any(|(t, _)| t == &temp))
+							.is_some_and(|temp| to_replace.iter().any(|(t, _)| *t == temp))
 						{
 							let new_v = to_replace
 								.iter()
-								.find_map(|(t, v)| {
-									if t == &v.unwrap_temp().unwrap() {
-										Some(v.clone())
+								.find_map(|(t, v_inner)| {
+									if *t == v.unwrap_temp().unwrap() {
+										Some(v_inner.clone())
 									} else {
 										None
 									}
 								})
 								.unwrap();
 							to_replace.push((phi.target.clone(), new_v.clone()));
+						} else {
+							to_replace.push((phi.target.clone(), v.clone()));
 						}
-						to_replace.push((phi.target.clone(), v.clone()));
 					}
 				}
 			}
@@ -47,6 +47,9 @@ impl RrvmOptimizer for RemoveUselessPhis {
 					.phi_instrs
 					.retain(|phi| !to_replace.iter().any(|(t, _)| t == &phi.target));
 				for (t, v) in to_replace.iter() {
+					block.phi_instrs.iter_mut().for_each(|instr| {
+						instr.replace_read(t.clone(), v.clone());
+					});
 					block.instrs.iter_mut().for_each(|instr| {
 						instr.replace_read(t.clone(), v.clone());
 					});
