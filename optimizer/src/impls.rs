@@ -48,9 +48,10 @@ impl Optimizer1 {
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 
+			flag |= RemoveUselessPhis::new().apply(program)?;
+
 			flag &= cnt > 0;
 
-			flag |= RemoveUselessPhis::new().apply(program)?;
 			if !flag {
 				break;
 			}

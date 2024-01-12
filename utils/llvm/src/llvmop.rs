@@ -7,7 +7,6 @@ use sysyc_derive::Fuyuki;
 
 use crate::{llvmvar::VarType, temp::Temp};
 
-
 use utils::{errors::Result, SysycError::*};
 
 #[derive(Clone, Debug)]
