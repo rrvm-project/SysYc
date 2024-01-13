@@ -5,31 +5,13 @@ use std::{
 
 use sysyc_derive::Fuyuki;
 
-use crate::{llvmvar::VarType, temp::Temp};
-
-use utils::{errors::Result, SysycError::*};
+use crate::{llvmvar::VarType, LlvmTemp};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
 	Int(i32),
 	Float(f32),
-	Temp(Temp),
-}
-
-impl Value {
-	pub fn to_int(&self) -> Result<i32> {
-		match self {
-			Value::Int(v) => Ok(*v),
-			_ => Err(SystemError("".to_string())),
-		}
-	}
-
-	pub fn to_float(&self) -> Result<f32> {
-		match self {
-			Value::Float(v) => Ok(*v),
-			_ => Err(SystemError("".to_string())),
-		}
-	}
+	Temp(LlvmTemp),
 }
 
 impl Eq for Value {}

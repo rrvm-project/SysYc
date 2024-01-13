@@ -10,6 +10,7 @@ use rrvm::{
 };
 
 use utils::errors::Result;
+use value::FuncRetType;
 
 use crate::{
 	loop_state::LoopState,
@@ -19,10 +20,26 @@ use crate::{
 };
 
 impl IRGenerator {
+	pub fn new() -> Self {
+		Self {
+			total: 0,
+			ret_type: FuncRetType::Void,
+			program: LlvmProgram::new(LlvmTempManager::new()),
+			symbol_table: SymbolTable::default(),
+			stack: Vec::new(),
+			states: Vec::new(),
+			weights: Vec::new(),
+			is_global: false,
+			init_state: None,
+			alloc_size: Vec::new(),
+		}
+	}
 	pub fn to_rrvm(mut self, mut program: Program) -> Result<LlvmProgram> {
 		program.accept(&mut self)?;
-		self.program.next_temp = program.next_temp;
 		Ok(self.program)
+	}
+	pub fn new_temp(&mut self, var_type: VarType, is_global: bool) -> LlvmTemp {
+		self.program.temp_mgr.new_temp(var_type, is_global)
 	}
 	pub fn type_conv(
 		&mut self,
@@ -30,7 +47,7 @@ impl IRGenerator {
 		target: llvm::VarType,
 		cfg: &mut LlvmCFG,
 	) -> Value {
-		use llvmop::ConvertOp::*;
+		use llvm::ConvertOp::*;
 		if target == value.get_type() {
 			return value;
 		}
@@ -43,7 +60,7 @@ impl IRGenerator {
 			(F32, Value::Int(v)) => Value::Float(*v as f32),
 			(I32, Value::Float(v)) => Value::Int(*v as i32),
 			(_, Value::Temp(temp)) => {
-				let target = self.mgr.new_temp(to_type, false);
+				let target = self.new_temp(to_type, false);
 				let instr = Box::new(ConvertInstr {
 					op,
 					target: target.clone(),
@@ -67,7 +84,7 @@ impl IRGenerator {
 			Some(value) => value,
 			None => {
 				let var_type = addr.as_ref().unwrap().deref_type();
-				let temp = self.mgr.new_temp(var_type, false);
+				let temp = self.new_temp(var_type, false);
 				let instr = Box::new(LoadInstr {
 					target: temp.clone(),
 					var_type,
@@ -117,7 +134,7 @@ impl IRGenerator {
 			let val1 = get_val(key, &diff1, &self.symbol_table);
 			let val2 = get_val(key, &diff2, &self.symbol_table);
 			let var_type = val1.get_type();
-			let temp = self.mgr.new_temp(var_type, false);
+			let temp = self.new_temp(var_type, false);
 			let instr = PhiInstr {
 				target: temp.clone(),
 				var_type,
@@ -145,7 +162,7 @@ impl IRGenerator {
 	pub fn copy_symbols(
 		&mut self,
 		symbols: Vec<i32>,
-	) -> (LlvmCFG, Table, HashMap<i32, Temp>) {
+	) -> (LlvmCFG, Table, HashMap<i32, LlvmTemp>) {
 		let cfg = self.new_cfg();
 		let mut table = Table::new();
 		let mut need_phi = HashMap::new();
@@ -155,7 +172,7 @@ impl IRGenerator {
 			let value = self.symbol_table.get(&id);
 			table.insert(id, value.clone());
 			let var_type = value.get_type();
-			let temp = self.mgr.new_temp(var_type, false);
+			let temp = self.new_temp(var_type, false);
 			need_phi.insert(id, temp.clone());
 			self.symbol_table.set(id, temp.into());
 		}
@@ -165,7 +182,7 @@ impl IRGenerator {
 		&mut self,
 		target: LlvmNode,
 		prev: Vec<(LlvmNode, Table)>,
-		need_phi: Option<HashMap<i32, Temp>>,
+		need_phi: Option<HashMap<i32, LlvmTemp>>,
 	) {
 		let phi_targets: Vec<_> = prev
 			.iter()
@@ -173,12 +190,14 @@ impl IRGenerator {
 			.collect::<HashSet<_>>()
 			.into_iter()
 			.filter(|(id, _)| self.symbol_table.contains(id))
+			.collect::<Vec<_>>()
+			.into_iter()
 			.map(|(id, var_type)| {
 				let temp = need_phi
 					.as_ref()
 					.and_then(|v| v.get(&id))
 					.cloned()
-					.unwrap_or_else(|| self.mgr.new_temp(var_type, false));
+					.unwrap_or_else(|| self.new_temp(var_type, false));
 				(id, temp)
 			})
 			.collect();
@@ -235,5 +254,11 @@ impl IRGenerator {
 	}
 	pub fn top_len(&mut self) -> usize {
 		self.init_state.as_mut().unwrap().top_len()
+	}
+}
+
+impl Default for IRGenerator {
+	fn default() -> Self {
+		Self::new()
 	}
 }

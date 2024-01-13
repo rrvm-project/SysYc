@@ -1,6 +1,6 @@
 use super::RemoveUselessPhis;
 use crate::RrvmOptimizer;
-use llvm::{LlvmInstrTrait, Temp, Value};
+use llvm::{LlvmInstrTrait, LlvmTemp, Value};
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use std::collections::{HashMap, HashSet};
 use utils::{errors::Result, UseTemp};
@@ -31,7 +31,11 @@ impl RrvmOptimizer for RemoveUselessPhis {
 				});
 			}
 			flag |= !temp_mapper.is_empty();
-			fn fix(k: &Temp, v: Value, mapper: &mut HashMap<Temp, Value>) -> Value {
+			fn fix(
+				k: &LlvmTemp,
+				v: Value,
+				mapper: &mut HashMap<LlvmTemp, Value>,
+			) -> Value {
 				if let Some(temp) = v.unwrap_temp() {
 					if let Some(val) = mapper.get(&temp).cloned() {
 						let val = fix(&temp, val, mapper);

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use llvm::{ArithInstr, Temp, Value};
+use llvm::{ArithInstr, LlvmTemp, Value};
 use rrvm::LlvmNode;
 
 pub fn remove_phi(u: &LlvmNode) {
@@ -28,7 +28,7 @@ pub fn remove_phi(u: &LlvmNode) {
 				map.entry(temp).and_modify(|(_, v)| *v += 1);
 			}
 		}
-		let mut ready = Vec::<(&Temp, &Value)>::new();
+		let mut ready = Vec::<(&LlvmTemp, &Value)>::new();
 		map.retain(|target, (value, cnt)| {
 			*cnt != 0 || {
 				ready.push((target, value));

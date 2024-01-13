@@ -1,15 +1,14 @@
-pub mod llvminstr;
-pub mod llvmop;
-pub mod llvmvar;
-pub mod temp;
-
 mod impls;
+mod llvminstr;
+mod llvmop;
+mod llvmvar;
+mod temp;
 mod utils_llvm;
 
 pub use llvminstr::*;
 pub use llvmop::{Value, *};
 pub use llvmvar::VarType;
-pub use temp::*;
+pub use temp::{LlvmTemp, LlvmTempManager};
 
 pub enum LlvmInstrVariant<'a> {
 	ArithInstr(&'a ArithInstr),

@@ -5,16 +5,11 @@ use utils::{Label, UseTemp};
 use std::collections::HashMap;
 
 use crate::{
-	llvminstr::*,
-	llvmop::*,
-	llvmvar::VarType,
-	temp::Temp,
-	utils_llvm::{all_equal, is_ptr, type_match_ptr, unwrap_values},
-	LlvmInstrVariant,
+	llvminstr::*, llvmop::*, utils_llvm::*, LlvmInstrVariant, LlvmTemp, VarType,
 };
 
-impl From<Temp> for Value {
-	fn from(value: Temp) -> Self {
+impl From<LlvmTemp> for Value {
+	fn from(value: LlvmTemp) -> Self {
 		Value::Temp(value)
 	}
 }
@@ -46,7 +41,7 @@ impl From<&Value> for i32 {
 	}
 }
 
-impl From<&Value> for Temp {
+impl From<&Value> for LlvmTemp {
 	fn from(value: &Value) -> Self {
 		match value {
 			Value::Temp(v) => v.clone(),
@@ -65,16 +60,16 @@ impl Display for ArithInstr {
 	}
 }
 
-impl UseTemp<Temp> for ArithInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for ArithInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
-	fn get_write(&self) -> Option<Temp> {
+	fn get_write(&self) -> Option<LlvmTemp> {
 		Some(self.target.clone())
 	}
 }
 
-fn map_llvm_temp(temp: &mut Value, map: &HashMap<Temp, Value>) {
+fn map_llvm_temp(temp: &mut Value, map: &HashMap<LlvmTemp, Value>) {
 	if let Value::Temp(t) = temp {
 		if let Some(new_value) = map.get(t) {
 			*temp = new_value.clone();
@@ -95,12 +90,12 @@ impl LlvmInstrTrait for ArithInstr {
 		])
 	}
 
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.lhs, map);
 		map_llvm_temp(&mut self.rhs, map);
 	}
 
-	fn replaceable(&self, map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
 	}
 }
@@ -115,11 +110,11 @@ impl Display for CompInstr {
 	}
 }
 
-impl UseTemp<Temp> for CompInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for CompInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		unwrap_values(vec![&self.lhs, &self.rhs])
 	}
-	fn get_write(&self) -> Option<Temp> {
+	fn get_write(&self) -> Option<LlvmTemp> {
 		Some(self.target.clone())
 	}
 }
@@ -137,12 +132,12 @@ impl LlvmInstrTrait for CompInstr {
 		])
 	}
 
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.lhs, map);
 		map_llvm_temp(&mut self.rhs, map);
 	}
 
-	fn replaceable(&self, map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
 	}
 }
@@ -157,11 +152,11 @@ impl Display for ConvertInstr {
 	}
 }
 
-impl UseTemp<Temp> for ConvertInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for ConvertInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		unwrap_values(vec![&self.lhs])
 	}
-	fn get_write(&self) -> Option<Temp> {
+	fn get_write(&self) -> Option<LlvmTemp> {
 		Some(self.target.clone())
 	}
 }
@@ -179,11 +174,11 @@ impl LlvmInstrTrait for ConvertInstr {
 		])
 	}
 
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.lhs, map);
 	}
 
-	fn replaceable(&self, map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
 	}
 }
@@ -194,7 +189,7 @@ impl Display for JumpInstr {
 	}
 }
 
-impl UseTemp<Temp> for JumpInstr {}
+impl UseTemp<LlvmTemp> for JumpInstr {}
 
 impl LlvmInstrTrait for JumpInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
@@ -207,11 +202,11 @@ impl LlvmInstrTrait for JumpInstr {
 		self.target.clone()
 	}
 
-	fn map_temp(&mut self, _map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, _map: &HashMap<LlvmTemp, Value>) {
 		//noting to do
 	}
 
-	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
 		false
 	}
 }
@@ -226,8 +221,8 @@ impl Display for JumpCondInstr {
 	}
 }
 
-impl UseTemp<Temp> for JumpCondInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for JumpCondInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		unwrap_values(vec![&self.cond])
 	}
 }
@@ -261,11 +256,11 @@ impl LlvmInstrTrait for JumpCondInstr {
 		true
 	}
 
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.cond, map);
 	}
 
-	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
 		false
 	}
 }
@@ -287,11 +282,11 @@ impl Display for PhiInstr {
 	}
 }
 
-impl UseTemp<Temp> for PhiInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for PhiInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		self.source.iter().flat_map(|(v, _)| v.unwrap_temp()).collect()
 	}
-	fn get_write(&self) -> Option<Temp> {
+	fn get_write(&self) -> Option<LlvmTemp> {
 		Some(self.target.clone())
 	}
 }
@@ -309,12 +304,12 @@ impl LlvmInstrTrait for PhiInstr {
 	fn is_phi(&self) -> bool {
 		true
 	}
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		for (value, _label) in &mut self.source {
 			map_llvm_temp(value, map);
 		}
 	}
-	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
 		false
 	}
 }
@@ -329,8 +324,8 @@ impl Display for RetInstr {
 	}
 }
 
-impl UseTemp<Temp> for RetInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for RetInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		self.value.as_ref().map_or(Vec::new(), |v| {
 			vec![&v].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 		})
@@ -344,12 +339,12 @@ impl LlvmInstrTrait for RetInstr {
 	fn is_ret(&self) -> bool {
 		true
 	}
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		if let Some(value) = &mut self.value {
 			map_llvm_temp(value, map);
 		}
 	}
-	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
 		false
 	}
 }
@@ -367,11 +362,11 @@ impl Display for AllocInstr {
 	}
 }
 
-impl UseTemp<Temp> for AllocInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for AllocInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		vec![&self.length].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 	}
-	fn get_write(&self) -> Option<Temp> {
+	fn get_write(&self) -> Option<LlvmTemp> {
 		Some(self.target.clone())
 	}
 }
@@ -383,11 +378,11 @@ impl LlvmInstrTrait for AllocInstr {
 	fn type_valid(&self) -> bool {
 		self.length.get_type() == VarType::I32
 	}
-	fn get_alloc(&self) -> Option<(Temp, Value)> {
+	fn get_alloc(&self) -> Option<(LlvmTemp, Value)> {
 		Some((self.target.clone(), self.length.clone()))
 	}
-	fn map_temp(&mut self, _map: &HashMap<Temp, Value>) {}
-	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+	fn map_temp(&mut self, _map: &HashMap<LlvmTemp, Value>) {}
+	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
 		false
 	}
 }
@@ -405,8 +400,8 @@ impl Display for StoreInstr {
 	}
 }
 
-impl UseTemp<Temp> for StoreInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for StoreInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		unwrap_values(vec![&self.value, &self.addr])
 	}
 }
@@ -424,11 +419,11 @@ impl LlvmInstrTrait for StoreInstr {
 	fn is_store(&self) -> bool {
 		true
 	}
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.value, map);
 		map_llvm_temp(&mut self.addr, map);
 	}
-	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
 		false
 	}
 }
@@ -446,11 +441,11 @@ impl Display for LoadInstr {
 	}
 }
 
-impl UseTemp<Temp> for LoadInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for LoadInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		vec![&self.addr].into_iter().flat_map(|v| v.unwrap_temp()).collect()
 	}
-	fn get_write(&self) -> Option<Temp> {
+	fn get_write(&self) -> Option<LlvmTemp> {
 		Some(self.target.clone())
 	}
 }
@@ -465,10 +460,10 @@ impl LlvmInstrTrait for LoadInstr {
 	fn is_load(&self) -> bool {
 		self.addr.unwrap_temp().map_or(true, |v| !v.is_global)
 	}
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.addr, map);
 	}
-	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
 		false
 	}
 }
@@ -487,11 +482,11 @@ impl Display for GEPInstr {
 	}
 }
 
-impl UseTemp<Temp> for GEPInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for GEPInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		unwrap_values(vec![&self.addr, &self.offset])
 	}
-	fn get_write(&self) -> Option<Temp> {
+	fn get_write(&self) -> Option<LlvmTemp> {
 		Some(self.target.clone())
 	}
 }
@@ -505,11 +500,11 @@ impl LlvmInstrTrait for GEPInstr {
 			&& self.offset.get_type() == VarType::I32
 			&& type_match_ptr(self.var_type, self.addr.get_type())
 	}
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.addr, map);
 		map_llvm_temp(&mut self.offset, map);
 	}
-	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
 		false
 	}
 }
@@ -529,11 +524,11 @@ impl Display for CallInstr {
 	}
 }
 
-impl UseTemp<Temp> for CallInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for CallInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		unwrap_values(self.params.iter().map(|(_, x)| x).collect())
 	}
-	fn get_write(&self) -> Option<Temp> {
+	fn get_write(&self) -> Option<LlvmTemp> {
 		Some(self.target.clone())
 	}
 }
@@ -548,12 +543,12 @@ impl LlvmInstrTrait for CallInstr {
 	fn is_call(&self) -> bool {
 		true
 	}
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>) {
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		for (_, value) in &mut self.params {
 			map_llvm_temp(value, map);
 		}
 	}
-	fn replaceable(&self, _map: &HashMap<Temp, Value>) -> bool {
+	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
 		false
 	}
 }

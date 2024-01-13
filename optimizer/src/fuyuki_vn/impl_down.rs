@@ -1,5 +1,5 @@
 use super::fvn_utils::MaxMin;
-use llvm::{LlvmInstrTrait, Temp};
+use llvm::{LlvmInstrTrait, LlvmTemp};
 use rrvm::LlvmNode;
 use std::collections::HashMap;
 
@@ -42,7 +42,7 @@ pub fn get_lca(
 }
 
 pub fn solve(
-	uses: &mut HashMap<Temp, MaxMin<usize>>,
+	uses: &mut HashMap<LlvmTemp, MaxMin<usize>>,
 	known_lca: &mut HashMap<(usize, usize), usize>,
 	dfs_order_to_block: &mut HashMap<usize, LlvmNode>,
 	id_to_dfs_order: &HashMap<i32, usize>,

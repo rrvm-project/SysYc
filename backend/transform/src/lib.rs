@@ -17,9 +17,21 @@ pub mod transformer;
 
 use crate::instr_schedule::instr_schedule;
 
-pub fn convert_func(func: LlvmFunc) -> Result<RiscvFunc> {
+pub fn get_functions(
+	program: &mut RiscvProgram,
+	funcs: Vec<LlvmFunc>,
+) -> Result<()> {
+	for func in funcs {
+		program.funcs.push(convert_func(func, &mut program.temp_mgr)?);
+	}
+	Ok(())
+}
+
+pub fn convert_func(
+	func: LlvmFunc,
+	mgr: &mut TempManager,
+) -> Result<RiscvFunc> {
 	let mut nodes = Vec::new();
-	let mgr = &mut TempManager::new(0);
 	let mut edge = Vec::new();
 	let mut table = HashMap::new();
 	let mut alloc_table = HashMap::new();

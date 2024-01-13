@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{any::Any, fmt::Display};
 
 use utils::{InstrTrait, TempTrait};
 
@@ -36,7 +36,7 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for RrvmFunc<T, U> {
 	}
 }
 
-impl<T: InstrTrait<U>, U: TempTrait> Display for RrvmProgram<T, U> {
+impl<T: InstrTrait<U>, U: TempTrait, M: Any> Display for RrvmProgram<T, U, M> {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let funcs =
 			self.funcs.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("\n");
@@ -49,12 +49,12 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for RrvmProgram<T, U> {
 	}
 }
 
-impl<T: InstrTrait<U>, U: TempTrait> RrvmProgram<T, U> {
-	pub fn new() -> Self {
+impl<T: InstrTrait<U>, U: TempTrait, M: Any> RrvmProgram<T, U, M> {
+	pub fn new(temp_mgr: M) -> Self {
 		Self {
 			global_vars: Vec::new(),
 			funcs: Vec::new(),
-			next_temp: 0,
+			temp_mgr,
 		}
 	}
 }
@@ -66,11 +66,5 @@ impl LlvmProgram {
 			func.cfg.init_phi();
 			func.cfg.analysis();
 		}
-	}
-}
-
-impl<T: InstrTrait<U>, U: TempTrait> Default for RrvmProgram<T, U> {
-	fn default() -> Self {
-		Self::new()
 	}
 }

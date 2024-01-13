@@ -6,7 +6,7 @@ use std::{
 };
 
 use instruction::riscv::{value::RiscvTemp, RiscvInstr};
-use llvm::{JumpInstr, LlvmInstr, PhiInstr, RetInstr, VarType};
+use llvm::{JumpInstr, LlvmInstr, LlvmTemp, PhiInstr, RetInstr, VarType};
 use utils::{instr_format, InstrTrait, Label, TempTrait, UseTemp};
 
 pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
@@ -23,7 +23,7 @@ pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub live_in: HashSet<U>,
 	pub live_out: HashSet<U>,
 	pub phi_instrs: Vec<PhiInstr>,
-	pub phi_defs: HashSet<llvm::Temp>,
+	pub phi_defs: HashSet<LlvmTemp>,
 	pub instrs: Vec<T>,
 	pub jump_instr: Option<T>,
 }
@@ -155,7 +155,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 	}
 }
 
-impl BasicBlock<LlvmInstr, llvm::Temp> {
+impl BasicBlock<LlvmInstr, LlvmTemp> {
 	pub fn gen_jump(&mut self, var_type: VarType) {
 		if self.jump_instr.is_none() {
 			self.jump_instr = Some(match self.succ.len() {
@@ -202,7 +202,7 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 	}
 }
 
-impl PartialEq for BasicBlock<LlvmInstr, llvm::Temp> {
+impl PartialEq for BasicBlock<LlvmInstr, LlvmTemp> {
 	fn eq(&self, other: &Self) -> bool {
 		self.id == other.id
 	}

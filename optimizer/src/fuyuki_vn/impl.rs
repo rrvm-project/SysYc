@@ -7,7 +7,7 @@ use utils::UseTemp;
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::errors::Result;
 
-use llvm::{Temp, Value};
+use llvm::{LlvmTemp, Value};
 
 use rrvm::{dominator::naive::compute_dominator, LlvmNode};
 
@@ -48,7 +48,7 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 	}
 
 	// lvn: find
-	let mut rewirte: HashMap<Temp, Value> = HashMap::new();
+	let mut rewirte: HashMap<LlvmTemp, Value> = HashMap::new();
 
 	let total = post_order_to_block.len();
 	for i in 0..total {
@@ -66,9 +66,13 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 	//move down
 
 	let mut weights = HashMap::new();
-	let mut uses: HashMap<Temp, MaxMin<usize>> = HashMap::new();
+	let mut uses: HashMap<LlvmTemp, MaxMin<usize>> = HashMap::new();
 
-	fn update_use(uses: &mut HashMap<Temp, MaxMin<usize>>, i: usize, temp: Temp) {
+	fn update_use(
+		uses: &mut HashMap<LlvmTemp, MaxMin<usize>>,
+		i: usize,
+		temp: LlvmTemp,
+	) {
 		if let Some(use_item) = uses.get_mut(&temp) {
 			use_item.update(i);
 		} else {
