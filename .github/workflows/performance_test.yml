@@ -1,8 +1,6 @@
-name: Functional Test
+name: Performance Test
 
-on:
-  pull_request:
-    branches: [ main ]
+on: push
 
 jobs:
   build-and-test:
@@ -40,5 +38,5 @@ jobs:
         cd ./project-eval/runtime
         make
         cd ..
-        python test.py -t ./testcases/functional
+        python test.py -t ./testcases/performance -b
         cd ..

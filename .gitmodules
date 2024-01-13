@@ -1,3 +1,4 @@
 [submodule "project-eval"]
 	path = project-eval
 	url = git@github.com:rrvm-project/project-eval.git
+	branch = new_testcases
