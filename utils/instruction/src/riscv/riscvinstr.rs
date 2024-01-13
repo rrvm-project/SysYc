@@ -48,6 +48,9 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 	fn useless(&self) -> bool {
 		false
 	}
+	fn get_temp_op(&self) -> Option<TemporayInstrOp> {
+		None
+	}
 }
 
 impl UseTemp<Temp> for RiscvInstr {
@@ -117,4 +120,9 @@ pub struct NoArgInstr {
 pub struct CallInstr {
 	pub func_label: Label,
 	pub params: Vec<RiscvTemp>,
+}
+
+#[derive(UseTemp, Clone)]
+pub struct TemporayInstr {
+	pub op: TemporayInstrOp,
 }

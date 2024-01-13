@@ -7,6 +7,7 @@ pub use ITriInstrOp::*;
 pub use NoArgInstrOp::*;
 pub use RBinInstrOp::*;
 pub use RTriInstrOp::*;
+pub use TemporayInstrOp::*;
 
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum ITriInstrOp {
@@ -109,6 +110,12 @@ pub enum BranInstrOp {
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum NoArgInstrOp {
 	Ret,
+}
+
+#[derive(Fuyuki, PartialEq, Eq, Clone, Copy, Debug)]
+pub enum TemporayInstrOp {
+	Save,
+	Restore,
 }
 
 pub fn can_to_iop(op: &ArithOp) -> bool {

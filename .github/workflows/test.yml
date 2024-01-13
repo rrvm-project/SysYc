@@ -1,9 +1,9 @@
-name: Performance Test
+name: Test
 
 on: push
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
     steps:
     - name: get test repo
@@ -31,12 +31,16 @@ jobs:
         tar -xzvf riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14.tar.gz
         mv riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14 riscv64-toolchain
         cd ..
+        echo "PATH=$(pwd)/tmp/riscv64-toolchain/bin:$PATH" >> $GITHUB_ENV
 
-    - name: Build sylib & Run tests
-      run: |
-        export PATH="$(pwd)/tmp/riscv64-toolchain/bin:$PATH"
-        cd ./project-eval/runtime
-        make
-        cd ..
-        python test.py -t ./testcases/performance -b
-        cd ..
+    - name: build sysylib
+      working-directory: ./project-eval/runtime
+      run: make
+
+    - name: Run functional test
+      working-directory: ./project-eval
+      run: python test.py -t ./testcases/functional -b
+
+    - name: Run performance test
+      working-directory: ./project-eval
+      run: python test.py -t ./testcases/performance -b
