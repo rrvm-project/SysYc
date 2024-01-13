@@ -138,7 +138,6 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 				self.defs.insert(temp);
 			}
 		}
-		// self.uses.retain(|v| !self.defs.contains(v));
 	}
 	pub fn update_phi_def(&mut self) {
 		for instr in self.phi_instrs.iter() {

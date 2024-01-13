@@ -95,11 +95,7 @@ impl Visitor for IRGenerator {
 				let length = symbol.var_type.dims.iter().product::<usize>();
 				vec![Zero(length * var_type.to_ptr().deref_type().get_size())]
 			};
-			self.program.global_vars.push(GlobalVar::new(
-				node.ident.clone(),
-				data,
-				var_type == VarType::F32 || var_type == VarType::F32Ptr,
-			));
+			self.program.global_vars.push(GlobalVar::new(node.ident.clone(), data));
 			return Ok(());
 		}
 		if let Some(init) = node.init.as_mut() {

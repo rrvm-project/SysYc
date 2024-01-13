@@ -24,8 +24,6 @@ use transform::convert_func;
 use typer::visitor::Typer;
 use utils::{fatal_error, map_sys_err, warning};
 
-use simulator::simulator::MiddleSimulator;
-
 fn step_parse(file_name: &str) -> Result<Program> {
 	let code = fs::read_to_string(file_name)
 		.map_err(|_| fatal_error("no input files"))
@@ -87,21 +85,6 @@ fn main() -> Result<()> {
 	let llvm = step_llvm(program, level)?;
 	if args.llvm {
 		write!(writer, "{}", llvm)?;
-		return Ok(());
-	}
-
-	if args.sim {
-		let input = "".to_string();
-		let mut simulator = MiddleSimulator::new(input);
-		simulator.run_program(&llvm);
-		let return_value = simulator.return_scratch;
-		let output = simulator.output.to_owned().join("");
-		dbg!(return_value);
-
-		let out = return_value.unwrap().as_i32() as u8;
-
-		println!("exit code: {:?} \n{:?}", out, output);
-
 		return Ok(());
 	}
 
