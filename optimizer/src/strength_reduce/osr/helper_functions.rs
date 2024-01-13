@@ -82,6 +82,10 @@ impl OSR {
 		rc: Value,
 	) -> Option<Value> {
 		if let Value::Temp(t) = rc.clone() {
+			// 函数参数被当作常数看待
+			if self.params.contains(&t) {
+				return Some(rc);
+			}
 			let iv_header_bb_id = self.temp_to_instr[&iv_header].0;
 			let rc_bb_id = self.temp_to_instr[&t].0;
 			if self

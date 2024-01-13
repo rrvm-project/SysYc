@@ -37,10 +37,15 @@ pub struct OSR {
 	dominates: HashMap<i32, Vec<LlvmNode>>,
 	// dominates_directly: HashMap<i32, Vec<LlvmNode>>,
 	// dominator: HashMap<i32, LlvmNode>,
+	params: Vec<Temp>,
 }
 
 impl OSR {
-	pub fn new(cfg: &mut LlvmCFG, total_new_temp: u32) -> Self {
+	pub fn new(
+		cfg: &mut LlvmCFG,
+		params: Vec<Temp>,
+		total_new_temp: u32,
+	) -> Self {
 		let dfsnum = HashMap::new();
 		let mut visited = HashMap::new();
 		let low = HashMap::new();
@@ -90,6 +95,7 @@ impl OSR {
 			dominates,
 			// dominates_directly,
 			// dominator,
+			params,
 		}
 	}
 	pub fn run(&mut self, cfg: &mut LlvmCFG) {
@@ -105,7 +111,7 @@ impl OSR {
 		self.next_dfsnum += 1;
 		self.stack.push(temp.clone());
 		let mut reads = self.get_instr_reads(cfg, temp.clone());
-		reads.retain(|t| !t.is_global);
+		reads.retain(|t| !t.is_global && !self.params.contains(t));
 		reads.iter().for_each(|operand| {
 			if !self.visited[operand] {
 				self.dfs(cfg, operand.clone());
@@ -169,10 +175,11 @@ impl OSR {
 				continue;
 			}
 			let instr = &cfg.blocks[*bb_id].borrow().instrs[*instr_id];
-			if instr.get_read().iter().any(|operand| {
-				visited
-					.get(operand)
-					.map_or(false, |&v| v == InductionVariableState::Unknown)
+			if self.get_instr_reads(cfg, p.clone()).iter().any(|operand| {
+				scc.contains(operand)
+					&& visited
+						.get(operand)
+						.map_or(false, |&v| v == InductionVariableState::Unknown)
 			}) {
 				worklist.push_back(p.clone());
 			} else if let Some(op) = instr.is_candidate_operator() {
@@ -477,19 +484,38 @@ impl OSR {
 
 		match (&operand1, &operand2) {
 			(Value::Temp(t1), Value::Temp(t2)) => {
-				let (t1_id, t1_bb_index, _, _) = *self.temp_to_instr.get(t1).unwrap();
-				let (t2_id, t2_bb_index, _, _) = *self.temp_to_instr.get(t2).unwrap();
-				if self.dominates[&t1_id].iter().any(|bb| bb.borrow().id == t2_id) {
+				if self.params.contains(t1) && self.params.contains(t2) {
+					bb_id_to_insert = cfg.get_entry().borrow().id;
+					bb_index_to_insert = 0;
+				} else if self.params.contains(t1) {
+					let (t2_id, t2_bb_index, _, _) = *self.temp_to_instr.get(t2).unwrap();
 					bb_id_to_insert = t2_id;
 					bb_index_to_insert = t2_bb_index;
-				} else {
+				} else if self.params.contains(t2) {
+					let (t1_id, t1_bb_index, _, _) = *self.temp_to_instr.get(t1).unwrap();
 					bb_id_to_insert = t1_id;
 					bb_index_to_insert = t1_bb_index;
+				} else {
+					let (t1_id, t1_bb_index, _, _) = *self.temp_to_instr.get(t1).unwrap();
+					let (t2_id, t2_bb_index, _, _) = *self.temp_to_instr.get(t2).unwrap();
+					if self.dominates[&t1_id].iter().any(|bb| bb.borrow().id == t2_id) {
+						bb_id_to_insert = t2_id;
+						bb_index_to_insert = t2_bb_index;
+					} else {
+						bb_id_to_insert = t1_id;
+						bb_index_to_insert = t1_bb_index;
+					}
 				}
 			}
 			(Value::Temp(t), _) | (_, Value::Temp(t)) => {
-				(bb_id_to_insert, bb_index_to_insert, _, _) =
-					*self.temp_to_instr.get(t).unwrap();
+				if self.params.contains(t) {
+					bb_id_to_insert = cfg.get_entry().borrow().id;
+					bb_index_to_insert = 0;
+				} else {
+					let (t_id, t_bb_index, _, _) = *self.temp_to_instr.get(t).unwrap();
+					bb_id_to_insert = t_id;
+					bb_index_to_insert = t_bb_index;
+				}
 			}
 			(Value::Int(i1), Value::Int(i2)) => match op {
 				ArithOp::Add | ArithOp::Fadd => {
