@@ -1,10 +1,10 @@
-use crate::{llvmop::Value, llvmvar::VarType, temp::Temp};
+use crate::{llvmop::Value, llvmvar::VarType, LlvmTemp};
 
 pub fn all_equal<T: PartialEq>(slice: &[T]) -> bool {
 	slice.windows(2).all(|window| window[0] == window[1])
 }
 
-pub fn unwrap_values(arr: Vec<&Value>) -> Vec<Temp> {
+pub fn unwrap_values(arr: Vec<&Value>) -> Vec<LlvmTemp> {
 	arr.into_iter().flat_map(|v| v.unwrap_temp()).collect()
 }
 

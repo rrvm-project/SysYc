@@ -1,11 +1,7 @@
 use rand::Rng;
 use std::{collections::HashMap, hash::Hasher, vec};
 
-use llvm::{
-	llvmop::{ArithOp, CompOp},
-	llvmvar::VarType,
-	LlvmInstrTrait, Temp, Value,
-};
+use llvm::{ArithOp, CompOp, LlvmInstrTrait, LlvmTemp, Value, VarType};
 
 use std::hash::Hash;
 
@@ -75,7 +71,7 @@ impl Hash for SimpleLvnValue {
 	}
 }
 
-fn try_const(value: &SimpleLvnValue, backup_temp: Temp) -> Value {
+fn try_const(value: &SimpleLvnValue, backup_temp: LlvmTemp) -> Value {
 	match value {
 		SimpleLvnValue::Arith((op, _vartype, lhs, rhs)) => {
 			if let Some(value) = arith_binaryop(lhs, *op, rhs) {
@@ -102,7 +98,7 @@ fn try_const(value: &SimpleLvnValue, backup_temp: Temp) -> Value {
 	}
 }
 
-fn try_rewrite(value: &Value, rewrite: &HashMap<Temp, Value>) -> Value {
+fn try_rewrite(value: &Value, rewrite: &HashMap<LlvmTemp, Value>) -> Value {
 	match value {
 		Value::Temp(t) => {
 			let mut result = Value::Temp(t.clone());
@@ -123,8 +119,8 @@ fn try_rewrite(value: &Value, rewrite: &HashMap<Temp, Value>) -> Value {
 #[allow(clippy::borrowed_box)]
 fn get_simple_lvn_value(
 	instr: &Box<dyn LlvmInstrTrait>,
-	rewrite: &HashMap<Temp, Value>,
-) -> (Option<SimpleLvnValue>, Option<Temp>) {
+	rewrite: &HashMap<LlvmTemp, Value>,
+) -> (Option<SimpleLvnValue>, Option<LlvmTemp>) {
 	let mut dst = None;
 
 	let value: Option<SimpleLvnValue> = match instr.get_variant() {
@@ -177,7 +173,7 @@ fn get_random_vec(len: usize) -> Vec<i32> {
 
 fn get_value_vec(
 	value: &Value,
-	temp_to_vec: &mut HashMap<Temp, Vec<i32>>,
+	temp_to_vec: &mut HashMap<LlvmTemp, Vec<i32>>,
 	vec_table: &mut HashMap<Vec<i32>, Value>,
 ) -> Vec<i32> {
 	let length = 16;
@@ -209,10 +205,10 @@ fn calculate_vecs(
 #[allow(clippy::borrowed_box)]
 fn get_vector_lvn_value(
 	instr: &Box<dyn LlvmInstrTrait>,
-	_rewrite: &HashMap<Temp, Value>,
-	temp_to_vec: &mut HashMap<Temp, Vec<i32>>,
+	_rewrite: &HashMap<LlvmTemp, Value>,
+	temp_to_vec: &mut HashMap<LlvmTemp, Vec<i32>>,
 	vec_table: &mut HashMap<Vec<i32>, Value>,
-) -> (Option<Vec<i32>>, Option<Temp>) {
+) -> (Option<Vec<i32>>, Option<LlvmTemp>) {
 	let mut dst = None;
 
 	let value: Option<Vec<i32>> = match instr.get_variant() {
@@ -256,7 +252,7 @@ fn check_all_equal(v: &[i32]) -> Option<i32> {
 	}
 }
 
-pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
+pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<LlvmTemp, Value>) {
 	let mut table: HashMap<SimpleLvnValue, Value> = HashMap::new();
 
 	let mut remain_instr = vec![];
@@ -283,7 +279,7 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 	drop(table);
 
 	let mut vec_table: HashMap<Vec<i32>, Value> = HashMap::new();
-	let mut temp_to_vec: HashMap<Temp, Vec<i32>> = HashMap::new();
+	let mut temp_to_vec: HashMap<LlvmTemp, Vec<i32>> = HashMap::new();
 
 	for instr in remain_instr {
 		if let (Some(lvn_value), Some(target)) =
@@ -310,7 +306,7 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<Temp, Value>) {
 	*rewrite = new_rewirte;
 }
 
-pub fn rewrite_block(block: &mut LlvmNode, map: &mut HashMap<Temp, Value>) {
+pub fn rewrite_block(block: &mut LlvmNode, map: &mut HashMap<LlvmTemp, Value>) {
 	let mut new_vec = vec![];
 	for instr in &mut block.borrow_mut().phi_instrs {
 		if instr.replaceable(map) {

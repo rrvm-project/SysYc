@@ -14,13 +14,14 @@ use ast::tree::Program;
 use clap::Parser;
 use cli::Args;
 use emission::code_emission;
+use instruction::temp::TempManager;
 use irgen::IRGenerator;
 use namer::visitor::Namer;
 use optimizer::*;
 use parser::parser::parse;
 use register::register_alloc;
 use rrvm::program::*;
-use transform::convert_func;
+use transform::get_functions;
 use typer::visitor::Typer;
 use utils::{fatal_error, map_sys_err, warning};
 
@@ -34,7 +35,7 @@ fn step_parse(file_name: &str) -> Result<Program> {
 fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 	Namer::default().transform(&mut program)?;
 	Typer::default().transform(&mut program)?;
-	let mut program = IRGenerator::default().to_rrvm(program)?;
+	let mut program = IRGenerator::new().to_rrvm(program)?;
 	match level {
 		0 => Optimizer0::new().apply(&mut program)?,
 		1 => Optimizer1::new().apply(&mut program)?,
@@ -50,12 +51,10 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 }
 
 fn step_riscv(program: LlvmProgram, _level: i32) -> Result<RiscvProgram> {
-	let mut riscv_program = RiscvProgram::new();
+	let mut riscv_program = RiscvProgram::new(TempManager::default());
 	riscv_program.global_vars = program.global_vars;
-	for func in program.funcs.into_iter() {
-		riscv_program.funcs.push(convert_func(func)?);
-	}
-	riscv_program.funcs.iter_mut().for_each(register_alloc);
+	get_functions(&mut riscv_program, program.funcs)?;
+	register_alloc(&mut riscv_program);
 	Ok(riscv_program)
 }
 

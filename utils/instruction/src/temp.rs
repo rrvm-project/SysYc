@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap, fmt::Display};
 
+use llvm::LlvmTemp;
 use utils::TempTrait;
 
 use crate::riscv::{reg::RiscvReg, value::RiscvTemp};
@@ -43,20 +44,14 @@ impl Temp {
 	}
 }
 
+#[derive(Default)]
 pub struct TempManager {
 	pub total: i32,
 	pub total_pre_color: i32,
-	llvm2riscv: HashMap<llvm::temp::Temp, RiscvTemp>,
+	llvm2riscv: HashMap<LlvmTemp, RiscvTemp>,
 }
 
 impl TempManager {
-	pub fn new(total: i32) -> Self {
-		Self {
-			total,
-			total_pre_color: 0,
-			llvm2riscv: HashMap::new(),
-		}
-	}
 	pub fn new_temp(&mut self) -> RiscvTemp {
 		self.total += 1;
 		RiscvTemp::VirtReg(Temp::new(self.total))
@@ -83,7 +78,7 @@ impl TempManager {
 			pre_color: Some(reg),
 		})
 	}
-	pub fn get(&mut self, temp: &llvm::temp::Temp) -> RiscvTemp {
+	pub fn get(&mut self, temp: &LlvmTemp) -> RiscvTemp {
 		if let Some(v) = self.llvm2riscv.get(temp) {
 			*v
 		} else {
@@ -92,11 +87,7 @@ impl TempManager {
 			new
 		}
 	}
-	pub fn get_pre_color(
-		&mut self,
-		temp: &llvm::temp::Temp,
-		reg: RiscvReg,
-	) -> RiscvTemp {
+	pub fn get_pre_color(&mut self, temp: &LlvmTemp, reg: RiscvReg) -> RiscvTemp {
 		if let Some(v) = self.llvm2riscv.get(temp) {
 			*v
 		} else {

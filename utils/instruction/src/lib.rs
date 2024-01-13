@@ -1,7 +1,7 @@
 pub mod riscv;
 pub mod temp;
 
-use llvm::llvminstr::LlvmInstr;
+use llvm::LlvmInstr;
 use riscv::RiscvInstr;
 pub use temp::Temp;
 

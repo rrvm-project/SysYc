@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use instruction::{temp::TempManager, LlvmInstrSet, RiscvInstrSet};
-use llvm::llvminstr::LlvmInstr;
+use llvm::LlvmInstr;
 
 use crate::transformer::to_riscv;
 use utils::errors::Result;

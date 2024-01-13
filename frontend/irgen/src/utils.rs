@@ -1,4 +1,4 @@
-use llvm::{llvmop::*, VarType};
+use llvm::{ArithOp, CompKind, CompOp, VarType};
 use value::{BType, BinaryOp, FuncRetType};
 
 pub fn to_arith(op: BinaryOp, type_t: VarType) -> ArithOp {

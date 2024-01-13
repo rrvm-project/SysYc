@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::RemoveUselessCode;
 use crate::RrvmOptimizer;
-use llvm::{JumpInstr, Temp};
+use llvm::{JumpInstr, LlvmTemp};
 use rrvm::{dominator::*, program::LlvmProgram, LlvmCFG, LlvmNode};
 use utils::{errors::Result, UseTemp};
 
@@ -34,18 +34,19 @@ impl RrvmOptimizer for RemoveUselessCode {
 				&mut dominator_frontier,
 			);
 
-			// Temp -> Instruction, id of the Basicblock which contains the instruction
+			// LlvmTemp -> Instruction, id of the Basicblock which contains the instruction
 			// instruction here is represented by its index in the basicblock
-			let mut temp_graph: HashMap<Temp, HashSet<(Temp, i32)>> = HashMap::new();
-			let mut worklist: VecDeque<Temp> = VecDeque::new();
-			let mut visited: HashSet<Temp> = HashSet::new();
+			let mut temp_graph: HashMap<LlvmTemp, HashSet<(LlvmTemp, i32)>> =
+				HashMap::new();
+			let mut worklist: VecDeque<LlvmTemp> = VecDeque::new();
+			let mut visited: HashSet<LlvmTemp> = HashSet::new();
 			let mut visited_block: HashSet<i32> = HashSet::new();
-			let mut id_to_virtual_temp: HashMap<i32, Temp> = HashMap::new();
+			let mut id_to_virtual_temp: HashMap<i32, LlvmTemp> = HashMap::new();
 
 			for block in cfg.blocks.iter() {
 				let block = block.borrow();
 				let id = block.id;
-				let virtual_temp = Temp {
+				let virtual_temp = LlvmTemp {
 					name: format!("virtual_temp_{}", id),
 					is_global: false,
 					var_type: llvm::VarType::Void,
@@ -53,7 +54,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 				id_to_virtual_temp.insert(id, virtual_temp.clone());
 			}
 
-			let mut insert_worklist = |t: &Temp, id: i32| {
+			let mut insert_worklist = |t: &LlvmTemp, id: i32| {
 				if !visited.contains(t) {
 					visited.insert(t.clone());
 					worklist.push_back(t.clone());
@@ -70,7 +71,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 					}
 				}
 			};
-			let mut add_edge = |u: &Temp, v: &Temp, id: i32| {
+			let mut add_edge = |u: &LlvmTemp, v: &LlvmTemp, id: i32| {
 				temp_graph.entry(u.clone()).or_default().insert((v.clone(), id));
 			};
 			for block in cfg.blocks.iter() {

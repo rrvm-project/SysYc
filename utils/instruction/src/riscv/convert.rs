@@ -1,6 +1,6 @@
 use std::cmp::max;
 
-use llvm::llvmop::*;
+use llvm::{ArithOp, CompOp, ConvertOp, Value};
 use utils::{
 	errors::{Result, SysycError::*},
 	math::align16,
@@ -44,7 +44,7 @@ fn f32_to_reg(
 	i32_to_reg(num.to_bits() as i32, instrs, mgr)
 }
 
-fn end_num(val: &llvm::llvmop::Value) -> Option<i32> {
+fn end_num(val: &Value) -> Option<i32> {
 	match val {
 		Value::Int(v) => is_lower(*v).then_some(*v),
 		_ => None,
@@ -52,7 +52,7 @@ fn end_num(val: &llvm::llvmop::Value) -> Option<i32> {
 }
 
 fn into_reg(
-	val: &llvm::llvmop::Value,
+	val: &llvm::Value,
 	instrs: &mut RiscvInstrSet,
 	mgr: &mut TempManager,
 ) -> RiscvTemp {
@@ -137,7 +137,7 @@ fn get_arith(
 }
 
 pub fn riscv_arith(
-	instr: &llvm::llvminstr::ArithInstr,
+	instr: &llvm::ArithInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
@@ -164,7 +164,7 @@ fn get_slt(
 }
 
 pub fn riscv_comp(
-	instr: &llvm::llvminstr::CompInstr,
+	instr: &llvm::CompInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
@@ -200,7 +200,7 @@ pub fn riscv_comp(
 }
 
 pub fn riscv_convert(
-	instr: &llvm::llvminstr::ConvertInstr,
+	instr: &llvm::ConvertInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
@@ -220,7 +220,7 @@ pub fn riscv_convert(
 }
 
 pub fn riscv_jump(
-	instr: &llvm::llvminstr::JumpInstr,
+	instr: &llvm::JumpInstr,
 	_mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
@@ -230,7 +230,7 @@ pub fn riscv_jump(
 }
 
 pub fn riscv_cond(
-	instr: &llvm::llvminstr::JumpCondInstr,
+	instr: &llvm::JumpCondInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
@@ -243,14 +243,14 @@ pub fn riscv_cond(
 }
 
 pub fn riscv_phi(
-	_instr: &llvm::llvminstr::PhiInstr,
+	_instr: &llvm::PhiInstr,
 	_mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	unreachable!("phi instruction should be solved before instruction selcetion")
 }
 
 pub fn riscv_ret(
-	instr: &llvm::llvminstr::RetInstr,
+	instr: &llvm::RetInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
@@ -267,7 +267,7 @@ pub fn riscv_ret(
 }
 
 pub fn riscv_alloc(
-	instr: &llvm::llvminstr::AllocInstr,
+	instr: &llvm::AllocInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
@@ -289,7 +289,7 @@ pub fn riscv_alloc(
 }
 
 pub fn riscv_store(
-	instr: &llvm::llvminstr::StoreInstr,
+	instr: &llvm::StoreInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
@@ -300,7 +300,7 @@ pub fn riscv_store(
 }
 
 pub fn riscv_load(
-	instr: &llvm::llvminstr::LoadInstr,
+	instr: &llvm::LoadInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
@@ -317,7 +317,7 @@ pub fn riscv_load(
 }
 
 pub fn riscv_gep(
-	instr: &llvm::llvminstr::GEPInstr,
+	instr: &llvm::GEPInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
@@ -328,7 +328,7 @@ pub fn riscv_gep(
 }
 
 pub fn riscv_call(
-	instr: &llvm::llvminstr::CallInstr,
+	instr: &llvm::CallInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	// caller-saved

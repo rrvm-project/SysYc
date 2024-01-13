@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use ast::{tree::*, Visitor};
 use attr::Attrs;
-use llvm::{llvmop::*, Value, VarType::*, *};
+use llvm::{VarType::*, *};
 use rrvm::{
 	cfg::link_cfg,
 	program::{LlvmFunc, LlvmProgram},
@@ -22,11 +22,9 @@ use crate::{
 
 pub type Item = (LlvmCFG, Option<Value>, Option<Value>);
 
-#[derive(Default)]
 pub struct IRGenerator {
 	pub total: i32,
 	pub ret_type: FuncRetType,
-	pub mgr: TempManager,
 	pub program: LlvmProgram,
 	pub symbol_table: SymbolTable,
 	pub stack: Vec<Item>,
@@ -51,7 +49,6 @@ impl Visitor for IRGenerator {
 			self.total = 0;
 		}
 		self.symbol_table.pop();
-		node.next_temp = self.mgr.total + 1;
 		Ok(())
 	}
 
@@ -87,7 +84,7 @@ impl Visitor for IRGenerator {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
 		let var_type = type_convert(&symbol.var_type);
 		if self.is_global {
-			let temp = Temp::new(&node.ident, var_type, true);
+			let temp = LlvmTemp::new(&node.ident, var_type, true);
 			self.symbol_table.set(symbol.id, temp.into());
 			let data = if let Some(init) = node.init.as_ref() {
 				to_data(init.get_attr("value").unwrap().into())
@@ -101,7 +98,7 @@ impl Visitor for IRGenerator {
 		if let Some(init) = node.init.as_mut() {
 			self.symbol_table.set(symbol.id, var_type.default_value());
 			if symbol.var_type.is_array() {
-				let mut temp = self.mgr.new_temp(var_type, false);
+				let mut temp = self.new_temp(var_type, false);
 				let length = symbol.var_type.dims.iter().product::<usize>();
 				let length =
 					align16((length * var_type.deref_type().get_size()) as i32);
@@ -120,7 +117,7 @@ impl Visitor for IRGenerator {
 				let _ = self.stack.pop().unwrap();
 				for (mut cfg, value, addr) in self.pop() {
 					let value = self.solve(value, addr, &mut cfg);
-					let new_temp = self.mgr.new_temp(var_type, false);
+					let new_temp = self.new_temp(var_type, false);
 					cfg.get_exit().borrow_mut().push(Box::new(StoreInstr {
 						value,
 						addr: temp.clone().into(),
@@ -150,7 +147,7 @@ impl Visitor for IRGenerator {
 				let length: usize = symbol.var_type.dims.iter().product();
 				let length =
 					align16((length * var_type.deref_type().get_size()) as i32);
-				let temp = self.mgr.new_temp(var_type, false);
+				let temp = self.new_temp(var_type, false);
 				self.symbol_table.set(symbol.id, temp.clone().into());
 				*self.alloc_size.last_mut().unwrap() += length;
 				let instr = Box::new(AllocInstr {
@@ -228,7 +225,7 @@ impl Visitor for IRGenerator {
 		let temp = self.symbol_table.get(&symbol.id);
 		if temp.is_global() {
 			let var_type = type_convert(&symbol.var_type).to_ptr();
-			let target = self.mgr.new_temp(var_type, false);
+			let target = self.new_temp(var_type, false);
 			let instr = Box::new(LoadInstr {
 				target: target.clone(),
 				var_type,
@@ -290,7 +287,7 @@ impl Visitor for IRGenerator {
 			IDX => {
 				let rhs_val = self.solve(rhs_val, rhs_addr, &mut rcfg);
 				let rhs = self.type_conv(rhs_val, I32, &mut rcfg);
-				let offset = self.mgr.new_temp(I32, false);
+				let offset = self.new_temp(I32, false);
 				let instr = Box::new(ArithInstr {
 					target: offset.clone(),
 					lhs: rhs,
@@ -300,7 +297,7 @@ impl Visitor for IRGenerator {
 				});
 				rcfg.get_exit().borrow_mut().push(instr);
 				let var_type = lhs_addr.as_ref().unwrap().get_type();
-				let temp = self.mgr.new_temp(var_type, false);
+				let temp = self.new_temp(var_type, false);
 				let instr = Box::new(GEPInstr {
 					target: temp.clone(),
 					var_type,
@@ -321,7 +318,7 @@ impl Visitor for IRGenerator {
 				match node.op {
 					Add | Sub | Mul | Div | Mod => {
 						let op = to_arith(node.op, var_type);
-						let temp = self.mgr.new_temp(var_type, false);
+						let temp = self.new_temp(var_type, false);
 						let instr = Box::new(ArithInstr {
 							target: temp.clone(),
 							op,
@@ -337,7 +334,7 @@ impl Visitor for IRGenerator {
 					}
 					LT | LE | GE | GT | EQ | NE => {
 						let op = to_comp(node.op, var_type);
-						let temp = self.mgr.new_temp(var_type, false);
+						let temp = self.new_temp(var_type, false);
 						let instr = Box::new(CompInstr {
 							kind: get_comp_kind(var_type),
 							target: temp.clone(),
@@ -371,7 +368,7 @@ impl Visitor for IRGenerator {
 						} else {
 							self.if_then_else(lcfg, lhs, cfg_empty, diff_empty, rcfg, diff)
 						};
-						let temp = self.mgr.new_temp(I32, false);
+						let temp = self.new_temp(I32, false);
 						let instr = PhiInstr {
 							target: temp.clone(),
 							var_type,
@@ -397,7 +394,7 @@ impl Visitor for IRGenerator {
 			UnaryOp::Plus => self.stack.push((cfg, Some(temp), None)),
 			UnaryOp::Neg => {
 				let op = to_arith(BinaryOp::Sub, var_type);
-				let target = self.mgr.new_temp(var_type, false);
+				let target = self.new_temp(var_type, false);
 				let instr = Box::new(ArithInstr {
 					target: target.clone(),
 					op,
@@ -409,7 +406,7 @@ impl Visitor for IRGenerator {
 				self.stack.push((cfg, Some(target.into()), None));
 			}
 			UnaryOp::BitNot => {
-				let target = self.mgr.new_temp(var_type, false);
+				let target = self.new_temp(var_type, false);
 				let instr = Box::new(ArithInstr {
 					target: target.clone(),
 					op: ArithOp::Xor,
@@ -421,7 +418,7 @@ impl Visitor for IRGenerator {
 				self.stack.push((cfg, Some(target.into()), None));
 			}
 			UnaryOp::Not => {
-				let target = self.mgr.new_temp(var_type, false);
+				let target = self.new_temp(var_type, false);
 				let instr = Box::new(CompInstr {
 					kind: CompKind::Icmp,
 					target: target.clone(),
@@ -457,7 +454,7 @@ impl Visitor for IRGenerator {
 		}
 		let var_type = func_type_convert(&ret_type);
 		let cfg = self.fold_cfgs(cfgs);
-		let temp = self.mgr.new_temp(var_type, false);
+		let temp = self.new_temp(var_type, false);
 		let instr = Box::new(CallInstr {
 			target: temp.clone(),
 			var_type,
@@ -471,7 +468,7 @@ impl Visitor for IRGenerator {
 
 	fn visit_formal_param(&mut self, node: &mut FormalParam) -> Result<()> {
 		let symbol: VarSymbol = node.get_attr("symbol").unwrap().into();
-		let temp = self.mgr.new_temp(type_convert(&symbol.var_type), false);
+		let temp = self.new_temp(type_convert(&symbol.var_type), false);
 		self.symbol_table.set(symbol.id, temp.into());
 		Ok(())
 	}

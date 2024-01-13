@@ -1,4 +1,4 @@
-use llvm::llvmop::ArithOp;
+use llvm::ArithOp;
 use sysyc_derive::Fuyuki;
 
 pub use BranInstrOp::*;

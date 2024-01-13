@@ -1,6 +1,6 @@
 use utils::{InstrTrait, Label, UseTemp};
 
-use crate::{llvmop::*, llvmvar::VarType, LlvmInstrVariant, Temp};
+use crate::{llvmop::*, LlvmInstrVariant, LlvmTemp, VarType};
 use std::{collections::HashMap, fmt::Display};
 
 pub type LlvmInstr = Box<dyn LlvmInstrTrait>;
@@ -18,7 +18,7 @@ where
 	}
 }
 
-pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
+pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	fn type_valid(&self) -> bool {
 		true
 	}
@@ -56,23 +56,23 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<Temp> {
 	fn is_direct_jump(&self) -> bool {
 		false
 	}
-	fn get_alloc(&self) -> Option<(Temp, Value)> {
+	fn get_alloc(&self) -> Option<(LlvmTemp, Value)> {
 		None
 	}
-	fn map_temp(&mut self, map: &HashMap<Temp, Value>);
-	fn replaceable(&self, map: &HashMap<Temp, Value>) -> bool;
+	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>);
+	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool;
 }
 
-impl UseTemp<Temp> for LlvmInstr {
-	fn get_read(&self) -> Vec<Temp> {
+impl UseTemp<LlvmTemp> for LlvmInstr {
+	fn get_read(&self) -> Vec<LlvmTemp> {
 		self.as_ref().get_read()
 	}
-	fn get_write(&self) -> Option<Temp> {
+	fn get_write(&self) -> Option<LlvmTemp> {
 		self.as_ref().get_write()
 	}
 }
 
-impl InstrTrait<Temp> for LlvmInstr {
+impl InstrTrait<LlvmTemp> for LlvmInstr {
 	fn is_call(&self) -> bool {
 		self.as_ref().is_call()
 	}
@@ -80,7 +80,7 @@ impl InstrTrait<Temp> for LlvmInstr {
 
 #[derive(Clone)]
 pub struct ArithInstr {
-	pub target: Temp,
+	pub target: LlvmTemp,
 	pub op: ArithOp,
 	pub var_type: VarType,
 	pub lhs: Value,
@@ -89,7 +89,7 @@ pub struct ArithInstr {
 #[derive(Clone)]
 pub struct CompInstr {
 	pub kind: CompKind,
-	pub target: Temp,
+	pub target: LlvmTemp,
 	pub op: CompOp,
 	pub var_type: VarType,
 	pub lhs: Value,
@@ -98,7 +98,7 @@ pub struct CompInstr {
 
 #[derive(Clone)]
 pub struct ConvertInstr {
-	pub target: Temp,
+	pub target: LlvmTemp,
 	pub op: ConvertOp,
 	pub from_type: VarType,
 	pub lhs: Value,
@@ -120,7 +120,7 @@ pub struct JumpCondInstr {
 
 #[derive(Clone)]
 pub struct PhiInstr {
-	pub target: Temp,
+	pub target: LlvmTemp,
 	pub var_type: VarType,
 	pub source: Vec<(Value, Label)>,
 }
@@ -132,7 +132,7 @@ pub struct RetInstr {
 
 #[derive(Clone)]
 pub struct AllocInstr {
-	pub target: Temp,
+	pub target: LlvmTemp,
 	pub var_type: VarType,
 	pub length: Value,
 }
@@ -145,14 +145,14 @@ pub struct StoreInstr {
 
 #[derive(Clone)]
 pub struct LoadInstr {
-	pub target: Temp,
+	pub target: LlvmTemp,
 	pub var_type: VarType,
 	pub addr: Value,
 }
 
 #[derive(Clone)]
 pub struct GEPInstr {
-	pub target: Temp,
+	pub target: LlvmTemp,
 	pub var_type: VarType,
 	pub addr: Value,
 	pub offset: Value,
@@ -160,7 +160,7 @@ pub struct GEPInstr {
 
 #[derive(Clone)]
 pub struct CallInstr {
-	pub target: Temp,
+	pub target: LlvmTemp,
 	pub var_type: VarType,
 	pub func: Label,
 	pub params: Vec<(VarType, Value)>,

@@ -1,7 +1,7 @@
 use llvm::{Value, VarType};
 use utils::{InstrTrait, TempTrait};
 
-use crate::{cfg::CFG, program::RiscvFunc};
+use crate::cfg::CFG;
 
 pub struct RrvmFunc<T: InstrTrait<U>, U: TempTrait> {
 	pub total: i32,
@@ -19,23 +19,5 @@ impl<T: InstrTrait<U>, U: TempTrait> RrvmFunc<T, U> {
 			.blocks
 			.iter()
 			.any(|v| v.borrow().instrs.iter().any(|v| v.is_call()))
-	}
-}
-
-impl RiscvFunc {
-	pub fn max_temp(&self) -> i32 {
-		self
-			.cfg
-			.blocks
-			.iter()
-			.filter_map(|v| {
-				v.borrow()
-					.instrs
-					.iter()
-					.map(|v| v.get_write().map_or(0, |v| v.id))
-					.max()
-			})
-			.max()
-			.unwrap_or_default()
 	}
 }

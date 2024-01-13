@@ -5,13 +5,13 @@ use utils::TempTrait;
 use crate::{llvmop::Value, llvmvar::VarType};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Temp {
+pub struct LlvmTemp {
 	pub name: String,
 	pub is_global: bool,
 	pub var_type: VarType,
 }
 
-impl Display for Temp {
+impl Display for LlvmTemp {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		if self.is_global {
 			write!(f, "@{}", self.name)
@@ -21,9 +21,9 @@ impl Display for Temp {
 	}
 }
 
-impl TempTrait for Temp {}
+impl TempTrait for LlvmTemp {}
 
-impl Temp {
+impl LlvmTemp {
 	pub fn new(name: impl Display, var_type: VarType, is_global: bool) -> Self {
 		Self {
 			name: name.to_string(),
@@ -34,7 +34,7 @@ impl Temp {
 }
 
 impl Value {
-	pub fn unwrap_temp(&self) -> Option<Temp> {
+	pub fn unwrap_temp(&self) -> Option<LlvmTemp> {
 		match self {
 			Self::Temp(v) => Some(v.clone()),
 			_ => None,
@@ -43,24 +43,24 @@ impl Value {
 }
 
 #[derive(Default)]
-pub struct TempManager {
+pub struct LlvmTempManager {
 	pub total: u32,
 }
 
-impl TempManager {
+impl LlvmTempManager {
 	pub fn new() -> Self {
 		Self::default()
 	}
-	pub fn new_temp(&mut self, var_type: VarType, is_global: bool) -> Temp {
+	pub fn new_temp(&mut self, var_type: VarType, is_global: bool) -> LlvmTemp {
 		self.total += 1;
-		Temp::new(self.total, var_type, is_global)
+		LlvmTemp::new(self.total, var_type, is_global)
 	}
 	pub fn new_temp_with_name(
 		&mut self,
 		name: String,
 		var_type: VarType,
-	) -> Temp {
+	) -> LlvmTemp {
 		self.total += 1;
-		Temp::new(name, var_type, true)
+		LlvmTemp::new(name, var_type, true)
 	}
 }
