@@ -1,6 +1,6 @@
 // Ref：Engineering a Compiler 2nd Edition Page 433
 mod helper_functions;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 use llvm::{
 	ArithInstr, ArithOp, ConvertInstr, HashableValue, LlvmInstrTrait, Temp,
@@ -8,12 +8,6 @@ use llvm::{
 };
 use rrvm::{dominator::naive::compute_dominator, LlvmCFG, LlvmNode};
 use utils::UseTemp;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InductionVariableState {
-	Valid,
-	Unknown,
-}
 
 #[allow(clippy::upper_case_acronyms)]
 pub struct OSR {
@@ -149,7 +143,7 @@ impl OSR {
 			} else {
 				self.header.remove(member);
 			}
-		} else if scc.len() == 2 {
+		} else {
 			self.classify_induction_variables(cfg, scc);
 		}
 	}
@@ -158,119 +152,30 @@ impl OSR {
 		cfg: &mut LlvmCFG,
 		scc: Vec<Temp>,
 	) {
-		let mut is_induction_variable = true;
-		let mut visited = HashMap::new();
-		let mut worklist = VecDeque::from(scc.clone());
-		for p in scc.iter() {
-			if self.header.get(p).is_some() {
-				visited.insert(p.clone(), InductionVariableState::Valid);
-			} else {
-				visited.insert(p.clone(), InductionVariableState::Unknown);
-			}
-		}
-		while let Some(p) = worklist.pop_front() {
-			let (_, bb_id, instr_id, is_phi) = self.temp_to_instr.get(&p).unwrap();
-			if *is_phi {
-				visited.insert(p.clone(), InductionVariableState::Valid);
-				continue;
-			}
-			let instr = &cfg.blocks[*bb_id].borrow().instrs[*instr_id];
-			if self.get_instr_reads(cfg, p.clone()).iter().any(|operand| {
-				scc.contains(operand)
-					&& visited
-						.get(operand)
-						.map_or(false, |&v| v == InductionVariableState::Unknown)
-			}) {
-				worklist.push_back(p.clone());
-			} else if let Some(op) = instr.is_candidate_operator() {
-				let scc_header = scc.last().unwrap().clone();
-				match op {
-					ArithOp::Add | ArithOp::Fadd => {
-						let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
-						if let Some((_iv, header)) = self.is_induction_value(lhs.clone()) {
-							if let Some(_rc) = self.is_regional_constant(header.clone(), rhs)
-							{
-								visited.insert(p.clone(), InductionVariableState::Valid);
-							} else {
-								is_induction_variable = false;
-								break;
-							}
-						} else if lhs.unwrap_temp().is_some_and(|t| {
-							visited
-								.get(&t)
-								.map_or(false, |&v| v == InductionVariableState::Valid)
-						}) {
-							if let Some(_rc) =
-								self.is_regional_constant(scc_header.clone(), rhs)
-							{
-								visited.insert(p.clone(), InductionVariableState::Valid);
-							} else {
-								is_induction_variable = false;
-								break;
-							}
-						} else if let Some((_iv, header)) =
-							self.is_induction_value(rhs.clone())
-						{
-							if let Some(_rc) = self.is_regional_constant(header.clone(), lhs)
-							{
-								visited.insert(p.clone(), InductionVariableState::Valid);
-							} else {
-								is_induction_variable = false;
-								break;
-							}
-						} else if rhs.unwrap_temp().is_some_and(|t| {
-							visited
-								.get(&t)
-								.map_or(false, |&v| v == InductionVariableState::Valid)
-						}) {
-							if let Some(_rc) =
-								self.is_regional_constant(scc_header.clone(), lhs)
-							{
-								visited.insert(p.clone(), InductionVariableState::Valid);
-							} else {
-								is_induction_variable = false;
-								break;
-							}
-						}
-					}
-					ArithOp::Sub | ArithOp::Fsub => {
-						let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
-						if let Some((_iv, header)) = self.is_induction_value(lhs.clone()) {
-							if let Some(_rc) = self.is_regional_constant(header.clone(), rhs)
-							{
-								visited.insert(p.clone(), InductionVariableState::Valid);
-							} else {
-								is_induction_variable = false;
-								break;
-							}
-						} else if lhs.unwrap_temp().is_some_and(|t| {
-							visited
-								.get(&t)
-								.map_or(false, |&v| v == InductionVariableState::Valid)
-						}) {
-							if let Some(_rc) =
-								self.is_regional_constant(scc_header.clone(), rhs)
-							{
-								visited.insert(p.clone(), InductionVariableState::Valid);
-							} else {
-								is_induction_variable = false;
-								break;
-							}
-						}
-					}
-					_ => {
-						is_induction_variable = false;
-						break;
-					}
+		if scc.len() == 2 {
+			let member1 = &scc[0];
+			let member2 = &scc[1];
+			if let Some((_, _, _, true)) = self.temp_to_instr.get(member1) {
+				if self.is_valid_update_temp(cfg, member1.clone(), member2.clone()) {
+					self.header.insert(member1.clone(), member1.clone());
+					self.header.insert(member2.clone(), member1.clone());
+				}
+			} else if let Some((_, _, _, true)) = self.temp_to_instr.get(member2) {
+				if self.is_valid_update_temp(cfg, member2.clone(), member1.clone()) {
+					self.header.insert(member1.clone(), member2.clone());
+					self.header.insert(member2.clone(), member2.clone());
 				}
 			} else {
-				is_induction_variable = false;
-				break;
-			}
-		}
-		if is_induction_variable {
-			for p in scc.iter() {
-				self.header.insert(p.clone(), scc.last().unwrap().clone());
+				for p in scc.iter() {
+					let (_, bb_id, instr_id, is_phi) = self.temp_to_instr.get(p).unwrap();
+					if let Some((iv, rc)) =
+						self.is_candidate_operation(cfg, *bb_id, *instr_id, *is_phi)
+					{
+						self.replace(cfg, p.clone(), iv, rc);
+					} else {
+						self.header.remove(p);
+					}
+				}
 			}
 		} else {
 			for p in scc.iter() {
@@ -370,16 +275,17 @@ impl OSR {
 				[instr_id + 1]
 				.get_read_values();
 			for (id, operand) in new_def_read_values.iter().enumerate() {
-				if let Some(t) = operand.unwrap_temp() {
-					if self.header.get(&t).is_some_and(|h| *h == self.header[&iv]) {
-						let new_value =
-							Value::Temp(self.reduce(cfg, op, t.clone(), rc.clone()));
-						// 重新获得一次语句的位置
-						let (_, bb_id, instr_id, _) =
-							*self.temp_to_instr.get(&result).unwrap();
-						cfg.blocks[bb_id].borrow_mut().phi_instrs[instr_id]
-							.set_read_values(id, new_value);
-					}
+				if operand.unwrap_temp().is_some_and(|t| {
+					self.header.get(&t).is_some_and(|h| *h == self.header[&iv])
+				}) {
+					let t = operand.unwrap_temp().unwrap();
+					let new_value =
+						Value::Temp(self.reduce(cfg, op, t.clone(), rc.clone()));
+					// 重新获得一次语句的位置
+					let (_, bb_id, instr_id, _) =
+						*self.temp_to_instr.get(&result).unwrap();
+					cfg.blocks[bb_id].borrow_mut().phi_instrs[instr_id]
+						.set_read_values(id, new_value);
 				} else {
 					let new_value = self.apply(cfg, op, operand.clone(), rc.clone());
 					let (_, bb_id, instr_id, _) =

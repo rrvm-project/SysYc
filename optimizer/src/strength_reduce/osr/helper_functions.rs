@@ -88,13 +88,9 @@ impl OSR {
 			}
 			let iv_header_bb_id = self.temp_to_instr[&iv_header].0;
 			let rc_bb_id = self.temp_to_instr[&t].0;
-			if self
-				.dominates
-				.get(&rc_bb_id)
-				.unwrap()
-				.iter()
-				.any(|bb| bb.borrow().id == iv_header_bb_id)
-			{
+			if self.dominates.get(&rc_bb_id).unwrap().iter().any(|bb| {
+				bb.borrow().id == iv_header_bb_id && bb.borrow().id != rc_bb_id
+			}) {
 				Some(rc)
 			} else {
 				None
@@ -149,5 +145,44 @@ impl OSR {
 		} else {
 			cfg.blocks[bb_index].borrow().instrs[instr_index].get_read()
 		}
+	}
+
+	pub fn is_valid_update_temp(
+		&mut self,
+		cfg: &mut LlvmCFG,
+		phi_temp: Temp,
+		update_temp: Temp,
+	) -> bool {
+		let (_, bb_index, instr_index, is_phi) = self.temp_to_instr[&update_temp];
+		if is_phi {
+			return false;
+		}
+		let instr = &cfg.blocks[bb_index].borrow().instrs[instr_index];
+		let iv_header = phi_temp.clone();
+		if let Some(op) = instr.is_candidate_operator() {
+			match op {
+				ArithOp::Add | ArithOp::Fadd => {
+					let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
+					if (lhs == Value::Temp(phi_temp.clone())
+						&& self
+							.is_regional_constant(iv_header.clone(), rhs.clone())
+							.is_some()) || (rhs == Value::Temp(phi_temp.clone())
+						&& self.is_regional_constant(iv_header, lhs).is_some())
+					{
+						return true;
+					}
+				}
+				ArithOp::Sub | ArithOp::Fsub => {
+					let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
+					if lhs == Value::Temp(phi_temp.clone())
+						&& self.is_regional_constant(iv_header, rhs).is_some()
+					{
+						return true;
+					}
+				}
+				_ => {}
+			}
+		}
+		false
 	}
 }
