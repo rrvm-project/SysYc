@@ -9,9 +9,6 @@ pub struct Args {
 	pub llvm: bool,
 
 	#[arg(long)]
-	pub sim: bool,
-
-	#[arg(long)]
 	pub riscv: bool,
 
 	#[arg(short)]

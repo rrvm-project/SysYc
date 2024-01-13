@@ -9,12 +9,13 @@ use crate::{llvmvar::VarType, temp::Temp};
 
 use utils::{errors::Result, SysycError::*};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
 	Int(i32),
 	Float(f32),
 	Temp(Temp),
 }
+
 impl Value {
 	pub fn to_int(&self) -> Result<i32> {
 		match self {
@@ -31,16 +32,7 @@ impl Value {
 	}
 }
 
-impl PartialEq for Value {
-	fn eq(&self, other: &Self) -> bool {
-		match (self, other) {
-			(Self::Int(l0), Self::Int(r0)) => l0 == r0,
-			(Self::Float(l0), Self::Float(r0)) => l0 == r0,
-			(Self::Temp(l0), Self::Temp(r0)) => l0 == r0,
-			_ => false,
-		}
-	}
-}
+impl Eq for Value {}
 
 impl Hash for Value {
 	fn hash<H: Hasher>(&self, state: &mut H) {
