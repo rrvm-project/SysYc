@@ -41,11 +41,8 @@ impl InterferenceGraph {
 			let mut now = node.borrow().live_out.clone();
 			let mut last_end = HashSet::new();
 			for instr in node.borrow().instrs.iter().rev() {
-				// calc graph
-				edge_extend!(&instr.get_write(), &now);
-				edge_extend!(&instr.get_read(), &now);
-				// calc spill cost
 				if let Some(temp) = instr.get_write() {
+					edge_extend!(&[temp], &now);
 					if last_end.contains(&temp) {
 						*graph.spill_cost.entry(temp).or_default() = INFINITY;
 					}
@@ -53,6 +50,7 @@ impl InterferenceGraph {
 					graph.temps.push(temp);
 					*graph.spill_cost.entry(temp).or_default() += weight;
 				}
+				edge_extend!(&instr.get_read(), &now);
 				let read_set = instr.get_read().into_iter().collect::<HashSet<_>>();
 				let diff = read_set.difference(&now).cloned().collect::<HashSet<_>>();
 				if !diff.is_empty() {

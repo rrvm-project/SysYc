@@ -331,20 +331,8 @@ pub fn riscv_call(
 	instr: &llvm::CallInstr,
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
-	// caller-saved
 	let mut instrs: RiscvInstrSet = Vec::new();
-	let mut end_instrs: RiscvInstrSet = Vec::new();
-
-	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-112).into()));
-	CALLER_SAVE.iter().skip(1).enumerate().for_each(|(index, &v)| {
-		let instr =
-			IBinInstr::new(SD, v.into(), ((index * 8) as i32, SP.into()).into());
-		instrs.push(instr);
-		let instr =
-			IBinInstr::new(LD, v.into(), ((index * 8) as i32, SP.into()).into());
-		end_instrs.push(instr);
-	});
-
+	instrs.push(TemporayInstr::new(Save));
 	let size = align16(max(0, instr.params.len() as i32 - 8) * 8);
 	if size > 0 {
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
@@ -357,27 +345,25 @@ pub fn riscv_call(
 			((index * 8) as i32, SP.into()).into(),
 		));
 	}
-
 	// load parameters
+	let mut params = Vec::new();
 	for (&reg, (_, val)) in PARAMETER_REGS.iter().zip(instr.params.iter()) {
 		let rd = mgr.new_pre_color_temp(reg);
+		params.push(reg.into());
 		get_arith(rd, llvm::ArithOp::AddD, val, &0.into(), &mut instrs, mgr)?;
 	}
 
-	instrs.push(CallInstr::new(instr.func.clone()));
+	instrs.push(CallInstr::new(instr.func.clone(), params));
 
 	if size > 0 {
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
 	}
-	instrs.extend(end_instrs);
-	instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), 112.into()));
-
+	instrs.push(TemporayInstr::new(Restore));
 	let ret_val = mgr.new_pre_color_temp(A0);
-	let ret_instr = RTriInstr::new(Add, ret_val, A0.into(), X0.into());
-	instrs.push(ret_instr);
+	instrs.push(RTriInstr::new(Add, ret_val, A0.into(), X0.into()));
 	let rd = mgr.get(&instr.target);
-	let instr = RTriInstr::new(Add, rd, ret_val, X0.into());
-	instrs.push(instr);
-
+	if !instr.var_type.is_void() {
+		instrs.push(RTriInstr::new(Add, rd, ret_val, X0.into()));
+	}
 	Ok(instrs)
 }

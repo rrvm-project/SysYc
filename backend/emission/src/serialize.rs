@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use instruction::{riscv::prelude::*, RiscvInstrSet};
 use rrvm::{program::RiscvFunc, RiscvNode};
-use utils::{union_find::UnionFind, Label};
+use utils::{math::align16, union_find::UnionFind, Label};
 
-pub fn func_serialize(mut nodes: Vec<RiscvNode>) -> RiscvInstrSet {
+fn func_serialize(mut nodes: Vec<RiscvNode>) -> RiscvInstrSet {
 	let mut pre = HashMap::new();
 	let mut union_find = UnionFind::default();
 	nodes.sort_by(|x, y| y.borrow().weight.total_cmp(&x.borrow().weight));
@@ -42,47 +42,94 @@ pub fn func_serialize(mut nodes: Vec<RiscvNode>) -> RiscvInstrSet {
 		}
 	}
 	nodes.into_iter().for_each(|v| v.borrow_mut().clear());
-	instrs.retain(|v| !v.useless());
 	instrs
 }
 
 pub fn func_emission(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	let mut instrs = func_serialize(func.cfg.blocks);
 	let name = func.name;
+	instrs = solve_caller_save(instrs);
+	solve_callee_save(&mut instrs, func.spills);
+	instrs.retain(|v| !v.useless());
+	(name, instrs)
+}
+
+fn solve_callee_save(instrs: &mut RiscvInstrSet, spills: i32) {
 	let mut prelude = Vec::new();
-	let mut exit = vec![LabelInstr::new(Label::new("exit"))];
-	let saves: HashSet<_> = instrs
+	let mut epilogue = vec![LabelInstr::new(Label::new("exit"))];
+	let mut saves: HashSet<_> = instrs
 		.iter()
 		.flat_map(|v| v.get_riscv_write())
 		.filter_map(|v| v.get_phys())
 		.filter(|v| CALLEE_SAVE.iter().any(|reg| reg == v))
 		.collect();
-	let size = ((saves.len() as i32 + func.spills + 2) * 8) & -16;
+	if instrs.iter().any(|instr| {
+		instr
+			.get_riscv_read()
+			.iter()
+			.any(|v| v.get_phys().is_some_and(|v| v == FP))
+	}) {
+		saves.insert(FP);
+	}
+	let size = ((saves.len() as i32 + spills + 1) * 8) & -16;
 	if size > 0 {
 		prelude.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
 	}
 	for (index, &reg) in
-		CALLEE_SAVE.iter().filter(|v| saves.contains(v) || **v == FP).enumerate()
+		CALLEE_SAVE.iter().filter(|v| saves.contains(v)).enumerate()
 	{
 		let addr: RiscvImm = (index as i32 * 8, SP.into()).into();
 		prelude.push(IBinInstr::new(SD, reg.into(), addr.clone()));
-		exit.push(IBinInstr::new(LD, reg.into(), addr));
+		epilogue.push(IBinInstr::new(LD, reg.into(), addr));
 	}
-	prelude.push(ITriInstr::new(Addi, FP.into(), SP.into(), size.into()));
 	if size > 0 {
-		exit.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
+		if saves.contains(&FP) {
+			prelude.push(ITriInstr::new(Addi, FP.into(), SP.into(), size.into()));
+		}
+		epilogue.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
 	}
-	exit.push(NoArgInstr::new(Ret));
-	let exit_addr: RiscvImm = Label::new("exit").into();
+	epilogue.push(NoArgInstr::new(Ret));
+	let epilogue_addr: RiscvImm = Label::new("exit").into();
 	for instr in instrs.iter_mut().filter(|v| v.is_ret()) {
-		*instr = BranInstr::new(Beq, X0.into(), X0.into(), exit_addr.clone());
+		*instr = BranInstr::new(Beq, X0.into(), X0.into(), epilogue_addr.clone());
 	}
 	if let Some(instr) = instrs.last() {
 		if instr.get_read_label() == Some(Label::new("exit")) {
 			instrs.pop();
 		}
 	}
-	prelude.extend(instrs);
-	prelude.extend(exit);
-	(name, prelude)
+	prelude.append(instrs);
+	prelude.extend(epilogue);
+	*instrs = prelude;
+}
+
+fn solve_caller_save(instrs: RiscvInstrSet) -> RiscvInstrSet {
+	let saves: HashSet<_> = instrs
+		.iter()
+		.flat_map(|v| v.get_riscv_read())
+		.filter_map(|v| v.get_phys())
+		.filter(|v| CALLER_SAVE.iter().skip(1).any(|reg| reg == v))
+		.collect();
+	let size = align16(saves.len() as i32 * 8);
+	if size > 0 {
+		let mut prelude = Vec::new();
+		let mut epilogue = Vec::new();
+		prelude.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
+		saves.into_iter().enumerate().for_each(|(index, v)| {
+			let offset = (index * 8) as i32;
+			prelude.push(IBinInstr::new(SD, v.into(), (offset, SP.into()).into()));
+			epilogue.push(IBinInstr::new(LD, v.into(), (offset, SP.into()).into()));
+		});
+		epilogue.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
+		instrs
+			.into_iter()
+			.flat_map(|instr| match instr.get_temp_op() {
+				Some(Save) => prelude.iter().map(|v| v.clone_box()).collect(),
+				Some(Restore) => epilogue.iter().map(|v| v.clone_box()).collect(),
+				None => vec![instr],
+			})
+			.collect()
+	} else {
+		instrs.into_iter().filter(|instr| instr.get_temp_op().is_none()).collect()
+	}
 }

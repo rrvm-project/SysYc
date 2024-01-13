@@ -6,8 +6,8 @@ pub const CALLER_SAVE: &[RiscvReg] =
 pub const CALLEE_SAVE: &[RiscvReg] =
 	&[FP, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, RA];
 pub const ALLOCABLE_REGS: &[RiscvReg] = &[
-	A0, A1, A2, A3, A4, A5, A6, A7, T0, T1, T2, T3, T4, T5, T6, S1, S2, S3, S4,
-	S5, S6, S7, S8, S9, S10, S11,
+	S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, A0, A1, A2, A3, A4, A5, A6, A7,
+	T0, T1, T2, T3, T4, T5, T6,
 ];
 pub const PARAMETER_REGS: &[RiscvReg] = &[A0, A1, A2, A3, A4, A5, A6, A7];
 

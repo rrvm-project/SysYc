@@ -1,15 +1,14 @@
 #![allow(clippy::new_ret_no_self)]
-
-use std::{collections::HashMap, fmt::Display};
-
+use super::{reg::RiscvReg::*, riscvinstr::*, riscvop::*, utils::*, value::*};
+use crate::{riscv::reg::CALLER_SAVE, temp::Temp};
+use std::{
+	collections::HashMap,
+	fmt::{Display, Formatter, Result},
+};
 use utils::{mapper::LabelMapper, Label};
 
-use crate::temp::Temp;
-
-use super::{reg::RiscvReg::*, riscvinstr::*, riscvop::*, utils::*, value::*};
-
 impl Display for RTriInstr {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, f: &mut Formatter) -> Result {
 		if self.is_move() {
 			let val = if self.rs1.is_zero() {
 				self.rs2
@@ -62,7 +61,7 @@ impl RTriInstr {
 }
 
 impl Display for ITriInstr {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, f: &mut Formatter) -> Result {
 		match self.op {
 			Addi | Addiw | Xori | Ori if self.rs1.is_zero() => {
 				write!(f, "  li {}, {}", self.rd, self.rs2)
@@ -115,7 +114,7 @@ impl ITriInstr {
 }
 
 impl Display for IBinInstr {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, f: &mut Formatter) -> Result {
 		write!(f, "  {} {}, {}", self.op, self.rd, self.rs1)
 	}
 }
@@ -155,7 +154,7 @@ impl IBinInstr {
 }
 
 impl Display for LabelInstr {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, f: &mut Formatter) -> Result {
 		write!(f, "{}:", self.label)
 	}
 }
@@ -176,7 +175,7 @@ impl LabelInstr {
 }
 
 impl Display for RBinInstr {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, f: &mut Formatter) -> Result {
 		write!(f, "  {} {}, {}", self.op, self.rd, self.rs1)
 	}
 }
@@ -201,7 +200,7 @@ impl RBinInstr {
 }
 
 impl Display for BranInstr {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, f: &mut Formatter) -> Result {
 		if self.op == Beq && self.rs1.is_zero() && self.rs2.is_zero() {
 			write!(f, "  j {}", self.to)
 		} else {
@@ -242,7 +241,7 @@ impl BranInstr {
 }
 
 impl Display for NoArgInstr {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, f: &mut Formatter) -> Result {
 		write!(f, "  {}", self.op)
 	}
 }
@@ -260,17 +259,17 @@ impl NoArgInstr {
 }
 
 impl Display for CallInstr {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fn fmt(&self, f: &mut Formatter) -> Result {
 		write!(f, "  call {}", self.func_label)
 	}
 }
 
 impl RiscvInstrTrait for CallInstr {
-	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
-		self.params.clone()
-	}
+	// fn get_riscv_read(&self) -> Vec<RiscvTemp> {
+	// 	self.params.clone()
+	// }
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
-		vec![RA.into(), A0.into()]
+		CALLER_SAVE.iter().map(|&v| v.into()).chain(vec![RA.into()]).collect()
 	}
 	fn is_call(&self) -> bool {
 		true
@@ -278,10 +277,25 @@ impl RiscvInstrTrait for CallInstr {
 }
 
 impl CallInstr {
-	pub fn new(func_label: Label) -> RiscvInstr {
-		Box::new(Self {
-			func_label,
-			params: Vec::new(),
-		})
+	pub fn new(func_label: Label, params: Vec<RiscvTemp>) -> RiscvInstr {
+		Box::new(Self { func_label, params })
+	}
+}
+
+impl Display for TemporayInstr {
+	fn fmt(&self, f: &mut Formatter) -> Result {
+		write!(f, "  temporary instr, error happened unless in debug")
+	}
+}
+
+impl RiscvInstrTrait for TemporayInstr {
+	fn get_temp_op(&self) -> Option<TemporayInstrOp> {
+		Some(self.op)
+	}
+}
+
+impl TemporayInstr {
+	pub fn new(op: TemporayInstrOp) -> RiscvInstr {
+		Box::new(Self { op })
 	}
 }
