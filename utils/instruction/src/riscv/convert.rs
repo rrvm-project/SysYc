@@ -3,7 +3,7 @@ use std::cmp::max;
 use llvm::{ArithOp, CompOp, ConvertOp, Value};
 use utils::{
 	errors::{Result, SysycError::*},
-	math::align16,
+	math::{align16, is_pow2},
 	Label,
 };
 
@@ -13,35 +13,18 @@ use crate::{
 	RiscvInstrSet,
 };
 
-pub fn i32_to_reg(
-	num: i32,
+pub fn load_imm(
+	num: impl Into<i64>,
 	instrs: &mut RiscvInstrSet,
 	mgr: &mut TempManager,
 ) -> RiscvTemp {
+	let num: i64 = num.into();
 	if num == 0 {
 		return RiscvTemp::PhysReg(X0); // 代价不同、最小化代价
 	}
 	let rd = mgr.new_temp();
-	if is_lower(num) {
-		instrs.push(IBinInstr::new(Li, rd, num.into()));
-	} else {
-		let (high, low) = if (num & 0x800) != 0 {
-			((num as u32 >> 12) + 1, num & 0xFFF | (-1 << 12))
-		} else {
-			(num as u32 >> 12, num & 0xFFF)
-		};
-		instrs.push(IBinInstr::new(Lui, rd, (high as i32).into()));
-		instrs.push(ITriInstr::new(Addi, rd, rd, low.into()));
-	}
+	instrs.push(IBinInstr::new(Li, rd, num.into()));
 	rd
-}
-
-fn f32_to_reg(
-	num: f32,
-	instrs: &mut RiscvInstrSet,
-	mgr: &mut TempManager,
-) -> RiscvTemp {
-	i32_to_reg(num.to_bits() as i32, instrs, mgr)
 }
 
 fn end_num(val: &Value) -> Option<i32> {
@@ -57,8 +40,8 @@ fn into_reg(
 	mgr: &mut TempManager,
 ) -> RiscvTemp {
 	match val {
-		Value::Int(num) => i32_to_reg(*num, instrs, mgr),
-		Value::Float(num) => f32_to_reg(*num, instrs, mgr),
+		Value::Int(num) => load_imm(*num, instrs, mgr),
+		Value::Float(num) => load_imm(num.to_bits(), instrs, mgr),
 		Value::Temp(temp) => mgr.get(temp),
 	}
 }
@@ -98,6 +81,64 @@ fn solve_mul(
 	}
 }
 
+fn solve_div(
+	rd: RiscvTemp,
+	lhs: RiscvTemp,
+	num: i32,
+	instrs: &mut RiscvInstrSet,
+	mgr: &mut TempManager,
+) {
+	if is_pow2(num) {
+		let l = num.trailing_zeros() as i32;
+		let temp = mgr.new_temp();
+		instrs.push(ITriInstr::new(Srliw, temp, lhs, 31.into()));
+		instrs.push(RTriInstr::new(Sub, rd, lhs, temp));
+		instrs.push(ITriInstr::new(Srai, rd, rd, l.into()));
+		instrs.push(RTriInstr::new(Addw, rd, rd, temp));
+	} else {
+		let l = ((num - 1).ilog2() + 1) as i32;
+		let m = (2147483649i64 << l) / num as i64;
+		let temp = load_imm(m, instrs, mgr);
+		instrs.push(RTriInstr::new(Mul, rd, temp, lhs));
+		instrs.push(ITriInstr::new(Srliw, temp, lhs, 31.into()));
+		instrs.push(RTriInstr::new(Sub, rd, rd, temp));
+		instrs.push(ITriInstr::new(Srai, rd, rd, (l + 31).into()));
+		instrs.push(RTriInstr::new(Addw, rd, rd, temp));
+	}
+}
+
+fn solve_rem(
+	rd: RiscvTemp,
+	lhs: RiscvTemp,
+	num: i32,
+	instrs: &mut RiscvInstrSet,
+	mgr: &mut TempManager,
+) {
+	if is_pow2(num) {
+		let temp = mgr.new_temp();
+		let l = num.trailing_zeros() as i32;
+		if l == 1 {
+			instrs.push(ITriInstr::new(Srliw, temp, lhs, 31.into()));
+		} else {
+			instrs.push(ITriInstr::new(Slli, temp, lhs, 1.into()));
+			instrs.push(ITriInstr::new(Srli, temp, temp, (64 - l).into()));
+		}
+		instrs.push(RTriInstr::new(Add, temp, temp, lhs));
+		if is_lower(-num) {
+			instrs.push(ITriInstr::new(Andi, temp, temp, (-num).into()));
+		} else {
+			let imm = load_imm(-num, instrs, mgr);
+			instrs.push(RTriInstr::new(And, temp, temp, imm));
+		}
+		instrs.push(RTriInstr::new(Sub, rd, lhs, temp));
+	} else {
+		solve_div(rd, lhs, num, instrs, mgr);
+		let temp = load_imm(num, instrs, mgr);
+		instrs.push(RTriInstr::new(Mul, rd, rd, temp));
+		instrs.push(RTriInstr::new(Subw, rd, lhs, rd));
+	}
+}
+
 fn get_arith(
 	rd: RiscvTemp,
 	op: ArithOp,
@@ -107,25 +148,38 @@ fn get_arith(
 	mgr: &mut TempManager,
 ) -> Result<()> {
 	let lhs = into_reg(lhs, instrs, mgr);
-	match (op, end_num(rhs)) {
-		(ArithOp::Sub, _) if lhs.is_zero() => {
+	match (op, end_num(rhs), rhs) {
+		(ArithOp::Sub, _, _) if lhs.is_zero() => {
 			let rhs = into_reg(rhs, instrs, mgr);
 			instrs.push(RBinInstr::new(Negw, rd, rhs));
 		}
-		(ArithOp::Sub, Some(num)) if is_lower(-num) => {
+		(ArithOp::Sub, Some(num), _) if is_lower(-num) => {
 			instrs.push(ITriInstr::new(Addiw, rd, lhs, (-num).into()));
 		}
-		(ArithOp::Mul, Some(num)) if solve_mul(rd, lhs, num.abs(), instrs, mgr) => {
-			if num < 0 {
+		(ArithOp::Mul, _, Value::Int(num))
+			if solve_mul(rd, lhs, num.abs(), instrs, mgr) =>
+		{
+			if *num < 0 {
 				instrs.push(RBinInstr::new(Negw, rd, rd));
 			}
 		}
-		(ArithOp::Div, Some(num)) if num == 0 => {
-			if num == 0 {
-				return Err(SemanticError("divided by zero".to_string()));
+		(ArithOp::Div, _, Value::Int(num)) => match num {
+			0 => return Err(SemanticError("divided by zero".to_string())),
+			1 => instrs.push(RTriInstr::new(Add, rd, lhs, X0.into())),
+			-1 => instrs.push(RBinInstr::new(Neg, rd, lhs)),
+			_ => {
+				solve_div(rd, lhs, num.abs(), instrs, mgr);
+				if *num < 0 {
+					instrs.push(RBinInstr::new(Negw, rd, rd));
+				}
 			}
-		}
-		(_, Some(num)) if can_to_iop(&op) => {
+		},
+		(ArithOp::Rem, _, Value::Int(num)) => match num {
+			0 => return Err(SemanticError("moduled by zero".to_string())),
+			1 | -1 => instrs.push(RTriInstr::new(Add, rd, X0.into(), X0.into())),
+			_ => solve_rem(rd, lhs, num.abs(), instrs, mgr),
+		},
+		(_, Some(num), _) if can_to_iop(&op) => {
 			instrs.push(ITriInstr::new(to_iop(&op), rd, lhs, num.into()));
 		}
 		_ => {
