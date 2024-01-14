@@ -36,16 +36,6 @@ impl Hash for SimpleLvnValue {
 	fn hash<H: Hasher>(&self, state: &mut H) {
 		core::mem::discriminant(self).hash(state);
 		match self {
-			// SimpleLvnValue::LiteralInt(i) => {
-			// 	i.hash(state);
-			// }
-			// SimpleLvnValue::LiteralFloat(f) => {
-			// 	let mut value = *f;
-			// 	if value.is_nan() || value.is_infinite() {
-			// 		value = 1926.0817f32;
-			// 	}
-			// 	value.to_bits().hash(state);
-			// }
 			SimpleLvnValue::Arith((op, var_type, val1, val2)) => {
 				op.hash(state);
 				var_type.hash(state);

@@ -37,13 +37,13 @@ pub fn remove_phi(u: &LlvmNode) {
 		});
 		while let Some((target, value)) = ready.pop() {
 			let var_type = value.get_type();
-			v.borrow_mut().push(Box::new(ArithInstr {
-				target: target.clone(),
-				lhs: var_type.default_value(),
-				op: var_type.move_op(),
+			v.borrow_mut().push(ArithInstr::new(
+				target.clone(),
+				var_type.default_value(),
+				var_type.move_op(),
+				value.clone(),
 				var_type,
-				rhs: value.clone(),
-			}));
+			));
 			if let Value::Temp(target) = value {
 				map.entry(target).and_modify(|(value, cnt)| {
 					*cnt -= 1;
