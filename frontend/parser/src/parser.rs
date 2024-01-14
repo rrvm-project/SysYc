@@ -93,11 +93,25 @@ lazy_static::lazy_static! {
 }
 
 fn parse_func_call(pair: Pair<Rule>) -> Node {
-	let mut pairs = pair.into_inner();
-	let func_call = FuncCall {
-		_attrs: HashMap::new(),
-		ident: parse_identifier(pairs.next().unwrap()),
-		params: pairs.map(parse_expr).collect(),
+	let mut pairs = pair.clone().into_inner();
+	let ident = parse_identifier(pairs.next().unwrap());
+	let params: Vec<_> = pairs.map(parse_expr).collect();
+	let func_call = match (ident.as_str(), params.len()) {
+		("starttime", 0) => FuncCall {
+			_attrs: HashMap::new(),
+			ident: "_sysy_starttime".to_string(),
+			params: vec![LiteralInt::node(pair.line_col().0 as i32)],
+		},
+		("stoptime", 0) => FuncCall {
+			_attrs: HashMap::new(),
+			ident: "_sysy_stoptime".to_string(),
+			params: vec![LiteralInt::node(pair.line_col().0 as i32)],
+		},
+		_ => FuncCall {
+			_attrs: HashMap::new(),
+			ident,
+			params,
+		},
 	};
 	Box::new(func_call)
 }
@@ -152,7 +166,6 @@ fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 			_attrs: HashMap::new(),
 			value: parse_int_lit(pair.as_str()),
 		}),
-
 		Rule::Float => Box::new(LiteralFloat {
 			_attrs: HashMap::new(),
 			value: parse_float_lit(pair.as_str()),
