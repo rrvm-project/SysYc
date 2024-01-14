@@ -54,7 +54,7 @@ pub fn convert_func(
 			let instr = if is_lower(kill_size) {
 				ITriInstr::new(Addi, SP.into(), SP.into(), kill_size.into())
 			} else {
-				let num = i32_to_reg(kill_size, &mut node.borrow_mut().instrs, mgr);
+				let num = load_imm(kill_size, &mut node.borrow_mut().instrs, mgr);
 				RTriInstr::new(Add, SP.into(), SP.into(), num)
 			};
 			node.borrow_mut().instrs.push(instr);

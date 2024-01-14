@@ -3,6 +3,7 @@ use std::fmt::Display;
 use crate::temp::Temp;
 
 use super::reg::RiscvReg;
+use utils::math::is_pow2;
 pub use RiscvImm::*;
 pub use RiscvTemp::*;
 
@@ -11,10 +12,6 @@ const RISCV_IMM_MIN: i32 = -2048;
 
 pub fn is_lower(x: i32) -> bool {
 	RISCV_IMM_MIN < x && x < RISCV_IMM_MAX
-}
-
-pub fn is_pow2(x: i32) -> bool {
-	x & (x - 1) == 0
 }
 
 pub fn can_optimized_mul(x: i32) -> bool {
@@ -43,6 +40,7 @@ impl From<RiscvReg> for RiscvTemp {
 #[derive(Clone)]
 pub enum RiscvImm {
 	Int(i32),
+	LongLong(i64),
 	Label(utils::Label),
 	OffsetReg(i32, RiscvTemp),
 }
@@ -61,6 +59,7 @@ impl Display for RiscvImm {
 		match self {
 			Self::Int(v) => write!(f, "{}", v),
 			Self::Label(v) => write!(f, "{}", v),
+			Self::LongLong(v) => write!(f, "{}", v),
 			Self::OffsetReg(offset, base) => write!(f, "{}({})", offset, base),
 		}
 	}
@@ -69,6 +68,12 @@ impl Display for RiscvImm {
 impl From<i32> for RiscvImm {
 	fn from(x: i32) -> Self {
 		RiscvImm::Int(x)
+	}
+}
+
+impl From<i64> for RiscvImm {
+	fn from(x: i64) -> Self {
+		RiscvImm::LongLong(x)
 	}
 }
 
