@@ -1,5 +1,5 @@
 use llvm::{Value, VarType};
-use utils::{InstrTrait, TempTrait};
+use utils::{InstrTrait, TempTrait, MAX_INLINE_LENGTH};
 
 use crate::cfg::CFG;
 
@@ -19,5 +19,14 @@ impl<T: InstrTrait<U>, U: TempTrait> RrvmFunc<T, U> {
 			.blocks
 			.iter()
 			.any(|v| v.borrow().instrs.iter().any(|v| v.is_call()))
+	}
+	pub fn len(&self) -> usize {
+		self.cfg.blocks.iter().map(|v| v.borrow().instrs.len()).sum()
+	}
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
+	pub fn can_inline(&self) -> bool {
+		self.is_leaf() && self.len() < MAX_INLINE_LENGTH
 	}
 }

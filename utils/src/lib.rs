@@ -1,3 +1,4 @@
+pub mod constants;
 pub mod errors;
 pub mod global_var;
 pub mod iter;
@@ -7,6 +8,7 @@ pub mod math;
 pub mod union_find;
 use std::{fmt::Display, hash::Hash};
 
+pub use constants::*;
 pub use errors::*;
 pub use global_var::*;
 pub use label::*;

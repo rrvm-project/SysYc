@@ -1,7 +1,4 @@
-use std::{
-	collections::{HashMap, HashSet},
-	fmt::Display,
-};
+use std::collections::{HashMap, HashSet};
 
 use utils::{InstrTrait, Label, TempTrait};
 
@@ -110,10 +107,7 @@ impl LlvmCFG {
 pub fn link_node<T: InstrTrait<U>, U: TempTrait>(
 	from: &Node<T, U>,
 	to: &Node<T, U>,
-) where
-	T: Display,
-	U: TempTrait,
-{
+) {
 	if from.borrow().jump_instr.is_none() {
 		from.borrow_mut().succ.push(to.clone());
 		to.borrow_mut().prev.push(from.clone());
@@ -123,10 +117,7 @@ pub fn link_node<T: InstrTrait<U>, U: TempTrait>(
 pub fn link_cfg<T: InstrTrait<U>, U: TempTrait>(
 	from: &CFG<T, U>,
 	to: &CFG<T, U>,
-) where
-	T: InstrTrait<U>,
-	U: TempTrait,
-{
+) {
 	link_node(&from.get_exit(), &to.get_entry())
 }
 

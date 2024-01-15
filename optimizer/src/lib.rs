@@ -1,5 +1,6 @@
 mod dead_code;
 mod fold_constants;
+mod function_inline;
 mod fuyuki_vn;
 mod impls;
 mod unreachable;

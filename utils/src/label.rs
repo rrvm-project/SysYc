@@ -18,3 +18,10 @@ impl Label {
 		}
 	}
 }
+
+pub fn to_label(id: i32) -> Label {
+	match id {
+		0 => Label::new("entry"),
+		_ => Label::new(format!("B{}", id)),
+	}
+}
