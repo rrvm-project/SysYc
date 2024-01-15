@@ -260,7 +260,7 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<LlvmTemp, Value>) {
 				if value_try.is_num() {
 					rewrite.insert(target, value_try);
 				} else {
-					remain_instr.push(instr.clone_box());
+					remain_instr.push(instr.clone());
 				}
 			}
 		}
@@ -313,7 +313,7 @@ pub fn rewrite_block(block: &mut LlvmNode, map: &mut HashMap<LlvmTemp, Value>) {
 			continue;
 		}
 		instr.map_temp(map);
-		new_vec.push(instr.clone_box());
+		new_vec.push(instr.clone());
 	}
 
 	block.borrow_mut().instrs = new_vec;

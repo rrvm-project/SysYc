@@ -6,15 +6,21 @@ use std::{collections::HashMap, fmt::Display};
 pub type LlvmInstr = Box<dyn LlvmInstrTrait>;
 
 pub trait CloneLlvmInstr {
-	fn clone_box(&self) -> Box<dyn LlvmInstrTrait>;
+	fn clone_box(&self) -> LlvmInstr;
 }
 
 impl<T> CloneLlvmInstr for T
 where
 	T: 'static + LlvmInstrTrait + Clone,
 {
-	fn clone_box(&self) -> Box<dyn LlvmInstrTrait> {
+	fn clone_box(&self) -> LlvmInstr {
 		Box::new(self.clone())
+	}
+}
+
+impl Clone for LlvmInstr {
+	fn clone(&self) -> Self {
+		self.clone_box()
 	}
 }
 

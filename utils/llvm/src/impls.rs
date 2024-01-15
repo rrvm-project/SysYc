@@ -237,6 +237,12 @@ impl LlvmInstrTrait for JumpInstr {
 	}
 }
 
+impl JumpInstr {
+	pub fn new(target: Label) -> LlvmInstr {
+		Box::new(Self { target })
+	}
+}
+
 impl Display for JumpCondInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(
