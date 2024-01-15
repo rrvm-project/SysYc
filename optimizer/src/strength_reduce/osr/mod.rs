@@ -29,8 +29,6 @@ pub struct OSR {
 	pub flag: bool,
 
 	dominates: HashMap<i32, Vec<LlvmNode>>,
-	// dominates_directly: HashMap<i32, Vec<LlvmNode>>,
-	// dominator: HashMap<i32, LlvmNode>,
 	params: Vec<Temp>,
 }
 
@@ -82,13 +80,10 @@ impl OSR {
 			stack,
 			header,
 			temp_to_instr,
-			// to_insert: Vec::new(),
 			new_instr: HashMap::new(),
 			total_new_temp,
 			flag: false,
 			dominates,
-			// dominates_directly,
-			// dominator,
 			params,
 		}
 	}
@@ -155,12 +150,7 @@ impl OSR {
 		if scc.len() == 2 {
 			let member1 = &scc[0];
 			let member2 = &scc[1];
-			if let Some((_, _, _, true)) = self.temp_to_instr.get(member1) {
-				if self.is_valid_update_temp(cfg, member1.clone(), member2.clone()) {
-					self.header.insert(member1.clone(), member1.clone());
-					self.header.insert(member2.clone(), member1.clone());
-				}
-			} else if let Some((_, _, _, true)) = self.temp_to_instr.get(member2) {
+			if let Some((_, _, _, true)) = self.temp_to_instr.get(member2) {
 				if self.is_valid_update_temp(cfg, member2.clone(), member1.clone()) {
 					self.header.insert(member1.clone(), member2.clone());
 					self.header.insert(member2.clone(), member2.clone());
@@ -265,9 +255,9 @@ impl OSR {
 			self
 				.temp_to_instr
 				.insert(result.clone(), (id, bb_id, instr_id + 1, true));
-			self.dfsnum.insert(result.clone(), self.dfsnum[&iv]);
-			self.visited.insert(result.clone(), self.visited[&iv]);
-			self.low.insert(result.clone(), self.low[&iv]);
+			// self.dfsnum.insert(result.clone(), self.dfsnum[&iv]);
+			// self.visited.insert(result.clone(), self.visited[&iv]);
+			// self.low.insert(result.clone(), self.low[&iv]);
 			self.header.insert(result.clone(), self.header[&iv].clone());
 
 			// new_def = &mut cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1];

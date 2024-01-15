@@ -24,20 +24,10 @@ impl OSR {
 					let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
 					if let Some((iv, header)) = self.is_induction_value(lhs.clone()) {
 						self.is_regional_constant(header.clone(), rhs).map(|rc| (iv, rc))
-					// if let Some(rc) = self.is_regional_constant(header.clone(), rhs) {
-					// 	Some((iv, rc))
-					// } else {
-					// 	None
-					// }
 					} else if let Some((iv, header)) =
 						self.is_induction_value(rhs.clone())
 					{
 						self.is_regional_constant(header.clone(), lhs).map(|rc| (iv, rc))
-					// if let Some(rc) = self.is_regional_constant(header.clone(), lhs) {
-					// 	Some((iv, rc))
-					// } else {
-					// 	None
-					// }
 					} else {
 						None
 					}
@@ -46,11 +36,6 @@ impl OSR {
 					let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
 					if let Some((iv, header)) = self.is_induction_value(lhs.clone()) {
 						self.is_regional_constant(header.clone(), rhs).map(|rc| (iv, rc))
-					// if let Some(rc) = self.is_regional_constant(header.clone(), rhs) {
-					// 	Some((iv, rc))
-					// } else {
-					// 	None
-					// }
 					} else {
 						None
 					}
@@ -64,14 +49,7 @@ impl OSR {
 	// 返回 induction variable 和它的 header
 	pub fn is_induction_value(&self, v: Value) -> Option<(Temp, Temp)> {
 		match v {
-			Value::Temp(t) => {
-				self.header.get(&t).map(|h| (t, h.clone()))
-				// if let Some(h) = self.header.get(&t) {
-				// 	Some((t, h.clone()))
-				// } else {
-				// 	None
-				// }
-			}
+			Value::Temp(t) => self.header.get(&t).map(|h| (t, h.clone())),
 			_ => None,
 		}
 	}
@@ -85,6 +63,9 @@ impl OSR {
 			// 函数参数被当作常数看待
 			if self.params.contains(&t) {
 				return Some(rc);
+			}
+			if self.header.contains_key(&t) {
+				return None;
 			}
 			let iv_header_bb_id = self.temp_to_instr[&iv_header].0;
 			let rc_bb_id = self.temp_to_instr[&t].0;
