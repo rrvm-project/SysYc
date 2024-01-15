@@ -1,14 +1,13 @@
 use std::any::Any;
 
 use instruction::{riscv::RiscvInstr, temp};
-use llvm::LlvmInstr;
+use llvm::*;
 use utils::{GlobalVar, InstrTrait, TempTrait};
 
 use crate::func::RrvmFunc;
 
-pub type LlvmFunc = RrvmFunc<LlvmInstr, llvm::LlvmTemp>;
-pub type LlvmProgram =
-	RrvmProgram<LlvmInstr, llvm::LlvmTemp, llvm::LlvmTempManager>;
+pub type LlvmFunc = RrvmFunc<LlvmInstr, LlvmTemp>;
+pub type LlvmProgram = RrvmProgram<LlvmInstr, LlvmTemp, LlvmTempManager>;
 pub type RiscvFunc = RrvmFunc<RiscvInstr, temp::Temp>;
 pub type RiscvProgram = RrvmProgram<RiscvInstr, temp::Temp, temp::TempManager>;
 

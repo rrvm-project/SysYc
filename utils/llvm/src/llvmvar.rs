@@ -11,6 +11,12 @@ pub enum VarType {
 	Void,
 }
 
+impl Default for VarType {
+	fn default() -> Self {
+		Self::Void
+	}
+}
+
 impl Display for VarType {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let type_str = match self {

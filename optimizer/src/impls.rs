@@ -4,6 +4,7 @@ use utils::errors::Result;
 use crate::{useless_phis::RemoveUselessPhis, RrvmOptimizer, *};
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
+use function_inline::InlineFunction;
 use fuyuki_vn::FuyukiLocalValueNumber;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
@@ -61,6 +62,7 @@ impl Optimizer2 {
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
+			flag |= InlineFunction::new().apply(program)?;
 			if !flag {
 				break;
 			}

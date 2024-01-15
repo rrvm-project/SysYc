@@ -6,10 +6,14 @@ use std::{
 };
 
 use instruction::riscv::{value::RiscvTemp, RiscvInstr};
-use llvm::{JumpInstr, LlvmInstr, LlvmTemp, PhiInstr, RetInstr, VarType};
-use utils::{instr_format, InstrTrait, Label, TempTrait, UseTemp};
+use llvm::{
+	JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp, PhiInstr, RetInstr, Value,
+	VarType,
+};
+use utils::{instr_format, to_label, InstrTrait, Label, TempTrait, UseTemp};
 
 pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
+pub type LlvmBasicBlock = BasicBlock<LlvmInstr, llvm::LlvmTemp>;
 
 pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub id: i32,
@@ -41,7 +45,7 @@ fn get_other_label<T: InstrTrait<U>, U: TempTrait>(
 }
 
 impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
-	pub fn new(id: i32, weight: f64) -> BasicBlock<T, U> {
+	pub fn new(id: i32, weight: f64) -> Self {
 		BasicBlock {
 			id,
 			weight,
@@ -63,10 +67,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 		Rc::new(RefCell::new(Self::new(id, weight)))
 	}
 	pub fn label(&self) -> Label {
-		match self.id {
-			0 => Label::new("entry"),
-			_ => Label::new(format!("B{}", self.id)),
-		}
+		to_label(self.id)
 	}
 	// Use this before drop a BasicBlock, or may lead to memory leak
 	pub fn clear(&mut self) {
@@ -155,7 +156,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 	}
 }
 
-impl BasicBlock<LlvmInstr, LlvmTemp> {
+impl LlvmBasicBlock {
 	pub fn gen_jump(&mut self, var_type: VarType) {
 		if self.jump_instr.is_none() {
 			self.jump_instr = Some(match self.succ.len() {
@@ -180,6 +181,9 @@ impl BasicBlock<LlvmInstr, LlvmTemp> {
 			}
 		}
 	}
+	pub fn update_weight(&mut self, weight: f64) {
+		self.weight *= weight;
+	}
 }
 
 impl BasicBlock<RiscvInstr, instruction::Temp> {
@@ -202,9 +206,39 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 	}
 }
 
-impl PartialEq for BasicBlock<LlvmInstr, LlvmTemp> {
+impl PartialEq for LlvmBasicBlock {
 	fn eq(&self, other: &Self) -> bool {
 		self.id == other.id
+	}
+}
+
+impl Clone for LlvmBasicBlock {
+	fn clone(&self) -> Self {
+		Self {
+			phi_instrs: self.phi_instrs.clone(),
+			instrs: self.instrs.iter().map(|v| v.clone_box()).collect(),
+			jump_instr: self.jump_instr.as_ref().map(|v| v.clone_box()),
+			kill_size: self.kill_size,
+			..Self::new(self.id, self.weight)
+		}
+	}
+}
+
+impl LlvmBasicBlock {
+	pub fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
+		self.phi_instrs.iter_mut().for_each(|v| v.map_temp(map));
+		self.instrs.iter_mut().for_each(|v| v.map_temp(map));
+		if let Some(instr) = self.jump_instr.as_mut() {
+			instr.map_temp(map);
+		}
+	}
+	pub fn map_phi_label(&mut self, map: &HashMap<Label, Label>) {
+		self.phi_instrs.iter_mut().for_each(|v| v.map_label(map));
+	}
+	pub fn map_jump_label(&mut self, map: &HashMap<Label, Label>) {
+		if let Some(instr) = self.jump_instr.as_mut() {
+			instr.map_label(map);
+		}
 	}
 }
 
