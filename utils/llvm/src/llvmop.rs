@@ -41,7 +41,7 @@ impl Hash for Value {
 pub enum HashableValue {
 	Int(i32),
 	Float(u64, i16, i8),
-	Temp(Temp),
+	Temp(LlvmTemp),
 }
 
 pub trait LlvmOp: Display {

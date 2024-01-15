@@ -3,7 +3,7 @@ mod helper_functions;
 use std::collections::HashMap;
 
 use llvm::{
-	ArithInstr, ArithOp, ConvertInstr, HashableValue, LlvmInstrTrait, Temp,
+	ArithInstr, ArithOp, ConvertInstr, HashableValue, LlvmInstrTrait, LlvmTemp,
 	Value, VarType,
 };
 use rrvm::{dominator::naive::compute_dominator, LlvmCFG, LlvmNode};
@@ -12,30 +12,30 @@ use utils::UseTemp;
 #[allow(clippy::upper_case_acronyms)]
 pub struct OSR {
 	// dfs 过程中，访问到的次序
-	dfsnum: HashMap<Temp, i32>,
+	dfsnum: HashMap<LlvmTemp, i32>,
 	next_dfsnum: i32,
-	visited: HashMap<Temp, bool>,
+	visited: HashMap<LlvmTemp, bool>,
 	// Tarjan 算法计算强连通分量时，需要用到的值
-	low: HashMap<Temp, i32>,
-	stack: Vec<Temp>,
-	header: HashMap<Temp, Temp>,
+	low: HashMap<LlvmTemp, i32>,
+	stack: Vec<LlvmTemp>,
+	header: HashMap<LlvmTemp, LlvmTemp>,
 	// 临时变量到（基本块id，基本块数组下标，指令数组下标，是否是 phi 指令）的映射
-	temp_to_instr: HashMap<Temp, (i32, usize, usize, bool)>,
+	temp_to_instr: HashMap<LlvmTemp, (i32, usize, usize, bool)>,
 
 	// 记录因为候选操作而产生的指令，防止产生重复的指令
-	new_instr: HashMap<(ArithOp, HashableValue, HashableValue), Temp>,
+	new_instr: HashMap<(ArithOp, HashableValue, HashableValue), LlvmTemp>,
 	pub total_new_temp: u32,
 	// 此过程是否做出了优化
 	pub flag: bool,
 
 	dominates: HashMap<i32, Vec<LlvmNode>>,
-	params: Vec<Temp>,
+	params: Vec<LlvmTemp>,
 }
 
 impl OSR {
 	pub fn new(
 		cfg: &mut LlvmCFG,
-		params: Vec<Temp>,
+		params: Vec<LlvmTemp>,
 		total_new_temp: u32,
 	) -> Self {
 		let dfsnum = HashMap::new();
@@ -93,7 +93,7 @@ impl OSR {
 			self.dfs(cfg, temp);
 		}
 	}
-	pub fn dfs(&mut self, cfg: &mut LlvmCFG, temp: Temp) {
+	pub fn dfs(&mut self, cfg: &mut LlvmCFG, temp: LlvmTemp) {
 		self.visited.insert(temp.clone(), true);
 		self.dfsnum.insert(temp.clone(), self.next_dfsnum);
 		self.low.insert(temp.clone(), self.next_dfsnum);
@@ -106,7 +106,7 @@ impl OSR {
 				self.dfs(cfg, operand.clone());
 				self.low.insert(temp.clone(), self.low[&temp].min(self.low[operand]));
 			}
-			// 这里判断在不在栈上，或许可以开一个 HashMap<Temp, bool>, 实现 O(1) 的判断
+			// 这里判断在不在栈上，或许可以开一个 HashMap<LlvmTemp, bool>, 实现 O(1) 的判断
 			if self.dfsnum[operand] < self.dfsnum[&temp]
 				&& self.stack.contains(operand)
 			{
@@ -126,7 +126,7 @@ impl OSR {
 			self.process(cfg, scc);
 		}
 	}
-	pub fn process(&mut self, cfg: &mut LlvmCFG, scc: Vec<Temp>) {
+	pub fn process(&mut self, cfg: &mut LlvmCFG, scc: Vec<LlvmTemp>) {
 		if scc.len() == 1 {
 			let member = &scc[0];
 			let (_, bb_id, instr_id, is_phi) =
@@ -145,7 +145,7 @@ impl OSR {
 	pub fn classify_induction_variables(
 		&mut self,
 		cfg: &mut LlvmCFG,
-		scc: Vec<Temp>,
+		scc: Vec<LlvmTemp>,
 	) {
 		if scc.len() == 2 {
 			let member1 = &scc[0];
@@ -185,8 +185,8 @@ impl OSR {
 	pub fn replace(
 		&mut self,
 		cfg: &mut LlvmCFG,
-		scc_member: Temp,
-		iv: Temp,
+		scc_member: LlvmTemp,
+		iv: LlvmTemp,
 		rc: Value,
 	) {
 		let (_, bb_id, instr_id, _is_phi) =
@@ -205,9 +205,9 @@ impl OSR {
 		&mut self,
 		cfg: &mut LlvmCFG,
 		op: ArithOp,
-		iv: Temp,
+		iv: LlvmTemp,
 		rc: Value,
-	) -> Temp {
+	) -> LlvmTemp {
 		if let Some(t) = self.new_instr.get(&(
 			op,
 			HashableValue::from(Value::Temp(iv.clone())),

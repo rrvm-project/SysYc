@@ -122,7 +122,7 @@ impl LlvmInstrTrait for ArithInstr {
 	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
 		Some((self.lhs.clone(), self.rhs.clone()))
 	}
-	fn swap_target(&mut self, _new: Temp) {
+	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
 	fn get_read_values(&mut self) -> Vec<Value> {
@@ -196,7 +196,7 @@ impl LlvmInstrTrait for CompInstr {
 	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
 	}
-	fn swap_target(&mut self, _new: Temp) {
+	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
 	fn get_read_values(&mut self) -> Vec<Value> {
@@ -251,7 +251,7 @@ impl LlvmInstrTrait for ConvertInstr {
 	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
 	}
-	fn swap_target(&mut self, _new: Temp) {
+	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
 	fn get_read_values(&mut self) -> Vec<Value> {
@@ -422,7 +422,7 @@ impl LlvmInstrTrait for PhiInstr {
 			}
 		}
 	}
-	fn swap_target(&mut self, _new: Temp) {
+	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
 	fn get_read_values(&mut self) -> Vec<Value> {
@@ -529,7 +529,7 @@ impl LlvmInstrTrait for AllocInstr {
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
 	}
-	fn swap_target(&mut self, _new: Temp) {
+	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
 	fn get_read_values(&mut self) -> Vec<Value> {
@@ -629,7 +629,7 @@ impl LlvmInstrTrait for LoadInstr {
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
 	}
-	fn swap_target(&mut self, _new: Temp) {
+	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
 	fn get_read_values(&mut self) -> Vec<Value> {
@@ -682,7 +682,7 @@ impl LlvmInstrTrait for GEPInstr {
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
 	}
-	fn swap_target(&mut self, _new: Temp) {
+	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
 	fn get_read_values(&mut self) -> Vec<Value> {
@@ -742,7 +742,7 @@ impl LlvmInstrTrait for CallInstr {
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
 	}
-	fn swap_target(&mut self, _new: Temp) {
+	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
 	fn get_read_values(&mut self) -> Vec<Value> {

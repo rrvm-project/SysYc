@@ -1,4 +1,4 @@
-use llvm::Temp;
+use llvm::LlvmTemp;
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::Result;
 
@@ -24,12 +24,14 @@ impl StrengthReduce {
 		self,
 		program: &mut LlvmProgram,
 	) -> Result<(bool, u32)> {
-		let solve =
-			|cfg: &mut LlvmCFG, params: Vec<Temp>, total_new_temp| -> (bool, u32) {
-				let mut osr = OSR::new(cfg, params, total_new_temp);
-				osr.run(cfg);
-				(osr.flag, osr.total_new_temp)
-			};
+		let solve = |cfg: &mut LlvmCFG,
+		             params: Vec<LlvmTemp>,
+		             total_new_temp|
+		 -> (bool, u32) {
+			let mut osr = OSR::new(cfg, params, total_new_temp);
+			osr.run(cfg);
+			(osr.flag, osr.total_new_temp)
+		};
 
 		Ok(program.funcs.iter_mut().fold(
 			(false, self.total_new_temp),

@@ -1,6 +1,6 @@
 use super::OSR;
 
-use llvm::{ArithInstr, ArithOp, Temp, Value, VarType};
+use llvm::{ArithInstr, ArithOp, LlvmTemp, Value, VarType};
 use rrvm::LlvmCFG;
 use utils::UseTemp;
 
@@ -13,7 +13,7 @@ impl OSR {
 		bb_id: usize,
 		instr_id: usize,
 		is_phi: bool,
-	) -> Option<(Temp, Value)> {
+	) -> Option<(LlvmTemp, Value)> {
 		if is_phi {
 			return None;
 		}
@@ -47,7 +47,7 @@ impl OSR {
 		}
 	}
 	// 返回 induction variable 和它的 header
-	pub fn is_induction_value(&self, v: Value) -> Option<(Temp, Temp)> {
+	pub fn is_induction_value(&self, v: Value) -> Option<(LlvmTemp, LlvmTemp)> {
 		match v {
 			Value::Temp(t) => self.header.get(&t).map(|h| (t, h.clone())),
 			_ => None,
@@ -56,7 +56,7 @@ impl OSR {
 	// 这里没有考虑rc是否是源自一个立即数操作，因为如果rc本身是个常量，它应该在常量传播时被删掉了
 	pub fn is_regional_constant(
 		&self,
-		iv_header: Temp,
+		iv_header: LlvmTemp,
 		rc: Value,
 	) -> Option<Value> {
 		if let Value::Temp(t) = rc.clone() {
@@ -87,7 +87,7 @@ impl OSR {
 		cfg: &mut LlvmCFG,
 		bb_id: usize,
 		instr_id: usize,
-		from: Temp,
+		from: LlvmTemp,
 	) {
 		let target =
 			cfg.blocks[bb_id].borrow().instrs[instr_id].get_write().unwrap();
@@ -110,8 +110,8 @@ impl OSR {
 		cfg.blocks[bb_id].borrow_mut().instrs[instr_id] = Box::new(copy_instr);
 		self.flag = true;
 	}
-	pub fn new_temp(&mut self, tp: VarType) -> Temp {
-		let new = Temp {
+	pub fn new_temp(&mut self, tp: VarType) -> LlvmTemp {
+		let new = LlvmTemp {
 			name: self.total_new_temp.to_string() + "_osr",
 			var_type: tp,
 			is_global: false,
@@ -119,7 +119,11 @@ impl OSR {
 		self.total_new_temp += 1;
 		new
 	}
-	pub fn get_instr_reads(&self, cfg: &LlvmCFG, temp: Temp) -> Vec<Temp> {
+	pub fn get_instr_reads(
+		&self,
+		cfg: &LlvmCFG,
+		temp: LlvmTemp,
+	) -> Vec<LlvmTemp> {
 		let (_, bb_index, instr_index, is_phi) = self.temp_to_instr[&temp];
 		if is_phi {
 			cfg.blocks[bb_index].borrow().phi_instrs[instr_index].get_read()
@@ -131,8 +135,8 @@ impl OSR {
 	pub fn is_valid_update_temp(
 		&mut self,
 		cfg: &mut LlvmCFG,
-		phi_temp: Temp,
-		update_temp: Temp,
+		phi_temp: LlvmTemp,
+		update_temp: LlvmTemp,
 	) -> bool {
 		let (_, bb_index, instr_index, is_phi) = self.temp_to_instr[&update_temp];
 		if is_phi {
