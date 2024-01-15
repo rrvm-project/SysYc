@@ -108,7 +108,7 @@ pub fn solve(
 
 						//println!("{:?}", (ptr_dfs_id, weight));
 
-						if weight < min_wieght {
+						if weight <= min_wieght {
 							min_wieght = weight;
 							min_dfs_num = ptr_dfs_id;
 						}
