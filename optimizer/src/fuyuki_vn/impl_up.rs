@@ -25,12 +25,12 @@ pub fn solve(block: &mut LlvmNode, father: &mut LlvmNode) {
 			_ => false,
 		};
 		if !ok_to_jump_up {
-			new_instr.push(instr.clone_box()); //怎样不进行复制？
+			new_instr.push(instr.clone()); //怎样不进行复制？
 			if let Some(t) = instr.get_write() {
 				defs.insert(t);
 			}
 		} else {
-			to_father.push(instr.clone_box());
+			to_father.push(instr.clone());
 		}
 	}
 

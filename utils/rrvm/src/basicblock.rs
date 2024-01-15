@@ -160,13 +160,11 @@ impl LlvmBasicBlock {
 	pub fn gen_jump(&mut self, var_type: VarType) {
 		if self.jump_instr.is_none() {
 			self.jump_instr = Some(match self.succ.len() {
-				1 => Box::new(JumpInstr {
-					target: get_other_label(
-						self,
-						self.label(),
-						self.succ.first().unwrap(),
-					),
-				}),
+				1 => JumpInstr::new(get_other_label(
+					self,
+					self.label(),
+					self.succ.first().unwrap(),
+				)),
 				0 => Box::new(RetInstr {
 					value: var_type.default_value_option(),
 				}),
@@ -216,8 +214,8 @@ impl Clone for LlvmBasicBlock {
 	fn clone(&self) -> Self {
 		Self {
 			phi_instrs: self.phi_instrs.clone(),
-			instrs: self.instrs.iter().map(|v| v.clone_box()).collect(),
-			jump_instr: self.jump_instr.as_ref().map(|v| v.clone_box()),
+			instrs: self.instrs.to_vec(),
+			jump_instr: self.jump_instr.as_ref().cloned(),
 			kill_size: self.kill_size,
 			..Self::new(self.id, self.weight)
 		}
@@ -235,7 +233,8 @@ impl LlvmBasicBlock {
 	pub fn map_phi_label(&mut self, map: &HashMap<Label, Label>) {
 		self.phi_instrs.iter_mut().for_each(|v| v.map_label(map));
 	}
-	pub fn map_jump_label(&mut self, map: &HashMap<Label, Label>) {
+	pub fn map_label(&mut self, map: &HashMap<Label, Label>) {
+		self.map_phi_label(map);
 		if let Some(instr) = self.jump_instr.as_mut() {
 			instr.map_label(map);
 		}

@@ -24,7 +24,7 @@ pub fn spill(
 				} else {
 					to_spill
 				};
-				new_instrs.push(instr.clone_box());
+				new_instrs.push(instr.clone());
 				match instr.get_write() {
 					Some(v) if v == temp => {
 						let store_instr = IBinInstr::new(SD, temp.into(), addr.clone());

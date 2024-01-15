@@ -134,13 +134,13 @@ pub fn solve(
 			if let Some(move_to) = move_to {
 				//println!("move to {:?}", move_to);
 				if let Some(to_insert) = lazy_insert.get_mut(&move_to) {
-					to_insert.push(instr.clone_box());
+					to_insert.push(instr.clone());
 				} else {
-					lazy_insert.insert(move_to, vec![instr.clone_box()]);
+					lazy_insert.insert(move_to, vec![instr.clone()]);
 				}
 				uses.get_mut(&target.unwrap()).unwrap().update(move_to);
 			} else {
-				new_instrs.push(instr.clone_box());
+				new_instrs.push(instr.clone());
 			}
 		}
 

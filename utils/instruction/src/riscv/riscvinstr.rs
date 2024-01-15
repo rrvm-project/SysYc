@@ -21,6 +21,12 @@ where
 	}
 }
 
+impl Clone for RiscvInstr {
+	fn clone(&self) -> Self {
+		self.clone_box()
+	}
+}
+
 pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 	fn map_temp(&mut self, _map: &HashMap<Temp, RiscvTemp>) {}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
