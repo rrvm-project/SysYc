@@ -86,6 +86,8 @@ impl OSR {
 					));
 				}
 				cfg.blocks[bb_index].borrow_mut().instrs[instr_index]
+					.set_read_values(0, Value::Temp(edge.target.clone()));
+				cfg.blocks[bb_index].borrow_mut().instrs[instr_index]
 					.set_read_values(1, cur_temp);
 				for instr in
 					cfg.blocks[bb_index].borrow_mut().instrs.iter().skip(instr_index)

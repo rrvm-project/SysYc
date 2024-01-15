@@ -239,12 +239,8 @@ impl OSR {
 			self
 				.temp_to_instr
 				.insert(result.clone(), (id, bb_id, instr_id + 1, true));
-			// self.dfsnum.insert(result.clone(), self.dfsnum[&iv]);
-			// self.visited.insert(result.clone(), self.visited[&iv]);
-			// self.low.insert(result.clone(), self.low[&iv]);
 			self.header.insert(result.clone(), self.header[&iv].clone());
 
-			// new_def = &mut cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1];
 			let new_def_read_values = cfg.blocks[bb_id].borrow_mut().phi_instrs
 				[instr_id + 1]
 				.get_read_values();
@@ -300,7 +296,6 @@ impl OSR {
 			self.low.insert(result.clone(), self.low[&iv]);
 			self.header.insert(result.clone(), self.header[&iv].clone());
 
-			// new_def = &mut cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1];
 			let new_def_read_values =
 				cfg.blocks[bb_id].borrow_mut().instrs[instr_id + 1].get_read_values();
 			for (id, operand) in new_def_read_values.iter().enumerate() {

@@ -97,11 +97,14 @@ impl Optimizer2 {
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
+			flag |= InlineFunction::new().apply(program)?;
+			// 	}
+			// }
+
 			if !flag {
 				break;
 			}
 		}
-
 		program.analysis();
 		Ok(())
 	}
