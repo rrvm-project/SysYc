@@ -1,7 +1,7 @@
 mod dead_code;
+mod fold_constants;
 mod fuyuki_vn;
 mod impls;
-mod reorder_expr;
 mod unreachable;
 mod useless_code;
 mod useless_phis;

@@ -288,13 +288,13 @@ impl Visitor for IRGenerator {
 				let rhs_val = self.solve(rhs_val, rhs_addr, &mut rcfg);
 				let rhs = self.type_conv(rhs_val, I32, &mut rcfg);
 				let offset = self.new_temp(I32, false);
-				let instr = Box::new(ArithInstr {
-					target: offset.clone(),
-					lhs: rhs,
-					var_type: I32,
-					op: ArithOp::Mul,
-					rhs: (type_t.size() as usize).into(),
-				});
+				let instr = ArithInstr::new(
+					offset.clone(),
+					rhs,
+					ArithOp::Mul,
+					type_t.size(),
+					I32,
+				);
 				rcfg.get_exit().borrow_mut().push(instr);
 				let var_type = lhs_addr.as_ref().unwrap().get_type();
 				let temp = self.new_temp(var_type, false);
@@ -319,13 +319,7 @@ impl Visitor for IRGenerator {
 					Add | Sub | Mul | Div | Mod => {
 						let op = to_arith(node.op, var_type);
 						let temp = self.new_temp(var_type, false);
-						let instr = Box::new(ArithInstr {
-							target: temp.clone(),
-							op,
-							lhs,
-							rhs,
-							var_type,
-						});
+						let instr = ArithInstr::new(temp.clone(), lhs, op, rhs, var_type);
 						rcfg.get_exit().borrow_mut().push(instr);
 						link_cfg(&lcfg, &rcfg);
 						lcfg.append(rcfg);
@@ -395,25 +389,20 @@ impl Visitor for IRGenerator {
 			UnaryOp::Neg => {
 				let op = to_arith(BinaryOp::Sub, var_type);
 				let target = self.new_temp(var_type, false);
-				let instr = Box::new(ArithInstr {
-					target: target.clone(),
+				let instr = ArithInstr::new(
+					target.clone(),
+					var_type.default_value(),
 					op,
-					lhs: var_type.default_value(),
+					temp,
 					var_type,
-					rhs: temp,
-				});
+				);
 				cfg.get_exit().borrow_mut().push(instr);
 				self.stack.push((cfg, Some(target.into()), None));
 			}
 			UnaryOp::BitNot => {
 				let target = self.new_temp(var_type, false);
-				let instr = Box::new(ArithInstr {
-					target: target.clone(),
-					op: ArithOp::Xor,
-					lhs: (-1).into(),
-					var_type,
-					rhs: temp,
-				});
+				let instr =
+					ArithInstr::new(target.clone(), -1, ArithOp::Xor, temp, var_type);
 				cfg.get_exit().borrow_mut().push(instr);
 				self.stack.push((cfg, Some(target.into()), None));
 			}

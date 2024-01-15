@@ -1,12 +1,20 @@
+#![allow(clippy::new_ret_no_self)]
+
 use std::fmt::Display;
 
-use utils::{Label, UseTemp};
+use utils::{iter::all_equal, Label, UseTemp};
 
 use std::collections::HashMap;
 
 use crate::{
 	llvminstr::*, llvmop::*, utils_llvm::*, LlvmInstrVariant, LlvmTemp, VarType,
 };
+
+impl<T: Into<Value> + Clone> From<&T> for Value {
+	fn from(value: &T) -> Self {
+		value.clone().into()
+	}
+}
 
 impl From<LlvmTemp> for Value {
 	fn from(value: LlvmTemp) -> Self {
@@ -97,6 +105,24 @@ impl LlvmInstrTrait for ArithInstr {
 
 	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
+	}
+}
+
+impl ArithInstr {
+	pub fn new(
+		target: LlvmTemp,
+		lhs: impl Into<Value>,
+		op: ArithOp,
+		rhs: impl Into<Value>,
+		var_type: VarType,
+	) -> LlvmInstr {
+		Box::new(Self {
+			target,
+			lhs: lhs.into(),
+			op,
+			rhs: rhs.into(),
+			var_type,
+		})
 	}
 }
 
