@@ -62,6 +62,9 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	fn is_direct_jump(&self) -> bool {
 		false
 	}
+	fn is_cmp(&self) -> bool {
+		false
+	}
 	fn get_alloc(&self) -> Option<(LlvmTemp, Value)> {
 		None
 	}

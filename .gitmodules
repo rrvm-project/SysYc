@@ -1,3 +1,4 @@
-[submodule "project-eval"]
-	path = project-eval
+
+[submodule "project_e"]
+	path = project_e
 	url = git@github.com:rrvm-project/project-eval.git

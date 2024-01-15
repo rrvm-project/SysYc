@@ -209,8 +209,31 @@ impl LlvmInstrTrait for CompInstr {
 			_ => unreachable!(),
 		}
 	}
+	fn is_cmp(&self) -> bool {
+		true
+	}
+	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
+		Some((self.lhs.clone(), self.rhs.clone()))
+	}
 }
 
+impl ConvertInstr {
+	pub fn new(
+		target: LlvmTemp,
+		lhs: impl Into<Value>,
+		op: ConvertOp,
+		from_type: VarType,
+		to_type: VarType,
+	) -> LlvmInstr {
+		Box::new(Self {
+			target,
+			lhs: lhs.into(),
+			op,
+			from_type,
+			to_type,
+		})
+	}
+}
 impl Display for ConvertInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(
