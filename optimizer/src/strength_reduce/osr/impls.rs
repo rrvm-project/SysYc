@@ -2,18 +2,14 @@ use std::collections::HashMap;
 
 use llvm::{
 	ArithInstr, ArithOp, ConvertInstr, HashableValue, LlvmInstrTrait, LlvmTemp,
-	Value, VarType,
+	LlvmTempManager, Value, VarType,
 };
 use rrvm::{dominator::naive::compute_dominator, LlvmCFG};
 use utils::UseTemp;
 
 use super::OSR;
 impl OSR {
-	pub fn new(
-		cfg: &mut LlvmCFG,
-		params: Vec<LlvmTemp>,
-		total_new_temp: u32,
-	) -> Self {
+	pub fn new(cfg: &mut LlvmCFG, params: Vec<LlvmTemp>) -> Self {
 		let dfsnum = HashMap::new();
 		let mut visited = HashMap::new();
 		let low = HashMap::new();
@@ -57,21 +53,25 @@ impl OSR {
 			header,
 			temp_to_instr,
 			new_instr: HashMap::new(),
-			total_new_temp,
 			flag: false,
 			dominates,
 			params,
 			lstf_map: HashMap::new(),
 		}
 	}
-	pub fn run(&mut self, cfg: &mut LlvmCFG) {
+	pub fn run(&mut self, cfg: &mut LlvmCFG, mgr: &mut LlvmTempManager) {
 		while self.visited.values().any(|&v| !v) {
 			let temp = self.visited.iter().find(|(_, &v)| !v).unwrap().0.clone();
-			self.dfs(cfg, temp);
+			self.dfs(cfg, temp, mgr);
 		}
-		self.lstf(cfg);
+		self.lstf(cfg, mgr);
 	}
-	pub fn dfs(&mut self, cfg: &mut LlvmCFG, temp: LlvmTemp) {
+	pub fn dfs(
+		&mut self,
+		cfg: &mut LlvmCFG,
+		temp: LlvmTemp,
+		mgr: &mut LlvmTempManager,
+	) {
 		self.visited.insert(temp.clone(), true);
 		self.dfsnum.insert(temp.clone(), self.next_dfsnum);
 		self.low.insert(temp.clone(), self.next_dfsnum);
@@ -81,7 +81,7 @@ impl OSR {
 		reads.retain(|t| !t.is_global && !self.params.contains(t));
 		reads.iter().for_each(|operand| {
 			if !self.visited[operand] {
-				self.dfs(cfg, operand.clone());
+				self.dfs(cfg, operand.clone(), mgr);
 				self.low.insert(temp.clone(), self.low[&temp].min(self.low[operand]));
 			}
 			// 这里判断在不在栈上，或许可以开一个 HashMap<LlvmTemp, bool>, 实现 O(1) 的判断
@@ -101,10 +101,15 @@ impl OSR {
 					break;
 				}
 			}
-			self.process(cfg, scc);
+			self.process(cfg, scc, mgr);
 		}
 	}
-	pub fn process(&mut self, cfg: &mut LlvmCFG, scc: Vec<LlvmTemp>) {
+	pub fn process(
+		&mut self,
+		cfg: &mut LlvmCFG,
+		scc: Vec<LlvmTemp>,
+		mgr: &mut LlvmTempManager,
+	) {
 		if scc.len() == 1 {
 			let member = &scc[0];
 			let (_, bb_id, instr_id, is_phi) =
@@ -112,18 +117,19 @@ impl OSR {
 			if let Some((iv, rc)) =
 				self.is_candidate_operation(cfg, *bb_id, *instr_id, *is_phi)
 			{
-				self.replace(cfg, member.clone(), iv, rc);
+				self.replace(cfg, member.clone(), iv, rc, mgr);
 			} else {
 				self.header.remove(member);
 			}
 		} else {
-			self.classify_induction_variables(cfg, scc);
+			self.classify_induction_variables(cfg, scc, mgr);
 		}
 	}
 	pub fn classify_induction_variables(
 		&mut self,
 		cfg: &mut LlvmCFG,
 		scc: Vec<LlvmTemp>,
+		mgr: &mut LlvmTempManager,
 	) {
 		if scc.len() == 2 {
 			let member1 = &scc[0];
@@ -139,7 +145,7 @@ impl OSR {
 					if let Some((iv, rc)) =
 						self.is_candidate_operation(cfg, *bb_id, *instr_id, *is_phi)
 					{
-						self.replace(cfg, p.clone(), iv, rc);
+						self.replace(cfg, p.clone(), iv, rc, mgr);
 					} else {
 						self.header.remove(p);
 					}
@@ -151,7 +157,7 @@ impl OSR {
 				if let Some((iv, rc)) =
 					self.is_candidate_operation(cfg, *bb_id, *instr_id, *is_phi)
 				{
-					self.replace(cfg, p.clone(), iv, rc);
+					self.replace(cfg, p.clone(), iv, rc, mgr);
 				} else {
 					self.header.remove(p);
 				}
@@ -166,13 +172,14 @@ impl OSR {
 		scc_member: LlvmTemp,
 		iv: LlvmTemp,
 		rc: Value,
+		mgr: &mut LlvmTempManager,
 	) {
 		let (_, bb_id, instr_id, _is_phi) =
 			*self.temp_to_instr.get(&scc_member).unwrap();
 		let op = cfg.blocks[bb_id].borrow().instrs[instr_id]
 			.is_candidate_operator()
 			.unwrap();
-		let result = self.reduce(cfg, op, iv.clone(), rc);
+		let result = self.reduce(cfg, op, iv.clone(), rc, mgr);
 		let (_, bb_id, instr_id, _is_phi) =
 			*self.temp_to_instr.get(&scc_member).unwrap();
 		self.replace_to_copy(cfg, bb_id, instr_id, result);
@@ -185,6 +192,7 @@ impl OSR {
 		op: ArithOp,
 		iv: LlvmTemp,
 		rc: Value,
+		mgr: &mut LlvmTempManager,
 	) -> LlvmTemp {
 		if let Some(t) = self.new_instr.get(&(
 			op,
@@ -202,7 +210,7 @@ impl OSR {
 				return t.clone();
 			}
 		}
-		let result = self.new_temp(iv.var_type);
+		let result = self.new_temp(iv.var_type, mgr);
 		self.new_instr.insert(
 			(
 				op,
@@ -250,14 +258,14 @@ impl OSR {
 				}) {
 					let t = operand.unwrap_temp().unwrap();
 					let new_value =
-						Value::Temp(self.reduce(cfg, op, t.clone(), rc.clone()));
+						Value::Temp(self.reduce(cfg, op, t.clone(), rc.clone(), mgr));
 					// 重新获得一次语句的位置
 					let (_, bb_id, instr_id, _) =
 						*self.temp_to_instr.get(&result).unwrap();
 					cfg.blocks[bb_id].borrow_mut().phi_instrs[instr_id]
 						.set_read_values(id, new_value);
 				} else {
-					let new_value = self.apply(cfg, op, operand.clone(), rc.clone());
+					let new_value = self.apply(cfg, op, operand.clone(), rc.clone(), mgr);
 					let (_, bb_id, instr_id, _) =
 						*self.temp_to_instr.get(&result).unwrap();
 					cfg.blocks[bb_id].borrow_mut().phi_instrs[instr_id]
@@ -302,7 +310,7 @@ impl OSR {
 				if let Some(t) = operand.unwrap_temp() {
 					if self.header.get(&t).is_some_and(|h| *h == self.header[&iv]) {
 						let new_value =
-							Value::Temp(self.reduce(cfg, op, t.clone(), rc.clone()));
+							Value::Temp(self.reduce(cfg, op, t.clone(), rc.clone(), mgr));
 						// 重新获得一次语句的位置
 						let (_, bb_id, instr_id, _) =
 							*self.temp_to_instr.get(&result).unwrap();
@@ -310,7 +318,7 @@ impl OSR {
 							.set_read_values(id, new_value);
 					}
 				} else if op == ArithOp::Mul || op == ArithOp::Fmul {
-					let new_value = self.apply(cfg, op, operand.clone(), rc.clone());
+					let new_value = self.apply(cfg, op, operand.clone(), rc.clone(), mgr);
 					let (_, bb_id, instr_id, _) =
 						*self.temp_to_instr.get(&result).unwrap();
 					cfg.blocks[bb_id].borrow_mut().instrs[instr_id]
@@ -326,6 +334,7 @@ impl OSR {
 		op: ArithOp,
 		operand1: Value,
 		operand2: Value,
+		mgr: &mut LlvmTempManager,
 	) -> Value {
 		if let Some(t) = self.new_instr.get(&(
 			op,
@@ -347,7 +356,7 @@ impl OSR {
 			if let Some(rc) =
 				self.is_regional_constant(header.clone(), operand2.clone())
 			{
-				let result = self.reduce(cfg, op, iv.clone(), rc);
+				let result = self.reduce(cfg, op, iv.clone(), rc, mgr);
 				return Value::Temp(result);
 			}
 		}
@@ -355,7 +364,7 @@ impl OSR {
 			if let Some(rc) =
 				self.is_regional_constant(header.clone(), operand1.clone())
 			{
-				let result = self.reduce(cfg, op, iv.clone(), rc);
+				let result = self.reduce(cfg, op, iv.clone(), rc, mgr);
 				return Value::Temp(result);
 			}
 		}
@@ -462,7 +471,7 @@ impl OSR {
 		self.flag = true;
 		match (operand1.get_type(), operand2.get_type()) {
 			(VarType::I32, VarType::I32) => {
-				result = self.new_temp(VarType::I32);
+				result = self.new_temp(VarType::I32, mgr);
 				self.new_instr.insert(
 					(
 						op,
@@ -490,9 +499,9 @@ impl OSR {
 				);
 			}
 			(VarType::I32, VarType::F32) => {
-				result = self.new_temp(VarType::F32);
+				result = self.new_temp(VarType::F32, mgr);
 
-				let convert_result = self.new_temp(VarType::F32);
+				let convert_result = self.new_temp(VarType::F32, mgr);
 				let new_convert_instr = ConvertInstr {
 					target: convert_result.clone(),
 					op: llvm::ConvertOp::Int2Float,
@@ -529,9 +538,9 @@ impl OSR {
 				);
 			}
 			(VarType::F32, VarType::I32) => {
-				result = self.new_temp(VarType::F32);
+				result = self.new_temp(VarType::F32, mgr);
 
-				let convert_result = self.new_temp(VarType::F32);
+				let convert_result = self.new_temp(VarType::F32, mgr);
 				let new_convert_instr = ConvertInstr {
 					target: convert_result.clone(),
 					op: llvm::ConvertOp::Int2Float,
@@ -568,7 +577,7 @@ impl OSR {
 				);
 			}
 			(VarType::F32, VarType::F32) => {
-				result = self.new_temp(VarType::F32);
+				result = self.new_temp(VarType::F32, mgr);
 				let new_instr = ArithInstr {
 					target: result.clone(),
 					op: op.to_float_op(),

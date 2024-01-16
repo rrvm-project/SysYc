@@ -1,6 +1,6 @@
 use super::OSR;
 
-use llvm::{ArithInstr, ArithOp, LlvmTemp, Value, VarType};
+use llvm::{ArithInstr, ArithOp, LlvmTemp, LlvmTempManager, Value, VarType};
 use rrvm::LlvmCFG;
 use utils::UseTemp;
 
@@ -110,14 +110,12 @@ impl OSR {
 		cfg.blocks[bb_id].borrow_mut().instrs[instr_id] = Box::new(copy_instr);
 		self.flag = true;
 	}
-	pub fn new_temp(&mut self, tp: VarType) -> LlvmTemp {
-		let new = LlvmTemp {
-			name: self.total_new_temp.to_string() + "_osr",
-			var_type: tp,
-			is_global: false,
-		};
-		self.total_new_temp += 1;
-		new
+	pub fn new_temp(
+		&mut self,
+		tp: VarType,
+		mgr: &mut LlvmTempManager,
+	) -> LlvmTemp {
+		mgr.new_temp(tp, false)
 	}
 	pub fn get_instr_reads(
 		&self,

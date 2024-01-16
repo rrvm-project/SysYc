@@ -19,10 +19,6 @@ pub trait RrvmOptimizer {
 #[derive(Default)]
 pub struct Optimizer0 {}
 #[derive(Default)]
-pub struct Optimizer1 {
-	_strength_reduce_total_new_temp: u32,
-}
+pub struct Optimizer1 {}
 #[derive(Default)]
-pub struct Optimizer2 {
-	strength_reduce_total_new_temp: u32,
-}
+pub struct Optimizer2 {}

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use llvm::{
 	ArithInstr, ArithOp, ConvertInstr, ConvertOp, LlvmInstrTrait, LlvmTemp,
-	Value, VarType,
+	LlvmTempManager, Value, VarType,
 };
 use rrvm::LlvmCFG;
 
@@ -56,7 +56,7 @@ impl OSR {
 			fix(k, &mut self.lstf_map);
 		}
 	}
-	pub fn lstf(&mut self, cfg: &mut LlvmCFG) {
+	pub fn lstf(&mut self, cfg: &mut LlvmCFG, mgr: &mut LlvmTempManager) {
 		self.fix_lstf_map();
 		let mut cmps = Vec::new();
 		for block in cfg.blocks.iter_mut() {
@@ -83,6 +83,7 @@ impl OSR {
 						cur_temp,
 						op.regional_constant.clone(),
 						&mut new_instrs,
+						mgr,
 					));
 				}
 				cfg.blocks[bb_index].borrow_mut().instrs[instr_index]
@@ -112,10 +113,11 @@ impl OSR {
 		lhs: Value,
 		rhs: Value,
 		new_instrs: &mut Vec<Box<dyn LlvmInstrTrait>>,
+		mgr: &mut LlvmTempManager,
 	) -> LlvmTemp {
 		match (lhs.get_type(), rhs.get_type()) {
 			(VarType::I32, VarType::I32) => {
-				let new_tmp = self.new_temp(VarType::I32);
+				let new_tmp = self.new_temp(VarType::I32, mgr);
 				new_instrs.push(ArithInstr::new(
 					new_tmp.clone(),
 					lhs,
@@ -126,7 +128,7 @@ impl OSR {
 				new_tmp
 			}
 			(VarType::I32, VarType::F32) => {
-				let new_tmp1 = self.new_temp(VarType::F32);
+				let new_tmp1 = self.new_temp(VarType::F32, mgr);
 				new_instrs.push(ConvertInstr::new(
 					new_tmp1.clone(),
 					lhs,
@@ -134,7 +136,7 @@ impl OSR {
 					VarType::I32,
 					VarType::F32,
 				));
-				let new_tmp2 = self.new_temp(VarType::F32);
+				let new_tmp2 = self.new_temp(VarType::F32, mgr);
 				new_instrs.push(ArithInstr::new(
 					new_tmp2.clone(),
 					new_tmp1,
@@ -145,7 +147,7 @@ impl OSR {
 				new_tmp2
 			}
 			(VarType::F32, VarType::I32) => {
-				let new_tmp1 = self.new_temp(VarType::F32);
+				let new_tmp1 = self.new_temp(VarType::F32, mgr);
 				new_instrs.push(ConvertInstr::new(
 					new_tmp1.clone(),
 					rhs,
@@ -153,7 +155,7 @@ impl OSR {
 					VarType::I32,
 					VarType::F32,
 				));
-				let new_tmp2 = self.new_temp(VarType::F32);
+				let new_tmp2 = self.new_temp(VarType::F32, mgr);
 				new_instrs.push(ArithInstr::new(
 					new_tmp2.clone(),
 					lhs,
@@ -164,7 +166,7 @@ impl OSR {
 				new_tmp2
 			}
 			(VarType::F32, VarType::F32) => {
-				let new_tmp = self.new_temp(VarType::F32);
+				let new_tmp = self.new_temp(VarType::F32, mgr);
 				new_instrs.push(ArithInstr::new(
 					new_tmp.clone(),
 					lhs,

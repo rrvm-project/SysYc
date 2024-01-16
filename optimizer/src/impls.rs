@@ -57,7 +57,7 @@ impl Optimizer2 {
 	pub fn new() -> Self {
 		Self::default()
 	}
-	pub fn apply(mut self, program: &mut LlvmProgram) -> Result<()> {
+	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
 		// 需在表达式重排前进行，否则，运算指令分布在不同的基本块中， LER做不了任何事情
 		RemoveDeadCode::new().apply(program)?;
 		RemoveUselessCode::new().apply(program)?;
@@ -82,12 +82,7 @@ impl Optimizer2 {
 			}
 		}
 
-		let (_, strength_reduce_total_new_temp) =
-			StrengthReduce::new_with_total_new_temp(
-				self.strength_reduce_total_new_temp,
-			)
-			.apply_strength_reduce(program)?;
-		self.strength_reduce_total_new_temp = strength_reduce_total_new_temp;
+		StrengthReduce::new().apply(program)?;
 
 		loop {
 			let mut flag = false;

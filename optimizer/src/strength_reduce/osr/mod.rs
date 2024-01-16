@@ -24,7 +24,6 @@ pub struct OSR {
 
 	// 记录因为候选操作而产生的指令，防止产生重复的指令
 	new_instr: HashMap<(ArithOp, HashableValue, HashableValue), LlvmTemp>,
-	pub total_new_temp: u32,
 	// 此过程是否做出了优化
 	pub flag: bool,
 
