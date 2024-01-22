@@ -59,7 +59,7 @@ impl Visitor for IRGenerator {
 		for param in node.formal_params.iter_mut() {
 			param.accept(self)?;
 		}
-		for param in node.formal_params.iter_mut() {
+		for param in node.formal_params.iter() {
 			let symbol: VarSymbol = param.get_attr("symbol").unwrap().into();
 			params.push(self.symbol_table.get(&symbol.id));
 		}

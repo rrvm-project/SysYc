@@ -3,6 +3,7 @@ mod fold_constants;
 mod function_inline;
 mod fuyuki_vn;
 mod impls;
+mod tail_recursion;
 mod unreachable;
 mod useless_code;
 mod useless_phis;

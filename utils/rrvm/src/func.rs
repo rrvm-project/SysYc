@@ -1,5 +1,7 @@
 use llvm::{Value, VarType};
-use utils::{InstrTrait, TempTrait, MAX_INLINE_LENGTH};
+use utils::{
+	InstrTrait, TempTrait, INLINE_PARAMS_THRESHOLD, MAX_INLINE_LENGTH,
+};
 
 use crate::cfg::CFG;
 
@@ -27,6 +29,8 @@ impl<T: InstrTrait<U>, U: TempTrait> RrvmFunc<T, U> {
 		self.len() == 0
 	}
 	pub fn can_inline(&self) -> bool {
-		self.is_leaf() && self.len() < MAX_INLINE_LENGTH
+		self.is_leaf()
+			&& (self.len() < MAX_INLINE_LENGTH
+				|| self.params.len() > INLINE_PARAMS_THRESHOLD)
 	}
 }
