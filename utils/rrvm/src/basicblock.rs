@@ -239,6 +239,16 @@ impl LlvmBasicBlock {
 			instr.map_label(map);
 		}
 	}
+	pub fn tail_call_func(&self, name: &str) -> bool {
+		if self.jump_instr.as_ref().map_or(false, |v| v.is_ret()) {
+			if let Some(instr) = self.instrs.last() {
+				if instr.is_call() && instr.get_label().name == name {
+					return true;
+				}
+			}
+		}
+		false
+	}
 }
 
 #[cfg(not(feature = "debug"))]

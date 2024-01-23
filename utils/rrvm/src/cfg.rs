@@ -50,8 +50,7 @@ impl LlvmCFG {
 		self.blocks.iter().for_each(|u| {
 			let succ = u.borrow().succ.clone();
 			for v in succ {
-				let p = u.clone();
-				v.borrow_mut().prev.push(p);
+				v.borrow_mut().prev.push(u.clone());
 			}
 		});
 		for block in self.blocks.iter() {

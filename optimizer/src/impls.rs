@@ -6,6 +6,7 @@ use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
 use fuyuki_vn::FuyukiLocalValueNumber;
+use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
 
@@ -63,6 +64,7 @@ impl Optimizer2 {
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
+			flag |= SolveTailRecursion::new().apply(program)?;
 			if !flag {
 				break;
 			}

@@ -356,6 +356,16 @@ impl LlvmInstrTrait for PhiInstr {
 	}
 }
 
+impl PhiInstr {
+	pub fn new(target: LlvmTemp, source: Vec<(Value, Label)>) -> Self {
+		Self {
+			var_type: target.var_type,
+			target,
+			source,
+		}
+	}
+}
+
 impl Display for RetInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		if let Some(value) = self.value.as_ref() {
