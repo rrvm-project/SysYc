@@ -232,12 +232,6 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 	}
 }
 
-impl PartialEq for LlvmBasicBlock {
-	fn eq(&self, other: &Self) -> bool {
-		self.id == other.id
-	}
-}
-
 impl Clone for LlvmBasicBlock {
 	fn clone(&self) -> Self {
 		Self {

@@ -1,5 +1,5 @@
 use crate::{
-	strength_reduce::StrengthReduce, loops::HandleLoops, useless_phis::RemoveUselessPhis, *,
+	strength_reduce::StrengthReduce, useless_phis::RemoveUselessPhis, *,
 };
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
@@ -8,6 +8,8 @@ use fuyuki_vn::{FuyukiLocalValueNumber, GLobalValueNumber};
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
+
+use self::loops::HandleLoops;
 
 use self::pure_check::PureCheck;
 
@@ -97,6 +99,7 @@ impl Optimizer2 {
 				break;
 			}
 		}
+		HandleLoops::new().apply(program)?;
 		program.analysis();
 		Ok(())
 	}
