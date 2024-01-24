@@ -17,7 +17,7 @@ use super::{impl_lvn, impl_up};
 
 use super::fvn_utils::MaxMin;
 
-fn solve(cfg: &mut LlvmCFG) -> bool {
+fn solve(cfg: &LlvmCFG) -> bool {
 	// cfg.analysis();
 
 	let mut subtree: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
@@ -60,7 +60,7 @@ fn solve(cfg: &mut LlvmCFG) -> bool {
 	for i in 0..total {
 		impl_lvn::rewrite_block(
 			post_order_to_block.get_mut(&i).as_mut().unwrap(),
-			&mut rewirte,
+			&rewirte,
 		);
 	}
 	//move down
@@ -141,6 +141,6 @@ impl RrvmOptimizer for FuyukiLocalValueNumber {
 	}
 
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
-		Ok(program.funcs.iter_mut().any(|func| solve(&mut func.cfg)))
+		Ok(program.funcs.iter_mut().any(|func| solve(&func.cfg)))
 	}
 }

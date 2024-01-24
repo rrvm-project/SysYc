@@ -72,7 +72,10 @@ impl OSR {
 			let (lhs, rhs) = cfg.blocks[bb_index].borrow().instrs[instr_index]
 				.get_lhs_and_rhs()
 				.unwrap();
-			if lhs.unwrap_temp().is_some_and(|t| self.lstf_map.contains_key(&t)) {
+			if lhs.unwrap_temp().is_some_and(|t| {
+				self.lstf_map.contains_key(&t)
+					&& self.is_regional_constant(t, rhs.clone()).is_some()
+			}) {
 				let t = lhs.unwrap_temp().unwrap();
 				let edge = self.lstf_map.get(&t).cloned().unwrap();
 				let mut new_instrs = Vec::new();

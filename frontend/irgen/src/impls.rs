@@ -45,7 +45,7 @@ impl IRGenerator {
 		&mut self,
 		value: Value,
 		target: llvm::VarType,
-		cfg: &mut LlvmCFG,
+		cfg: &LlvmCFG,
 	) -> Value {
 		use llvm::ConvertOp::*;
 		if target == value.get_type() {
@@ -78,7 +78,7 @@ impl IRGenerator {
 		&mut self,
 		val: Option<Value>,
 		addr: Option<Value>,
-		cfg: &mut LlvmCFG,
+		cfg: &LlvmCFG,
 	) -> Value {
 		match val {
 			Some(value) => value,

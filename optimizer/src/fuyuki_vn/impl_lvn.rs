@@ -296,7 +296,7 @@ pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<LlvmTemp, Value>) {
 	*rewrite = new_rewirte;
 }
 
-pub fn rewrite_block(block: &mut LlvmNode, map: &mut HashMap<LlvmTemp, Value>) {
+pub fn rewrite_block(block: &LlvmNode, map: &HashMap<LlvmTemp, Value>) {
 	let mut new_vec = vec![];
 	for instr in &mut block.borrow_mut().phi_instrs {
 		if instr.replaceable(map) {

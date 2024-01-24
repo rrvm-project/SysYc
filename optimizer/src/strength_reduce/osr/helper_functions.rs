@@ -84,7 +84,7 @@ impl OSR {
 	// 将一个候选操作转变为一个复制操作
 	pub fn replace_to_copy(
 		&mut self,
-		cfg: &mut LlvmCFG,
+		cfg: &LlvmCFG,
 		bb_id: usize,
 		instr_id: usize,
 		from: LlvmTemp,
@@ -132,7 +132,7 @@ impl OSR {
 
 	pub fn is_valid_update_temp(
 		&mut self,
-		cfg: &mut LlvmCFG,
+		cfg: &LlvmCFG,
 		phi_temp: LlvmTemp,
 		update_temp: LlvmTemp,
 	) -> bool {

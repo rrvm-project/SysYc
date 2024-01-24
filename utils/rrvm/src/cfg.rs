@@ -86,7 +86,7 @@ impl LlvmCFG {
 					new_liveout.difference(&defs).cloned().collect();
 				new_livein.extend(uses);
 				if let Some(phi_live_out) = phi_data.get(&u.borrow().label()).cloned() {
-					new_liveout.extend(phi_live_out.into_iter())
+					new_liveout.extend(phi_live_out)
 				}
 				if new_livein != u.borrow().live_in
 					|| new_liveout != u.borrow().live_out

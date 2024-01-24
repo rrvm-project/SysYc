@@ -176,11 +176,9 @@ impl RrvmOptimizer for RemoveUselessCode {
 						block.succ.push(domi.clone());
 					}
 				}
-				if new_target.is_some() {
+				if let Some(t) = new_target {
 					flag = true;
-					block.jump_instr = Some(Box::new(JumpInstr {
-						target: new_target.unwrap(),
-					}));
+					block.jump_instr = Some(Box::new(JumpInstr { target: t }));
 				}
 			}
 			cfg.resolve_prev();

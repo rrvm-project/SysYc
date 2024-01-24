@@ -150,7 +150,7 @@ impl InterferenceGraph {
 						let b = edges.get(&y).cloned().unwrap_or_else(Vec::new);
 						let neighbors: HashSet<_> = a
 							.into_iter()
-							.chain(b.into_iter())
+							.chain(b)
 							.filter(|v| {
 								get_degree(v, &edges, &mut self.union_find) >= ALLOACBLE_COUNT
 							})

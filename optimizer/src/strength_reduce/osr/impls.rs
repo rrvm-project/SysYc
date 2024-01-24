@@ -9,7 +9,7 @@ use utils::UseTemp;
 
 use super::OSR;
 impl OSR {
-	pub fn new(cfg: &mut LlvmCFG, params: Vec<LlvmTemp>) -> Self {
+	pub fn new(cfg: &LlvmCFG, params: Vec<LlvmTemp>) -> Self {
 		let dfsnum = HashMap::new();
 		let mut visited = HashMap::new();
 		let low = HashMap::new();
@@ -134,8 +134,14 @@ impl OSR {
 		if scc.len() == 2 {
 			let member1 = &scc[0];
 			let member2 = &scc[1];
-			if let Some((_, _, _, true)) = self.temp_to_instr.get(member2) {
-				if self.is_valid_update_temp(cfg, member2.clone(), member1.clone()) {
+			if let Some((_, bb_index, instr_index, true)) =
+				self.temp_to_instr.get(member2)
+			{
+				let src_num =
+					cfg.blocks[*bb_index].borrow().phi_instrs[*instr_index].source.len();
+				if src_num == 2
+					&& self.is_valid_update_temp(cfg, member2.clone(), member1.clone())
+				{
 					self.header.insert(member1.clone(), member2.clone());
 					self.header.insert(member2.clone(), member2.clone());
 				}
@@ -176,7 +182,7 @@ impl OSR {
 	) {
 		let (_, bb_id, instr_id, _is_phi) =
 			*self.temp_to_instr.get(&scc_member).unwrap();
-		let op = cfg.blocks[bb_id].borrow().instrs[instr_id]
+		let op = cfg.blocks.get(bb_id).unwrap().borrow().instrs[instr_id]
 			.is_candidate_operator()
 			.unwrap();
 		let result = self.reduce(cfg, op, iv.clone(), rc, mgr);
