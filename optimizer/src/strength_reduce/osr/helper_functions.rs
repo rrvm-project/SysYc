@@ -53,6 +53,7 @@ impl OSR {
 			_ => None,
 		}
 	}
+	#[allow(clippy::if_same_then_else)]
 	// 这里没有考虑rc是否是源自一个立即数操作，因为如果rc本身是个常量，它应该在常量传播时被删掉了
 	pub fn is_regional_constant(
 		&self,
@@ -72,7 +73,8 @@ impl OSR {
 			if self.dominates.get(&rc_bb_id).unwrap().iter().any(|bb| {
 				bb.borrow().id == iv_header_bb_id && bb.borrow().id != rc_bb_id
 			}) {
-				Some(rc)
+				None
+			// Some(rc)
 			} else {
 				None
 			}
