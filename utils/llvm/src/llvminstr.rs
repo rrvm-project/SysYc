@@ -88,6 +88,12 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	}
 	fn get_read_values(&mut self) -> Vec<Value>;
 	fn set_read_values(&mut self, id: usize, value: Value);
+	fn is_loop_unroll_cond_op(&self) -> bool {
+		false
+	}
+	fn get_comp_op(&self) -> Option<CompOp> {
+		None
+	}
 }
 
 impl UseTemp<LlvmTemp> for LlvmInstr {

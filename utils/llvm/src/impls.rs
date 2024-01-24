@@ -196,6 +196,15 @@ impl LlvmInstrTrait for CompInstr {
 	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
 	}
+	fn is_loop_unroll_cond_op(&self) -> bool {
+		self.op == CompOp::SLT || self.op == CompOp::SLE
+	}
+	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
+		Some((self.lhs.clone(), self.rhs.clone()))
+	}
+	fn get_comp_op(&self) -> Option<CompOp> {
+		Some(self.op)
+	}
 	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
@@ -211,9 +220,6 @@ impl LlvmInstrTrait for CompInstr {
 	}
 	fn is_cmp(&self) -> bool {
 		true
-	}
-	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
-		Some((self.lhs.clone(), self.rhs.clone()))
 	}
 }
 

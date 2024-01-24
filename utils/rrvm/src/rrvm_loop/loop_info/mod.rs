@@ -1,5 +1,4 @@
-use instruction::Temp;
-use llvm::{CompInstr, CompOp, JumpCondInstr};
+use llvm::{CompInstr, CompOp, JumpCondInstr, LlvmTemp};
 
 use crate::LlvmNode;
 
@@ -17,10 +16,10 @@ pub struct SimpleLoopInfo {
 	pub start: i32,
 	pub end: i32,
 	pub step: i32,
-	pub end_temp: Option<Temp>,
-	pub new_end_temp: Option<Temp>,
-	pub cond_temp: Option<Temp>,
-	pub indvar_temp: Option<Temp>,
+	pub end_temp: Option<LlvmTemp>,
+	pub new_end_temp: Option<LlvmTemp>,
+	pub cond_temp: Option<LlvmTemp>,
+	pub indvar_temp: Option<LlvmTemp>,
 	pub cond_op: CompOp,
 	pub into_cond: Option<CompInstr>,
 	pub into_branch: Option<JumpCondInstr>,

@@ -1,10 +1,11 @@
+use llvm::Value;
 use rrvm::{
 	rrvm_loop::{loop_info::get_loop_info::get_loop_info, LoopPtr},
-	LlvmNode,
+	LlvmCFG, LlvmNode,
 };
 
 #[allow(unused)]
-pub fn loop_unroll(loop_: LoopPtr) {
+pub fn loop_unroll(cfg: &mut LlvmCFG, loop_: LoopPtr, func_params: &[Value]) {
 	if !loop_.borrow().no_inner {
 		return;
 	}
@@ -44,7 +45,13 @@ pub fn loop_unroll(loop_: LoopPtr) {
 	if exit_bb.is_none() || !check {
 		return;
 	}
-	let loop_info =
-		get_loop_info(loop_, loop_bbs, exit_bb.unwrap(), exit_prev.unwrap());
+	let loop_info = get_loop_info(
+		cfg,
+		func_params,
+		loop_,
+		loop_bbs,
+		exit_bb.unwrap(),
+		exit_prev.unwrap(),
+	);
 	todo!()
 }
