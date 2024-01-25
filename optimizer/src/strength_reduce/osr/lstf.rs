@@ -72,10 +72,7 @@ impl OSR {
 			let (lhs, rhs) = cfg.blocks[bb_index].borrow().instrs[instr_index]
 				.get_lhs_and_rhs()
 				.unwrap();
-			if lhs.unwrap_temp().is_some_and(|t| {
-				self.lstf_map.contains_key(&t)
-					&& self.is_regional_constant(t, rhs.clone()).is_some()
-			}) {
+			if self.is_replaceable_cmp(Some((lhs.clone(), rhs.clone()))) {
 				let t = lhs.unwrap_temp().unwrap();
 				let edge = self.lstf_map.get(&t).cloned().unwrap();
 				let mut new_instrs = Vec::new();
@@ -180,6 +177,19 @@ impl OSR {
 				new_tmp
 			}
 			_ => unreachable!(),
+		}
+	}
+	pub fn is_replaceable_cmp(
+		&self,
+		lhs_and_rhs: Option<(Value, Value)>,
+	) -> bool {
+		if let Some((lhs, rhs)) = lhs_and_rhs {
+			lhs.unwrap_temp().is_some_and(|t| {
+				self.lstf_map.contains_key(&t)
+					&& self.is_regional_constant(t, rhs).is_some()
+			})
+		} else {
+			false
 		}
 	}
 }

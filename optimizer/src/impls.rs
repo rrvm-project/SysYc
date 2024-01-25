@@ -74,7 +74,26 @@ impl Optimizer2 {
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
 			flag |= SolveTailRecursion::new().apply(program)?;
-			flag |= StrengthReduce::new().apply(program)?;
+			// 	}
+			// }
+
+			if !flag {
+				break;
+			}
+		}
+
+		StrengthReduce::new().apply(program)?;
+
+		loop {
+			let mut flag = false;
+			flag |= RemoveDeadCode::new().apply(program)?;
+			flag |= RemoveUnreachCode::new().apply(program)?;
+			flag |= RemoveUselessCode::new().apply(program)?;
+			flag |= FoldConstants::new().apply(program)?;
+			flag |= FuyukiLocalValueNumber::new().apply(program)?;
+			flag |= RemoveUselessPhis::new().apply(program)?;
+			flag |= InlineFunction::new().apply(program)?;
+			flag |= SolveTailRecursion::new().apply(program)?;
 			// 	}
 			// }
 

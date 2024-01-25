@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use llvm::{
 	ArithInstr, ArithOp, ConvertInstr, HashableValue, LlvmInstrTrait, LlvmTemp,
@@ -57,6 +57,7 @@ impl OSR {
 			dominates,
 			params,
 			lstf_map: HashMap::new(),
+			do_not_replace: HashSet::new(),
 		}
 	}
 	pub fn run(&mut self, cfg: &mut LlvmCFG, mgr: &mut LlvmTempManager) {
@@ -135,15 +136,37 @@ impl OSR {
 			let member1 = &scc[0];
 			let member2 = &scc[1];
 			if let Some((_, bb_index, instr_index, true)) =
-				self.temp_to_instr.get(member2)
+				self.temp_to_instr.get(member2).cloned()
 			{
 				let src_num =
-					cfg.blocks[*bb_index].borrow().phi_instrs[*instr_index].source.len();
+					cfg.blocks[bb_index].borrow().phi_instrs[instr_index].source.len();
 				if src_num == 2
 					&& self.is_valid_update_temp(cfg, member2.clone(), member1.clone())
 				{
 					self.header.insert(member1.clone(), member2.clone());
 					self.header.insert(member2.clone(), member2.clone());
+
+					let mut connected_temp_cnt = 0;
+					let mut candidate_operators = Vec::new();
+					for (instr_id, instr) in
+						cfg.blocks[bb_index].borrow().instrs.iter().enumerate()
+					{
+						if (instr.get_read().contains(member2)
+							|| instr.get_read().contains(member1))
+							&& !self.is_replaceable_cmp(instr.get_lhs_and_rhs())
+						{
+							connected_temp_cnt += 1;
+							if self
+								.is_candidate_operation(cfg, bb_index, instr_id, false)
+								.is_some()
+							{
+								candidate_operators.push(instr.get_write().unwrap());
+							}
+						}
+					}
+					if connected_temp_cnt >= 2 {
+						self.do_not_replace.extend(candidate_operators);
+					}
 				}
 			} else {
 				for p in scc.iter() {
@@ -180,6 +203,9 @@ impl OSR {
 		rc: Value,
 		mgr: &mut LlvmTempManager,
 	) {
+		if self.do_not_replace.contains(&scc_member) {
+			return;
+		}
 		let (_, bb_id, instr_id, _is_phi) =
 			*self.temp_to_instr.get(&scc_member).unwrap();
 		let op = cfg.blocks.get(bb_id).unwrap().borrow().instrs[instr_id]

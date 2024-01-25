@@ -2,7 +2,7 @@
 mod helper_functions;
 mod impls;
 mod lstf;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use llvm::{ArithOp, HashableValue, LlvmTemp};
 use rrvm::LlvmNode;
@@ -30,4 +30,5 @@ pub struct OSR {
 	dominates: HashMap<i32, Vec<LlvmNode>>,
 	params: Vec<LlvmTemp>,
 	lstf_map: HashMap<LlvmTemp, LSTFEdge>,
+	do_not_replace: HashSet<LlvmTemp>,
 }
