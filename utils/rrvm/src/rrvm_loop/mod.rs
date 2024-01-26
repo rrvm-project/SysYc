@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use crate::LlvmNode;
 
@@ -25,5 +25,23 @@ impl Loop {
 			level: -1,
 			no_inner: true,
 		}
+	}
+}
+
+impl Display for Loop {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let outer = if let Some(outer) = &self.outer {
+			format!("outer: {}", outer.borrow().header.borrow().id)
+		} else {
+			"outer: None".to_string()
+		};
+		write!(
+			f,
+			"outer: {}, header: {}, level: {}, no_inner: {}",
+			outer,
+			self.header.borrow().id,
+			self.level,
+			self.no_inner
+		)
 	}
 }

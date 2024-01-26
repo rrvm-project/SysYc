@@ -9,6 +9,8 @@ use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
 
+use self::loops::HandleLoops;
+
 impl Optimizer0 {
 	pub fn new() -> Self {
 		Self::default()
@@ -96,6 +98,7 @@ impl Optimizer2 {
 				break;
 			}
 		}
+		HandleLoops::new().apply(program)?;
 		program.analysis();
 		Ok(())
 	}

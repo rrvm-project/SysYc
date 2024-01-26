@@ -135,6 +135,9 @@ impl LlvmInstrTrait for ArithInstr {
 			_ => unreachable!(),
 		}
 	}
+	fn is_loop_unroll_update_op(&self) -> bool {
+		self.op == ArithOp::Add
+	}
 }
 
 impl ArithInstr {

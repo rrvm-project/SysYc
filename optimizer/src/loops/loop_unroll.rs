@@ -1,8 +1,13 @@
-use llvm::Value;
+use llvm::{CompOp, Value};
 use rrvm::{
-	rrvm_loop::{loop_info::get_loop_info::get_loop_info, LoopPtr},
+	rrvm_loop::{
+		loop_info::{get_loop_info::get_loop_info, LoopType},
+		LoopPtr,
+	},
 	LlvmCFG, LlvmNode,
 };
+
+const UNROLL_CNT: usize = 4;
 
 #[allow(unused)]
 pub fn loop_unroll(cfg: &mut LlvmCFG, loop_: LoopPtr, func_params: &[Value]) {
@@ -53,5 +58,47 @@ pub fn loop_unroll(cfg: &mut LlvmCFG, loop_: LoopPtr, func_params: &[Value]) {
 		exit_bb.unwrap(),
 		exit_prev.unwrap(),
 	);
-	todo!()
+
+	println!("loop_info: \n{}", loop_info);
+
+	if loop_info.instr_cnt > 100 {
+		return;
+	}
+	if loop_info.loop_type == LoopType::IGNORE {
+		return;
+	}
+	// 被展开次数
+	let mut unroll_cnt = UNROLL_CNT;
+	if loop_info.loop_type == LoopType::CONSTTERMINATED {
+		// 总循环次数
+		let mut full_cnt: i32;
+		match loop_info.cond_op {
+			CompOp::SLT => {
+				full_cnt = (loop_info.end - loop_info.start + loop_info.step - 1)
+					/ loop_info.step;
+				if loop_info.start >= loop_info.end {
+					full_cnt = 0;
+				}
+			}
+			CompOp::SLE => {
+				full_cnt =
+					(loop_info.end - loop_info.start + loop_info.step) / loop_info.step;
+				if loop_info.start > loop_info.end {
+					full_cnt = 0;
+				}
+			}
+			_ => unreachable!(),
+		}
+		if full_cnt <= 1 {
+			return;
+		}
+		// 如果总循环次数比较小，或者该循环内指令的个数乘总循环次数比较小，就全部展开
+		// 即，把循环体复制总循环次数次
+		if (full_cnt < 350 || (full_cnt as i64) * loop_info.instr_cnt < 2000) {
+			unroll_cnt = full_cnt as usize;
+		} else {
+			// TODO: 不全展开的情况暂时没写
+			return;
+		}
+	}
 }

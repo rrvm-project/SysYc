@@ -80,6 +80,9 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	fn is_candidate_operator(&self) -> Option<ArithOp> {
 		None
 	}
+	fn is_loop_unroll_update_op(&self) -> bool {
+		false
+	}
 	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
 		None
 	}
@@ -93,6 +96,9 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	}
 	fn get_comp_op(&self) -> Option<CompOp> {
 		None
+	}
+	fn get_read_value(&self) -> Vec<Value> {
+		Vec::new()
 	}
 }
 
