@@ -4,7 +4,7 @@ use crate::{LlvmCFG, LlvmNode};
 use std::collections::HashMap;
 
 pub fn compute_dominator_frontier(
-	cfg: &mut LlvmCFG,
+	cfg: &LlvmCFG,
 	reverse: bool,
 	dominates: &HashMap<i32, Vec<LlvmNode>>,
 	dominator: &HashMap<i32, LlvmNode>,

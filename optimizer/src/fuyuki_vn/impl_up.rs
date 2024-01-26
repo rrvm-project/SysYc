@@ -1,6 +1,6 @@
 use rrvm::LlvmNode;
 
-pub fn solve(block: &mut LlvmNode, father: &mut LlvmNode) {
+pub fn solve(block: &LlvmNode, father: &LlvmNode) {
 	block.borrow_mut().update_phi_def();
 	let mut defs = block.borrow().phi_defs.clone();
 

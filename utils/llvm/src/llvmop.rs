@@ -37,6 +37,13 @@ impl Hash for Value {
 	}
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum HashableValue {
+	Int(i32),
+	Float(u64, i16, i8),
+	Temp(LlvmTemp),
+}
+
 pub trait LlvmOp: Display {
 	fn oprand_type(&self) -> VarType;
 }
@@ -77,6 +84,52 @@ pub enum CompOp {
 	OLE, // ordered and less or equal
 }
 
+impl ArithOp {
+	pub fn is_commutative(&self) -> bool {
+		matches!(
+			self,
+			ArithOp::Add
+				| ArithOp::Mul
+				| ArithOp::And
+				| ArithOp::Or
+				| ArithOp::Xor
+				| ArithOp::Fadd
+				| ArithOp::Fmul
+		)
+	}
+	pub fn to_int_op(&self) -> Self {
+		match self {
+			Self::Fadd => Self::Add,
+			Self::Fsub => Self::Sub,
+			Self::Fdiv => Self::Div,
+			Self::Fmul => Self::Mul,
+			_ => *self,
+		}
+	}
+	pub fn to_float_op(&self) -> Self {
+		match self {
+			Self::Add => Self::Fadd,
+			Self::Sub => Self::Fsub,
+			Self::Div => Self::Fdiv,
+			Self::Mul => Self::Fmul,
+			_ => *self,
+		}
+	}
+}
+
+pub fn is_commutative(op: &ArithOp) -> bool {
+	matches!(
+		op,
+		ArithOp::Add
+			| ArithOp::Mul
+			| ArithOp::And
+			| ArithOp::Or
+			| ArithOp::Xor
+			| ArithOp::Fadd
+			| ArithOp::Fmul
+	)
+}
+
 #[derive(Fuyuki, Clone, Copy)]
 pub enum CompKind {
 	Icmp,
@@ -87,6 +140,34 @@ pub enum CompKind {
 pub enum ConvertOp {
 	Int2Float,
 	Float2Int,
+}
+
+// 从标准库偷的，将 f32 分解为底层用来表示小数的三个整数部分，为了让 f32 可以塞进 HashMap
+fn integer_decode(input: f32) -> (u64, i16, i8) {
+	let bits: u32 = input.to_bits();
+	let sign: i8 = if bits >> 31 == 0 { 1 } else { -1 };
+	let mut exponent: i16 = ((bits >> 23) & 0xff) as i16;
+	let mantissa = if exponent == 0 {
+		(bits & 0x7fffff) << 1
+	} else {
+		(bits & 0x7fffff) | 0x800000
+	};
+	// Exponent bias + mantissa shift
+	exponent -= 127 + 23;
+	(mantissa as u64, exponent, sign)
+}
+
+impl From<Value> for HashableValue {
+	fn from(v: Value) -> Self {
+		match v {
+			Value::Int(v) => Self::Int(v),
+			Value::Float(v) => {
+				let (mantissa, exponent, sign) = integer_decode(v);
+				Self::Float(mantissa, exponent, sign)
+			}
+			Value::Temp(v) => Self::Temp(v),
+		}
+	}
 }
 
 impl Value {

@@ -2,7 +2,7 @@ use instruction::{riscv::prelude::*, temp::*};
 use rrvm::program::RiscvFunc;
 
 pub fn spill(
-	func: &mut RiscvFunc,
+	func: &RiscvFunc,
 	to_spill: Temp,
 	addr: RiscvImm,
 	mgr: &mut TempManager,

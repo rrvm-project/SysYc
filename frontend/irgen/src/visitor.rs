@@ -115,8 +115,8 @@ impl Visitor for IRGenerator {
 				now.get_entry().borrow_mut().push(instr);
 				init.accept(self)?;
 				let _ = self.stack.pop().unwrap();
-				for (mut cfg, value, addr) in self.pop() {
-					let value = self.solve(value, addr, &mut cfg);
+				for (cfg, value, addr) in self.pop() {
+					let value = self.solve(value, addr, &cfg);
 					let new_temp = self.new_temp(var_type, false);
 					cfg.get_exit().borrow_mut().push(Box::new(StoreInstr {
 						value,
@@ -135,9 +135,9 @@ impl Visitor for IRGenerator {
 				self.stack.push((now, None, None));
 			} else {
 				init.accept(self)?;
-				let (mut cfg, value, addr) = self.stack.pop().unwrap();
-				let value = self.solve(value, addr, &mut cfg);
-				let value = self.type_conv(value, var_type, &mut cfg);
+				let (cfg, value, addr) = self.stack.pop().unwrap();
+				let value = self.solve(value, addr, &cfg);
+				let value = self.type_conv(value, var_type, &cfg);
 				self.symbol_table.set(symbol.id, value);
 				self.stack.push((cfg, None, None));
 			};
@@ -187,7 +187,7 @@ impl Visitor for IRGenerator {
 		let len = self.cur_size();
 		for val in node.val_list.iter_mut() {
 			val.accept(self)?;
-			let (mut cfg, value, addr) = self.stack.pop().unwrap();
+			let (cfg, value, addr) = self.stack.pop().unwrap();
 			match (&value, &addr) {
 				(None, None) => {
 					let array = self.pop();
@@ -199,7 +199,7 @@ impl Visitor for IRGenerator {
 					array.into_iter().for_each(|item| self.store(item));
 				}
 				_ => {
-					let value = self.solve(value, addr, &mut cfg);
+					let value = self.solve(value, addr, &cfg);
 					self.store((cfg, Some(value), None));
 				}
 			}
@@ -259,13 +259,13 @@ impl Visitor for IRGenerator {
 		let (mut lcfg, lhs_val, lhs_addr) = self.stack.pop().unwrap();
 		self.symbol_table.push();
 		node.rhs.accept(self)?;
-		let (mut rcfg, rhs_val, rhs_addr) = self.stack.pop().unwrap();
+		let (rcfg, rhs_val, rhs_addr) = self.stack.pop().unwrap();
 		let type_t = node.get_attr("type").unwrap().into();
 		let var_type = type_convert(&type_t);
 		let (cfg, ret_val, ret_addr) = match node.op {
 			Assign => {
-				let rhs_val = self.solve(rhs_val, rhs_addr, &mut rcfg);
-				let val = self.type_conv(rhs_val, var_type, &mut rcfg);
+				let rhs_val = self.solve(rhs_val, rhs_addr, &rcfg);
+				let val = self.type_conv(rhs_val, var_type, &rcfg);
 				if let Some(addr) = &lhs_addr {
 					let instr = Box::new(StoreInstr {
 						value: val.clone(),
@@ -285,8 +285,8 @@ impl Visitor for IRGenerator {
 				(lcfg, Some(val), lhs_addr)
 			}
 			IDX => {
-				let rhs_val = self.solve(rhs_val, rhs_addr, &mut rcfg);
-				let rhs = self.type_conv(rhs_val, I32, &mut rcfg);
+				let rhs_val = self.solve(rhs_val, rhs_addr, &rcfg);
+				let rhs = self.type_conv(rhs_val, I32, &rcfg);
 				let offset = self.new_temp(I32, false);
 				let instr = ArithInstr::new(
 					offset.clone(),
@@ -311,10 +311,10 @@ impl Visitor for IRGenerator {
 				(lcfg, None, Some(temp.into()))
 			}
 			_ => {
-				let lhs_val = self.solve(lhs_val, lhs_addr, &mut lcfg);
-				let rhs_val = self.solve(rhs_val, rhs_addr, &mut rcfg);
-				let lhs = self.type_conv(lhs_val, var_type, &mut lcfg);
-				let rhs = self.type_conv(rhs_val, var_type, &mut rcfg);
+				let lhs_val = self.solve(lhs_val, lhs_addr, &lcfg);
+				let rhs_val = self.solve(rhs_val, rhs_addr, &rcfg);
+				let lhs = self.type_conv(lhs_val, var_type, &lcfg);
+				let rhs = self.type_conv(rhs_val, var_type, &rcfg);
 				match node.op {
 					Add | Sub | Mul | Div | Mod => {
 						let op = to_arith(node.op, var_type);
@@ -382,8 +382,8 @@ impl Visitor for IRGenerator {
 	fn visit_unary_expr(&mut self, node: &mut UnaryExpr) -> Result<()> {
 		let var_type = type_convert(&node.get_attr("type").unwrap().into());
 		node.rhs.accept(self)?;
-		let (mut cfg, val, addr) = self.stack.pop().unwrap();
-		let temp = self.solve(val, addr, &mut cfg);
+		let (cfg, val, addr) = self.stack.pop().unwrap();
+		let temp = self.solve(val, addr, &cfg);
 		match node.op {
 			UnaryOp::Plus => self.stack.push((cfg, Some(temp), None)),
 			UnaryOp::Neg => {
@@ -430,14 +430,14 @@ impl Visitor for IRGenerator {
 		let (ret_type, params_type) = symbol.var_type;
 		for (param, type_t) in node.params.iter_mut().zip(params_type.iter()) {
 			param.accept(self)?;
-			let (mut cfg, val, addr) = self.stack.pop().unwrap();
+			let (cfg, val, addr) = self.stack.pop().unwrap();
 			let var_type = type_convert(type_t);
 			let val = if var_type.is_ptr() {
 				addr.unwrap()
 			} else {
-				self.solve(val, addr, &mut cfg)
+				self.solve(val, addr, &cfg)
 			};
-			let val = self.type_conv(val, var_type, &mut cfg);
+			let val = self.type_conv(val, var_type, &cfg);
 			cfgs.push(cfg);
 			params.push((var_type, val));
 		}
@@ -499,8 +499,8 @@ impl Visitor for IRGenerator {
 
 	fn visit_if(&mut self, node: &mut If) -> Result<()> {
 		node.cond.accept(self)?;
-		let (mut cond, cond_val, cond_addr) = self.stack.pop().unwrap();
-		let cond_val = self.solve(cond_val, cond_addr, &mut cond);
+		let (cond, cond_val, cond_addr) = self.stack.pop().unwrap();
+		let cond_val = self.solve(cond_val, cond_addr, &cond);
 		self.enter_branch();
 		self.symbol_table.push();
 		node.body.accept(self)?;
@@ -529,8 +529,8 @@ impl Visitor for IRGenerator {
 		let (mut init, init_diff, need_phi) = self.copy_symbols(counter.symbols);
 
 		node.cond.accept(self)?;
-		let (mut cond, cond_val, cond_addr) = self.stack.pop().unwrap();
-		let cond_val = self.solve(cond_val, cond_addr, &mut cond);
+		let (cond, cond_val, cond_addr) = self.stack.pop().unwrap();
+		let cond_val = self.solve(cond_val, cond_addr, &cond);
 
 		self.symbol_table.push();
 		node.body.accept(self)?;
@@ -591,10 +591,10 @@ impl Visitor for IRGenerator {
 				));
 			}
 			val.accept(self)?;
-			let (mut cfg, val, addr) = self.stack.pop().unwrap();
+			let (cfg, val, addr) = self.stack.pop().unwrap();
 			let var_type = func_type_convert(&self.ret_type);
-			let val = self.solve(val, addr, &mut cfg);
-			let val = self.type_conv(val, var_type, &mut cfg);
+			let val = self.solve(val, addr, &cfg);
+			let val = self.type_conv(val, var_type, &cfg);
 			let instr = Box::new(RetInstr { value: Some(val) });
 			cfg.get_exit().borrow_mut().set_jump(Some(instr));
 			self.stack.push((cfg, None, None));
