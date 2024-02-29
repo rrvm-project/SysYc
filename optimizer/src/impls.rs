@@ -1,9 +1,5 @@
-use rrvm::program::LlvmProgram;
-use utils::errors::Result;
-
 use crate::{
-	strength_reduce::StrengthReduce, useless_phis::RemoveUselessPhis,
-	RrvmOptimizer, *,
+	strength_reduce::StrengthReduce, useless_phis::RemoveUselessPhis, *,
 };
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;

@@ -20,13 +20,13 @@ impl RrvmOptimizer for RemoveUnreachCode {
 				visited.insert(id);
 				// dfs
 				for v in u.borrow().succ.iter() {
-					if visited.get(&v.borrow().id).is_none() {
+					if !visited.contains(&v.borrow().id) {
 						stack.push(v.clone())
 					}
 				}
 			}
 			cfg.blocks.retain(|v| {
-				visited.get(&v.borrow().id).is_some() || {
+				visited.contains(&v.borrow().id) || {
 					v.borrow_mut().clear();
 					false
 				}

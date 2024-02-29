@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use ast::tree::*;
 
-use llvm::{Value, VarType::*, *};
+use llvm::{VarType::*, *};
 use rrvm::{
 	cfg::{link_cfg, link_node, CFG},
 	program::LlvmProgram,
