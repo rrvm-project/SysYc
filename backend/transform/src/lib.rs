@@ -3,10 +3,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use instr_dag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
 
-use rrvm::{
-	cfg::{link_node, BasicBlock},
-	prelude::*,
-};
+use rrvm::prelude::*;
 use transformer::to_riscv;
 use utils::errors::Result;
 

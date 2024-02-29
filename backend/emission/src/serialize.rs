@@ -13,7 +13,7 @@ fn func_serialize(mut nodes: Vec<RiscvNode>) -> RiscvInstrSet {
 		node.borrow_mut().sort_succ();
 		if let Some(succ) = node.borrow().succ.first() {
 			let v = succ.borrow().id;
-			if v != 0 && u != v && pre.get(&v).is_none() && !union_find.same(u, v) {
+			if v != 0 && u != v && !pre.contains_key(&v) && !union_find.same(u, v) {
 				pre.insert(v, u);
 				union_find.merge(u, v);
 			}
@@ -25,7 +25,7 @@ fn func_serialize(mut nodes: Vec<RiscvNode>) -> RiscvInstrSet {
 		pre.get(&v).map_or(false, |v| *v == u)
 	});
 	for node in nodes.iter() {
-		if pre.get(&node.borrow().id).is_none() {
+		if !pre.contains_key(&node.borrow().id) {
 			let mut now = node.clone();
 			loop {
 				instrs.push(LabelInstr::new(now.borrow().label()));
