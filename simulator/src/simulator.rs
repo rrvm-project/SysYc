@@ -205,8 +205,8 @@ impl MiddleSimulator {
 					frame.temp.insert(instr.target.name.clone(), value);
 				}
 				llvm::LlvmInstrVariant::JumpInstr(instr) => {
-					frame.last_label = frame.current_label.clone();
-					frame.current_label = instr.target.name.clone();
+					frame.last_label.clone_from(&frame.current_label);
+					frame.current_label.clone_from(&instr.target.name);
 
 					next = *labels.get(&instr.target.name).unwrap();
 				}
@@ -220,12 +220,12 @@ impl MiddleSimulator {
 					};
 
 					if jump {
-						frame.last_label = frame.current_label.clone();
-						frame.current_label = instr.target_true.name.clone();
+						frame.last_label.clone_from(&frame.current_label);
+						frame.current_label.clone_from(&instr.target_true.name);
 						next = *labels.get(&instr.target_true.name).unwrap();
 					} else {
-						frame.last_label = frame.current_label.clone();
-						frame.current_label = instr.target_false.name.clone();
+						frame.last_label.clone_from(&frame.current_label);
+						frame.current_label.clone_from(&instr.target_false.name);
 						next = *labels.get(&instr.target_false.name).unwrap();
 					}
 				}
