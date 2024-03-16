@@ -56,7 +56,7 @@ fn inline(
 		let block = &block.borrow();
 		let w = block.weight;
 		let mut last = LlvmBasicBlock::new(block.id, w);
-		last.phi_instrs = block.phi_instrs.clone();
+		last.phi_instrs.clone_from(&block.phi_instrs);
 		for instr in block.instrs.iter() {
 			match instr.get_variant() {
 				CallInstr(instr) if table.contains_key(&instr.func.name) => {

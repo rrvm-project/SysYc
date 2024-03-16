@@ -6,7 +6,6 @@ use pest_derive::Parser;
 use utils::{errors::Result, SysycError::LexError};
 use value::{BType, BinaryOp, FuncRetType, UnaryOp};
 
-#[allow(clippy::empty_docs)]
 #[derive(Parser)]
 #[grammar = "sysy2022.pest"]
 struct SysycParser;

@@ -91,7 +91,7 @@ impl Visitor for Namer {
 		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol.clone())?;
 		if let Some(init) = node.init.as_mut() {
-			self.decl_dims = dim_list.clone();
+			self.decl_dims.clone_from(&dim_list);
 			init.accept(self)?;
 			shirink(init);
 		}
