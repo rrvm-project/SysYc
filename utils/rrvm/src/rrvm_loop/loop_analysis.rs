@@ -7,7 +7,7 @@ use super::LoopPtr;
 impl LlvmCFG {
 	pub fn loop_analysis(&mut self) -> Vec<LoopPtr> {
 		self.compute_dominator();
-		loop_dfs(self.get_entry(), self);
+		loop_dfs(self.get_entry());
 		for bb in self.blocks.iter() {
 			calc_loop_level(bb.borrow().loop_.clone());
 		}
@@ -40,12 +40,12 @@ fn calc_loop_level(loop_: Option<LoopPtr>) {
 }
 
 // 这里本来想实现成 LlvmNode 的一个成员函数的，但这样做，参数中就会有一个 &mut self,
-// 而它常常是 borrow_mut 的，导致在函数体内无法对自己 borrow，而在函数体内是会经常碰到要 borrow 自己的时候的
-pub fn loop_dfs(cur_bb: LlvmNode, cfg: &LlvmCFG) {
+// 而它常常是一个 borrow_mut 的结果，这导致在函数体内无法再对自己 borrow。
+pub fn loop_dfs(cur_bb: LlvmNode) {
 	// dfs on dom tree
 	cur_bb.borrow_mut().loop_ = None;
 	for next in cur_bb.borrow().dominates_directly.iter() {
-		loop_dfs(next.clone(), cfg);
+		loop_dfs(next.clone());
 	}
 	let mut bbs = Vec::new();
 	// 看看自己的前驱有没有被自己支配的，有的话就有循环存在，与自己前驱之间的边就是 backedge
@@ -56,12 +56,13 @@ pub fn loop_dfs(cur_bb: LlvmNode, cfg: &LlvmCFG) {
 	}
 	if !bbs.is_empty() {
 		// 这里需要一个指向 cur_bb 的 Rc，我不能通过 Rc::new 来创建，只得把 cfg 也拉过来，从 cfg 里面复制
-		let ptr_to_self = cfg
-			.blocks
-			.iter()
-			.find(|bb| bb.borrow().id == cur_bb.borrow().id)
-			.unwrap()
-			.clone();
+		// let ptr_to_self = cfg
+		// 	.blocks
+		// 	.iter()
+		// 	.find(|bb| bb.borrow().id == cur_bb.borrow().id)
+		// 	.unwrap()
+		// 	.clone();
+		let ptr_to_self = cur_bb.clone();
 		let new_loop = Rc::new(RefCell::new(super::Loop::new(ptr_to_self)));
 		while let Some(bb) = bbs.pop() {
 			if bb.borrow().loop_.is_none() {

@@ -1,5 +1,7 @@
 // 识别 loop 中的信息
 
+use std::collections::HashMap;
+
 use llvm::{LlvmInstrTrait, LlvmTemp, Value};
 use utils::UseTemp;
 
@@ -55,23 +57,28 @@ pub fn get_loop_info(
 	}
 	info.into_entry = into_entry;
 
+	let def_map = construct_def_map(cfg);
+
 	let mut type_ = LoopType::VARTEMINATED;
 
 	if let Some(jump_instr) = exit_prev.borrow().jump_instr.as_ref() {
 		if jump_instr.is_jump_cond() {
 			let cond_temp = jump_instr.get_read().first().cloned().unwrap();
 			let exit_prev_borrow = exit_prev.borrow();
-			let def_cond_temp = exit_prev_borrow
-				.instrs
-				.iter()
-				.find(|instr| instr.get_write().is_some_and(|w| w == cond_temp))
-				.expect("jump cond temp not found");
+			// TODO：分支指令读取的临时变量的定义可能和分支指令不在同一个基本块内
+			// let def_cond_temp = exit_prev_borrow
+			// 	.instrs
+			// 	.iter()
+			// 	.find(|instr| instr.get_write().is_some_and(|w| w == cond_temp))
+			// 	.expect("jump cond temp not found");
+			let def_cond_temp =
+				def_map.get(&cond_temp).expect("jump cond temp not found");
 			if def_cond_temp.is_loop_unroll_cond_op() {
+				// 只考虑 i < n 和 i <= n
 				let (lhs, rhs) = def_cond_temp.get_lhs_and_rhs().unwrap();
-				// if func_params.contains(&rhs) {
-				// 	info.end_temp = Some(rhs.unwrap_temp().unwrap().clone());
-				// } else
-				if let Value::Int(int_value) = rhs {
+				if func_params.contains(&rhs) {
+					info.end_temp = Some(rhs.unwrap_temp().unwrap().clone());
+				} else if let Value::Int(int_value) = rhs {
 					info.end = int_value;
 					type_ = LoopType::CONSTTERMINATED;
 				} else {
@@ -88,7 +95,7 @@ pub fn get_loop_info(
 				}
 				let lhs = lhs.unwrap_temp().unwrap();
 				if let Some((start, update_temp, phi_temp, update)) =
-					is_simple_induction_variable(lhs, entry.clone())
+					is_simple_induction_variable(lhs, &def_map)
 				{
 					if update != 1 {
 						return info;
@@ -118,10 +125,8 @@ pub fn get_loop_info(
 // 返回 (0, %2, %1, 1)
 fn is_simple_induction_variable(
 	temp: LlvmTemp,
-	block: LlvmNode,
+	def_map: &HashMap<LlvmTemp, Box<dyn LlvmInstrTrait>>,
 ) -> Option<(i32, LlvmTemp, LlvmTemp, i32)> {
-	let block = block.borrow();
-
 	let get_int_and_temp = |v: &[Value]| -> Option<(i32, LlvmTemp)> {
 		if let Value::Int(i) = v[0] {
 			if let Value::Temp(t) = &v[1] {
@@ -135,20 +140,19 @@ fn is_simple_induction_variable(
 		None
 	};
 
-	if let Some(def_temp) = block
-		.phi_instrs
-		.iter()
-		.find(|instr| instr.get_write().is_some_and(|w| w == temp))
-	{
+	let def_temp = def_map.get(&temp)?;
+
+	if def_temp.is_phi() {
 		let read_values = def_temp.get_read_value();
 		if read_values.len() != 2 {
 			return None;
 		}
 		if let Some((i, t)) = get_int_and_temp(&read_values) {
-			let def_t = block
-				.instrs
-				.iter()
-				.find(|instr| instr.get_write().is_some_and(|w| w == t))?;
+			// let def_t = block
+			// 	.instrs
+			// 	.iter()
+			// 	.find(|instr| instr.get_write().is_some_and(|w| w == t))?;
+			let def_t = def_map.get(&t)?;
 
 			if !def_t.is_loop_unroll_update_op() {
 				return None;
@@ -165,11 +169,7 @@ fn is_simple_induction_variable(
 				}
 			}
 		}
-	} else if let Some(def_temp) = block
-		.instrs
-		.iter()
-		.find(|instr| instr.get_write().is_some_and(|w| w == temp))
-	{
+	} else {
 		if !def_temp.is_loop_unroll_update_op() {
 			return None;
 		}
@@ -178,10 +178,11 @@ fn is_simple_induction_variable(
 			return None;
 		}
 		if let Some((i, t)) = get_int_and_temp(&read_values) {
-			let def_t = block
-				.instrs
-				.iter()
-				.find(|instr| instr.get_write().is_some_and(|w| w == t))?;
+			// let def_t = block
+			// 	.instrs
+			// 	.iter()
+			// 	.find(|instr| instr.get_write().is_some_and(|w| w == t))?;
+			let def_t = def_map.get(&t)?;
 			if !def_t.is_phi() {
 				return None;
 			}
@@ -199,4 +200,24 @@ fn is_simple_induction_variable(
 		}
 	}
 	None
+}
+
+fn construct_def_map(
+	cfg: &LlvmCFG,
+) -> HashMap<LlvmTemp, Box<dyn LlvmInstrTrait>> {
+	let mut def_map = HashMap::new();
+	for block in cfg.blocks.iter() {
+		let block = block.borrow();
+		for instr in block.instrs.iter() {
+			if let Some(temp) = instr.get_write() {
+				def_map.insert(temp, instr.clone());
+			}
+		}
+		for instr in block.phi_instrs.iter() {
+			if let Some(temp) = instr.get_write() {
+				def_map.insert(temp, Box::new(instr.clone()));
+			}
+		}
+	}
+	def_map
 }

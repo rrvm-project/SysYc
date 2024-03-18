@@ -96,9 +96,6 @@ pub fn loop_unroll(cfg: &mut LlvmCFG, loop_: LoopPtr, func_params: &[Value]) {
 		// 即，把循环体复制总循环次数次
 		if (full_cnt < 350 || (full_cnt as i64) * loop_info.instr_cnt < 2000) {
 			unroll_cnt = full_cnt as usize;
-		} else {
-			// TODO: 不全展开的情况暂时没写
-			return;
 		}
 	}
 }
