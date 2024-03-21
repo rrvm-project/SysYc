@@ -265,9 +265,9 @@ impl Display for CallInstr {
 }
 
 impl RiscvInstrTrait for CallInstr {
-	// fn get_riscv_read(&self) -> Vec<RiscvTemp> {
-	// 	self.params.clone()
-	// }
+	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
+		self.params.clone()
+	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		CALLER_SAVE.iter().map(|&v| v.into()).chain(vec![RA.into()]).collect()
 	}

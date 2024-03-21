@@ -403,7 +403,7 @@ pub fn riscv_call(
 	let mut params = Vec::new();
 	for (&reg, (_, val)) in PARAMETER_REGS.iter().zip(instr.params.iter()) {
 		let rd = mgr.new_pre_color_temp(reg);
-		params.push(reg.into());
+		params.push(rd);
 		get_arith(rd, llvm::ArithOp::AddD, val, &0.into(), &mut instrs, mgr)?;
 	}
 

@@ -17,6 +17,7 @@ impl Optimizer0 {
 		loop {
 			let mut flag = false;
 			flag |= RemoveUnreachCode::new().apply(program)?;
+			flag |= RemoveDeadCode::new().apply(program)?;
 			if !flag {
 				break;
 			}
