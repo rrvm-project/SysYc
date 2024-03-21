@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use instruction::Temp;
 use utils::union_find::UnionFind;
 
-pub fn spill_cost(weight: f64, degree: usize) -> f64 {
+pub fn priority(weight: f64, degree: usize) -> f64 {
 	weight / degree as f64
 }
 

@@ -121,6 +121,9 @@ pub fn link_cfg<T: InstrTrait<U>, U: TempTrait>(
 }
 
 impl RiscvCFG {
+	pub fn clear_data_flow(&self) {
+		self.blocks.iter().for_each(|v| v.borrow_mut().clear_data_flow());
+	}
 	pub fn analysis(&self) {
 		self.blocks.iter().for_each(|v| v.borrow_mut().init_data_flow());
 		loop {
