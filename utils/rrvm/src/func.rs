@@ -1,6 +1,8 @@
 use llvm::{Value, VarType};
+use std::collections::HashSet;
 use utils::{
-	InstrTrait, TempTrait, INLINE_PARAMS_THRESHOLD, MAX_INLINE_LENGTH,
+	purity::ExternalResource, InstrTrait, TempTrait, INLINE_PARAMS_THRESHOLD,
+	MAX_INLINE_LENGTH,
 };
 
 use crate::cfg::CFG;
@@ -12,6 +14,7 @@ pub struct RrvmFunc<T: InstrTrait<U>, U: TempTrait> {
 	pub name: String,
 	pub ret_type: VarType,
 	pub params: Vec<Value>,
+	pub external_resorce: HashSet<ExternalResource>,
 }
 
 impl<T: InstrTrait<U>, U: TempTrait> RrvmFunc<T, U> {

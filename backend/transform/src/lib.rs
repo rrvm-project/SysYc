@@ -1,4 +1,8 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+	cell::RefCell,
+	collections::{HashMap, HashSet},
+	rc::Rc,
+};
 
 use instr_dag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
@@ -88,6 +92,7 @@ pub fn convert_func(
 		name: func.name,
 		params: func.params,
 		ret_type: func.ret_type,
+		external_resorce: HashSet::new(),
 	})
 }
 

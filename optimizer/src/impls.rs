@@ -9,6 +9,8 @@ use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
 
+use self::pure_check::PureCheck;
+
 impl Optimizer0 {
 	pub fn new() -> Self {
 		Self::default()
@@ -65,6 +67,7 @@ impl Optimizer2 {
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
+			flag |= PureCheck::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;

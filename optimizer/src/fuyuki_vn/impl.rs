@@ -1,7 +1,7 @@
 use super::FuyukiLocalValueNumber;
 
 use crate::{fuyuki_vn::impl_down, RrvmOptimizer};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use utils::UseTemp;
 
 use rrvm::{program::LlvmProgram, LlvmCFG};
@@ -17,7 +17,7 @@ use super::{impl_lvn, impl_up};
 
 use super::fvn_utils::MaxMin;
 
-fn solve(cfg: &LlvmCFG) -> bool {
+fn solve(cfg: &LlvmCFG, not_pure: &HashSet<String>) -> bool {
 	// cfg.analysis();
 
 	let mut subtree: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
@@ -52,7 +52,11 @@ fn solve(cfg: &LlvmCFG) -> bool {
 
 	let total = post_order_to_block.len();
 	for i in 0..total {
-		impl_lvn::solve(post_order_to_block.get(&i).unwrap(), &mut rewirte);
+		impl_lvn::solve(
+			post_order_to_block.get(&i).unwrap(),
+			&mut rewirte,
+			not_pure,
+		);
 	}
 	// lvn: rewrite
 
@@ -131,7 +135,6 @@ fn solve(cfg: &LlvmCFG) -> bool {
 		&dfs_order_to_id,
 		&father,
 	);
-
 	!rewirte.is_empty()
 }
 
@@ -141,6 +144,21 @@ impl RrvmOptimizer for FuyukiLocalValueNumber {
 	}
 
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
-		Ok(program.funcs.iter_mut().any(|func| solve(&func.cfg)))
+		let mut not_pure = HashSet::new();
+
+		for item in utils::purity::VEC_EXTERN {
+			not_pure.insert(item.to_string());
+		}
+
+		program
+			.funcs
+			.iter()
+			.map(|func| {
+				if !func.external_resorce.is_empty() {
+					not_pure.insert(func.name.clone());
+				}
+			})
+			.count();
+		Ok(program.funcs.iter_mut().any(|func| solve(&func.cfg, &not_pure)))
 	}
 }
