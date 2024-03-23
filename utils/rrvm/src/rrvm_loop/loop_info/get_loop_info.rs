@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use llvm::{LlvmInstrTrait, LlvmTemp, Value};
+use log::trace;
 use utils::UseTemp;
 
 use crate::{rrvm_loop::LoopPtr, LlvmCFG, LlvmNode};
@@ -41,17 +42,19 @@ pub fn get_loop_info(
 	info.exit = Some(exit.clone());
 
 	let mut into_entry = None;
-	let mut has_backedge = false;
+
 	for prev in entry.borrow().prev.iter() {
 		if prev.borrow().loop_.as_ref().is_some_and(|l| *l == loop_) {
-			if !has_backedge {
-				has_backedge = true;
+			if info.backedge_start.is_none() {
+				info.backedge_start = Some(prev.clone());
 			} else {
+				trace!("IGNORE: multiple backedge start");
 				return info; // 有多条回边，可能存在 continue
 			}
 		} else if into_entry.is_none() {
 			into_entry = Some(prev.clone());
 		} else {
+			trace!("IGNORE: multiple into entry");
 			return info; // 有多个进入 entry 的块，这里可能可以尝试处理
 		}
 	}
@@ -88,9 +91,11 @@ pub fn get_loop_info(
 				info.cond_temp = Some(cond_temp);
 
 				if func_params.contains(&lhs) {
+					trace!("IGNORE: loop end condition lhs is a function parameter");
 					return info;
 				}
 				if lhs.is_num() {
+					trace!("IGNORE: loop end condition lhs is a constant");
 					return info;
 				}
 				let lhs = lhs.unwrap_temp().unwrap();
@@ -98,12 +103,17 @@ pub fn get_loop_info(
 					is_simple_induction_variable(lhs, &def_map)
 				{
 					if update != 1 {
+						trace!("IGNORE: loop update is not 1, it is {}", update);
 						return info;
 					}
 					info.step = update;
 					info.start = start;
 					info.indvar_temp = Some(update_temp);
+					info.phi_temp = Some(phi_temp);
 				} else {
+					trace!(
+						"IGNORE: loop end condition lhs is not a simple induction variable"
+					);
 					return info;
 				}
 			}
@@ -112,6 +122,7 @@ pub fn get_loop_info(
 		}
 	}
 	if type_ == LoopType::VARTEMINATED {
+		trace!("IGNORE: variable terminated");
 		return info;
 	}
 	info.loop_type = type_;
@@ -143,7 +154,7 @@ fn is_simple_induction_variable(
 	let def_temp = def_map.get(&temp)?;
 
 	if def_temp.is_phi() {
-		let read_values = def_temp.get_read_value();
+		let read_values = def_temp.get_read_values();
 		if read_values.len() != 2 {
 			return None;
 		}
@@ -157,7 +168,7 @@ fn is_simple_induction_variable(
 			if !def_t.is_loop_unroll_update_op() {
 				return None;
 			}
-			let read_values = def_t.get_read_value();
+			let read_values = def_t.get_read_values();
 			if read_values.len() != 2 {
 				return None;
 			}
@@ -173,7 +184,7 @@ fn is_simple_induction_variable(
 		if !def_temp.is_loop_unroll_update_op() {
 			return None;
 		}
-		let read_values = def_temp.get_read_value();
+		let read_values = def_temp.get_read_values();
 		if read_values.len() != 2 {
 			return None;
 		}
@@ -186,7 +197,7 @@ fn is_simple_induction_variable(
 			if !def_t.is_phi() {
 				return None;
 			}
-			let read_values = def_t.get_read_value();
+			let read_values = def_t.get_read_values();
 			if read_values.len() != 2 {
 				return None;
 			}

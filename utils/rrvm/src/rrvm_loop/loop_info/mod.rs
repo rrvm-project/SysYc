@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use llvm::{CompInstr, CompOp, JumpCondInstr, LlvmTemp};
+use llvm::{CompOp, LlvmTemp};
 
 use crate::LlvmNode;
 
@@ -32,15 +32,17 @@ pub struct SimpleLoopInfo {
 	pub end_temp: Option<LlvmTemp>,
 	pub new_end_temp: Option<LlvmTemp>,
 	pub cond_temp: Option<LlvmTemp>,
+	// 归纳变量，其实就是每次循环都递增的那个控制循环是否继续进行的循环变量，is_simple_induction_variable() 中的第二个返回值
 	pub indvar_temp: Option<LlvmTemp>,
+	pub phi_temp: Option<LlvmTemp>,
 	pub cond_op: CompOp,
-	pub into_cond: Option<CompInstr>,
-	pub into_branch: Option<JumpCondInstr>,
 	pub instr_cnt: i64, // 循环体内指令数, Call 指令被认为是 50 条指令
 	pub exit_prev: Option<LlvmNode>,
 	pub exit: Option<LlvmNode>,
+	// 从循环外进入循环 entry 的基本块
 	pub into_entry: Option<LlvmNode>,
-	pub new_into_entry: Option<LlvmNode>,
+	// 回边的起点
+	pub backedge_start: Option<LlvmNode>,
 }
 
 impl SimpleLoopInfo {
@@ -54,14 +56,13 @@ impl SimpleLoopInfo {
 			new_end_temp: None,
 			cond_temp: None,
 			indvar_temp: None,
+			phi_temp: None,
 			cond_op: CompOp::EQ,
-			into_cond: None,
-			into_branch: None,
 			instr_cnt: 0,
 			exit_prev: None,
 			exit: None,
 			into_entry: None,
-			new_into_entry: None,
+			backedge_start: None,
 		}
 	}
 }
@@ -119,14 +120,6 @@ impl Display for SimpleLoopInfo {
 			&self.into_entry.as_ref().map_or("into_entry: None\n".to_string(), |v| {
 				format!("into_entry: {}\n", v.borrow().id)
 			}),
-		);
-		s.push_str(
-			&self
-				.new_into_entry
-				.as_ref()
-				.map_or("new_into_entry: None\n".to_string(), |v| {
-					format!("new_into_entry: {}\n", v.borrow().id)
-				}),
 		);
 		write!(f, "{}", s)
 	}

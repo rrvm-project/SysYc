@@ -11,3 +11,5 @@ rand = "0.8.4"
 utils = { path = "../utils" }
 rrvm = { path = "../utils/rrvm" }
 llvm = { path = "../utils/llvm" }
+instruction = { path = "../utils/instruction" }
+log = "0.4.21"
