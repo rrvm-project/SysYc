@@ -1,3 +1,5 @@
+#![allow(clippy::empty_docs)]
+
 use std::{collections::HashMap, hash::Hash, iter::once};
 
 use ast::tree::*;

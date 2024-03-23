@@ -1,6 +1,6 @@
 tab_spaces = 2
 max_width = 80
-chain_width = 74
+chain_width = 80
 comment_width = 80
 hard_tabs = true
 imports_granularity = "Crate"

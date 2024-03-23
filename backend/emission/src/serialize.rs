@@ -64,10 +64,7 @@ fn solve_callee_save(instrs: &mut RiscvInstrSet, spills: i32) {
 		.filter(|v| CALLEE_SAVE.iter().any(|reg| reg == v))
 		.collect();
 	if instrs.iter().any(|instr| {
-		instr
-			.get_riscv_read()
-			.iter()
-			.any(|v| v.get_phys().is_some_and(|v| v == FP))
+		instr.get_riscv_read().iter().any(|v| v.get_phys().is_some_and(|v| v == FP))
 	}) {
 		saves.insert(FP);
 	}
