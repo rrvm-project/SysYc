@@ -1,9 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
+use llvm::JumpInstr;
 use utils::{InstrTrait, Label, TempTrait};
 
 pub use crate::basicblock::{BasicBlock, Node};
-use crate::{LlvmCFG, RiscvCFG};
+use crate::{LlvmCFG, LlvmNode, RiscvCFG};
 
 pub struct CFG<T: InstrTrait<U>, U: TempTrait> {
 	pub blocks: Vec<Node<T, U>>,
@@ -111,6 +112,22 @@ pub fn link_node<T: InstrTrait<U>, U: TempTrait>(
 		from.borrow_mut().succ.push(to.clone());
 		to.borrow_mut().prev.push(from.clone());
 	}
+}
+
+pub fn unlink_node<T: InstrTrait<U>, U: TempTrait>(
+	from: &Node<T, U>,
+	to: &Node<T, U>,
+) {
+	from.borrow_mut().succ.retain(|v| v != to);
+	to.borrow_mut().prev.retain(|v| v != from);
+	from.borrow_mut().jump_instr = None;
+}
+
+pub fn force_link_llvmnode(from: &LlvmNode, to: &LlvmNode) {
+	assert!(from.borrow().jump_instr.is_none());
+	from.borrow_mut().succ.push(to.clone());
+	to.borrow_mut().prev.push(from.clone());
+	from.borrow_mut().jump_instr = Some(JumpInstr::new(to.borrow().label()));
 }
 
 pub fn force_link_node<T: InstrTrait<U>, U: TempTrait>(

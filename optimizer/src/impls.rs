@@ -85,9 +85,12 @@ impl Optimizer2 {
 		}
 
 		StrengthReduce::new().apply(program)?;
+		HandleLoops::new().apply(program)?;
 
 		loop {
+			// break;
 			let mut flag = false;
+
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
@@ -96,12 +99,11 @@ impl Optimizer2 {
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
 			flag |= SolveTailRecursion::new().apply(program)?;
-			flag |= HandleLoops::new().apply(program)?;
+
 			if !flag {
 				break;
 			}
 		}
-		HandleLoops::new().apply(program)?;
 		program.analysis();
 		Ok(())
 	}

@@ -64,18 +64,22 @@ pub fn loop_dfs(cur_bb: LlvmNode) {
 		// 	.clone();
 		let ptr_to_self = cur_bb.clone();
 		let new_loop = Rc::new(RefCell::new(super::Loop::new(ptr_to_self)));
+		// println!("start poping");
 		while let Some(bb) = bbs.pop() {
 			if bb.borrow().loop_.is_none() {
+				// println!("no loop bb {}", bb.borrow().label());
 				bb.borrow_mut().loop_ = Some(new_loop.clone());
 				if bb.borrow().id != cur_bb.borrow().id {
 					bbs.append(bb.borrow().prev.clone().as_mut());
 				}
 			} else {
+				// println!("has loop bb {}", bb.borrow().label());
 				let mut inner_loop = bb.borrow().loop_.clone().unwrap();
 				let mut outer_loop = inner_loop.borrow().outer.clone();
 				while let Some(outer) = outer_loop.clone() {
 					inner_loop = outer;
-					outer_loop = inner_loop.borrow().outer.clone();
+					outer_loop.clone_from(&inner_loop.borrow().outer);
+					// outer_loop = inner_loop.borrow().outer.clone();
 				}
 				if inner_loop == new_loop {
 					continue;

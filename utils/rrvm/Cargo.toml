@@ -12,5 +12,7 @@ utils = { path = ".." }
 llvm = { path = "../llvm" }
 instruction = { path = "../instruction" }
 
+log = "0.4.21"
+
 [features]
 debug = []

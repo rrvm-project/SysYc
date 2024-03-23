@@ -1,5 +1,6 @@
 mod cli;
 mod config;
+mod logging;
 mod printer;
 
 use std::{
@@ -18,6 +19,7 @@ use emission::code_emission;
 #[cfg(not(feature = "simu"))]
 use instruction::temp::TempManager;
 use irgen::IRGenerator;
+use log::trace;
 use namer::visitor::Namer;
 use optimizer::*;
 use parser::parser::parse;
@@ -67,6 +69,8 @@ fn step_riscv(program: LlvmProgram, level: i32) -> Result<RiscvProgram> {
 }
 
 fn main() -> Result<()> {
+	logging::init();
+	trace!("start");
 	let args = Args::parse();
 
 	let mut writer: Box<dyn Write> = if let Some(o) = args.output {
