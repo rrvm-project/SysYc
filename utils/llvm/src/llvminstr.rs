@@ -70,6 +70,7 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	}
 	fn replace_read(&mut self, _old: LlvmTemp, _new: Value) {}
 	fn map_temp(&mut self, _map: &HashMap<LlvmTemp, Value>) {}
+	fn map_all_temp(&mut self, _map: &HashMap<LlvmTemp, LlvmTemp>) {} // 把 target 也 map 掉
 	fn set_target(&mut self, _target: LlvmTemp) {}
 	fn map_label(&mut self, _map: &HashMap<Label, Label>) {
 		unreachable!()

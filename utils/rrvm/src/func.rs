@@ -6,7 +6,7 @@ use utils::{
 use crate::cfg::CFG;
 
 pub struct RrvmFunc<T: InstrTrait<U>, U: TempTrait> {
-	pub total: i32,
+	pub total: i32, // used to allocate new basicblock id, it is the next basicblock id
 	pub spills: i32,
 	pub cfg: CFG<T, U>,
 	pub name: String,

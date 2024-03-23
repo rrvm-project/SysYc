@@ -1,0 +1,49 @@
+GlobalVar { ident: "loopCount", data: [Zero(4)] }
+GlobalVar { ident: "global", data: [Zero(4)] }
+define void @func(i32 %1){
+  entry:
+    %2 = load i32*, i32 @global
+    store i32 %1, i32* %2
+    ret void
+}
+define i32 @main(){
+  entry:
+    %3 = load i32*, i32 @loopCount
+    %4 = call i32 @getint()
+    store i32 %4, i32* %3
+    %5 = call void @_sysy_starttime(i32 100016)
+    br label %B6
+  B6:
+    %6 = phi i32 [0, label %entry], [%21, label %B21]
+    %7 = phi i32 [0, label %entry], [%22, label %B21]
+    %8 = load i32*, i32 @loopCount
+    %9 = load i32, i32* %8
+    %10 = icmp slt i32 %7, %9
+    %22 = add i32 %7, 1
+    br i32 %10, label %B8, label %B35
+  B8:
+    br label %B11
+  B11:
+    %11 = phi i32 [0, label %B8], [%18, label %B13]
+    %12 = phi i32 [0, label %B8], [%17, label %B13]
+    %13 = icmp slt i32 %11, 60
+    %19 = div i32 %12, 60
+    %20 = add i32 %6, %19
+    %21 = rem i32 %20, 134209537
+    %18 = add i32 %11, 1
+    br i32 %13, label %B13, label %B21
+  B13:
+    %26 = load i32*, i32 @global
+    store i32 %7, i32* %26
+    %15 = load i32*, i32 @global
+    %16 = load i32, i32* %15
+    %17 = add i32 %12, %16
+    br label %B11
+  B21:
+    br label %B6
+  B35:
+    %23 = call void @_sysy_stoptime(i32 100032)
+    %24 = call void @putint(i32 %6)
+    %25 = call void @putch(i32 10)
+    ret i32 0
+}

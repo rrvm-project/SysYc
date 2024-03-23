@@ -41,11 +41,11 @@ pub fn get_loop_info(
 	info.exit = Some(exit.clone());
 
 	let mut into_entry = None;
-	let mut has_backedge = false;
+
 	for prev in entry.borrow().prev.iter() {
 		if prev.borrow().loop_.as_ref().is_some_and(|l| *l == loop_) {
-			if !has_backedge {
-				has_backedge = true;
+			if info.backedge_start.is_none() {
+				info.backedge_start = Some(prev.clone());
 			} else {
 				return info; // 有多条回边，可能存在 continue
 			}
@@ -103,6 +103,7 @@ pub fn get_loop_info(
 					info.step = update;
 					info.start = start;
 					info.indvar_temp = Some(update_temp);
+					info.phi_temp = Some(phi_temp);
 				} else {
 					return info;
 				}
