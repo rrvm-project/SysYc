@@ -118,6 +118,7 @@ pub fn loop_unroll(
 			return;
 		}
 	}
+	// unroll_cnt = 2;
 	// 确定展开这个循环
 	loop_unroll_inner(func, temp_mgr, loop_, loop_info, loop_bbs, unroll_cnt);
 }
@@ -160,7 +161,6 @@ fn loop_unroll_inner(
 	// entry.borrow_mut().instrs.retain(|instr| {
 	// 	instr.get_write().is_some_and(|t| {
 	// 		t == info.cond_temp.clone().unwrap()
-
 	// 	})
 	// });
 
@@ -191,15 +191,47 @@ fn loop_unroll_inner(
 	let mut temp_map: HashMap<LlvmTemp, LlvmTemp> = HashMap::new();
 	let mut phi_temp_at_entry_map = HashMap::new();
 
-	for instr in entry.borrow().phi_instrs.iter() {
-		for (v, l) in instr.source.iter() {
+	let entry_phi_defs = entry
+		.borrow()
+		.phi_instrs
+		.iter()
+		.map(|instr| instr.target.clone())
+		.collect::<Vec<LlvmTemp>>();
+	// let mut flag = false;
+	for instr in entry.borrow_mut().phi_instrs.iter_mut() {
+		for (v, l) in instr.source.iter_mut() {
+			// 这里 v 的定义也可能是 entry 的某一条 phi
+			// 为此，需要在 backedge start 的末端插入一个 new_temp = v
+			// 然后在 phi （不是定义 v 的那个 phi，是使用 v 的那个）中将 v 换成 new temp
 			if *l == cur_backedge_start.borrow().label() {
+				// if entry_phi_defs.contains(&v.unwrap_temp().unwrap()) {
+				// 	let new_temp = temp_mgr.new_temp(v.unwrap_temp().unwrap().var_type, false);
+				// 	let mut assign = ArithInstr::new(
+				// 		new_temp.clone(),
+				// 		v.clone(),
+				// 		if new_temp.var_type == VarType::F32 {ArithOp::Fadd} else {ArithOp::Add},
+				// 		if new_temp.var_type == VarType::F32 {Value::Float(0.0)} else {Value::Int(0)},
+				// 		new_temp.var_type,
+				// 	);
+				// 	cur_backedge_start.borrow_mut().instrs.push(assign);
+				// 	phi_temp_at_entry_map
+				// 		.insert(instr.target.clone(), new_temp.clone());
+				// 	println!("entry phi v: {} to new: {}", v, new_temp);
+				// 	flag = true;
+				// 	*v = Value::Temp(new_temp);
+				// } else {
 				phi_temp_at_entry_map
 					.insert(instr.target.clone(), v.unwrap_temp().unwrap());
+				// }
 				break;
 			}
 		}
 	}
+
+	// println!("cfg: {}", cfg);
+	// if flag {
+	// 	panic!();
+	// }
 
 	let phi_temp_at_entry_map_clone = phi_temp_at_entry_map.clone();
 
@@ -209,6 +241,7 @@ fn loop_unroll_inner(
 		}
 		for instr in bb.borrow().instrs.iter() {
 			if let Some(write) = instr.get_write() {
+				trace!("temp_map insert: {}", write);
 				temp_map.insert(write.clone(), write.clone());
 			}
 		}
@@ -217,7 +250,7 @@ fn loop_unroll_inner(
 		}
 	}
 
-	for _ in 0..unroll_cnt - 1 {
+	for i in 0..unroll_cnt - 1 {
 		// 复制块
 		for bb in loop_bbs.iter() {
 			if *bb == entry {
@@ -312,15 +345,22 @@ fn loop_unroll_inner(
 			}
 			let new_bb = bb_map.get(&bb.borrow().id).unwrap().clone();
 			if bb == info.backedge_start.as_ref().unwrap() {
-				cur_backedge_start = new_bb.clone();
+				cur_backedge_start = new_bb;
 			}
 		}
 
+		let last_phi_temp_at_entry_map = phi_temp_at_entry_map.clone();
 		// 假设 %2 是 entry 中的一个 phi temp，在 entry 中映射到 %4，那么在展开的每一轮中，%2 应当被映射为上一轮中 %4 被映射到的值
 		for (k, v) in phi_temp_at_entry_map.iter_mut() {
-			*v = temp_map.get(v).unwrap().clone();
+			let new_v = if let Some(s) = temp_map.get(v) {
+				s.clone()
+			} else {
+				last_phi_temp_at_entry_map.get(v).unwrap().clone()
+			};
+			*v = new_v;
 			trace!("map {} to {}", k, v);
 		}
+		drop(last_phi_temp_at_entry_map);
 
 		for (k, v) in temp_map.iter_mut() {
 			*v = temp_mgr.new_temp(k.var_type, false);
@@ -365,7 +405,12 @@ fn loop_unroll_inner(
 		for (v, l) in phi.source.iter_mut() {
 			if let Value::Temp(t) = v {
 				if t == source_temp_to_change {
-					*v = Value::Temp(temp_map.get(t).unwrap().clone());
+					let new_t = if let Some(s) = temp_map.get(t) {
+						s.clone()
+					} else {
+						phi_temp_at_entry_map.get(t).unwrap().clone()
+					};
+					*v = Value::Temp(new_t).clone();
 					*l = cur_backedge_start.borrow().label();
 				}
 			}
