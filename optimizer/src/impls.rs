@@ -3,7 +3,7 @@ use crate::{
 };
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
-// use function_inline::InlineFunction;
+use function_inline::InlineFunction;
 use fuyuki_vn::FuyukiLocalValueNumber;
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
@@ -82,6 +82,7 @@ impl Optimizer2 {
 		}
 
 		StrengthReduce::new().apply(program)?;
+		HandleLoops::new().apply(program)?;
 
 		loop {
 			// break;
@@ -93,10 +94,8 @@ impl Optimizer2 {
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
-			// flag |= InlineFunction::new().apply(program)?;
+			flag |= InlineFunction::new().apply(program)?;
 			flag |= SolveTailRecursion::new().apply(program)?;
-			flag |= HandleLoops::new().apply(program)?;
-			flag |= HandleLoops::new().apply(program)?;
 
 			if !flag {
 				break;

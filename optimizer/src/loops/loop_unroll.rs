@@ -118,7 +118,6 @@ pub fn loop_unroll(
 			return;
 		}
 	}
-	// unroll_cnt = 2;
 	// 确定展开这个循环
 	loop_unroll_inner(func, temp_mgr, loop_, loop_info, loop_bbs, unroll_cnt);
 }
@@ -158,11 +157,6 @@ fn loop_unroll_inner(
 		})
 		.cloned()
 		.collect::<Vec<LlvmInstr>>();
-	// entry.borrow_mut().instrs.retain(|instr| {
-	// 	instr.get_write().is_some_and(|t| {
-	// 		t == info.cond_temp.clone().unwrap()
-	// 	})
-	// });
 
 	let after_entry =
 		entry.borrow().succ.iter().find(|bb| **bb != exit).unwrap().clone();
@@ -197,41 +191,15 @@ fn loop_unroll_inner(
 		.iter()
 		.map(|instr| instr.target.clone())
 		.collect::<Vec<LlvmTemp>>();
-	// let mut flag = false;
 	for instr in entry.borrow_mut().phi_instrs.iter_mut() {
 		for (v, l) in instr.source.iter_mut() {
-			// 这里 v 的定义也可能是 entry 的某一条 phi
-			// 为此，需要在 backedge start 的末端插入一个 new_temp = v
-			// 然后在 phi （不是定义 v 的那个 phi，是使用 v 的那个）中将 v 换成 new temp
 			if *l == cur_backedge_start.borrow().label() {
-				// if entry_phi_defs.contains(&v.unwrap_temp().unwrap()) {
-				// 	let new_temp = temp_mgr.new_temp(v.unwrap_temp().unwrap().var_type, false);
-				// 	let mut assign = ArithInstr::new(
-				// 		new_temp.clone(),
-				// 		v.clone(),
-				// 		if new_temp.var_type == VarType::F32 {ArithOp::Fadd} else {ArithOp::Add},
-				// 		if new_temp.var_type == VarType::F32 {Value::Float(0.0)} else {Value::Int(0)},
-				// 		new_temp.var_type,
-				// 	);
-				// 	cur_backedge_start.borrow_mut().instrs.push(assign);
-				// 	phi_temp_at_entry_map
-				// 		.insert(instr.target.clone(), new_temp.clone());
-				// 	println!("entry phi v: {} to new: {}", v, new_temp);
-				// 	flag = true;
-				// 	*v = Value::Temp(new_temp);
-				// } else {
 				phi_temp_at_entry_map
 					.insert(instr.target.clone(), v.unwrap_temp().unwrap());
-				// }
 				break;
 			}
 		}
 	}
-
-	// println!("cfg: {}", cfg);
-	// if flag {
-	// 	panic!();
-	// }
 
 	let phi_temp_at_entry_map_clone = phi_temp_at_entry_map.clone();
 
@@ -387,7 +355,7 @@ fn loop_unroll_inner(
 		}
 
 		// recover phi_temp_at_entry_map
-		phi_temp_at_entry_map = phi_temp_at_entry_map_clone.clone();
+		phi_temp_at_entry_map.clone_from(&phi_temp_at_entry_map_clone);
 	}
 
 	after_entry.borrow_mut().instrs = after_entry_instrs;
