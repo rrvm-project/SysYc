@@ -1,4 +1,4 @@
-use utils::{InstrTrait, Label, UseTemp};
+use utils::{purity::ExternalResource, InstrTrait, Label, UseTemp};
 
 use crate::{llvmop::*, LlvmInstrVariant, LlvmTemp, VarType};
 use std::{collections::HashMap, fmt::Display};
@@ -52,6 +52,10 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	}
 	fn has_sideeffect(&self) -> bool {
 		false
+	}
+	// needs external
+	fn external_resorce(&self) -> Option<ExternalResource> {
+		None
 	}
 	fn is_ret(&self) -> bool {
 		false

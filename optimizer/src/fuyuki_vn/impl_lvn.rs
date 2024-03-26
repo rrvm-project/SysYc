@@ -1,5 +1,9 @@
 use rand::Rng;
-use std::{collections::HashMap, hash::Hasher, vec};
+use std::{
+	collections::{HashMap, HashSet},
+	hash::Hasher,
+	vec,
+};
 
 use llvm::{ArithOp, CompOp, LlvmInstrTrait, LlvmTemp, Value, VarType};
 
@@ -8,6 +12,7 @@ use std::hash::Hash;
 use super::calc::{arith_binaryop, comp_binaryop};
 use rrvm::LlvmNode;
 
+#[derive(Debug)]
 enum SimpleLvnValue {
 	// LiteralInt(i32),
 	// LiteralFloat(f32),
@@ -15,6 +20,7 @@ enum SimpleLvnValue {
 	Comp((CompOp, VarType, Value, Value)),
 	Convert((VarType, VarType, Value)),
 	Gep(Value, Value),
+	PureFunc(String, Vec<Value>),
 }
 impl Eq for SimpleLvnValue {}
 
@@ -27,6 +33,9 @@ impl PartialEq for SimpleLvnValue {
 			(Self::Comp(l0), Self::Comp(r0)) => l0 == r0,
 			(Self::Convert(l0), Self::Convert(r0)) => l0 == r0,
 			(Self::Gep(l0, l1), Self::Gep(r0, r1)) => l0 == r0 && l1 == r1,
+			(Self::PureFunc(l0, l1), Self::PureFunc(r0, r1)) => {
+				l0 == r0 && *l1 == *r1
+			}
 			_ => false,
 		}
 	}
@@ -54,6 +63,10 @@ impl Hash for SimpleLvnValue {
 				val1.hash(state);
 			}
 			SimpleLvnValue::Gep(val1, val2) => {
+				val1.hash(state);
+				val2.hash(state);
+			}
+			SimpleLvnValue::PureFunc(val1, val2) => {
 				val1.hash(state);
 				val2.hash(state);
 			}
@@ -110,6 +123,7 @@ fn try_rewrite(value: &Value, rewrite: &HashMap<LlvmTemp, Value>) -> Value {
 fn get_simple_lvn_value(
 	instr: &Box<dyn LlvmInstrTrait>,
 	rewrite: &HashMap<LlvmTemp, Value>,
+	not_pure: &HashSet<String>,
 ) -> (Option<SimpleLvnValue>, Option<LlvmTemp>) {
 	let mut dst = None;
 
@@ -150,6 +164,22 @@ fn get_simple_lvn_value(
 				try_rewrite(&i.offset, rewrite),
 			)
 			.into()
+		}
+		llvm::LlvmInstrVariant::CallInstr(i) => {
+			dst = i.target.clone().into();
+			if not_pure.contains(&i.func.name) {
+				None
+			} else {
+				SimpleLvnValue::PureFunc(
+					i.func.name.clone(),
+					i.params
+						.clone()
+						.into_iter()
+						.map(|(_, value)| try_rewrite(&value, rewrite))
+						.collect(),
+				)
+				.into()
+			}
 		}
 		_ => None,
 	};
@@ -242,14 +272,18 @@ fn check_all_equal(v: &[i32]) -> Option<i32> {
 	}
 }
 
-pub fn solve(block: &LlvmNode, rewrite: &mut HashMap<LlvmTemp, Value>) {
+pub fn solve(
+	block: &LlvmNode,
+	rewrite: &mut HashMap<LlvmTemp, Value>,
+	not_pure: &HashSet<String>,
+) {
 	let mut table: HashMap<SimpleLvnValue, Value> = HashMap::new();
 
 	let mut remain_instr = vec![];
 
 	for instr in &block.borrow_mut().instrs {
 		if let (Some(lvn_value), Some(target)) =
-			get_simple_lvn_value(instr, rewrite)
+			get_simple_lvn_value(instr, rewrite, not_pure)
 		{
 			if let Some(value) = table.get(&lvn_value) {
 				rewrite.insert(target, try_rewrite(value, rewrite));

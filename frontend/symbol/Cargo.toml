@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 value = { path = "../value" }
+utils = { path = "../../utils"}
