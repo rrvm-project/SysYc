@@ -4,7 +4,7 @@ on: [push, workflow_dispatch]
 
 jobs:
   test:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
     - name: get test repo
       uses: actions/checkout@v4
@@ -12,12 +12,26 @@ jobs:
         token: ${{ secrets.TEST_TOKEN }}
         submodules: 'recursive'
 
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11.5'
+
     - name: Build compiler
       run: cargo build --workspace --release
 
     - name: Install RISC-V GNU Compiler Toolchain
       run: |
-        echo "PATH=/usr/local/riscv64-toolchain/bin:$PATH" >> $GITHUB_ENV
+        sudo apt update
+        sudo apt install libnewlib-dev
+        sudo apt install qemu-user
+        mkdir tmp
+        cd tmp
+        wget https://static.dev.sifive.com/dev-tools/freedom-tools/v2020.08/riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14.tar.gz
+        tar -xzvf riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14.tar.gz
+        mv riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-linux-ubuntu14 riscv64-toolchain
+        cd ..
+        echo "PATH=$(pwd)/tmp/riscv64-toolchain/bin:$PATH" >> $GITHUB_ENV
 
     - name: build sysylib
       working-directory: ./project-eval/runtime
@@ -25,8 +39,8 @@ jobs:
 
     - name: Run functional test
       working-directory: ./project-eval
-      run: python3 test.py -t ./testcases/functional -b
+      run: python test.py -t ./testcases/functional -b
 
     - name: Run performance test
       working-directory: ./project-eval
-      run: python3 test.py -t ./testcases/performance -b
+      run: python test.py -t ./testcases/performance -b
