@@ -2,7 +2,7 @@ use std::hash::{Hash, Hasher};
 
 use crate::{FuncSymbol, Symbol};
 
-use utils::purity::VEC_EXTERN;
+use utils::constants::{VEC_EXTERN, VEC_MACRO};
 
 impl<T> PartialEq for Symbol<T> {
 	fn eq(&self, other: &Self) -> bool {
@@ -23,7 +23,6 @@ impl FuncSymbol {
 		VEC_EXTERN.contains(&self.ident.as_str())
 	}
 	pub fn is_macro(&self) -> bool {
-		let vec_macro = ["starttime", "stoptime"];
-		vec_macro.contains(&self.ident.as_str())
+		VEC_MACRO.contains(&self.ident.as_str())
 	}
 }

@@ -3,9 +3,8 @@
 use std::fmt::Display;
 
 use utils::{
-	iter::all_equal,
-	purity::{ExternalResource, VEC_EXTERN},
-	Label, UseTemp,
+	constants::VEC_EXTERN, iter::all_equal, purity::ExternalResource, Label,
+	UseTemp,
 };
 
 use std::collections::HashMap;

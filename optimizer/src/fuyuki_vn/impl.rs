@@ -2,7 +2,7 @@ use super::FuyukiLocalValueNumber;
 
 use crate::{fuyuki_vn::impl_down, RrvmOptimizer};
 use std::collections::{HashMap, HashSet};
-use utils::UseTemp;
+use utils::{UseTemp, VEC_EXTERN};
 
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::errors::Result;
@@ -146,7 +146,7 @@ impl RrvmOptimizer for FuyukiLocalValueNumber {
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
 		let mut not_pure = HashSet::new();
 
-		for item in utils::purity::VEC_EXTERN {
+		for item in VEC_EXTERN {
 			not_pure.insert(item.to_string());
 		}
 

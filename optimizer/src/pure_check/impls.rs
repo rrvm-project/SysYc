@@ -55,8 +55,8 @@ impl RrvmOptimizer for PureCheck {
 		}
 
 		for func in program.funcs.iter_mut() {
-			for block in &func.cfg.blocks {
-				for instr in &block.borrow().instrs {
+			for block in func.cfg.blocks.iter() {
+				for instr in block.borrow().instrs.iter() {
 					if let Some(item) = instr.external_resorce() {
 						// func.external_resorce.insert(item);
 						// match &item {
