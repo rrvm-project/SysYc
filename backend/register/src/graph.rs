@@ -1,31 +1,65 @@
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::{
+	collections::{BinaryHeap, HashMap, HashSet},
+	hash::Hash,
+};
 
-use instruction::{riscv::prelude::*, temp::Temp};
-use rrvm::RiscvCFG;
 use utils::union_find::UnionFind;
 
-#[derive(Default)]
-pub struct InterferenceGraph {
-	uf: UnionFind<Temp>,
-	nodes: HashSet<Temp>,
-	colors: HashMap<Temp, RiscvReg>,
-	edges: HashMap<Temp, HashSet<Temp>>,
-	merge_benefit: HashMap<(Temp, Temp), f64>, // HACK: benefit varies while coalescing ?
+use crate::utils::{priority, FindAvailable};
+
+pub struct InterferenceGraph<T: Hash + Eq + Copy, U> {
+	allocator: Box<dyn FindAvailable<U>>,
+	uf: UnionFind<T>,
+	nodes: HashSet<T>,
+	weights: HashMap<T, f64>,
+	colors: HashMap<T, U>,
+	edges: HashMap<T, HashSet<T>>,
+	merge_benefit: HashMap<(T, T), f64>, // HACK: benefit varies while coalescing ?
 }
 
-impl InterferenceGraph {
-	fn add_edge(&mut self, x: Temp, y: Temp) {
+impl<T, U> InterferenceGraph<T, U>
+where
+	T: Hash + Eq + Copy + Ord,
+	U: PartialEq + Eq + Copy + Hash,
+{
+	pub fn add_edge(&mut self, x: T, y: T) {
 		if x != y {
 			self.edges.entry(x).or_default().insert(y);
 			self.edges.entry(y).or_default().insert(x);
 		}
 	}
-	fn can_set(&self, x: &Temp, reg: RiscvReg) -> bool {
+	pub fn add_benefit(&mut self, x: &T, y: &T, benefit: f64) {
+		*self.merge_benefit.entry((*x, *y)).or_default() += benefit;
+		*self.merge_benefit.entry((*y, *x)).or_default() += benefit;
+	}
+	pub fn add_node(&mut self, x: T) {
+		self.nodes.insert(x);
+	}
+	pub fn add_weight(&mut self, x: T, w: f64) {
+		*self.weights.entry(x).or_default() += w;
+	}
+	pub fn set_color(&mut self, x: &T, col: U) {
+		self.colors.insert(*x, col);
+	}
+
+	fn can_set(&self, x: &T, reg: U) -> bool {
 		self.edges.get(x).map_or(true, |arr| {
 			arr.iter().all(|v| self.colors.get(v).map_or(true, |v| *v != reg))
 		})
 	}
-	fn can_merge(&self, x: &Temp, y: &Temp) -> bool {
+	fn get_nodes(&mut self) -> Vec<T> {
+		self.nodes.iter().copied().filter(|v| self.uf.is_root(*v)).collect()
+	}
+	fn get_degree(&self, x: &T) -> usize {
+		self.edges.get(x).map(|v| v.len()).unwrap_or_default()
+	}
+	fn get_weight(&self, x: &T) -> f64 {
+		self.weights.get(x).copied().unwrap_or(0.into())
+	}
+	fn get_priority(&self, x: &T) -> f64 {
+		priority(self.get_weight(x), self.get_degree(x))
+	}
+	fn can_merge(&self, x: &T, y: &T) -> bool {
 		x != y
 			&& self.edges.get(x).map_or(true, |s| !s.contains(y))
 			&& match (self.colors.get(x), self.colors.get(y)) {
@@ -35,22 +69,16 @@ impl InterferenceGraph {
 				_ => true,
 			}
 	}
-	fn get_nodes(&mut self) -> Vec<Temp> {
-		self.nodes.iter().copied().filter(|v| self.uf.is_root(*v)).collect()
-	}
-	fn get_degree(&self, x: &Temp) -> usize {
-		self.edges.get(x).map(|v| v.len()).unwrap_or_default()
-	}
-	fn briggs_cond(&self, x: &Temp, y: &Temp) -> bool {
+	fn briggs_cond(&self, x: &T, y: &T) -> bool {
 		self
 			.edges
 			.get(x)
 			.unwrap_or(&HashSet::new())
 			.union(self.edges.get(y).unwrap_or(&HashSet::new()))
 			.collect::<HashSet<_>>()
-			.len() < ALLOACBLE_COUNT
+			.len() < self.allocator.len()
 	}
-	fn merge(&mut self, x: &Temp, y: &Temp) {
+	fn merge(&mut self, x: &T, y: &T) {
 		self.uf.merge(*y, *x);
 		if let Some(color) = self.colors.remove(y) {
 			self.colors.insert(*x, color);
@@ -65,45 +93,17 @@ impl InterferenceGraph {
 		}
 	}
 
-	pub fn new(cfg: &RiscvCFG) -> Self {
-		let mut graph = Self::default();
-		cfg.clear_data_flow();
-		cfg.analysis();
-		for block in cfg.blocks.iter() {
-			let block = &block.borrow();
-			let mut lives = block.live_out.clone();
-			for instr in block.instrs.iter().rev() {
-				if let Some(temp) = instr.get_write() {
-					graph.nodes.insert(temp);
-					lives.remove(&temp);
-					lives.iter().for_each(|x| graph.add_edge(temp, *x));
-				}
-				for temp in instr.get_read() {
-					graph.nodes.insert(temp);
-					lives.iter().for_each(|x| graph.add_edge(temp, *x));
-					lives.insert(temp);
-				}
-				if instr.is_move() {
-					let x = instr.get_read().pop();
-					let y = instr.get_write();
-					if let (Some(x), Some(y)) = (x, y) {
-						*graph.merge_benefit.entry((x, y)).or_default() += block.weight;
-						*graph.merge_benefit.entry((y, x)).or_default() += block.weight;
-					}
-				}
-			}
-		}
-		graph
-	}
-
-	pub fn pre_color(&mut self) {
-		for node in self.nodes.iter() {
-			if let Some(color) = node.pre_color {
-				self.colors.insert(*node, color);
-			}
+	pub fn new(allocator: Box<dyn FindAvailable<U>>) -> Self {
+		Self {
+			allocator,
+			uf: UnionFind::<T>::default(),
+			nodes: HashSet::new(),
+			weights: HashMap::new(),
+			colors: HashMap::new(),
+			edges: HashMap::new(),
+			merge_benefit: HashMap::new(),
 		}
 	}
-
 	pub fn eliminate_move(&mut self) {
 		let edges = std::mem::take(&mut self.merge_benefit);
 		let mut edges = edges.into_iter().collect::<Vec<_>>();
@@ -120,7 +120,7 @@ impl InterferenceGraph {
 				}
 			}
 			edges.retain(|((x, y), _)| {
-				x.id != y.id
+				x != y
 					&& match (self.colors.get(x), self.colors.get(y)) {
 						(Some(x), Some(y)) => x == y,
 						_ => true,
@@ -136,10 +136,10 @@ impl InterferenceGraph {
 		let mut heap: BinaryHeap<_> =
 			self.get_nodes().into_iter().map(|v| (self.get_degree(&v), v)).collect();
 		while let Some((d, x)) = heap.pop() {
-			if d > ALLOACBLE_COUNT {
+			if d > self.allocator.len() {
 				break;
 			}
-			for (_, y) in heap.iter().take(ALLOACBLE_COUNT * ALLOACBLE_COUNT) {
+			for (_, y) in heap.iter().take(self.allocator.len().pow(2)) {
 				if self.can_merge(&x, y) && self.briggs_cond(&x, y) {
 					self.merge(y, &x);
 					break;
@@ -149,26 +149,31 @@ impl InterferenceGraph {
 	}
 
 	#[allow(clippy::map_entry)]
-	pub fn coloring(&mut self) -> Option<Temp> {
+	pub fn coloring(&mut self) -> Vec<T> {
 		let mut nodes: Vec<_> =
-			self.get_nodes().iter().map(|v| (*v, self.get_degree(v))).collect();
-		nodes.sort_by(|(_, x), (_, y)| x.cmp(y));
-		for (node, _) in nodes {
-			if !self.colors.contains_key(&node) {
+			self.get_nodes().iter().map(|v| (*v, self.get_priority(v))).collect();
+		nodes.sort_by(|(_, x), (_, y)| y.total_cmp(x));
+		nodes
+			.into_iter()
+			.filter_map(|(node, _)| {
 				let neighbors = self.edges.remove(&node).unwrap_or_default();
-				let used: HashSet<_> =
-					neighbors.into_iter().filter_map(|u| self.colors.get(&u)).collect();
-				if let Some(&reg) = ALLOCABLE_REGS.iter().find(|v| !used.contains(v)) {
-					self.colors.insert(node, reg);
-				} else {
-					return Some(node);
+				let used: HashSet<_> = neighbors
+					.into_iter()
+					.filter_map(|u| self.colors.get(&u).copied())
+					.collect();
+				if !self.colors.contains_key(&node) {
+					if let Some(reg) = self.allocator.find_available(&used) {
+						self.colors.insert(node, reg);
+					} else {
+						return Some(node);
+					}
 				}
-			}
-		}
-		None
+				None
+			})
+			.collect()
 	}
 
-	pub fn get_map(mut self) -> HashMap<Temp, RiscvReg> {
+	pub fn get_map(mut self) -> HashMap<T, U> {
 		self
 			.nodes
 			.into_iter()

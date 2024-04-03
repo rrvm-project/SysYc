@@ -1,7 +1,6 @@
 use core::hash::Hash;
 use std::collections::HashMap;
 
-#[derive(Default)]
 pub struct UnionFind<T: Hash + Eq + Copy> {
 	fa: HashMap<T, T>,
 }
@@ -25,5 +24,11 @@ impl<T: Hash + Eq + Copy> UnionFind<T> {
 	}
 	pub fn is_root(&mut self, x: T) -> bool {
 		x == self.find(x)
+	}
+}
+
+impl<T: Hash + Eq + Copy> Default for UnionFind<T> {
+	fn default() -> Self {
+		Self { fa: HashMap::new() }
 	}
 }
