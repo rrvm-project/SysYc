@@ -5,6 +5,7 @@ mod llvmvar;
 mod temp;
 mod utils_llvm;
 
+pub use impls::new_assign_instr;
 pub use llvminstr::*;
 pub use llvmop::{Value, *};
 pub use llvmvar::*;
