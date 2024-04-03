@@ -1,11 +1,12 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use llvm::{
-	CompOp, JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp, LlvmTempManager,
-	Value,
+	new_assign_instr, CompOp, JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp,
+	LlvmTempManager, Value,
 };
 use log::trace;
 use rrvm::{
+	basicblock::LlvmBasicBlock,
 	cfg::unlink_node,
 	program::LlvmFunc,
 	rrvm_loop::{
@@ -25,6 +26,7 @@ pub fn loop_unroll(
 	func: &mut LlvmFunc,
 	loop_: LoopPtr,
 	temp_mgr: &mut LlvmTempManager,
+	loop_unroll_time: &mut usize,
 ) {
 	let cfg = &mut func.cfg;
 	let func_params = &func.params;
@@ -86,6 +88,7 @@ pub fn loop_unroll(
 	}
 	// 被展开次数
 	let mut unroll_cnt = UNROLL_CNT;
+	let mut is_full_unroll = false;
 	if loop_info.loop_type == LoopType::CONSTTERMINATED {
 		// 总循环次数
 		let mut full_cnt: i32;
@@ -113,13 +116,26 @@ pub fn loop_unroll(
 		// 即，把循环体复制总循环次数次
 		if (full_cnt < 30 || (full_cnt as i64) * loop_info.instr_cnt < 200) {
 			unroll_cnt = full_cnt as usize;
+			is_full_unroll = true;
 		} else {
 			// 不全展开的情况暂时没写 TODO
 			return;
 		}
+	} else {
+		// 非 CONST TERMINATED 的循环，暂时不展开
+		return;
 	}
 	// 确定展开这个循环
-	loop_unroll_inner(func, temp_mgr, loop_, loop_info, loop_bbs, unroll_cnt);
+	*loop_unroll_time += 1;
+	loop_unroll_inner(
+		func,
+		temp_mgr,
+		loop_,
+		loop_info,
+		loop_bbs,
+		unroll_cnt,
+		is_full_unroll,
+	);
 }
 
 // 1. 把控制循环进行与否相关的指令单独提出来, 塞入 entry 的后继中在循环内的那个基本块
@@ -128,7 +144,6 @@ pub fn loop_unroll(
 
 // after_entry 指 entry 块在循环内的那个直接后继块
 
-#[allow(unused)]
 fn loop_unroll_inner(
 	func: &mut LlvmFunc,
 	temp_mgr: &mut LlvmTempManager,
@@ -136,6 +151,7 @@ fn loop_unroll_inner(
 	info: SimpleLoopInfo,
 	loop_bbs: Vec<LlvmNode>,
 	unroll_cnt: usize,
+	is_full_unroll: bool,
 ) {
 	trace!(
 		"loop unroll: type {}, unroll_cnt {}",
@@ -145,7 +161,7 @@ fn loop_unroll_inner(
 	let cfg = &mut func.cfg;
 	// 1. 把控制循环进行与否相关的指令单独提出来, 塞入 entry 的后继中在循环内的那个基本块(phi 指令除外，因为 phi 指令意味着该变量有初始值，并且每次循环后会发生变化)
 	let entry = loop_.borrow().header.clone();
-	let exit = info.exit.unwrap();
+	let exit = info.exit.clone().unwrap();
 
 	let mut new_after_entry_instrs = entry
 		.borrow()
@@ -223,7 +239,9 @@ fn loop_unroll_inner(
 		}
 	}
 
-	for i in 0..unroll_cnt - 1 {
+	let mut all_loop_bbs = loop_bbs.clone();
+
+	for _ in 0..unroll_cnt - 1 {
 		bb_map.clear();
 		// 复制块
 		for bb in loop_bbs.iter() {
@@ -238,12 +256,11 @@ fn loop_unroll_inner(
 			new_bb.clear_data_flow();
 			new_bb.kills.clear();
 			new_bb.phi_defs.clear();
-			bb_map.insert(bb.borrow().id, Rc::new(RefCell::new(new_bb)));
+			let new_bb_rc = Rc::new(RefCell::new(new_bb));
+			bb_map.insert(bb.borrow().id, new_bb_rc.clone());
+			all_loop_bbs.push(new_bb_rc.clone());
 
-			cfg.blocks.insert(
-				cur_backedge_start_pos + 1,
-				bb_map.get(&bb.borrow().id).unwrap().clone(),
-			);
+			cfg.blocks.insert(cur_backedge_start_pos + 1, new_bb_rc.clone());
 			cur_backedge_start_pos += 1;
 
 			next_bb_id += 1;
@@ -367,8 +384,9 @@ fn loop_unroll_inner(
 	// 3. 检查是否全部展开，如果是，则使 backedge 指向 exit，丢弃 entry，仅保留循环变量的初始值
 	// 暂时没检查
 	cur_backedge_start.borrow_mut().succ.push(entry.clone());
-	cur_backedge_start.borrow_mut().jump_instr =
-		Some(JumpInstr::new(entry.borrow().label()));
+	cur_backedge_start
+		.borrow_mut()
+		.set_jump(Some(JumpInstr::new(entry.borrow().label())));
 
 	entry.borrow_mut().prev.push(cur_backedge_start.clone());
 
@@ -392,4 +410,120 @@ fn loop_unroll_inner(
 	}
 
 	func.total = next_bb_id;
+
+	if is_full_unroll {
+		linearize_loop(
+			func,
+			temp_mgr,
+			entry,
+			exit,
+			cur_backedge_start,
+			cur_backedge_start_pos,
+			all_loop_bbs.as_slice(),
+			&info,
+		);
+	}
+}
+#[allow(clippy::too_many_arguments)]
+fn linearize_loop(
+	func: &mut LlvmFunc,
+	temp_mgr: &mut LlvmTempManager,
+	entry: LlvmNode,
+	exit: LlvmNode,
+	backedge_start: LlvmNode,
+	backedge_start_pos: usize,
+	loop_bbs: &[LlvmNode],
+	loop_info: &SimpleLoopInfo,
+) {
+	let cfg = &mut func.cfg;
+
+	unlink_node(&entry.clone(), &exit.clone());
+	unlink_node(&backedge_start.clone(), &entry.clone());
+
+	// 为 exit 设置一个新的前驱 prev_exit
+	// 将 entry 中的内容复制一遍，放到 prev_exit 中。
+	// 因为即使循环体被全部展开，只会执行一次，但 entry 的内容还是会被执行两次，一次初始化，一次是在退出循环前。
+	// 注意这里的临时变量名要和 entry 中的一致。因为 exit 及之后的块用的变量是 entry 中的。
+
+	// TODO: 这里的 weight 应该是多少来着
+	let prev_exit =
+		Rc::new(RefCell::new(LlvmBasicBlock::new(func.total + 1, 0.0)));
+	func.total += 1;
+	let mut prev_exit_borrow = prev_exit.borrow_mut();
+
+	let mut initialization_instrs = Vec::new();
+	let mut entry_temp_map = HashMap::new();
+
+	for phi in entry.borrow().phi_instrs.iter() {
+		for (v, l) in phi.source.iter() {
+			if *l == backedge_start.borrow().label() {
+				prev_exit_borrow
+					.instrs
+					.push(new_assign_instr(phi.target.clone(), v.clone()));
+			} else {
+				initialization_instrs
+					.push(new_assign_instr(phi.target.clone(), v.clone()));
+			}
+		}
+		entry_temp_map.insert(
+			phi.target.clone(),
+			temp_mgr.new_temp(phi.target.var_type, false),
+		);
+	}
+
+	for instr in entry.borrow().instrs.iter() {
+		if let Some(t) = instr.get_write() {
+			if t == loop_info.cond_temp.clone().unwrap() {
+				continue;
+			}
+			entry_temp_map.insert(t.clone(), temp_mgr.new_temp(t.var_type, false));
+		}
+		prev_exit_borrow.instrs.push(instr.clone());
+	}
+	prev_exit_borrow.set_jump(Some(JumpInstr::new(exit.borrow().label())));
+
+	backedge_start
+		.borrow_mut()
+		.set_jump(Some(JumpInstr::new(prev_exit_borrow.label())));
+
+	drop(prev_exit_borrow);
+
+	prev_exit.borrow_mut().succ.push(exit.clone());
+	prev_exit.borrow_mut().prev.push(backedge_start.clone());
+	exit.borrow_mut().prev.push(prev_exit.clone());
+	backedge_start.borrow_mut().succ.push(prev_exit.clone());
+	cfg.blocks.insert(backedge_start_pos, prev_exit);
+
+	// 替换 entry 中临时变量的名字，因为它们已经在 prev_exit 中被占用了
+	entry.borrow_mut().phi_instrs.clear();
+	initialization_instrs.append(&mut entry.borrow_mut().instrs);
+	entry.borrow_mut().instrs = initialization_instrs;
+
+	for instr in entry.borrow_mut().instrs.iter_mut() {
+		instr.map_all_temp(&entry_temp_map);
+	}
+
+	let new_succ = entry
+		.borrow()
+		.succ
+		.iter()
+		.find(|bb| **bb != exit)
+		.unwrap()
+		.clone()
+		.borrow()
+		.label();
+	entry.borrow_mut().set_jump(Some(JumpInstr::new(new_succ)));
+
+	// 替换第一次的循环体中的临时变量名字
+	for bb in loop_bbs.iter().filter(|bb| **bb != entry) {
+		for instr in bb.borrow_mut().instrs.iter_mut() {
+			instr.map_all_temp(&entry_temp_map);
+		}
+		for instr in bb.borrow_mut().phi_instrs.iter_mut() {
+			instr.map_all_temp(&entry_temp_map);
+		}
+		for instr in bb.borrow_mut().jump_instr.iter_mut() {
+			instr.map_all_temp(&entry_temp_map);
+		}
+	}
 }

@@ -96,6 +96,25 @@ fn map_llvm_temp(temp: &mut Value, map: &HashMap<LlvmTemp, LlvmTemp>) {
 	}
 }
 
+pub fn new_assign_instr(target: LlvmTemp, value: Value) -> LlvmInstr {
+	assert!(target.var_type == value.get_type());
+	Box::new(ArithInstr {
+		target,
+		lhs: value.clone(),
+		op: if value.get_type() == VarType::F32 {
+			ArithOp::Fadd
+		} else {
+			ArithOp::Add
+		},
+		rhs: if value.get_type() == VarType::F32 {
+			Value::Float(0.0)
+		} else {
+			Value::Int(0)
+		},
+		var_type: value.get_type(),
+	})
+}
+
 impl LlvmInstrTrait for ArithInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::ArithInstr(self)
