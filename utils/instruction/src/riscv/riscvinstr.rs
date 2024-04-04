@@ -28,7 +28,12 @@ impl Clone for RiscvInstr {
 }
 
 pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
-	fn map_temp(&mut self, _map: &HashMap<Temp, RiscvTemp>) {}
+	fn map_src_temp(&mut self, _map: &HashMap<Temp, RiscvTemp>) {}
+	fn map_dst_temp(&mut self, _map: &HashMap<Temp, RiscvTemp>) {}
+	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
+		self.map_src_temp(map);
+		self.map_dst_temp(map);
+	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		Vec::new()
 	}

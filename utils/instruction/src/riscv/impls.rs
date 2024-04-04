@@ -23,10 +23,12 @@ impl Display for RTriInstr {
 }
 
 impl RiscvInstrTrait for RTriInstr {
-	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
-		map_temp(&mut self.rd, map);
+	fn map_src_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rs1, map);
 		map_temp(&mut self.rs2, map);
+	}
+	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
+		map_temp(&mut self.rd, map);
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		vec![self.rs1, self.rs2]
@@ -75,10 +77,12 @@ impl Display for ITriInstr {
 }
 
 impl RiscvInstrTrait for ITriInstr {
-	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
-		map_temp(&mut self.rd, map);
+	fn map_src_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rs1, map);
 		map_imm_temp(&mut self.rs2, map);
+	}
+	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
+		map_temp(&mut self.rd, map);
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		[vec![self.rs1], unwarp_imms(vec![&self.rs2])].concat()
@@ -120,9 +124,16 @@ impl Display for IBinInstr {
 }
 
 impl RiscvInstrTrait for IBinInstr {
-	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
-		map_temp(&mut self.rd, map);
+	fn map_src_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_imm_temp(&mut self.rs1, map);
+		if matches!(self.op, SB | SH | SW | SD) {
+			map_temp(&mut self.rd, map);
+		}
+	}
+	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
+		if matches!(self.op, SB | Li | Lui | LD | LW | LWU | LA) {
+			map_temp(&mut self.rd, map);
+		}
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		match self.op {
@@ -181,9 +192,11 @@ impl Display for RBinInstr {
 }
 
 impl RiscvInstrTrait for RBinInstr {
-	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
-		map_temp(&mut self.rd, map);
+	fn map_src_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rs1, map);
+	}
+	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
+		map_temp(&mut self.rd, map);
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		vec![self.rs1]
@@ -210,7 +223,7 @@ impl Display for BranInstr {
 }
 
 impl RiscvInstrTrait for BranInstr {
-	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
+	fn map_src_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rs1, map);
 		map_temp(&mut self.rs2, map);
 		map_imm_temp(&mut self.to, map);

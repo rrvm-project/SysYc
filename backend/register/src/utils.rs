@@ -4,7 +4,7 @@ use instruction::{riscv::reg::RiscvReg, Temp};
 use utils::union_find::UnionFind;
 
 pub fn priority(weight: f64, degree: usize) -> f64 {
-	weight / degree as f64
+	degree as f64 + 1f64 / weight
 }
 
 pub fn get_degree(
