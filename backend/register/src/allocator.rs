@@ -24,6 +24,7 @@ impl RegAllocator {
 							}
 							lives.iter().for_each(|x| graph.add_edge($temp, *x));
 							graph.add_node($temp);
+							graph.add_weight($temp, block.weight);
 						};
 					}
 					if let Some(temp) = instr.get_write() {
@@ -50,10 +51,14 @@ impl RegAllocator {
 			if nodes.is_empty() {
 				break graph.get_map();
 			} else {
-				for node in nodes {
-					func.spills += 1;
-					spill(func, node, (-func.spills * 8, FP.into()).into(), mgr);
-				}
+				let map = nodes
+					.into_iter()
+					.map(|v| {
+						func.spills += 1;
+						(v, (-func.spills * 8, FP.into()).into())
+					})
+					.collect();
+				spill(func, map, mgr);
 			}
 		};
 		let map = map.into_iter().map(|(k, v)| (k, PhysReg(v))).collect();

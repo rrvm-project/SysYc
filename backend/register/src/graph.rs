@@ -1,4 +1,5 @@
 use std::{
+	cmp::max,
 	collections::{BinaryHeap, HashMap, HashSet},
 	hash::Hash,
 };
@@ -12,6 +13,7 @@ pub struct InterferenceGraph<T: Hash + Eq + Copy, U> {
 	uf: UnionFind<T>,
 	nodes: HashSet<T>,
 	weights: HashMap<T, f64>,
+
 	colors: HashMap<T, U>,
 	edges: HashMap<T, HashSet<T>>,
 	merge_benefit: HashMap<(T, T), f64>, // HACK: benefit varies while coalescing ?
@@ -70,13 +72,18 @@ where
 			}
 	}
 	fn briggs_cond(&self, x: &T, y: &T) -> bool {
-		self
+		let deg = self
 			.edges
 			.get(x)
 			.unwrap_or(&HashSet::new())
 			.union(self.edges.get(y).unwrap_or(&HashSet::new()))
 			.collect::<HashSet<_>>()
-			.len() < self.allocator.len()
+			.len();
+		deg
+			< max(
+				self.allocator.len(),
+				max(self.get_degree(x), self.get_degree(y)),
+			)
 	}
 	fn merge(&mut self, x: &T, y: &T) {
 		self.uf.merge(*y, *x);
@@ -152,7 +159,7 @@ where
 	pub fn coloring(&mut self) -> Vec<T> {
 		let mut nodes: Vec<_> =
 			self.get_nodes().iter().map(|v| (*v, self.get_priority(v))).collect();
-		nodes.sort_by(|(_, x), (_, y)| y.total_cmp(x));
+		nodes.sort_by(|(_, x), (_, y)| x.total_cmp(y));
 		nodes
 			.into_iter()
 			.filter_map(|(node, _)| {
