@@ -1,13 +1,8 @@
 use ::utils::mapper::LabelMapper;
 use rrvm::program::RiscvProgram;
 
-use crate::{
-	label_mapper::map_label, optimizer::remove_useless_label,
-	serialize::func_emission, utils::*,
-};
+use crate::{serialize::func_emission, utils::*};
 
-mod label_mapper;
-mod optimizer;
 mod serialize;
 mod utils;
 
@@ -17,7 +12,6 @@ pub fn code_emission(program: RiscvProgram, file_name: String) -> String {
 		.funcs
 		.into_iter()
 		.map(func_emission)
-		.map(|(name, instrs)| (name, remove_useless_label(instrs)))
 		.map(|(name, instrs)| format_func(name, map_label(instrs, &mut map)))
 		.collect::<Vec<_>>()
 		.join("\n");

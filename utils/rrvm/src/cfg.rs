@@ -113,6 +113,14 @@ pub fn link_node<T: InstrTrait<U>, U: TempTrait>(
 	}
 }
 
+pub fn force_link_node<T: InstrTrait<U>, U: TempTrait>(
+	from: &Node<T, U>,
+	to: &Node<T, U>,
+) {
+	from.borrow_mut().succ.push(to.clone());
+	to.borrow_mut().prev.push(from.clone());
+}
+
 pub fn link_cfg<T: InstrTrait<U>, U: TempTrait>(
 	from: &CFG<T, U>,
 	to: &CFG<T, U>,

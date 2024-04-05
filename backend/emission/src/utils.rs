@@ -1,4 +1,5 @@
-use utils::GlobalVar;
+use instruction::RiscvInstrSet;
+use utils::{instr_format, mapper::LabelMapper, GlobalVar};
 
 pub const PROGRAM_IDENT: &str = "\"SYSYC: (made by RRVM) 1.0.0\"";
 
@@ -50,4 +51,10 @@ pub fn set_section(header: &str, str: String) -> String {
 	} else {
 		"".to_string()
 	}
+}
+
+pub fn map_label(mut instrs: RiscvInstrSet, map: &mut LabelMapper) -> String {
+	map.map.clear();
+	instrs.iter_mut().for_each(|instr| instr.map_label(map));
+	instrs.into_iter().map(instr_format).collect::<Vec<_>>().join("\n")
 }

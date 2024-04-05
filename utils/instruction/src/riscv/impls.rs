@@ -273,6 +273,15 @@ impl BranInstr {
 	) -> RiscvInstr {
 		Box::new(Self { op, rs1, rs2, to })
 	}
+
+	pub fn new_j(to: RiscvImm) -> RiscvInstr {
+		Box::new(Self {
+			op: Beq,
+			rs1: X0.into(),
+			rs2: X0.into(),
+			to,
+		})
+	}
 }
 
 impl Display for NoArgInstr {

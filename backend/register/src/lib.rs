@@ -14,5 +14,6 @@ pub fn solve_register(program: &mut RiscvProgram) {
 		solver.register_alloc(func);
 		solver.solve_caller_save(func);
 		solver.memory_alloc(func);
+		solver.solve_callee_save(func);
 	}
 }

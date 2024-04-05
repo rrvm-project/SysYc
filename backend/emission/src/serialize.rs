@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use instruction::{riscv::prelude::*, RiscvInstrSet};
 use rrvm::{program::RiscvFunc, RiscvNode};
-use utils::{union_find::UnionFind, Label};
+use utils::union_find::UnionFind;
 
 fn func_serialize(mut nodes: Vec<RiscvNode>) -> RiscvInstrSet {
 	let mut pre = HashMap::new();
@@ -47,54 +47,9 @@ fn func_serialize(mut nodes: Vec<RiscvNode>) -> RiscvInstrSet {
 
 pub fn func_emission(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	let mut instrs = func_serialize(func.cfg.blocks);
-	let name = func.name;
-	solve_callee_save(&mut instrs, func.spills);
 	instrs.retain(|v| !v.useless());
-	(name, instrs)
-}
-
-fn solve_callee_save(instrs: &mut RiscvInstrSet, spills: i32) {
-	let mut prelude = Vec::new();
-	let mut epilogue = vec![LabelInstr::new(Label::new("exit"))];
-	let mut saves: HashSet<_> = instrs
-		.iter()
-		.flat_map(|v| v.get_riscv_write())
-		.filter_map(|v| v.get_phys())
-		.filter(|v| CALLEE_SAVE.iter().any(|reg| reg == v))
-		.collect();
-	if instrs.iter().any(|instr| {
-		instr.get_riscv_read().iter().any(|v| v.get_phys().is_some_and(|v| v == FP))
-	}) {
-		saves.insert(FP);
-	}
-	let size = ((saves.len() as i32 + spills + 1) * 8) & -16;
-	if size > 0 {
-		prelude.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
-	}
-	for (index, &reg) in
-		CALLEE_SAVE.iter().filter(|v| saves.contains(v)).enumerate()
-	{
-		let addr: RiscvImm = (index as i32 * 8, SP.into()).into();
-		prelude.push(IBinInstr::new(SD, reg.into(), addr.clone()));
-		epilogue.push(IBinInstr::new(LD, reg.into(), addr));
-	}
-	if size > 0 {
-		if saves.contains(&FP) {
-			prelude.push(ITriInstr::new(Addi, FP.into(), SP.into(), size.into()));
-		}
-		epilogue.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
-	}
-	epilogue.push(NoArgInstr::new(Ret));
-	let epilogue_addr: RiscvImm = Label::new("exit").into();
-	for instr in instrs.iter_mut().filter(|v| v.is_ret()) {
-		*instr = BranInstr::new(Beq, X0.into(), X0.into(), epilogue_addr.clone());
-	}
-	if let Some(instr) = instrs.last() {
-		if instr.get_read_label() == Some(Label::new("exit")) {
-			instrs.pop();
-		}
-	}
-	prelude.append(instrs);
-	prelude.extend(epilogue);
-	*instrs = prelude;
+	let labels: HashSet<_> =
+		instrs.iter().filter_map(|v| v.get_read_label()).collect();
+	instrs.retain(|v| v.get_write_label().map_or(true, |v| labels.contains(&v)));
+	(func.name, instrs)
 }

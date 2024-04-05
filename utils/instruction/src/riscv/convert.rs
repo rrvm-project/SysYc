@@ -279,7 +279,7 @@ pub fn riscv_jump(
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let to = instr.target.clone().into();
-	instrs.push(BranInstr::new(Beq, X0.into(), X0.into(), to));
+	instrs.push(BranInstr::new_j(to));
 	Ok(instrs)
 }
 
@@ -292,7 +292,7 @@ pub fn riscv_cond(
 	let to_true = instr.target_true.clone().into();
 	let to_false = instr.target_false.clone().into();
 	instrs.push(BranInstr::new(Bne, cond, X0.into(), to_true));
-	instrs.push(BranInstr::new(Beq, X0.into(), X0.into(), to_false));
+	instrs.push(BranInstr::new_j(to_false));
 	Ok(instrs)
 }
 
