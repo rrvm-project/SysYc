@@ -12,6 +12,7 @@ pub fn solve_register(program: &mut RiscvProgram) {
 		let mut solver = RegisterSolver::new(&mut program.temp_mgr);
 		solver.solve_parameter(func);
 		solver.register_alloc(func);
+		solver.solve_caller_save(func);
 		solver.memory_alloc(func);
 	}
 }
