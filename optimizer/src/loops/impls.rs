@@ -15,18 +15,22 @@ impl RrvmOptimizer for HandleLoops {
 			let flag: bool = false;
 			cfg.compute_dominator();
 			let loops = cfg.loop_analysis();
-			let mut loop_unroll_time = 0;
 			for loop_ in loops {
-				loop_unroll(func, loop_, temp_mgr, &mut loop_unroll_time);
-			}
-			if loop_unroll_time > 0 {
-				println!("loop unroll time: {}", loop_unroll_time);
+				loop_unroll(func, loop_, temp_mgr, loop_unroll_time);
 			}
 			flag
 		}
 
-		Ok(program.funcs.iter_mut().fold(false, |last, func| {
-			solve(func, &mut program.temp_mgr) || last
-		}))
+		let mut loop_unroll_time = 0;
+
+		let result = program.funcs.iter_mut().fold(false, |last, func| {
+			solve(func, &mut program.temp_mgr, &mut loop_unroll_time) || last
+		});
+
+		if loop_unroll_time > 0 {
+			println!("loop unroll time: {}", loop_unroll_time);
+		}
+
+		Ok(result)
 	}
 }

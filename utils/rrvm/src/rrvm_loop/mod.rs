@@ -7,13 +7,15 @@ pub type LoopPtr = Rc<RefCell<Loop>>;
 pub mod loop_analysis;
 pub mod loop_info;
 
-#[allow(unused)]
+// Instances of this class are used to represent loops that are detected in the flow graph.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Loop {
 	pub outer: Option<LoopPtr>,
 	pub header: LlvmNode,
 	pub level: i32,
 	pub no_inner: bool,
+	pub subloops: Vec<LoopPtr>,
+	pub blocks: Vec<LlvmNode>,
 }
 
 #[allow(unused)]
@@ -24,6 +26,8 @@ impl Loop {
 			header,
 			level: -1,
 			no_inner: true,
+			subloops: Vec::new(),
+			blocks: Vec::new(),
 		}
 	}
 }

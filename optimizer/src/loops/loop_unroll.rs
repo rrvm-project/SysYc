@@ -16,6 +16,8 @@ use rrvm::{
 	LlvmNode,
 };
 
+use crate::loops::constants::{MAX_FULL_CNT, MAX_FULL_INSTR_CNT};
+
 const UNROLL_CNT: usize = 4;
 
 #[allow(unused)]
@@ -31,6 +33,7 @@ pub fn loop_unroll(
 	let cfg = &mut func.cfg;
 	let func_params = &func.params;
 	if !loop_.borrow().no_inner {
+		println!("loop has inner loop");
 		return;
 	}
 	let mut loop_bbs: Vec<LlvmNode> = Vec::new();
@@ -59,6 +62,7 @@ pub fn loop_unroll(
 			if !succ.borrow().loop_.as_ref().is_some_and(|l| *l == loop_) {
 				if exit_bb.as_ref().is_some() {
 					check = false;
+					println!("multiple exit");
 					break;
 				}
 				exit_bb = Some(succ.clone());
@@ -110,14 +114,24 @@ pub fn loop_unroll(
 			_ => unreachable!(),
 		}
 		if full_cnt <= 1 {
+			println!("full_cnt <= 1");
 			return;
 		}
 		// 如果总循环次数比较小，或者该循环内指令的个数乘总循环次数比较小，就全部展开
 		// 即，把循环体复制总循环次数次
-		if (full_cnt < 30 || (full_cnt as i64) * loop_info.instr_cnt < 200) {
+		if ((full_cnt as u64) < MAX_FULL_CNT
+			|| (((full_cnt as i64) * loop_info.instr_cnt) as u64)
+				< MAX_FULL_INSTR_CNT)
+		{
 			unroll_cnt = full_cnt as usize;
 			is_full_unroll = true;
 		} else {
+			println!(
+				"too large, full_cnt: {}, instr_cnt: {}, product: {}",
+				full_cnt,
+				loop_info.instr_cnt,
+				(full_cnt as i64) * loop_info.instr_cnt
+			);
 			// 不全展开的情况暂时没写 TODO
 			return;
 		}
