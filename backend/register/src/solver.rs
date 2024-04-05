@@ -1,18 +1,26 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+	cell::RefCell,
+	collections::{HashMap, HashSet},
+	rc::Rc,
+};
 
 use instruction::{
 	riscv::{prelude::*, virt_mem::VirtMemManager},
 	temp::TempManager,
 	Temp,
 };
-use rrvm::program::RiscvFunc;
-use utils::math::align16;
+use rrvm::{
+	cfg::{force_link_node, BasicBlock},
+	program::RiscvFunc,
+};
+use utils::{math::align16, to_label};
 
 use crate::{
 	allocator::RegAllocator, graph::InterferenceGraph, utils::MemAllocator,
 };
 
 pub struct RegisterSolver<'a> {
+	extra_size: i32,
 	mgr: &'a mut TempManager,
 	mem_mgr: VirtMemManager,
 	temp_mapper: HashMap<Temp, RiscvTemp>,
@@ -22,6 +30,7 @@ impl<'a> RegisterSolver<'a> {
 	pub fn new(mgr: &'a mut TempManager) -> Self {
 		Self {
 			mgr,
+			extra_size: 0,
 			mem_mgr: VirtMemManager::default(),
 			temp_mapper: HashMap::new(),
 		}
@@ -93,7 +102,7 @@ impl<'a> RegisterSolver<'a> {
 		}
 
 		assert!(graph.coloring().is_empty());
-		func.spills = graph.get_colors() as i32;
+		self.extra_size += graph.get_colors() as i32;
 		let map = graph
 			.get_map()
 			.into_iter()
@@ -170,5 +179,60 @@ impl<'a> RegisterSolver<'a> {
 				})
 				.collect()
 		}
+	}
+
+	pub fn solve_callee_save(&mut self, func: &mut RiscvFunc) {
+		let mut saves = HashSet::new();
+		for block in func.cfg.blocks.iter() {
+			let block = &block.borrow();
+			for instr in block.instrs.iter() {
+				for temp in instr.get_riscv_write() {
+					if let Some(temp) = temp.get_phys() {
+						if CALLEE_SAVE.iter().any(|v| *v == temp) {
+							saves.insert(temp);
+						}
+					}
+				}
+				if instr
+					.get_riscv_read()
+					.iter()
+					.any(|v| v.get_phys().is_some_and(|v| v == FP))
+				{
+					saves.insert(FP);
+				}
+			}
+		}
+		let size = align16((saves.len() as i32 + self.extra_size) * 8);
+		let mut prelude = Vec::new();
+		let mut epilogue = BasicBlock::new(-1, 1f64);
+		if size > 0 {
+			prelude.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
+		}
+
+		for (index, &reg) in
+			CALLEE_SAVE.iter().filter(|v| saves.contains(v)).enumerate()
+		{
+			let addr: RiscvImm = (index as i32 * 8, SP.into()).into();
+			prelude.push(IBinInstr::new(SD, reg.into(), addr.clone()));
+			epilogue.push(IBinInstr::new(LD, reg.into(), addr));
+		}
+		if size > 0 {
+			if saves.contains(&FP) {
+				prelude.push(ITriInstr::new(Addi, FP.into(), SP.into(), size.into()));
+			}
+			epilogue.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
+		}
+		epilogue.set_jump(Some(NoArgInstr::new(Ret)));
+		func.cfg.blocks.first().unwrap().borrow_mut().instrs.splice(0..0, prelude);
+		let to_epilogue = BranInstr::new_j(to_label(-1).into());
+		let epilogue = Rc::new(RefCell::new(epilogue));
+		for block in func.cfg.blocks.iter() {
+			if block.borrow().jump_instr.as_ref().unwrap().is_ret() {
+				block.borrow_mut().jump_instr = Some(to_epilogue.clone());
+				force_link_node(block, &epilogue);
+			}
+		}
+		func.cfg.blocks.push(epilogue);
+		func.total += 1;
 	}
 }

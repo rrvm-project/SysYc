@@ -60,16 +60,14 @@ pub fn convert_func(
 			};
 			node.borrow_mut().instrs.push(instr);
 		}
-		let jump = to_riscv(block.borrow().jump_instr.as_ref().unwrap(), mgr)?;
-		node.borrow_mut().instrs.extend(jump);
+		let mut instrs =
+			to_riscv(block.borrow().jump_instr.as_ref().unwrap(), mgr)?;
+		node.borrow_mut().set_jump(instrs.pop());
+		node.borrow_mut().instrs.extend(instrs);
 		nodes.push(node);
 	}
 	for (u, v) in edge {
-		link_node(table.get(&u).unwrap(), table.get(&v).unwrap())
-	}
-	for node in nodes.iter() {
-		let instr = node.borrow_mut().instrs.pop().unwrap();
-		node.borrow_mut().set_jump(Some(instr));
+		force_link_node(table.get(&u).unwrap(), table.get(&v).unwrap())
 	}
 
 	Ok(RiscvFunc {

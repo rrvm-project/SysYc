@@ -55,11 +55,14 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 }
 
 #[cfg(not(feature = "simu"))]
-fn step_riscv(program: LlvmProgram, _level: i32) -> Result<RiscvProgram> {
+fn step_riscv(program: LlvmProgram, level: i32) -> Result<RiscvProgram> {
+	use backend_optimizer::backend_optimize;
+
 	let mut riscv_program = RiscvProgram::new(TempManager::default());
 	riscv_program.global_vars = program.global_vars;
 	get_functions(&mut riscv_program, program.funcs)?;
 	solve_register(&mut riscv_program);
+	backend_optimize(&mut riscv_program, level);
 	Ok(riscv_program)
 }
 
