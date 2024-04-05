@@ -22,7 +22,7 @@ use namer::visitor::Namer;
 use optimizer::*;
 use parser::parser::parse;
 #[cfg(not(feature = "simu"))]
-use register::register_alloc;
+use register::solve_register;
 use rrvm::program::*;
 #[cfg(not(feature = "simu"))]
 use transform::get_functions;
@@ -59,7 +59,7 @@ fn step_riscv(program: LlvmProgram, _level: i32) -> Result<RiscvProgram> {
 	let mut riscv_program = RiscvProgram::new(TempManager::default());
 	riscv_program.global_vars = program.global_vars;
 	get_functions(&mut riscv_program, program.funcs)?;
-	register_alloc(&mut riscv_program);
+	solve_register(&mut riscv_program);
 	Ok(riscv_program)
 }
 

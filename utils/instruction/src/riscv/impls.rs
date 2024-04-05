@@ -1,5 +1,8 @@
 #![allow(clippy::new_ret_no_self)]
-use super::{reg::RiscvReg::*, riscvinstr::*, riscvop::*, utils::*, value::*};
+use super::{
+	reg::RiscvReg::*, riscvinstr::*, riscvop::*, utils::*, value::*,
+	virt_mem::VirtAddr,
+};
 use crate::{riscv::reg::CALLER_SAVE, temp::Temp};
 use std::{
 	collections::HashMap,
@@ -133,6 +136,21 @@ impl RiscvInstrTrait for IBinInstr {
 	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		if matches!(self.op, SB | Li | Lui | LD | LW | LWU | LA) {
 			map_temp(&mut self.rd, map);
+		}
+	}
+	fn map_virt_mem(&mut self, map: &HashMap<VirtAddr, (i32, RiscvTemp)>) {
+		map_virt_mem(&mut self.rs1, map);
+	}
+	fn get_virt_mem_write(&self) -> Option<VirtAddr> {
+		match self.op {
+			SB | SH | SW | SD => self.rs1.to_virt_mem(),
+			_ => None,
+		}
+	}
+	fn get_virt_mem_read(&self) -> Option<VirtAddr> {
+		match self.op {
+			Li | Lui | LD | LW | LWU | LA => self.rs1.to_virt_mem(),
+			_ => None,
 		}
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {

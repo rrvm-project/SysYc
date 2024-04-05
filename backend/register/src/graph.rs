@@ -11,9 +11,7 @@ use crate::utils::{priority, FindAvailable};
 pub struct InterferenceGraph<T: Hash + Eq + Copy, U> {
 	allocator: Box<dyn FindAvailable<U>>,
 	uf: UnionFind<T>,
-	nodes: HashSet<T>,
 	weights: HashMap<T, f64>,
-
 	colors: HashMap<T, U>,
 	edges: HashMap<T, HashSet<T>>,
 	merge_benefit: HashMap<(T, T), f64>, // HACK: benefit varies while coalescing ?
@@ -21,7 +19,7 @@ pub struct InterferenceGraph<T: Hash + Eq + Copy, U> {
 
 impl<T, U> InterferenceGraph<T, U>
 where
-	T: Hash + Eq + Copy + Ord,
+	T: Hash + Eq + Copy,
 	U: PartialEq + Eq + Copy + Hash,
 {
 	pub fn add_edge(&mut self, x: T, y: T) {
@@ -34,23 +32,19 @@ where
 		*self.merge_benefit.entry((*x, *y)).or_default() += benefit;
 		*self.merge_benefit.entry((*y, *x)).or_default() += benefit;
 	}
-	pub fn add_node(&mut self, x: T) {
-		self.nodes.insert(x);
-	}
 	pub fn add_weight(&mut self, x: T, w: f64) {
 		*self.weights.entry(x).or_default() += w;
 	}
 	pub fn set_color(&mut self, x: &T, col: U) {
 		self.colors.insert(*x, col);
 	}
-
 	fn can_set(&self, x: &T, reg: U) -> bool {
 		self.edges.get(x).map_or(true, |arr| {
 			arr.iter().all(|v| self.colors.get(v).map_or(true, |v| *v != reg))
 		})
 	}
 	fn get_nodes(&mut self) -> Vec<T> {
-		self.nodes.iter().copied().filter(|v| self.uf.is_root(*v)).collect()
+		self.weights.keys().copied().filter(|v| self.uf.is_root(*v)).collect()
 	}
 	fn get_degree(&self, x: &T) -> usize {
 		self.edges.get(x).map(|v| v.len()).unwrap_or_default()
@@ -104,13 +98,55 @@ where
 		Self {
 			allocator,
 			uf: UnionFind::<T>::default(),
-			nodes: HashSet::new(),
 			weights: HashMap::new(),
 			colors: HashMap::new(),
 			edges: HashMap::new(),
 			merge_benefit: HashMap::new(),
 		}
 	}
+
+	#[allow(clippy::map_entry)]
+	pub fn coloring(&mut self) -> HashSet<T> {
+		let mut nodes: Vec<_> =
+			self.get_nodes().iter().map(|v| (*v, self.get_priority(v))).collect();
+		nodes.sort_by(|(_, x), (_, y)| x.total_cmp(y));
+		nodes
+			.into_iter()
+			.filter_map(|(node, _)| {
+				let neighbors = self.edges.remove(&node).unwrap_or_default();
+				let used: HashSet<_> = neighbors
+					.into_iter()
+					.filter_map(|u| self.colors.get(&u).copied())
+					.collect();
+				if !self.colors.contains_key(&node) {
+					if let Some(reg) = self.allocator.find_available(&used) {
+						self.colors.insert(node, reg);
+					} else {
+						return Some(node);
+					}
+				}
+				None
+			})
+			.collect()
+	}
+
+	pub fn get_map(mut self) -> HashMap<T, U> {
+		self
+			.weights
+			.into_keys()
+			.map(|v| (v, *self.colors.get(&self.uf.find(v)).unwrap()))
+			.collect()
+	}
+	pub fn get_colors(&self) -> usize {
+		self.allocator.len()
+	}
+}
+
+impl<T, U> InterferenceGraph<T, U>
+where
+	T: Hash + Eq + Copy + Ord,
+	U: PartialEq + Eq + Copy + Hash,
+{
 	pub fn eliminate_move(&mut self) {
 		let edges = std::mem::take(&mut self.merge_benefit);
 		let mut edges = edges.into_iter().collect::<Vec<_>>();
@@ -153,38 +189,5 @@ where
 				}
 			}
 		}
-	}
-
-	#[allow(clippy::map_entry)]
-	pub fn coloring(&mut self) -> Vec<T> {
-		let mut nodes: Vec<_> =
-			self.get_nodes().iter().map(|v| (*v, self.get_priority(v))).collect();
-		nodes.sort_by(|(_, x), (_, y)| x.total_cmp(y));
-		nodes
-			.into_iter()
-			.filter_map(|(node, _)| {
-				let neighbors = self.edges.remove(&node).unwrap_or_default();
-				let used: HashSet<_> = neighbors
-					.into_iter()
-					.filter_map(|u| self.colors.get(&u).copied())
-					.collect();
-				if !self.colors.contains_key(&node) {
-					if let Some(reg) = self.allocator.find_available(&used) {
-						self.colors.insert(node, reg);
-					} else {
-						return Some(node);
-					}
-				}
-				None
-			})
-			.collect()
-	}
-
-	pub fn get_map(mut self) -> HashMap<T, U> {
-		self
-			.nodes
-			.into_iter()
-			.map(|v| (v, *self.colors.get(&self.uf.find(v)).unwrap()))
-			.collect()
 	}
 }

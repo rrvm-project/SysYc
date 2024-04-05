@@ -4,7 +4,7 @@ use utils::{mapper::LabelMapper, InstrTrait, Label, UseTemp};
 
 use crate::temp::Temp;
 
-use super::{riscvop::*, value::*};
+use super::{riscvop::*, value::*, virt_mem::VirtAddr};
 
 pub type RiscvInstr = Box<dyn RiscvInstrTrait>;
 
@@ -34,11 +34,18 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 		self.map_src_temp(map);
 		self.map_dst_temp(map);
 	}
+	fn map_virt_mem(&mut self, _map: &HashMap<VirtAddr, (i32, RiscvTemp)>) {}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		Vec::new()
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		Vec::new()
+	}
+	fn get_virt_mem_write(&self) -> Option<VirtAddr> {
+		None
+	}
+	fn get_virt_mem_read(&self) -> Option<VirtAddr> {
+		None
 	}
 	fn get_read_label(&self) -> Option<Label> {
 		None

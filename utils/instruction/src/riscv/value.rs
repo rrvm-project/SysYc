@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::temp::Temp;
 
-use super::reg::RiscvReg;
+use super::{reg::RiscvReg, virt_mem::VirtAddr};
 use utils::math::is_pow2;
 pub use RiscvImm::*;
 pub use RiscvTemp::*;
@@ -19,7 +19,7 @@ pub fn can_optimized_mul(x: i32) -> bool {
 	is_pow2(x) || is_pow2(x - 1) || is_pow2(x + 1)
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum RiscvTemp {
 	VirtReg(Temp),
 	PhysReg(RiscvReg),
@@ -41,6 +41,7 @@ impl From<RiscvReg> for RiscvTemp {
 pub enum RiscvImm {
 	Int(i32),
 	LongLong(i64),
+	VirtMem(VirtAddr),
 	Label(utils::Label),
 	OffsetReg(i32, RiscvTemp),
 }
@@ -60,6 +61,7 @@ impl Display for RiscvImm {
 			Self::Int(v) => write!(f, "{}", v),
 			Self::Label(v) => write!(f, "{}", v),
 			Self::LongLong(v) => write!(f, "{}", v),
+			Self::VirtMem(v) => write!(f, "VirtMem[{}]", v.id),
 			Self::OffsetReg(offset, base) => write!(f, "{}({})", offset, base),
 		}
 	}
@@ -89,6 +91,12 @@ impl From<(i32, RiscvTemp)> for RiscvImm {
 	}
 }
 
+impl From<VirtAddr> for RiscvImm {
+	fn from(value: VirtAddr) -> Self {
+		RiscvImm::VirtMem(value)
+	}
+}
+
 impl RiscvTemp {
 	pub fn is_zero(&self) -> bool {
 		matches!(self, PhysReg(RiscvReg::X0))
@@ -107,5 +115,12 @@ impl RiscvTemp {
 impl RiscvImm {
 	pub fn is_zero(&self) -> bool {
 		matches!(self, Int(0))
+	}
+	pub fn to_virt_mem(&self) -> Option<VirtAddr> {
+		if let RiscvImm::VirtMem(v) = self {
+			Some(*v)
+		} else {
+			None
+		}
 	}
 }
