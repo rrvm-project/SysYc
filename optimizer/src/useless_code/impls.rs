@@ -10,7 +10,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(&self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG) -> bool {
 			let mut flag: bool = false;
 

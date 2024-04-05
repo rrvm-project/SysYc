@@ -16,7 +16,7 @@ impl RrvmOptimizer for FoldConstants {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(&self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(block: &LlvmNode) {
 			let block = &mut block.borrow_mut();
 			let instrs = std::mem::take(&mut block.instrs);

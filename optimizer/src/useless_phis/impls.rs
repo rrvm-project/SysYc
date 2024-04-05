@@ -9,7 +9,7 @@ impl RrvmOptimizer for RemoveUselessPhis {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(&self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG) -> bool {
 			let mut flag = false;
 			let mut temp_mapper = HashMap::new();

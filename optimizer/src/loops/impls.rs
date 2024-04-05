@@ -9,7 +9,7 @@ impl RrvmOptimizer for HandleLoops {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(&self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(func: &mut LlvmFunc, temp_mgr: &mut LlvmTempManager) -> bool {
 			let cfg = &mut func.cfg;
 			let flag: bool = false;

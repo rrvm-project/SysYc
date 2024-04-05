@@ -10,18 +10,31 @@ use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
 
 use self::loops::HandleLoops;
-
 use self::pure_check::PureCheck;
+type FuncPtrOfOptPass = Box<dyn Fn() -> Box<dyn RrvmOptimizer>>;
 
 impl Optimizer0 {
 	pub fn new() -> Self {
 		Self::default()
 	}
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
+		let vec0: Vec<(String, FuncPtrOfOptPass)> = vec![
+			(
+				"RemoveUnreachCode".to_string(),
+				Box::new(|| Box::new(RemoveUnreachCode::new())),
+			),
+			(
+				"RemoveDeadCode".to_string(),
+				Box::new(|| Box::new(RemoveDeadCode::new())),
+			),
+		];
 		loop {
 			let mut flag = false;
-			flag |= RemoveUnreachCode::new().apply(program)?;
-			flag |= RemoveDeadCode::new().apply(program)?;
+			for item in
+				vec0.iter().filter(|item| !O0_IGNORE.lock().unwrap().contains(&item.0))
+			{
+				flag |= item.1().apply(program)?;
+			}
 			if !flag {
 				break;
 			}
@@ -36,14 +49,40 @@ impl Optimizer1 {
 		Self::default()
 	}
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
+		let vec0: Vec<(String, FuncPtrOfOptPass)> = vec![
+			(
+				"RemoveDeadCode".to_string(),
+				Box::new(|| Box::new(RemoveDeadCode::new())),
+			),
+			(
+				"RemoveUnreachCode".to_string(),
+				Box::new(|| Box::new(RemoveUnreachCode::new())),
+			),
+			(
+				"RemoveUselessCode".to_string(),
+				Box::new(|| Box::new(RemoveUselessCode::new())),
+			),
+			(
+				"FoldConstants".to_string(),
+				Box::new(|| Box::new(FoldConstants::new())),
+			),
+			(
+				"FuyukiLocalValueNumber".to_string(),
+				Box::new(|| Box::new(FuyukiLocalValueNumber::new())),
+			),
+			(
+				"RemoveUselessPhis".to_string(),
+				Box::new(|| Box::new(RemoveUselessPhis::new())),
+			),
+		];
+
 		loop {
 			let mut flag = false;
-			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUnreachCode::new().apply(program)?;
-			flag |= RemoveUselessCode::new().apply(program)?;
-			flag |= FoldConstants::new().apply(program)?;
-			flag |= FuyukiLocalValueNumber::new().apply(program)?;
-			flag |= RemoveUselessPhis::new().apply(program)?;
+			for item in
+				vec0.iter().filter(|item| !O1_IGNORE.lock().unwrap().contains(&item.0))
+			{
+				flag |= item.1().apply(program)?;
+			}
 			if !flag {
 				break;
 			}
@@ -59,46 +98,110 @@ impl Optimizer2 {
 		Self::default()
 	}
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
-		// 需在表达式重排前进行，否则，运算指令分布在不同的基本块中， LER做不了任何事情
-		RemoveDeadCode::new().apply(program)?;
-		RemoveUselessCode::new().apply(program)?;
-		RemoveUnreachCode::new().apply(program)?;
+		let vec0: Vec<(String, FuncPtrOfOptPass)> = vec![
+			(
+				"RemoveDeadCode".to_string(),
+				Box::new(|| Box::new(RemoveDeadCode::new())),
+			),
+			(
+				"RemoveUselessCode".to_string(),
+				Box::new(|| Box::new(RemoveUselessCode::new())),
+			),
+			(
+				"RemoveUnreachCode".to_string(),
+				Box::new(|| Box::new(RemoveUnreachCode::new())),
+			),
+			(
+				"RemoveUselessCode".to_string(),
+				Box::new(|| Box::new(RemoveUselessCode::new())),
+			),
+		];
 
-		RemoveUselessCode::new().apply(program)?;
+		let vec1: Vec<(String, FuncPtrOfOptPass)> = vec![
+			(
+				"RemoveDeadCode".to_string(),
+				Box::new(|| Box::new(RemoveDeadCode::new())),
+			),
+			(
+				"RemoveUnreachCode".to_string(),
+				Box::new(|| Box::new(RemoveUnreachCode::new())),
+			),
+			(
+				"RemoveUselessCode".to_string(),
+				Box::new(|| Box::new(RemoveUselessCode::new())),
+			),
+			(
+				"PureCheck".to_string(),
+				Box::new(|| Box::new(PureCheck::new())),
+			),
+			(
+				"FoldConstants".to_string(),
+				Box::new(|| Box::new(FoldConstants::new())),
+			),
+			(
+				"FuyukiLocalValueNumber".to_string(),
+				Box::new(|| Box::new(FuyukiLocalValueNumber::new())),
+			),
+			(
+				"RemoveUselessPhis".to_string(),
+				Box::new(|| Box::new(RemoveUselessPhis::new())),
+			),
+			(
+				"InlineFunction".to_string(),
+				Box::new(|| Box::new(InlineFunction::new())),
+			),
+			(
+				"SolveTailRecursion".to_string(),
+				Box::new(|| Box::new(SolveTailRecursion::new())),
+			),
+		];
+		// 需在表达式重排前进行，否则，运算指令分布在不同的基本块中， LER做不了任何事情
+
+		for item in
+			vec0.iter().filter(|item| !O2_IGNORE.lock().unwrap().contains(&item.0))
+		{
+			item.1().apply(program)?;
+		}
+
 		loop {
 			let mut flag = false;
-			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUnreachCode::new().apply(program)?;
-			flag |= RemoveUselessCode::new().apply(program)?;
-			flag |= PureCheck::new().apply(program)?;
-			flag |= FoldConstants::new().apply(program)?;
-			flag |= FuyukiLocalValueNumber::new().apply(program)?;
-			flag |= RemoveUselessPhis::new().apply(program)?;
-			flag |= InlineFunction::new().apply(program)?;
-			flag |= SolveTailRecursion::new().apply(program)?;
-			// 	}
-			// }
+			for item in
+				vec1.iter().filter(|item| !O2_IGNORE.lock().unwrap().contains(&item.0))
+			{
+				flag |= item.1().apply(program)?;
+			}
 
 			if !flag {
 				break;
 			}
 		}
 
-		StrengthReduce::new().apply(program)?;
-		HandleLoops::new().apply(program)?;
+		let vec2: Vec<(String, FuncPtrOfOptPass)> = vec![
+			(
+				"StrengthReduce".to_string(),
+				Box::new(|| Box::new(StrengthReduce::new())),
+			),
+			(
+				"HandleLoops".to_string(),
+				Box::new(|| Box::new(HandleLoops::new())),
+			),
+		];
+
+		for item in
+			vec2.iter().filter(|item| !O2_IGNORE.lock().unwrap().contains(&item.0))
+		{
+			item.1().apply(program)?;
+		}
 
 		loop {
 			// break;
 			let mut flag = false;
 
-			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUnreachCode::new().apply(program)?;
-			flag |= RemoveUselessCode::new().apply(program)?;
-			flag |= FoldConstants::new().apply(program)?;
-			flag |= FuyukiLocalValueNumber::new().apply(program)?;
-			flag |= RemoveUselessPhis::new().apply(program)?;
-			flag |= InlineFunction::new().apply(program)?;
-			flag |= SolveTailRecursion::new().apply(program)?;
+			for item in
+				vec1.iter().filter(|item| !O2_IGNORE.lock().unwrap().contains(&item.0))
+			{
+				flag |= item.1().apply(program)?;
+			}
 
 			if !flag {
 				break;

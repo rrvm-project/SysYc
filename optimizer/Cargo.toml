@@ -13,3 +13,4 @@ rrvm = { path = "../utils/rrvm" }
 llvm = { path = "../utils/llvm" }
 instruction = { path = "../utils/instruction" }
 log = "0.4.21"
+lazy_static = "1.4.0"

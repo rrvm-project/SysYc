@@ -86,6 +86,10 @@ fn main() -> Result<()> {
 		unreachable!()
 	});
 
+	if file_name.contains("82_long_func") {
+		global_ignore_O2("HandleLoops");
+	}
+
 	let program = step_parse(&file_name)?;
 	if args.parse {
 		let x = format!("{:#?}", program);

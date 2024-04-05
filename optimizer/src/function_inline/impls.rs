@@ -20,7 +20,7 @@ impl RrvmOptimizer for InlineFunction {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(&self, program: &mut LlvmProgram) -> Result<bool> {
 		let func_list = get_func_list(program);
 		if func_list.is_empty() {
 			return Ok(false);

@@ -9,7 +9,7 @@ impl RrvmOptimizer for RemoveDeadCode {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(&self, program: &mut LlvmProgram) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG) {
 			let mut visited = HashSet::new();
 			let mut stack = vec![cfg.get_entry()];

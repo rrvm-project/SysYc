@@ -10,7 +10,7 @@ impl RrvmOptimizer for StrengthReduce {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(&self, program: &mut LlvmProgram) -> Result<bool> {
 		let solve = |cfg: &mut LlvmCFG,
 		             params: Vec<LlvmTemp>,
 		             mgr: &mut LlvmTempManager|

@@ -9,7 +9,7 @@ impl RrvmOptimizer for RemoveUnreachCode {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(&self, program: &mut LlvmProgram) -> Result<bool> {
 		Ok(program.funcs.iter_mut().fold(false, |last, func| {
 			let size = func.cfg.size();
 			let mut visited = HashSet::new();
