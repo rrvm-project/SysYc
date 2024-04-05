@@ -2,7 +2,10 @@
 
 use std::fmt::Display;
 
-use utils::{iter::all_equal, Label, UseTemp};
+use utils::{
+	constants::VEC_EXTERN, iter::all_equal, purity::ExternalResource, Label,
+	UseTemp,
+};
 
 use std::collections::HashMap;
 
@@ -586,6 +589,9 @@ impl UseTemp<LlvmTemp> for StoreInstr {
 }
 
 impl LlvmInstrTrait for StoreInstr {
+	fn external_resorce(&self) -> Option<ExternalResource> {
+		Some(ExternalResource::Memory)
+	}
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::StoreInstr(self)
 	}
@@ -637,6 +643,9 @@ impl UseTemp<LlvmTemp> for LoadInstr {
 }
 
 impl LlvmInstrTrait for LoadInstr {
+	fn external_resorce(&self) -> Option<ExternalResource> {
+		Some(ExternalResource::Memory)
+	}
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::LoadInstr(self)
 	}
@@ -745,6 +754,13 @@ impl UseTemp<LlvmTemp> for CallInstr {
 }
 
 impl LlvmInstrTrait for CallInstr {
+	fn external_resorce(&self) -> Option<ExternalResource> {
+		if VEC_EXTERN.contains(&self.func.name.as_str()) {
+			Some(ExternalResource::CallExtern)
+		} else {
+			Some(ExternalResource::Call(self.func.name.clone()))
+		}
+	}
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::CallInstr(self)
 	}
@@ -777,5 +793,8 @@ impl LlvmInstrTrait for CallInstr {
 			"id of read values out of range for call"
 		);
 		self.params[id].1 = value;
+	}
+	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
+		map.get(&self.target).is_some()
 	}
 }

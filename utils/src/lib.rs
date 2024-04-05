@@ -5,6 +5,7 @@ pub mod iter;
 pub mod label;
 pub mod mapper;
 pub mod math;
+pub mod purity;
 pub mod union_find;
 use std::{fmt::Display, hash::Hash};
 

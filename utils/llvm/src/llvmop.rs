@@ -68,7 +68,7 @@ pub enum ArithOp {
 	AddD,
 }
 
-#[derive(Fuyuki, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Fuyuki, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum CompOp {
 	EQ,
 	NE,
