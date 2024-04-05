@@ -1,17 +1,27 @@
-use instruction::{riscv::prelude::*, temp::TempManager};
+use instruction::{
+	riscv::{prelude::*, virt_mem::VirtMemManager},
+	temp::TempManager,
+};
 use rrvm::program::RiscvFunc;
 
 use crate::{graph::InterferenceGraph, spill::spill};
 
-#[derive(Default)]
-pub struct RegAllocator {}
+pub struct RegAllocator<'a> {
+	mgr: &'a mut TempManager,
+	mem_mgr: &'a mut VirtMemManager,
+}
 
-impl RegAllocator {
-	pub fn alloc(&mut self, func: &mut RiscvFunc, mgr: &mut TempManager) {
+impl<'a> RegAllocator<'a> {
+	pub fn new(
+		mgr: &'a mut TempManager,
+		mem_mgr: &'a mut VirtMemManager,
+	) -> Self {
+		Self { mgr, mem_mgr }
+	}
+
+	pub fn alloc(&mut self, func: &mut RiscvFunc) {
 		let map = loop {
 			let mut graph = InterferenceGraph::new(Box::new(ALLOCABLE_REGS));
-			func.cfg.clear_data_flow();
-			func.cfg.analysis();
 
 			for block in func.cfg.blocks.iter() {
 				let block = &block.borrow();
@@ -23,7 +33,6 @@ impl RegAllocator {
 								graph.set_color(&$temp, col);
 							}
 							lives.iter().for_each(|x| graph.add_edge($temp, *x));
-							graph.add_node($temp);
 							graph.add_weight($temp, block.weight);
 						};
 					}
@@ -51,17 +60,17 @@ impl RegAllocator {
 			if nodes.is_empty() {
 				break graph.get_map();
 			} else {
-				let map = nodes
-					.into_iter()
-					.map(|v| {
-						func.spills += 1;
-						(v, (-func.spills * 8, FP.into()).into())
-					})
-					.collect();
-				spill(func, map, mgr);
+				spill(func, &nodes, self.mgr, self.mem_mgr);
+				for block in func.cfg.blocks.iter() {
+					let block = &mut block.borrow_mut();
+					block.live_out.retain(|v| !nodes.contains(v));
+				}
 			}
 		};
 		let map = map.into_iter().map(|(k, v)| (k, PhysReg(v))).collect();
-		func.cfg.blocks.iter().for_each(|v| v.borrow_mut().map_temp(&map));
+		for block in func.cfg.blocks.iter() {
+			let block = &mut block.borrow_mut();
+			block.instrs.iter_mut().for_each(|v| v.map_temp(&map))
+		}
 	}
 }

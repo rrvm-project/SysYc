@@ -68,19 +68,6 @@ pub fn convert_func(
 		node.borrow_mut().set_jump(Some(instr));
 	}
 
-	for (temp, reg) in func.params.iter().zip(PARAMETER_REGS.iter()).rev() {
-		let reg = mgr.new_pre_color_temp(*reg);
-		let temp = mgr.get(&temp.into());
-		let instr = RTriInstr::new(Add, temp, reg, X0.into());
-		nodes.first().unwrap().borrow_mut().instrs.insert(0, instr);
-	}
-
-	for (index, temp) in func.params.iter().skip(8).enumerate() {
-		let reg = mgr.get(temp.unwrap_temp().as_ref().unwrap());
-		let instr = IBinInstr::new(LD, reg, (index as i32 * 8, FP.into()).into());
-		nodes.first().unwrap().borrow_mut().instrs.insert(0, instr);
-	}
-
 	Ok(RiscvFunc {
 		total: mgr.total,
 		spills: 0,

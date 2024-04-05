@@ -5,7 +5,7 @@ use std::{
 	rc::Rc,
 };
 
-use instruction::riscv::{value::RiscvTemp, RiscvInstr};
+use instruction::riscv::RiscvInstr;
 use llvm::{
 	JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp, PhiInstr, RetInstr, Value,
 	VarType,
@@ -185,9 +185,6 @@ impl LlvmBasicBlock {
 }
 
 impl BasicBlock<RiscvInstr, instruction::Temp> {
-	pub fn map_temp(&mut self, map: &HashMap<instruction::Temp, RiscvTemp>) {
-		self.instrs.iter_mut().for_each(|v| v.map_temp(map))
-	}
 	pub fn sort_succ(&mut self) {
 		if self.succ.is_empty() {
 			return;

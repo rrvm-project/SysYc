@@ -33,3 +33,20 @@ impl FindAvailable<RiscvReg> for &[RiscvReg] {
 		self.as_ref().len()
 	}
 }
+
+#[derive(Default)]
+pub struct MemAllocator {
+	size: i32,
+}
+
+impl FindAvailable<i32> for MemAllocator {
+	fn find_available(&mut self, x: &HashSet<i32>) -> Option<i32> {
+		(1..).map(|v| -v).find(|v| !x.contains(v)).map(|v| {
+			self.size = self.size.max(-v);
+			v
+		})
+	}
+	fn len(&self) -> usize {
+		self.size as usize
+	}
+}
