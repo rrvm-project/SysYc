@@ -1,10 +1,12 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use instruction::{
 	riscv::{prelude::*, virt_mem::VirtMemManager},
 	temp::TempManager,
+	Temp,
 };
 use rrvm::program::RiscvFunc;
+use utils::math::align16;
 
 use crate::{
 	allocator::RegAllocator, graph::InterferenceGraph, utils::MemAllocator,
@@ -13,6 +15,7 @@ use crate::{
 pub struct RegisterSolver<'a> {
 	mgr: &'a mut TempManager,
 	mem_mgr: VirtMemManager,
+	temp_mapper: HashMap<Temp, RiscvTemp>,
 }
 
 impl<'a> RegisterSolver<'a> {
@@ -20,6 +23,7 @@ impl<'a> RegisterSolver<'a> {
 		Self {
 			mgr,
 			mem_mgr: VirtMemManager::default(),
+			temp_mapper: HashMap::new(),
 		}
 	}
 
@@ -52,7 +56,8 @@ impl<'a> RegisterSolver<'a> {
 			block.live_in = block.live_out.clone();
 		}
 
-		RegAllocator::new(self.mgr, &mut self.mem_mgr).alloc(func);
+		RegAllocator::new(self.mgr, &mut self.mem_mgr)
+			.alloc(func, &mut self.temp_mapper);
 	}
 
 	pub fn memory_alloc(&mut self, func: &mut RiscvFunc) {
@@ -97,6 +102,73 @@ impl<'a> RegisterSolver<'a> {
 		for block in func.cfg.blocks.iter() {
 			let block = &mut block.borrow_mut();
 			block.instrs.iter_mut().for_each(|v| v.map_virt_mem(&map))
+		}
+	}
+
+	pub fn solve_caller_save(&mut self, func: &mut RiscvFunc) {
+		for block in func.cfg.blocks.iter() {
+			let block = &mut block.borrow_mut();
+			let mut lives: HashSet<_> = block
+				.live_out
+				.iter()
+				.filter_map(|v| self.temp_mapper.get(v))
+				.copied()
+				.collect();
+			let mut to_save = None;
+			let mut instrs = std::mem::take(&mut block.instrs);
+			for instr in instrs.iter_mut().rev() {
+				for temp in instr.get_riscv_write() {
+					lives.remove(&temp);
+				}
+				for temp in instr.get_riscv_read() {
+					lives.insert(temp);
+				}
+				match instr.get_temp_op() {
+					Some(Save) => instr.set_lives(to_save.take().unwrap()),
+					Some(Restore) => {
+						let lives: Vec<_> = lives
+							.iter()
+							.filter_map(|v| v.get_phys())
+							.filter(|v| CALLER_SAVE.iter().skip(1).any(|reg| reg == v))
+							.collect();
+						instr.set_lives(lives.clone());
+						to_save = Some(lives);
+					}
+					_ => (),
+				}
+			}
+
+			block.instrs = instrs
+				.into_iter()
+				.flat_map(|instr| match instr.get_temp_op() {
+					Some(Save) => {
+						let lives = instr.get_lives();
+						let size = align16(lives.len() as i32 * 8);
+						let prelude =
+							ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into());
+						let mut instrs = vec![prelude];
+						for (index, v) in lives.into_iter().enumerate() {
+							let p = (index * 8) as i32;
+							instrs.push(IBinInstr::new(SD, v.into(), (p, SP.into()).into()));
+						}
+						instrs
+					}
+					Some(Restore) => {
+						let lives = instr.get_lives();
+						let size = align16(lives.len() as i32 * 8);
+						let mut instrs = Vec::new();
+						for (index, v) in lives.into_iter().enumerate() {
+							let p = (index * 8) as i32;
+							instrs.push(IBinInstr::new(LD, v.into(), (p, SP.into()).into()));
+						}
+						let epilogue =
+							ITriInstr::new(Addi, SP.into(), SP.into(), size.into());
+						instrs.push(epilogue);
+						instrs
+					}
+					None => vec![instr],
+				})
+				.collect()
 		}
 	}
 }

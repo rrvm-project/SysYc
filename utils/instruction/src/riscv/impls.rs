@@ -1,9 +1,13 @@
 #![allow(clippy::new_ret_no_self)]
 use super::{
-	reg::RiscvReg::*, riscvinstr::*, riscvop::*, utils::*, value::*,
+	reg::RiscvReg::{self, *},
+	riscvinstr::*,
+	riscvop::*,
+	utils::*,
+	value::*,
 	virt_mem::VirtAddr,
 };
-use crate::{riscv::reg::CALLER_SAVE, temp::Temp};
+use crate::temp::Temp;
 use std::{
 	collections::HashMap,
 	fmt::{Display, Formatter, Result},
@@ -300,7 +304,7 @@ impl RiscvInstrTrait for CallInstr {
 		self.params.clone()
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
-		CALLER_SAVE.iter().map(|&v| v.into()).chain(vec![RA.into()]).collect()
+		vec![RA.into()]
 	}
 	fn is_call(&self) -> bool {
 		true
@@ -323,10 +327,19 @@ impl RiscvInstrTrait for TemporayInstr {
 	fn get_temp_op(&self) -> Option<TemporayInstrOp> {
 		Some(self.op)
 	}
+	fn set_lives(&mut self, lives: Vec<RiscvReg>) {
+		self.lives = lives
+	}
+	fn get_lives(&self) -> Vec<RiscvReg> {
+		self.lives.clone()
+	}
 }
 
 impl TemporayInstr {
 	pub fn new(op: TemporayInstrOp) -> RiscvInstr {
-		Box::new(Self { op })
+		Box::new(Self {
+			op,
+			lives: Vec::new(),
+		})
 	}
 }

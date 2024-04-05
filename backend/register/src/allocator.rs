@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use instruction::{
 	riscv::{prelude::*, virt_mem::VirtMemManager},
 	temp::TempManager,
+	Temp,
 };
 use rrvm::program::RiscvFunc;
 
@@ -19,7 +22,11 @@ impl<'a> RegAllocator<'a> {
 		Self { mgr, mem_mgr }
 	}
 
-	pub fn alloc(&mut self, func: &mut RiscvFunc) {
+	pub fn alloc(
+		&mut self,
+		func: &mut RiscvFunc,
+		mapper: &mut HashMap<Temp, RiscvTemp>,
+	) {
 		let map = loop {
 			let mut graph = InterferenceGraph::new(Box::new(ALLOCABLE_REGS));
 
@@ -72,5 +79,6 @@ impl<'a> RegAllocator<'a> {
 			let block = &mut block.borrow_mut();
 			block.instrs.iter_mut().for_each(|v| v.map_temp(&map))
 		}
+		mapper.extend(map);
 	}
 }

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use instruction::{riscv::prelude::*, RiscvInstrSet};
 use rrvm::{program::RiscvFunc, RiscvNode};
-use utils::{math::align16, union_find::UnionFind, Label};
+use utils::{union_find::UnionFind, Label};
 
 fn func_serialize(mut nodes: Vec<RiscvNode>) -> RiscvInstrSet {
 	let mut pre = HashMap::new();
@@ -48,7 +48,6 @@ fn func_serialize(mut nodes: Vec<RiscvNode>) -> RiscvInstrSet {
 pub fn func_emission(func: RiscvFunc) -> (String, RiscvInstrSet) {
 	let mut instrs = func_serialize(func.cfg.blocks);
 	let name = func.name;
-	instrs = solve_caller_save(instrs);
 	solve_callee_save(&mut instrs, func.spills);
 	instrs.retain(|v| !v.useless());
 	(name, instrs)
@@ -98,35 +97,4 @@ fn solve_callee_save(instrs: &mut RiscvInstrSet, spills: i32) {
 	prelude.append(instrs);
 	prelude.extend(epilogue);
 	*instrs = prelude;
-}
-
-fn solve_caller_save(instrs: RiscvInstrSet) -> RiscvInstrSet {
-	let saves: HashSet<_> = instrs
-		.iter()
-		.flat_map(|v| v.get_riscv_read())
-		.filter_map(|v| v.get_phys())
-		.filter(|v| CALLER_SAVE.iter().skip(1).any(|reg| reg == v))
-		.collect();
-	let size = align16(saves.len() as i32 * 8);
-	if size > 0 {
-		let mut prelude = Vec::new();
-		let mut epilogue = Vec::new();
-		prelude.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
-		saves.into_iter().enumerate().for_each(|(index, v)| {
-			let offset = (index * 8) as i32;
-			prelude.push(IBinInstr::new(SD, v.into(), (offset, SP.into()).into()));
-			epilogue.push(IBinInstr::new(LD, v.into(), (offset, SP.into()).into()));
-		});
-		epilogue.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
-		instrs
-			.into_iter()
-			.flat_map(|instr| match instr.get_temp_op() {
-				Some(Save) => prelude.iter().map(|v| v.clone_box()).collect(),
-				Some(Restore) => epilogue.iter().map(|v| v.clone_box()).collect(),
-				None => vec![instr],
-			})
-			.collect()
-	} else {
-		instrs.into_iter().filter(|instr| instr.get_temp_op().is_none()).collect()
-	}
 }
