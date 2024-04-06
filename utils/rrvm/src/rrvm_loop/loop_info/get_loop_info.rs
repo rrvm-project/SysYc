@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use llvm::{LlvmInstrTrait, LlvmTemp, Value};
-use log::trace;
+// use log::trace;
 use utils::UseTemp;
 
 use crate::{rrvm_loop::LoopPtr, LlvmCFG, LlvmNode};
@@ -48,15 +48,13 @@ pub fn get_loop_info(
 			if info.backedge_start.is_none() {
 				info.backedge_start = Some(prev.clone());
 			} else {
-				trace!("IGNORE: multiple backedge start");
-				println!("IGNORE: multiple backedge start");
+				// trace!("IGNORE: multiple backedge start");
 				return info; // 有多条回边，可能存在 continue
 			}
 		} else if into_entry.is_none() {
 			into_entry = Some(prev.clone());
 		} else {
-			trace!("IGNORE: multiple into entry");
-			println!("IGNORE: multiple into entry");
+			// trace!("IGNORE: multiple into entry");
 			return info; // 有多个进入 entry 的块，这里可能可以尝试处理
 		}
 	}
@@ -93,13 +91,11 @@ pub fn get_loop_info(
 				info.cond_temp = Some(cond_temp);
 
 				if func_params.contains(&lhs) {
-					trace!("IGNORE: loop end condition lhs is a function parameter");
-					println!("IGNORE: loop end condition lhs is a function parameter");
+					// trace!("IGNORE: loop end condition lhs is a function parameter");
 					return info;
 				}
 				if lhs.is_num() {
-					trace!("IGNORE: loop end condition lhs is a constant");
-					println!("IGNORE: loop end condition lhs is a constant");
+					// trace!("IGNORE: loop end condition lhs is a constant");
 					return info;
 				}
 				let lhs = lhs.unwrap_temp().unwrap();
@@ -107,8 +103,7 @@ pub fn get_loop_info(
 					is_simple_induction_variable(lhs, &def_map)
 				{
 					if update != 1 {
-						trace!("IGNORE: loop update is not 1, it is {}", update);
-						println!("IGNORE: loop update is not 1, it is {}", update);
+						// trace!("IGNORE: loop update is not 1, it is {}", update);
 						return info;
 					}
 					info.step = update;
@@ -116,12 +111,9 @@ pub fn get_loop_info(
 					info.indvar_temp = Some(update_temp);
 					info.phi_temp = Some(phi_temp);
 				} else {
-					trace!(
-						"IGNORE: loop end condition lhs is not a simple induction variable"
-					);
-					println!(
-						"IGNORE: loop end condition lhs is not a simple induction variable"
-					);
+					// trace!(
+					// 	"IGNORE: loop end condition lhs is not a simple induction variable"
+					// );
 					return info;
 				}
 			}
@@ -130,8 +122,7 @@ pub fn get_loop_info(
 		}
 	}
 	if type_ == LoopType::VARTEMINATED {
-		trace!("IGNORE: variable terminated");
-		println!("IGNORE: variable terminated");
+		// trace!("IGNORE: variable terminated");
 		return info;
 	}
 	info.loop_type = type_;

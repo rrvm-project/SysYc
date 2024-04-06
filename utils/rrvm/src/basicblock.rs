@@ -310,7 +310,8 @@ pub fn split_block_predecessors(
 	drop(target);
 	force_link_llvmnode(&new_bb, &target_rc);
 
-	let target_pos = func.cfg.blocks.iter().position(|v| *v == target_rc).unwrap();
+	let target_pos =
+		func.cfg.blocks.iter().position(|v| *v == target_rc).unwrap();
 	func.cfg.blocks.insert(target_pos, new_bb.clone());
 
 	Some(new_bb)
