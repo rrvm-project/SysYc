@@ -8,12 +8,17 @@ use std::{
 
 use instruction::riscv::RiscvInstr;
 use llvm::{
-	JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp, PhiInstr, RetInstr, Value,
-	VarType,
+	JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp, LlvmTempManager, PhiInstr,
+	RetInstr, Value, VarType,
 };
+use log::trace;
 use utils::{instr_format, to_label, InstrTrait, Label, TempTrait, UseTemp};
 
-use crate::rrvm_loop::LoopPtr;
+use crate::{
+	prelude::{force_link_llvmnode, unlink_node, LlvmFunc},
+	rrvm_loop::LoopPtr,
+	LlvmNode,
+};
 
 pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
 pub type LlvmBasicBlock = BasicBlock<LlvmInstr, llvm::LlvmTemp>;
@@ -271,6 +276,44 @@ impl LlvmBasicBlock {
 		}
 		false
 	}
+}
+
+pub fn split_block_predecessors(
+	target_rc: LlvmNode,
+	preds: Vec<LlvmNode>,
+	func: &mut LlvmFunc,
+	temp_mgr: &mut LlvmTempManager,
+) -> Option<LlvmNode> {
+	for prev in preds.iter() {
+		trace!("prev: {}", prev.borrow().label());
+		unlink_node(prev, &target_rc);
+	}
+	let mut target = target_rc.borrow_mut();
+	let mut new_bb = func.new_basicblock(0.0);
+	for phi in target.phi_instrs.iter_mut() {
+		let new_target = temp_mgr.new_temp(phi.var_type, false);
+		let new_source = phi
+			.source
+			.iter()
+			.filter(|(_, l)| preds.iter().any(|b| b.borrow().label() == *l))
+			.cloned()
+			.collect::<Vec<(Value, Label)>>();
+		phi.source.retain(|(_, l)| !preds.iter().any(|b| b.borrow().label() == *l));
+		phi.source.push((Value::Temp(new_target.clone()), new_bb.label()));
+
+		let new_phi = PhiInstr::new(new_target, new_source);
+		new_bb.phi_instrs.push(new_phi);
+	}
+	let new_bb = Rc::new(RefCell::new(new_bb));
+	trace!("new_bb: {}", new_bb.borrow().label());
+	preds.iter().for_each(|b| force_link_llvmnode(b, &new_bb));
+	drop(target);
+	force_link_llvmnode(&new_bb, &target_rc);
+
+	let target_pos = func.cfg.blocks.iter().position(|v| *v == target_rc).unwrap();
+	func.cfg.blocks.insert(target_pos, new_bb.clone());
+
+	Some(new_bb)
 }
 
 #[cfg(not(feature = "debug"))]

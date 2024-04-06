@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use super::RemoveDeadCode;
 use crate::RrvmOptimizer;
+use log::trace;
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::errors::Result;
 
@@ -17,6 +18,7 @@ impl RrvmOptimizer for RemoveDeadCode {
 				let id = u.borrow().id;
 				visited.insert(id);
 				// remove unreachable branch
+				trace!("u: {}", u.borrow().label());
 				let new_jump = u.borrow().jump_instr.as_ref().unwrap().new_jump();
 				if let Some(instr) = new_jump {
 					let label = &instr.target;

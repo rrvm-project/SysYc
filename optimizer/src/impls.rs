@@ -9,8 +9,7 @@ use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
 
-use self::loops::HandleLoops;
-use self::pure_check::PureCheck;
+use self::{loops::HandleLoops, pure_check::PureCheck};
 type FuncPtrOfOptPass = Box<dyn Fn() -> Box<dyn RrvmOptimizer>>;
 
 impl Optimizer0 {

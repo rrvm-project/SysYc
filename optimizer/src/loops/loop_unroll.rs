@@ -82,8 +82,6 @@ pub fn loop_unroll(
 		exit_prev.unwrap(),
 	);
 
-	trace!("loop_info: \n{}", loop_info);
-
 	if loop_info.instr_cnt > 100 {
 		return;
 	}
@@ -190,12 +188,9 @@ fn loop_unroll_inner(
 
 	let after_entry =
 		entry.borrow().succ.iter().find(|bb| **bb != exit).unwrap().clone();
-	// after_entry.borrow_mut().phi_instrs.extend(new_after_entry_phi_instrs);
 	new_after_entry_instrs.extend(after_entry.borrow().instrs.iter().cloned());
 	let after_entry_instrs = after_entry.borrow().instrs.clone();
 	after_entry.borrow_mut().instrs = new_after_entry_instrs;
-
-	// trace!("cfg: \n{}", cfg);
 
 	// 2. 断开 backedge，把循环体复制 unroll_cnt 次，在 cfg 中两两之间相连，顺序执行，最后一个循环体与 entry 连一条 backedge
 	unlink_node(info.backedge_start.as_ref().unwrap(), &entry);
@@ -244,7 +239,6 @@ fn loop_unroll_inner(
 		}
 		for instr in bb.borrow().instrs.iter() {
 			if let Some(write) = instr.get_write() {
-				trace!("temp_map insert: {}", write);
 				temp_map.insert(write.clone(), write.clone());
 			}
 		}
@@ -264,7 +258,7 @@ fn loop_unroll_inner(
 			}
 			let mut new_bb = bb.borrow().clone();
 			new_bb.id = next_bb_id;
-			trace!("bb {} to newbb {}", bb.borrow().label(), new_bb.label());
+			// trace!("bb {} to newbb {}", bb.borrow().label(), new_bb.label());
 			new_bb.prev.clear();
 			new_bb.succ.clear();
 			new_bb.clear_data_flow();
@@ -286,7 +280,7 @@ fn loop_unroll_inner(
 			}
 			let new_bb = bb_map.get(&bb.borrow().id).unwrap();
 
-			trace!("connecting new_bb {}", new_bb.borrow().label());
+			// trace!("connecting new_bb {}", new_bb.borrow().label());
 
 			assert!(new_bb.borrow().prev.is_empty());
 			let mut prev_label_map = HashMap::new();
@@ -324,11 +318,6 @@ fn loop_unroll_inner(
 				.succ
 				.iter()
 				.map(|succ| {
-					trace!(
-						"bb: {}, succ: {}",
-						bb.borrow().label(),
-						succ.borrow().label()
-					);
 					assert!(loop_bbs.contains(succ));
 					let new_succ = bb_map.get(&succ.borrow().id).unwrap().clone();
 					label_map.insert(succ.borrow().label(), new_succ.borrow().label());
@@ -362,7 +351,7 @@ fn loop_unroll_inner(
 				dynamic_phi_temp_at_entry_map.get(v).unwrap().clone()
 			};
 			dynamic_copy.entry(k.clone()).and_modify(|v| *v = new_v.clone());
-			trace!("map {} to {}", k, new_v);
+			// trace!("map {} to {}", k, new_v);
 		}
 		dynamic_phi_temp_at_entry_map.clone_from(&dynamic_copy);
 		drop(dynamic_copy);
@@ -370,7 +359,7 @@ fn loop_unroll_inner(
 		for (k, v) in temp_map.iter_mut() {
 			assert!(!static_phi_temp_at_entry_map.contains_key(k));
 			*v = temp_mgr.new_temp(k.var_type, false);
-			trace!("map {} to {}", k, v);
+			// trace!("map {} to {}", k, v);
 		}
 
 		for bb in loop_bbs.iter() {
