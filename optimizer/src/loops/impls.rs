@@ -1,4 +1,7 @@
-use crate::{loops::loop_unroll::loop_unroll, RrvmOptimizer};
+use crate::{
+	loops::{loop_simplify::simplify_one_loop, loop_unroll::loop_unroll},
+	RrvmOptimizer,
+};
 use llvm::LlvmTempManager;
 use rrvm::program::{LlvmFunc, LlvmProgram};
 use utils::errors::Result;
@@ -15,6 +18,9 @@ impl RrvmOptimizer for HandleLoops {
 			let flag: bool = false;
 			cfg.compute_dominator();
 			let loops = cfg.loop_analysis();
+			for loop_ in loops.iter() {
+				simplify_one_loop(func, loop_.clone(), temp_mgr);
+			}
 			for loop_ in loops {
 				loop_unroll(func, loop_, temp_mgr, loop_unroll_time);
 			}

@@ -164,7 +164,7 @@ impl RrvmOptimizer for FuyukiLocalValueNumber {
 		FuyukiLocalValueNumber {}
 	}
 
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(&self, program: &mut LlvmProgram) -> Result<bool> {
 		let mut not_pure = HashSet::new();
 
 		for item in VEC_EXTERN {

@@ -5,7 +5,7 @@ use utils::{
 	MAX_INLINE_LENGTH,
 };
 
-use crate::cfg::CFG;
+use crate::{cfg::CFG, prelude::BasicBlock};
 
 pub struct RrvmFunc<T: InstrTrait<U>, U: TempTrait> {
 	pub total: i32, // current total block num. Used to allocate new basicblock id, and **total + 1** is the next basicblock id
@@ -35,5 +35,9 @@ impl<T: InstrTrait<U>, U: TempTrait> RrvmFunc<T, U> {
 		self.is_leaf()
 			&& (self.len() < MAX_INLINE_LENGTH
 				|| self.params.len() > INLINE_PARAMS_THRESHOLD)
+	}
+	pub fn new_basicblock(&mut self, weight: f64) -> BasicBlock<T, U> {
+		self.total += 1;
+		BasicBlock::new(self.total, weight)
 	}
 }
