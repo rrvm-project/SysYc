@@ -66,14 +66,32 @@ impl Loop {
 		let mut pred = None;
 		for pred_ in header.prev.iter() {
 			if !self.contains_block(pred_) {
-				if pred.is_some() && pred != Some(pred_.clone()){
+				if pred.is_some() && pred != Some(pred_.clone()) {
 					return None;
 				}
 				pred = Some(pred_.clone());
 			}
 		}
-		trace!("Found a predecessor {}", pred.as_ref().unwrap().borrow().label());
+		trace!(
+			"Found a predecessor {}",
+			pred.as_ref().unwrap().borrow().label()
+		);
 		pred
+	}
+	/// getLoopLatch - If there is a single latch block for this loop, return it.
+	/// A latch block is a block that contains a branch back to the header.
+	pub fn get_loop_latch(&self) -> Option<LlvmNode> {
+		let header = self.header.borrow();
+		let mut latch = None;
+		for pred in header.prev.iter() {
+			if self.contains_block(pred) {
+				if latch.is_some() {
+					return None;
+				}
+				latch = Some(pred.clone());
+			}
+		}
+		latch
 	}
 	fn contains_block(&self, block: &LlvmNode) -> bool {
 		self.blocks.contains(block)

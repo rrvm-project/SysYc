@@ -4,7 +4,7 @@ use llvm::{
 	new_assign_instr, CompOp, JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp,
 	LlvmTempManager, Value,
 };
-use log::trace;
+// use log::trace;
 use rrvm::{
 	basicblock::LlvmBasicBlock,
 	cfg::unlink_node,
@@ -33,7 +33,7 @@ pub fn loop_unroll(
 	let cfg = &mut func.cfg;
 	let func_params = &func.params;
 	if !loop_.borrow().no_inner {
-		println!("loop has inner loop");
+		// trace!("loop has inner loop");
 		return;
 	}
 	let mut loop_bbs: Vec<LlvmNode> = Vec::new();
@@ -62,7 +62,7 @@ pub fn loop_unroll(
 			if !succ.borrow().loop_.as_ref().is_some_and(|l| *l == loop_) {
 				if exit_bb.as_ref().is_some() {
 					check = false;
-					println!("multiple exit");
+					// trace!("multiple exit");
 					break;
 				}
 				exit_bb = Some(succ.clone());
@@ -112,7 +112,7 @@ pub fn loop_unroll(
 			_ => unreachable!(),
 		}
 		if full_cnt <= 1 {
-			println!("full_cnt <= 1");
+			// trace!("full_cnt <= 1");
 			return;
 		}
 		// 如果总循环次数比较小，或者该循环内指令的个数乘总循环次数比较小，就全部展开
@@ -124,12 +124,12 @@ pub fn loop_unroll(
 			unroll_cnt = full_cnt as usize;
 			is_full_unroll = true;
 		} else {
-			println!(
-				"too large, full_cnt: {}, instr_cnt: {}, product: {}",
-				full_cnt,
-				loop_info.instr_cnt,
-				(full_cnt as i64) * loop_info.instr_cnt
-			);
+			// trace!(
+			// 	"too large, full_cnt: {}, instr_cnt: {}, product: {}",
+			// 	full_cnt,
+			// 	loop_info.instr_cnt,
+			// 	(full_cnt as i64) * loop_info.instr_cnt
+			// );
 			// 不全展开的情况暂时没写 TODO
 			return;
 		}
@@ -165,11 +165,11 @@ fn loop_unroll_inner(
 	unroll_cnt: usize,
 	is_full_unroll: bool,
 ) {
-	trace!(
-		"loop unroll: type {}, unroll_cnt {}",
-		info.loop_type,
-		unroll_cnt
-	);
+	// trace!(
+	// 	"loop unroll: type {}, unroll_cnt {}",
+	// 	info.loop_type,
+	// 	unroll_cnt
+	// );
 	let cfg = &mut func.cfg;
 	// 1. 把控制循环进行与否相关的指令单独提出来, 塞入 entry 的后继中在循环内的那个基本块(phi 指令除外，因为 phi 指令意味着该变量有初始值，并且每次循环后会发生变化)
 	let entry = loop_.borrow().header.clone();
@@ -201,10 +201,10 @@ fn loop_unroll_inner(
 	let mut cur_backedge_start_pos =
 		cfg.blocks.iter().position(|bb| *bb == cur_backedge_start).unwrap();
 
-	trace!(
-		"cur_backedge_start: {}",
-		cur_backedge_start.borrow().label()
-	);
+	// trace!(
+	// 	"cur_backedge_start: {}",
+	// 	cur_backedge_start.borrow().label()
+	// );
 
 	// 维护临时变量的映射关系
 	let mut temp_map: HashMap<LlvmTemp, LlvmTemp> = HashMap::new();

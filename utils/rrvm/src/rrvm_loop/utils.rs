@@ -41,8 +41,87 @@ pub fn insert_preheader_for_loop(
 	}
 
 	trace!("Inserting preheader for loop");
-	split_block_predecessors(header_rc, outside_blocks, func, temp_mgr)
+	if let Some(preheader) =
+		split_block_predecessors(header_rc, outside_blocks, func, temp_mgr)
+	{
+		// Update loop content
+		loop_.borrow_mut().blocks.push(preheader.clone());
+		Some(preheader)
+	} else {
+		None
+	}
 }
 
-#[allow(unused)]
-pub fn form_dedicated_exit_blocks(loop_: LoopPtr, func: &mut LlvmFunc) {}
+pub fn form_dedicated_exit_blocks(
+	loop_: LoopPtr,
+	func: &mut LlvmFunc,
+	temp_mgr: &mut LlvmTempManager,
+) {
+	let mut rewrite_exit = |exit: LlvmNode| {
+		let mut is_dedicated_exit = true;
+		let mut in_loop_prev = Vec::new();
+		for prev in exit.borrow().prev.iter() {
+			if loop_.borrow().contains_block(prev) {
+				if prev.borrow().succ.len() > 1 {
+					return;
+				}
+				in_loop_prev.push(prev.clone());
+			} else {
+				is_dedicated_exit = false;
+			}
+		}
+		assert!(!in_loop_prev.is_empty());
+
+		if is_dedicated_exit {
+			trace!("Already dedicated exit {}", exit.borrow().label());
+			return;
+		}
+
+		let ret = split_block_predecessors(exit, in_loop_prev, func, temp_mgr);
+		trace!(
+			"Generated Dedicated exit {:?}",
+			ret.map(|v| v.borrow().label())
+		);
+	};
+
+	let mut visited = Vec::new();
+	for bb in loop_.borrow().blocks.iter() {
+		for succ in bb.borrow().succ.iter() {
+			if !loop_.borrow().contains_block(succ) && !visited.contains(succ) {
+				visited.push(succ.clone());
+				trace!("Rewriting exit {:?}", succ.borrow().label());
+				rewrite_exit(succ.clone());
+			}
+		}
+	}
+}
+
+pub fn insert_unique_backedge_block(
+	loop_: LoopPtr,
+	func: &mut LlvmFunc,
+	temp_mgr: &mut LlvmTempManager,
+	preheader: LlvmNode,
+) -> Option<LlvmNode> {
+	let mut backedge_blocks = Vec::new();
+	for prev in loop_.borrow().header.borrow().prev.iter() {
+		if prev.borrow().succ.len() != 1 {
+			trace!("Backedge has multiple successors");
+			return None;
+		}
+		if *prev != preheader {
+			backedge_blocks.push(prev.clone());
+		}
+	}
+
+	trace!("Inserting unique backedge for loop");
+	let header = loop_.borrow().header.clone();
+	if let Some(backedge) =
+		split_block_predecessors(header, backedge_blocks, func, temp_mgr)
+	{
+		// Update loop content
+		loop_.borrow_mut().blocks.push(backedge.clone());
+		Some(preheader)
+	} else {
+		None
+	}
+}

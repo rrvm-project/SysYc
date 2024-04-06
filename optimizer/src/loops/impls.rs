@@ -18,13 +18,13 @@ impl RrvmOptimizer for HandleLoops {
 			temp_mgr: &mut LlvmTempManager,
 			loop_unroll_time: &mut usize,
 		) -> bool {
-			let cfg = &mut func.cfg;
 			let flag: bool = false;
-			cfg.compute_dominator();
-			let loops = cfg.loop_analysis();
+			func.cfg.compute_dominator();
+			let loops = func.cfg.loop_analysis();
 			for loop_ in loops.iter() {
 				simplify_one_loop(func, loop_.clone(), temp_mgr);
 			}
+			func.cfg.compute_dominator();
 			for loop_ in loops {
 				loop_unroll(func, loop_, temp_mgr, loop_unroll_time);
 			}
