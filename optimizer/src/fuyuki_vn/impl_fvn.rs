@@ -1,7 +1,7 @@
 use super::FuyukiLocalValueNumber;
 
 use crate::{
-	fuyuki_vn::{impl_down, stack_table::StackHashMap},
+	fuyuki_vn::{impl_down, stack_hashmap::StackHashMap},
 	RrvmOptimizer,
 };
 use std::collections::{HashMap, HashSet};

@@ -12,7 +12,7 @@ use std::hash::Hash;
 use super::calc::{arith_binaryop, comp_binaryop};
 use rrvm::LlvmNode;
 
-use super::stack_table::StackHashMap;
+use super::stack_hashmap::StackHashMap;
 
 #[derive(Debug)]
 pub(crate) enum SimpleLvnValue {

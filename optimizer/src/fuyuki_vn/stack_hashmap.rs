@@ -1,5 +1,6 @@
 use std::{borrow::Borrow, collections::HashMap, hash::Hash};
 
+#[derive(Debug)]
 pub struct StackHashMap<K, V> {
 	stack: Vec<HashMap<K, V>>,
 }
