@@ -12,8 +12,10 @@ use std::hash::Hash;
 use super::calc::{arith_binaryop, comp_binaryop};
 use rrvm::LlvmNode;
 
+use super::stack_table::StackHashMap;
+
 #[derive(Debug)]
-enum SimpleLvnValue {
+pub(crate) enum SimpleLvnValue {
 	// LiteralInt(i32),
 	// LiteralFloat(f32),
 	Arith((ArithOp, VarType, Value, Value)),
@@ -193,8 +195,8 @@ fn get_random_vec(len: usize) -> Vec<i32> {
 
 fn get_value_vec(
 	value: &Value,
-	temp_to_vec: &mut HashMap<LlvmTemp, Vec<i32>>,
-	vec_table: &mut HashMap<Vec<i32>, Value>,
+	temp_to_vec: &mut StackHashMap<LlvmTemp, Vec<i32>>,
+	vec_table: &mut StackHashMap<Vec<i32>, Value>,
 ) -> Vec<i32> {
 	let length = 16;
 
@@ -226,8 +228,8 @@ fn calculate_vecs(
 fn get_vector_lvn_value(
 	instr: &Box<dyn LlvmInstrTrait>,
 	_rewrite: &HashMap<LlvmTemp, Value>,
-	temp_to_vec: &mut HashMap<LlvmTemp, Vec<i32>>,
-	vec_table: &mut HashMap<Vec<i32>, Value>,
+	temp_to_vec: &mut StackHashMap<LlvmTemp, Vec<i32>>,
+	vec_table: &mut StackHashMap<Vec<i32>, Value>,
 ) -> (Option<Vec<i32>>, Option<LlvmTemp>) {
 	let mut dst = None;
 
@@ -276,21 +278,22 @@ pub fn solve(
 	block: &LlvmNode,
 	rewrite: &mut HashMap<LlvmTemp, Value>,
 	not_pure: &HashSet<String>,
+	simple_table: &mut StackHashMap<SimpleLvnValue, Value>,
+	vec_table: &mut StackHashMap<Vec<i32>, Value>,
+	temp_to_vec: &mut StackHashMap<LlvmTemp, Vec<i32>>,
 ) {
-	let mut table: HashMap<SimpleLvnValue, Value> = HashMap::new();
-
 	let mut remain_instr = vec![];
 
 	for instr in &block.borrow_mut().instrs {
 		if let (Some(lvn_value), Some(target)) =
 			get_simple_lvn_value(instr, rewrite, not_pure)
 		{
-			if let Some(value) = table.get(&lvn_value) {
+			if let Some(value) = simple_table.get(&lvn_value) {
 				rewrite.insert(target, try_rewrite(value, rewrite));
 			} else {
 				let value_try = try_const(&lvn_value, target.clone());
 				let value_try = try_rewrite(&value_try, rewrite);
-				table.insert(lvn_value, value_try.clone());
+				simple_table.insert(lvn_value, value_try.clone());
 				if value_try.is_num() {
 					rewrite.insert(target, value_try);
 				} else {
@@ -300,14 +303,9 @@ pub fn solve(
 		}
 	}
 
-	drop(table);
-
-	let mut vec_table: HashMap<Vec<i32>, Value> = HashMap::new();
-	let mut temp_to_vec: HashMap<LlvmTemp, Vec<i32>> = HashMap::new();
-
 	for instr in remain_instr {
 		if let (Some(lvn_value), Some(target)) =
-			get_vector_lvn_value(&instr, rewrite, &mut temp_to_vec, &mut vec_table)
+			get_vector_lvn_value(&instr, rewrite, temp_to_vec, vec_table)
 		{
 			temp_to_vec.insert(target.clone(), lvn_value.clone());
 			if let Some(value) = vec_table.get(&lvn_value) {

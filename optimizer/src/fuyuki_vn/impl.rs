@@ -1,6 +1,9 @@
 use super::FuyukiLocalValueNumber;
 
-use crate::{fuyuki_vn::impl_down, RrvmOptimizer};
+use crate::{
+	fuyuki_vn::{impl_down, stack_table::StackHashMap},
+	RrvmOptimizer,
+};
 use std::collections::{HashMap, HashSet};
 use utils::{UseTemp, VEC_EXTERN};
 
@@ -16,6 +19,8 @@ use super::traverse;
 use super::{impl_lvn, impl_up};
 
 use super::fvn_utils::MaxMin;
+
+use crate::fuyuki_vn::impl_lvn::SimpleLvnValue;
 
 fn solve(cfg: &LlvmCFG, not_pure: &HashSet<String>) -> bool {
 	// cfg.analysis();
@@ -49,14 +54,30 @@ fn solve(cfg: &LlvmCFG, not_pure: &HashSet<String>) -> bool {
 
 	// lvn: find
 	let mut rewirte: HashMap<LlvmTemp, Value> = HashMap::new();
+	let mut simple_table: StackHashMap<SimpleLvnValue, Value> =
+		StackHashMap::new();
+	let mut vec_table: StackHashMap<Vec<i32>, Value> = StackHashMap::new();
+	let mut temp_to_vec: StackHashMap<LlvmTemp, Vec<i32>> = StackHashMap::new();
 
 	let total = post_order_to_block.len();
 	for i in 0..total {
+		// Actaully, this is LVN
+		simple_table.push();
+		vec_table.push();
+		temp_to_vec.push();
+
 		impl_lvn::solve(
 			post_order_to_block.get(&i).unwrap(),
 			&mut rewirte,
 			not_pure,
+			&mut simple_table,
+			&mut vec_table,
+			&mut temp_to_vec,
 		);
+
+		simple_table.pop();
+		vec_table.pop();
+		temp_to_vec.pop();
 	}
 	// lvn: rewrite
 
