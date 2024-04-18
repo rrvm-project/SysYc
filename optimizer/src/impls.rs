@@ -4,7 +4,7 @@ use crate::{
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
-use fuyuki_vn::FuyukiLocalValueNumber;
+use fuyuki_vn::{FuyukiLocalValueNumber, GLobalValueNumber};
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
@@ -41,6 +41,7 @@ impl Optimizer1 {
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
+			// flag |= GLobalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			if !flag {
 				break;
@@ -70,7 +71,8 @@ impl Optimizer2 {
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= PureCheck::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
-			flag |= FuyukiLocalValueNumber::new().apply(program)?;
+			// flag |= FuyukiLocalValueNumber::new().apply(program)?;
+			flag |= GLobalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
 			flag |= SolveTailRecursion::new().apply(program)?;
