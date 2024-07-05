@@ -25,3 +25,12 @@ pub fn to_label(id: i32) -> Label {
 		_ => Label::new(format!("B{}", id)),
 	}
 }
+
+pub fn from_label(label: &Label) -> i32 {
+	if label.name == "entry" {
+		0
+	} else {
+		// Assuming the label is in the format "B{id}"
+		label.name.trim_start_matches('B').parse().unwrap_or(-1)
+	}
+}

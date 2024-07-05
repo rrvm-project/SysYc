@@ -25,6 +25,15 @@ impl From<LlvmTemp> for Value {
 	}
 }
 
+impl From<Value> for Option<LlvmTemp> {
+	fn from(val: Value) -> Self {
+		match val {
+			Value::Temp(t) => Some(t),
+			_ => None,
+		}
+	}
+}
+
 impl From<i32> for Value {
 	fn from(value: i32) -> Self {
 		Value::Int(value)
