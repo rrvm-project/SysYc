@@ -5,6 +5,7 @@ use utils::{mapper::LabelMapper, Label};
 use crate::temp::Temp;
 
 use super::{
+	reg::RiscvReg,
 	value::{RiscvImm, RiscvTemp},
 	virt_mem::VirtAddr,
 };
@@ -64,4 +65,8 @@ pub fn map_imm_label(val: &mut RiscvImm, map: &mut LabelMapper) {
 	if let RiscvImm::Label(label) = val {
 		map_label(label, map)
 	}
+}
+
+pub fn get_offset(index: usize) -> RiscvImm {
+	(index as i32 * 8, RiscvReg::SP.into()).into()
 }

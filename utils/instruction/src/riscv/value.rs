@@ -73,6 +73,12 @@ impl From<i32> for RiscvImm {
 	}
 }
 
+impl From<&i32> for RiscvImm {
+	fn from(x: &i32) -> Self {
+		RiscvImm::Int(*x)
+	}
+}
+
 impl From<i64> for RiscvImm {
 	fn from(x: i64) -> Self {
 		RiscvImm::LongLong(x)

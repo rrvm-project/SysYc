@@ -57,3 +57,7 @@ anyhow = "1.0.75"
 simu = []
 debug = []
 default = ["debug"]
+
+[[bin]]
+name = "compiler"
+path = "src/main.rs"

@@ -6,7 +6,7 @@ use std::{
 
 use instruction::{
 	riscv::{prelude::*, virt_mem::VirtMemManager},
-	temp::TempManager,
+	temp::{TempManager, VarType},
 	Temp,
 };
 use rrvm::{
@@ -38,18 +38,26 @@ impl<'a> RegisterSolver<'a> {
 
 	pub fn solve_parameter(&mut self, func: &mut RiscvFunc) {
 		let mut prelude = Vec::new();
-		for (temp, reg) in func.params.iter().zip(PARAMETER_REGS.iter()).rev() {
-			let reg = self.mgr.new_pre_color_temp(*reg);
-			let temp = self.mgr.get(&temp.into());
-			let instr = RTriInstr::new(Add, temp, reg, X0.into());
-			prelude.push(instr);
+
+		let (regs, stack) = alloc_params_register(func.params.clone());
+
+		for (temp, reg) in regs.into_iter().rev() {
+			let reg = self.mgr.new_pre_color_temp(reg);
+			let rd = self.mgr.get(&(&temp).into());
+			match temp.get_type().into() {
+				VarType::Int => prelude.push(RBinInstr::new(Mv, rd, reg)),
+				VarType::Float => prelude.push(RBinInstr::new(FMv, rd, reg)),
+			}
 		}
-		for (index, param) in func.params.iter().skip(8).enumerate() {
+
+		for (index, param) in stack.into_iter().enumerate() {
 			let temp = self.mgr.get(param.unwrap_temp().as_ref().unwrap());
 			let addr = self.mem_mgr.new_mem_with_addr(index as i32);
 			self.mem_mgr.set_addr(temp, addr);
-			let instr = IBinInstr::new(LD, temp, addr.into());
-			prelude.push(instr);
+			match param.get_type().into() {
+				VarType::Int => prelude.push(IBinInstr::new(LD, temp, addr.into())),
+				VarType::Float => prelude.push(IBinInstr::new(FLD, temp, addr.into())),
+			}
 		}
 		func.cfg.blocks.first().unwrap().borrow_mut().instrs.splice(0..0, prelude);
 	}
@@ -212,9 +220,8 @@ impl<'a> RegisterSolver<'a> {
 		for (index, &reg) in
 			CALLEE_SAVE.iter().filter(|v| saves.contains(v)).enumerate()
 		{
-			let addr: RiscvImm = (index as i32 * 8, SP.into()).into();
-			prelude.push(IBinInstr::new(SD, reg.into(), addr.clone()));
-			epilogue.push(IBinInstr::new(LD, reg.into(), addr));
+			prelude.push(IBinInstr::new(SD, reg.into(), get_offset(index)));
+			epilogue.push(IBinInstr::new(LD, reg.into(), get_offset(index)));
 		}
 		if size > 0 {
 			if saves.contains(&FP) {

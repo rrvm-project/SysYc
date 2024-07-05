@@ -159,15 +159,15 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA => vec![self.rd],
-			SB | SH | SW | SD => vec![],
+			Li | Lui | LD | LW | LWU | LA | FLW | FLD => vec![self.rd],
+			SB | SH | SW | SD | FSD | FSW => vec![],
 		}
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		[
 			match self.op {
-				Li | Lui | LD | LW | LWU | LA => vec![],
-				SB | SH | SW | SD => vec![self.rd],
+				Li | Lui | LD | LW | LWU | LA | FLW | FLD => vec![],
+				SB | SH | SW | SD | FSD | FSW => vec![self.rd],
 			},
 			unwarp_imms(vec![&self.rs1]),
 		]
@@ -220,11 +220,17 @@ impl RiscvInstrTrait for RBinInstr {
 	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rd, map);
 	}
+	fn is_move(&self) -> bool {
+		matches!(self.op, Mv | FMv | MvInt2Float)
+	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		vec![self.rs1]
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		vec![self.rd]
+	}
+	fn useless(&self) -> bool {
+		self.is_move() && self.rd == self.rs1
 	}
 }
 

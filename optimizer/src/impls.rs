@@ -47,7 +47,6 @@ impl Optimizer1 {
 			}
 		}
 		program.analysis();
-
 		Ok(())
 	}
 }
@@ -61,7 +60,6 @@ impl Optimizer2 {
 		RemoveDeadCode::new().apply(program)?;
 		RemoveUselessCode::new().apply(program)?;
 		RemoveUnreachCode::new().apply(program)?;
-
 		RemoveUselessCode::new().apply(program)?;
 		loop {
 			let mut flag = false;
@@ -74,9 +72,6 @@ impl Optimizer2 {
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
 			flag |= SolveTailRecursion::new().apply(program)?;
-			// 	}
-			// }
-
 			if !flag {
 				break;
 			}
@@ -94,9 +89,6 @@ impl Optimizer2 {
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
 			flag |= SolveTailRecursion::new().apply(program)?;
-			// 	}
-			// }
-
 			if !flag {
 				break;
 			}

@@ -81,7 +81,8 @@ pub enum CompOp {
 	OGT, // ordered and greater than
 	OGE, // ordered and greater or equal
 	OLT, // ordered and less than
-	OLE, // ordered and less or equal
+	OLE, // ordered and less or
+	     // TODO: compare float
 }
 
 impl ArithOp {
@@ -201,6 +202,12 @@ impl Value {
 	}
 	pub fn is_global(&self) -> bool {
 		matches!(self, Self::Temp(v) if v.is_global)
+	}
+	pub fn unwrap_temp(&self) -> Option<LlvmTemp> {
+		match self {
+			Self::Temp(v) => Some(v.clone()),
+			_ => None,
+		}
 	}
 }
 
