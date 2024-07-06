@@ -13,15 +13,20 @@ pub const ALLOCABLE_REGS: &[RiscvReg] = &[
 	S5, S6, S7, S8, S9, S10, S11,
 ];
 
-pub const FLOAT_CALLER_SAVE: &[RiscvReg] = &[
+pub const FP_CALLER_SAVE: &[RiscvReg] = &[
 	Fa0, Fa1, Fa2, Fa3, Fa4, Fa5, Fa6, Fa7, Ft0, Ft1, Ft2, Ft3, Ft4, Ft5, Ft6,
 	Ft7, Ft8, Ft9, Ft10, Ft11,
 ];
-pub const FLOAT_CALLEE_SAVE: &[RiscvReg] =
+pub const FP_CALLEE_SAVE: &[RiscvReg] =
 	&[Fs0, Fs1, Fs2, Fs3, Fs4, Fs5, Fs6, Fs7, Fs8, Fs9, Fs10, Fs11];
+pub const FP_ALLOCABLE_REGS: &[RiscvReg] = &[
+	Fa0, Fa1, Fa2, Fa3, Fa4, Fa5, Fa6, Fa7, Ft0, Ft1, Ft2, Ft3, Ft4, Ft5, Ft6,
+	Ft7, Ft8, Ft9, Ft10, Ft11, Fs0, Fs1, Fs2, Fs3, Fs4, Fs5, Fs6, Fs7, Fs8, Fs9,
+	Fs10, Fs11,
+];
 
 const PARAMETER_REGS: &[RiscvReg] = &[A0, A1, A2, A3, A4, A5, A6, A7];
-const FLOAT_PARAMETER_REGS: &[RiscvReg] =
+const FP_PARAMETER_REGS: &[RiscvReg] =
 	&[Fa0, Fa1, Fa2, Fa3, Fa4, Fa5, Fa6, Fa7];
 
 pub fn alloc_params_register(
@@ -43,8 +48,8 @@ pub fn alloc_params_register(
 				}
 			}
 			llvm::VarType::F32 => {
-				if float_cnt < FLOAT_PARAMETER_REGS.len() {
-					regs.push((param, FLOAT_PARAMETER_REGS[float_cnt]));
+				if float_cnt < FP_PARAMETER_REGS.len() {
+					regs.push((param, FP_PARAMETER_REGS[float_cnt]));
 					float_cnt += 1;
 				} else {
 					stack.push(param);

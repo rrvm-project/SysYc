@@ -87,6 +87,7 @@ impl Visitor for Namer {
 		let dim_list = self.visit_dim_list(&mut node.dim_list)?;
 		let (is_const, btype) = self.decl_type.unwrap();
 		let var_type: VarType = (!is_const, btype, &dim_list).into();
+		node.set_attr("type", var_type.clone().into());
 		let symbol = self.mgr.new_var_symbol(&node.ident, var_type, self.is_global);
 		node.set_attr("symbol", symbol.clone().into());
 		self.ctx.set_val(&node.ident, symbol.clone())?;

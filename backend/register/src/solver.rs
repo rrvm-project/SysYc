@@ -63,7 +63,7 @@ impl<'a> RegisterSolver<'a> {
 	}
 
 	#[allow(clippy::assigning_clones)]
-	pub fn register_alloc(&mut self, func: &mut RiscvFunc) {
+	pub fn register_alloc(&mut self, func: &mut RiscvFunc, var_type: VarType) {
 		func.cfg.clear_data_flow();
 		func.cfg.analysis();
 
@@ -73,7 +73,11 @@ impl<'a> RegisterSolver<'a> {
 			block.live_in = block.live_out.clone();
 		}
 
-		RegAllocator::new(self.mgr, &mut self.mem_mgr)
+		let regs = match var_type {
+			VarType::Int => ALLOCABLE_REGS,
+			VarType::Float => FP_ALLOCABLE_REGS,
+		};
+		RegAllocator::new(self.mgr, &mut self.mem_mgr, var_type, regs)
 			.alloc(func, &mut self.temp_mapper);
 	}
 

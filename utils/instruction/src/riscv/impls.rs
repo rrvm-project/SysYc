@@ -221,7 +221,7 @@ impl RiscvInstrTrait for RBinInstr {
 		map_temp(&mut self.rd, map);
 	}
 	fn is_move(&self) -> bool {
-		matches!(self.op, Mv | FMv | MvInt2Float)
+		matches!(self.op, Mv | FMv)
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		vec![self.rs1]

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use instruction::{
 	riscv::{prelude::*, virt_mem::VirtMemManager},
-	temp::TempManager,
+	temp::{TempManager, VarType},
 	Temp,
 };
 use rrvm::program::RiscvFunc;
@@ -10,6 +10,8 @@ use rrvm::program::RiscvFunc;
 use crate::{graph::InterferenceGraph, spill::spill};
 
 pub struct RegAllocator<'a> {
+	var_type: VarType,
+	allocable_regs: &'static [RiscvReg],
 	mgr: &'a mut TempManager,
 	mem_mgr: &'a mut VirtMemManager,
 }
@@ -18,8 +20,15 @@ impl<'a> RegAllocator<'a> {
 	pub fn new(
 		mgr: &'a mut TempManager,
 		mem_mgr: &'a mut VirtMemManager,
+		var_type: VarType,
+		allocable_regs: &'static [RiscvReg],
 	) -> Self {
-		Self { mgr, mem_mgr }
+		Self {
+			var_type,
+			allocable_regs,
+			mgr,
+			mem_mgr,
+		}
 	}
 
 	pub fn alloc(
@@ -28,7 +37,7 @@ impl<'a> RegAllocator<'a> {
 		mapper: &mut HashMap<Temp, RiscvTemp>,
 	) {
 		let map = loop {
-			let mut graph = InterferenceGraph::new(Box::new(ALLOCABLE_REGS));
+			let mut graph = InterferenceGraph::new(Box::new(self.allocable_regs));
 
 			for block in func.cfg.blocks.iter() {
 				let block = &block.borrow();
@@ -44,18 +53,25 @@ impl<'a> RegAllocator<'a> {
 						};
 					}
 					if let Some(temp) = instr.get_write() {
-						lives.remove(&temp);
-						add_node!(temp);
+						if temp.var_type == self.var_type {
+							lives.remove(&temp);
+							add_node!(temp);
+						}
 					}
 					for temp in instr.get_read() {
-						add_node!(temp);
-						lives.insert(temp);
+						if temp.var_type == self.var_type {
+							add_node!(temp);
+							lives.insert(temp);
+						}
 					}
 					if instr.is_move() {
 						let x = instr.get_read().pop();
 						let y = instr.get_write();
 						if let (Some(x), Some(y)) = (x, y) {
-							graph.add_benefit(&x, &y, block.weight);
+							if (x.var_type == self.var_type) && (y.var_type == self.var_type)
+							{
+								graph.add_benefit(&x, &y, block.weight);
+							}
 						}
 					}
 				}

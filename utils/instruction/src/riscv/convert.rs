@@ -416,7 +416,7 @@ pub fn riscv_call(
 		let temp = into_reg(&val, &mut instrs, mgr);
 		match val.get_type().into() {
 			VarType::Int => instrs.push(RBinInstr::new(Mv, rd, temp)),
-			VarType::Float => instrs.push(RBinInstr::new(MvInt2Float, rd, temp)),
+			VarType::Float => instrs.push(RBinInstr::new(FMv, rd, temp)),
 		}
 	}
 
