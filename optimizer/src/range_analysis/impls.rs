@@ -1,9 +1,9 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::RangeAnalysis;
 use crate::{
 	range_analysis::block_imply::{
-		add_implication, general_both, BlockImplyCondition,
+		add_implication, flip_lnot, general_both, BlockImplyCondition,
 	},
 	RrvmOptimizer,
 };
@@ -11,11 +11,72 @@ use llvm::{LlvmInstrTrait, LlvmTemp};
 use rrvm::program::{LlvmFunc, LlvmProgram};
 use utils::{errors::Result, from_label};
 
+fn solve_phi_comp_reliance(
+	input: &mut HashMap<LlvmTemp, (BlockImplyCondition, bool)>,
+) {
+	let mut reliance: HashMap<LlvmTemp, HashSet<LlvmTemp>> = HashMap::new();
+	let mut reliants: HashMap<LlvmTemp, HashSet<LlvmTemp>> = HashMap::new();
+
+	for item in input.keys() {
+		reliance.insert(item.clone(), HashSet::new());
+		reliants.insert(item.clone(), HashSet::new());
+	}
+
+	for (relied, (_, positive)) in input.iter() {
+		for relying in input.keys() {
+			if *positive {
+				if input.get(relying).unwrap().0.positive.contains(relied) {
+					reliance.get_mut(relying).unwrap().insert(relied.clone());
+					reliants.get_mut(relied).unwrap().insert(relying.clone());
+				}
+			} else if input.get(relying).unwrap().0.negative.contains(relied) {
+				reliance.get_mut(relying).unwrap().insert(relied.clone());
+				reliants.get_mut(relied).unwrap().insert(relying.clone());
+			}
+		}
+	}
+
+	// dbg!(&reliance);
+	// dbg!(&input);
+
+	while let Some(sub_temp) =
+		reliance.iter().find(|x| x.1.is_empty()).map(|(tmp, _)| tmp.clone())
+	{
+		if let Some((sub_cond, positive)) = input.remove(&sub_temp) {
+			if let Some(reliant) = reliants.get(&sub_temp) {
+				for item in reliant {
+					if let Some((old_cond, _)) = input.get_mut(item) {
+						old_cond.substution(&sub_temp, &sub_cond, positive)
+					}
+					if let Some(reliance) = reliance.get_mut(item) {
+						reliance.remove(&sub_temp);
+					}
+				}
+			}
+			input.insert(sub_temp.clone(), (sub_cond, positive));
+		}
+
+		reliance.remove_entry(&sub_temp);
+	}
+
+	assert_eq!(reliance.len(), 0, "loop relinance in condition tmp!");
+
+	// dbg!(&input);
+}
+
 #[allow(clippy::type_complexity)]
 fn process_function(func: &mut LlvmFunc) {
 	func.cfg.analysis();
 
 	let mut comparisons = HashMap::new();
+
+	let mut lnot_n = 0;
+	let mut lnot_pos_rev: HashMap<usize, LlvmTemp> = HashMap::new();
+	let mut lnot_pos: HashMap<LlvmTemp, usize> = HashMap::new();
+	let mut lnot_neg: HashMap<LlvmTemp, usize> = HashMap::new();
+
+	let mut land: HashMap<LlvmTemp, (i32, LlvmTemp)> = HashMap::new();
+	let mut lor: HashMap<LlvmTemp, (i32, LlvmTemp)> = HashMap::new();
 
 	let mut block_condition: HashMap<
 		i32,
@@ -31,11 +92,48 @@ fn process_function(func: &mut LlvmFunc) {
 		block_implies_workset.push_back(block.borrow().id);
 		id_to_block.insert(block.borrow().id, block.clone());
 
+		for phi in block.borrow().phi_instrs.iter() {
+			if phi.source.len() != 2 {
+				continue;
+			}
+
+			for i in 0..=1 {
+				if let Some(other_cond) = phi.source[1 - i].0.clone().into() {
+					if phi.source[i].0 == llvm::Value::Int(0) {
+						land.insert(
+							phi.target.clone(),
+							(from_label(&phi.source[1 - i].1), other_cond),
+						);
+					} else if phi.source[i].0 == llvm::Value::Int(1) {
+						lor.insert(
+							phi.target.clone(),
+							(from_label(&phi.source[1 - i].1), other_cond),
+						);
+					}
+				}
+			}
+		}
+
 		// let v = block.borrow();
 		//find all comparisons
 		for instr in block.borrow().instrs.iter() {
 			if let llvm::LlvmInstrVariant::CompInstr(i) = instr.get_variant() {
 				// vec_comparison.push((i.target.clone(),i.lhs.clone(), i.rhs.clone(), i.op.clone(), block.borrow().id));
+
+				if i.lhs == llvm::Value::Int(0) && i.op == llvm::CompOp::EQ {
+					if let Some(tmp) = i.rhs.clone().into() {
+						if let Some(lnot_id) = lnot_pos.get(&tmp) {
+							lnot_neg.insert(i.target.clone(), *lnot_id);
+						} else if let Some(lnot_id) = lnot_neg.get(&tmp) {
+							lnot_pos.insert(i.target.clone(), *lnot_id);
+						} else {
+							lnot_n += 1;
+							lnot_pos.insert(tmp.clone(), lnot_n);
+							lnot_neg.insert(i.target.clone(), lnot_n);
+							lnot_pos_rev.insert(lnot_n, tmp);
+						}
+					}
+				}
 				comparisons.insert(
 					i.target.clone(),
 					(i.lhs.clone(), i.rhs.clone(), i.op, block.borrow().id),
@@ -99,9 +197,48 @@ fn process_function(func: &mut LlvmFunc) {
 		}
 	}
 
-	// dbg!(&comparisons);
-	// dbg!(&block_condition);
-	dbg!(&block_implies);
+	let mut substution: HashMap<LlvmTemp, (BlockImplyCondition, bool)> =
+		HashMap::new();
+
+	// only_for_positive
+	for (land_target, (block, add_cond)) in &land {
+		if let Some(old) = block_implies.get(block) {
+			let new = add_implication(old, Some(add_cond.clone()), None);
+			substution.insert(land_target.clone(), (new, true));
+		} else {
+			let empty = BlockImplyCondition::new();
+			let new = add_implication(&empty, Some(add_cond.clone()), None);
+			substution.insert(land_target.clone(), (new, true));
+		}
+	}
+
+	// only_for_negative
+	for (lor_target, (block, add_cond)) in &lor {
+		if let Some(old) = block_implies.get(block) {
+			let new = add_implication(old, None, Some(add_cond.clone()));
+			substution.insert(lor_target.clone(), (new, false));
+		} else {
+			let empty = BlockImplyCondition::new();
+			let new = add_implication(&empty, None, Some(add_cond.clone()));
+			substution.insert(lor_target.clone(), (new, false));
+		}
+	}
+
+	// dbg!(&substution);
+
+	solve_phi_comp_reliance(&mut substution);
+
+	for cond in block_implies.values_mut() {
+		for (temp, (substution, pos)) in &substution {
+			cond.substution(temp, substution, *pos);
+		}
+		flip_lnot(cond, &lnot_pos_rev, &lnot_pos, &lnot_neg);
+	}
+
+	// dbg!(&block_implies);
+	// dbg!(&lnot_pos, &lnot_neg, &lnot_pos_rev);
+	// dbg!(&land);
+	// dbg!(&lor);
 }
 
 impl RrvmOptimizer for RangeAnalysis {

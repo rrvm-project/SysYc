@@ -1,11 +1,14 @@
 use llvm::LlvmTemp;
 
-use std::{collections::HashSet, fmt::Debug};
+use std::{
+	collections::{HashMap, HashSet},
+	fmt::Debug,
+};
 
 #[derive(Clone)]
 pub struct BlockImplyCondition {
-	positive: HashSet<LlvmTemp>,
-	negative: HashSet<LlvmTemp>,
+	pub positive: HashSet<LlvmTemp>,
+	pub negative: HashSet<LlvmTemp>,
 	self_contradictory: bool,
 }
 
@@ -54,7 +57,31 @@ impl BlockImplyCondition {
 		}
 	}
 
-	pub fn imply(&mut self, pos: Option<LlvmTemp>, neg: Option<LlvmTemp>) {
+	pub fn substution(
+		&mut self,
+		sub_temp: &LlvmTemp,
+		sub_cond: &BlockImplyCondition,
+		positive: bool,
+	) {
+		if self.self_contradictory || sub_cond.self_contradictory {
+			return;
+		}
+		let (right, wrong) = if positive {
+			(&mut self.positive, &mut self.negative)
+		} else {
+			(&mut self.negative, &mut self.positive)
+		};
+
+		wrong.remove(sub_temp);
+		if right.remove(sub_temp) {
+			self.imply(sub_cond.positive.clone(), sub_cond.negative.clone());
+		}
+	}
+
+	pub fn imply<I>(&mut self, pos: I, neg: I)
+	where
+		I: IntoIterator<Item = LlvmTemp>,
+	{
 		if self.self_contradictory {
 			return;
 		}
@@ -73,11 +100,13 @@ impl BlockImplyCondition {
 			false
 		}
 
-		if let Some(tmp) = pos {
-			self.self_contradictory |= work(tmp, &mut self.positive, &self.negative);
+		for tmp in pos {
+			self.self_contradictory |=
+				work(tmp.clone(), &mut self.positive, &self.negative);
 		}
-		if let Some(tmp) = neg {
-			self.self_contradictory |= work(tmp, &mut self.negative, &self.positive);
+		for tmp in neg {
+			self.self_contradictory |=
+				work(tmp.clone(), &mut self.negative, &self.positive);
 		}
 		if self.self_contradictory {
 			self.positive.clear();
@@ -105,6 +134,36 @@ pub fn add_implication(
 	let mut result = src.clone();
 	result.imply(pos, neg);
 	result
+}
+
+pub fn flip_lnot(
+	src: &mut BlockImplyCondition,
+	lnot_pos_rev: &HashMap<usize, LlvmTemp>,
+	lnot_pos: &HashMap<LlvmTemp, usize>,
+	lnot_neg: &HashMap<LlvmTemp, usize>,
+) {
+	let old_pos = std::mem::take(&mut src.positive);
+	let old_neg = std::mem::take(&mut src.negative);
+
+	for item in old_pos {
+		if let Some(n) = lnot_pos.get(&item) {
+			src.positive.insert(lnot_pos_rev[n].clone());
+		} else if let Some(n) = lnot_neg.get(&item) {
+			src.negative.insert(lnot_pos_rev[n].clone());
+		} else {
+			src.positive.insert(item);
+		}
+	}
+
+	for item in old_neg {
+		if let Some(n) = lnot_pos.get(&item) {
+			src.negative.insert(lnot_pos_rev[n].clone());
+		} else if let Some(n) = lnot_neg.get(&item) {
+			src.positive.insert(lnot_pos_rev[n].clone());
+		} else {
+			src.negative.insert(item);
+		}
+	}
 }
 
 pub fn general_both<T: IntoIterator<Item = BlockImplyCondition>>(
