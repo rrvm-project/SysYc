@@ -5,6 +5,9 @@ pub struct Args {
 	#[arg(long)]
 	pub parse: bool,
 
+	#[arg(short = 'S')]
+	pub assemble: bool,
+
 	#[arg(long)]
 	pub llvm: bool,
 
