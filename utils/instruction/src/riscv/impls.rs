@@ -209,7 +209,11 @@ impl LabelInstr {
 
 impl Display for RBinInstr {
 	fn fmt(&self, f: &mut Formatter) -> Result {
-		write!(f, "  {} {}, {}", self.op, self.rd, self.rs1)
+		if self.op == Float2Int {
+			write!(f, "  {} {}, {}, rtz", self.op, self.rd, self.rs1)
+		} else {
+			write!(f, "  {} {}, {}", self.op, self.rd, self.rs1)
+		}
 	}
 }
 
