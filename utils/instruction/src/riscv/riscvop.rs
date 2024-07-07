@@ -83,16 +83,28 @@ pub enum IBinInstrOp {
 	SW,
 	SD,
 	LA,
+	// flaot
+	FLW,
+	FSW,
+	FLD,
+	FSD,
 }
 
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum RBinInstrOp {
+	Mv,
+	#[style("fmv.s")]
+	FMv,
+	#[style("fmv.w.x")]
+	MvInt2Float,
 	#[style("fcvt.s.w")]
 	Int2Float,
 	#[style("fcvt.w.s")]
 	Float2Int,
 	#[style("sext.w")]
 	Sextw,
+	Seqz,
+	Snez,
 	Negw,
 	Neg,
 }

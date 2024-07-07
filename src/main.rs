@@ -61,6 +61,7 @@ fn step_riscv(program: LlvmProgram, level: i32) -> Result<RiscvProgram> {
 	let mut riscv_program = RiscvProgram::new(TempManager::default());
 	riscv_program.global_vars = program.global_vars;
 	get_functions(&mut riscv_program, program.funcs)?;
+	// eprintln!("{}", riscv_program);
 	solve_register(&mut riscv_program);
 	backend_optimize(&mut riscv_program, level);
 	Ok(riscv_program)

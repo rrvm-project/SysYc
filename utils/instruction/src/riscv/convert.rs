@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use llvm::{ArithOp, CompOp, ConvertOp, Value};
 use utils::{
 	errors::{Result, SysycError::*},
@@ -9,10 +7,13 @@ use utils::{
 
 use crate::{
 	riscv::{reg::*, riscvinstr::*, riscvop::*, value::*},
-	temp::TempManager,
+	temp::{TempManager, VarType},
 	RiscvInstrSet,
 };
 
+use super::utils::get_offset;
+
+/// load immediate number into integer register
 pub fn load_imm(
 	num: impl Into<i64>,
 	instrs: &mut RiscvInstrSet,
@@ -22,7 +23,7 @@ pub fn load_imm(
 	if num == 0 {
 		return RiscvTemp::PhysReg(X0); // 代价不同、最小化代价
 	}
-	let rd = mgr.new_temp();
+	let rd = mgr.new_temp(VarType::Int);
 	instrs.push(IBinInstr::new(Li, rd, num.into()));
 	rd
 }
@@ -41,7 +42,12 @@ fn into_reg(
 ) -> RiscvTemp {
 	match val {
 		Value::Int(num) => load_imm(*num, instrs, mgr),
-		Value::Float(num) => load_imm(num.to_bits(), instrs, mgr),
+		Value::Float(num) => {
+			let temp = load_imm(num.to_bits(), instrs, mgr);
+			let rd = mgr.new_temp(VarType::Float);
+			instrs.push(RBinInstr::new(MvInt2Float, rd, temp));
+			rd
+		}
 		Value::Temp(temp) => mgr.get(temp),
 	}
 }
@@ -63,7 +69,7 @@ fn solve_mul(
 		return true;
 	}
 	let base = num >> offset;
-	let temp = mgr.new_temp();
+	let temp = mgr.new_temp(VarType::Int);
 	if is_pow2(base - 1) {
 		let offset_temp = (base - 1).trailing_zeros() as i32;
 		instrs.push(ITriInstr::new(Slliw, temp, lhs, offset_temp.into()));
@@ -90,7 +96,7 @@ fn solve_div(
 ) {
 	if is_pow2(num) {
 		let l = num.trailing_zeros() as i32;
-		let temp = mgr.new_temp();
+		let temp = mgr.new_temp(VarType::Int);
 		instrs.push(ITriInstr::new(Srliw, temp, lhs, 31.into()));
 		instrs.push(RTriInstr::new(Sub, rd, lhs, temp));
 		instrs.push(ITriInstr::new(Srai, rd, rd, l.into()));
@@ -115,7 +121,7 @@ fn solve_rem(
 	mgr: &mut TempManager,
 ) {
 	if is_pow2(num) {
-		let temp = mgr.new_temp();
+		let temp = mgr.new_temp(VarType::Int);
 		let l = num.trailing_zeros() as i32;
 		if l == 1 {
 			instrs.push(ITriInstr::new(Srliw, temp, lhs, 31.into()));
@@ -165,7 +171,7 @@ fn get_arith(
 		}
 		(ArithOp::Div, _, Value::Int(num)) => match num {
 			0 => return Err(SemanticError("divided by zero".to_string())),
-			1 => instrs.push(RTriInstr::new(Add, rd, lhs, X0.into())),
+			1 => instrs.push(RBinInstr::new(Mv, rd, lhs)),
 			-1 => instrs.push(RBinInstr::new(Neg, rd, lhs)),
 			_ => {
 				solve_div(rd, lhs, num.abs(), instrs, mgr);
@@ -176,7 +182,7 @@ fn get_arith(
 		},
 		(ArithOp::Rem, _, Value::Int(num)) => match num {
 			0 => return Err(SemanticError("moduled by zero".to_string())),
-			1 | -1 => instrs.push(RTriInstr::new(Add, rd, X0.into(), X0.into())),
+			1 | -1 => instrs.push(RBinInstr::new(Mv, rd, X0.into())),
 			_ => solve_rem(rd, lhs, num.abs(), instrs, mgr),
 		},
 		(_, Some(num), _) if can_to_iop(&op) => {
@@ -217,6 +223,19 @@ fn get_slt(
 	}
 }
 
+fn get_fp_comp(
+	op: RTriInstrOp,
+	rd: RiscvTemp,
+	lhs: &Value,
+	rhs: &Value,
+	instrs: &mut RiscvInstrSet,
+	mgr: &mut TempManager,
+) {
+	let lhs = into_reg(lhs, instrs, mgr);
+	let rhs = into_reg(rhs, instrs, mgr);
+	instrs.push(RTriInstr::new(op, rd, lhs, rhs));
+}
+
 pub fn riscv_comp(
 	instr: &llvm::CompInstr,
 	mgr: &mut TempManager,
@@ -225,29 +244,46 @@ pub fn riscv_comp(
 	let (lhs, rhs) = (&instr.lhs, &instr.rhs);
 	let target = mgr.get(&instr.target);
 	match &instr.op {
-		CompOp::EQ | CompOp::OEQ => {
-			let tmp = mgr.new_temp();
-			get_arith(tmp, ArithOp::Xor, lhs, rhs, &mut instrs, mgr)?;
-			instrs.push(ITriInstr::new(Sltiu, target, tmp, 1.into()));
+		CompOp::EQ => {
+			get_arith(target, ArithOp::Xor, lhs, rhs, &mut instrs, mgr)?;
+			instrs.push(RBinInstr::new(Seqz, target, target));
 		}
-		CompOp::NE | CompOp::ONE => {
-			let tmp = mgr.new_temp();
-			get_arith(tmp, ArithOp::Xor, lhs, rhs, &mut instrs, mgr)?;
-			instrs.push(RTriInstr::new(Sltu, target, X0.into(), tmp));
+		CompOp::NE => {
+			get_arith(target, ArithOp::Xor, lhs, rhs, &mut instrs, mgr)?;
+			instrs.push(RBinInstr::new(Snez, target, target));
 		}
-		CompOp::SLT | CompOp::OLT => {
+		CompOp::SLT => {
 			get_slt(target, lhs, rhs, &mut instrs, mgr);
 		}
-		CompOp::SLE | CompOp::OLE => {
+		CompOp::SLE => {
 			get_slt(target, rhs, lhs, &mut instrs, mgr);
-			instrs.push(ITriInstr::new(Xori, target, target, 1.into()));
+			instrs.push(RBinInstr::new(Seqz, target, target));
 		}
-		CompOp::SGT | CompOp::OGT => {
+		CompOp::SGT => {
 			get_slt(target, rhs, lhs, &mut instrs, mgr);
 		}
-		CompOp::SGE | CompOp::OGE => {
+		CompOp::SGE => {
 			get_slt(target, lhs, rhs, &mut instrs, mgr);
-			instrs.push(ITriInstr::new(Xori, target, target, 1.into()));
+			instrs.push(RBinInstr::new(Seqz, target, target));
+		}
+		CompOp::OEQ => {
+			get_fp_comp(Feq, target, lhs, rhs, &mut instrs, mgr);
+		}
+		CompOp::ONE => {
+			get_fp_comp(Feq, target, lhs, rhs, &mut instrs, mgr);
+			instrs.push(RBinInstr::new(Seqz, target, target));
+		}
+		CompOp::OLT => {
+			get_fp_comp(Flt, target, lhs, rhs, &mut instrs, mgr);
+		}
+		CompOp::OLE => {
+			get_fp_comp(Fle, target, lhs, rhs, &mut instrs, mgr);
+		}
+		CompOp::OGT => {
+			get_fp_comp(Flt, target, rhs, lhs, &mut instrs, mgr);
+		}
+		CompOp::OGE => {
+			get_fp_comp(Fle, target, rhs, lhs, &mut instrs, mgr);
 		}
 	}
 	Ok(instrs)
@@ -313,7 +349,11 @@ pub fn riscv_ret(
 			instrs.push(IBinInstr::new(Li, A0.into(), num.into()));
 		} else {
 			let tmp = into_reg(val, &mut instrs, mgr);
-			instrs.push(RTriInstr::new(Add, A0.into(), X0.into(), tmp));
+			if val.get_type() == llvm::VarType::F32 {
+				instrs.push(RBinInstr::new(FMv, Fa0.into(), tmp));
+			} else {
+				instrs.push(RBinInstr::new(Mv, A0.into(), tmp));
+			}
 		}
 	}
 	instrs.push(NoArgInstr::new(Ret));
@@ -386,25 +426,32 @@ pub fn riscv_call(
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
-	instrs.push(TemporayInstr::new(Save));
-	let size = align16(max(0, instr.params.len() as i32 - 8) * 8);
+	instrs.push(TemporayInstr::new(Save, instr.var_type));
+	let (regs, stack) = alloc_params_register(
+		instr.params.iter().map(|(_, v)| v.clone()).collect(),
+	);
+	let size = align16(stack.len() as i32 * 8);
 	if size > 0 {
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
 	}
-	for (index, (_, val)) in instr.params.iter().skip(8).enumerate() {
-		let value = into_reg(val, &mut instrs, mgr);
-		instrs.push(IBinInstr::new(
-			SD,
-			value,
-			((index * 8) as i32, SP.into()).into(),
-		));
+	for (index, val) in stack.into_iter().enumerate() {
+		let value = into_reg(&val, &mut instrs, mgr);
+		let op = match val.get_type().into() {
+			VarType::Int => SD,
+			VarType::Float => FSW,
+		};
+		instrs.push(IBinInstr::new(op, value, get_offset(index)));
 	}
-	// load parameters
+
 	let mut params = Vec::new();
-	for (&reg, (_, val)) in PARAMETER_REGS.iter().zip(instr.params.iter()) {
+	for (val, reg) in regs {
 		let rd = mgr.new_pre_color_temp(reg);
 		params.push(rd);
-		get_arith(rd, llvm::ArithOp::AddD, val, &0.into(), &mut instrs, mgr)?;
+		let temp = into_reg(&val, &mut instrs, mgr);
+		match val.get_type().into() {
+			VarType::Int => instrs.push(RBinInstr::new(Mv, rd, temp)),
+			VarType::Float => instrs.push(RBinInstr::new(FMv, rd, temp)),
+		}
 	}
 
 	instrs.push(CallInstr::new(instr.func.clone(), params));
@@ -412,12 +459,21 @@ pub fn riscv_call(
 	if size > 0 {
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), size.into()));
 	}
-	instrs.push(TemporayInstr::new(Restore));
-	let ret_val = mgr.new_pre_color_temp(A0);
-	instrs.push(RTriInstr::new(Add, ret_val, A0.into(), X0.into()));
-	let rd = mgr.get(&instr.target);
-	if !instr.var_type.is_void() {
-		instrs.push(RTriInstr::new(Add, rd, ret_val, X0.into()));
+	instrs.push(TemporayInstr::new(Restore, instr.var_type));
+	match instr.var_type {
+		llvm::VarType::I32 => {
+			let ret_val = mgr.new_pre_color_temp(A0);
+			instrs.push(RBinInstr::new(Mv, ret_val, A0.into()));
+			let rd = mgr.get(&instr.target);
+			instrs.push(RBinInstr::new(Mv, rd, ret_val));
+		}
+		llvm::VarType::F32 => {
+			let ret_val = mgr.new_pre_color_temp(Fa0);
+			instrs.push(RBinInstr::new(FMv, ret_val, Fa0.into()));
+			let rd = mgr.get(&instr.target);
+			instrs.push(RBinInstr::new(FMv, rd, ret_val));
+		}
+		_ => {}
 	}
 	Ok(instrs)
 }

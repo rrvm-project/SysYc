@@ -7,7 +7,7 @@ mod utils_llvm;
 
 pub use llvminstr::*;
 pub use llvmop::{Value, *};
-pub use llvmvar::VarType;
+pub use llvmvar::*;
 pub use temp::{LlvmTemp, LlvmTempManager};
 
 pub enum LlvmInstrVariant<'a> {

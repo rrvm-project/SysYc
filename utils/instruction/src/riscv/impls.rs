@@ -159,15 +159,15 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA => vec![self.rd],
-			SB | SH | SW | SD => vec![],
+			Li | Lui | LD | LW | LWU | LA | FLW | FLD => vec![self.rd],
+			SB | SH | SW | SD | FSW | FSD => vec![],
 		}
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		[
 			match self.op {
-				Li | Lui | LD | LW | LWU | LA => vec![],
-				SB | SH | SW | SD => vec![self.rd],
+				Li | Lui | LD | LW | LWU | LA | FLW | FLD => vec![],
+				SB | SH | SW | SD | FSW | FSD => vec![self.rd],
 			},
 			unwarp_imms(vec![&self.rs1]),
 		]
@@ -209,7 +209,11 @@ impl LabelInstr {
 
 impl Display for RBinInstr {
 	fn fmt(&self, f: &mut Formatter) -> Result {
-		write!(f, "  {} {}, {}", self.op, self.rd, self.rs1)
+		if self.op == Float2Int {
+			write!(f, "  {} {}, {}, rtz", self.op, self.rd, self.rs1)
+		} else {
+			write!(f, "  {} {}, {}", self.op, self.rd, self.rs1)
+		}
 	}
 }
 
@@ -220,11 +224,17 @@ impl RiscvInstrTrait for RBinInstr {
 	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_temp(&mut self.rd, map);
 	}
+	fn is_move(&self) -> bool {
+		matches!(self.op, Mv | FMv)
+	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		vec![self.rs1]
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		vec![self.rd]
+	}
+	fn useless(&self) -> bool {
+		self.is_move() && self.rd == self.rs1
 	}
 }
 
@@ -328,7 +338,12 @@ impl CallInstr {
 
 impl Display for TemporayInstr {
 	fn fmt(&self, f: &mut Formatter) -> Result {
-		write!(f, "  temporary instr, error happened unless in debug")
+		write!(
+			f,
+			"  {}[{}]",
+			self.op,
+			self.lives.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")
+		)
 	}
 }
 
@@ -342,12 +357,16 @@ impl RiscvInstrTrait for TemporayInstr {
 	fn get_lives(&self) -> Vec<RiscvReg> {
 		self.lives.clone()
 	}
+	fn get_temp_type(&self) -> llvm::VarType {
+		self.var_type
+	}
 }
 
 impl TemporayInstr {
-	pub fn new(op: TemporayInstrOp) -> RiscvInstr {
+	pub fn new(op: TemporayInstrOp, var_type: llvm::VarType) -> RiscvInstr {
 		Box::new(Self {
 			op,
+			var_type,
 			lives: Vec::new(),
 		})
 	}

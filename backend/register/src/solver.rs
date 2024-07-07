@@ -6,7 +6,7 @@ use std::{
 
 use instruction::{
 	riscv::{prelude::*, virt_mem::VirtMemManager},
-	temp::TempManager,
+	temp::{TempManager, VarType},
 	Temp,
 };
 use rrvm::{
@@ -26,6 +26,20 @@ pub struct RegisterSolver<'a> {
 	temp_mapper: HashMap<Temp, RiscvTemp>,
 }
 
+fn load_reg(reg: RiscvReg, index: usize) -> RiscvInstr {
+	match reg.get_type() {
+		VarType::Int => IBinInstr::new(LD, reg.into(), get_offset(index)),
+		VarType::Float => IBinInstr::new(FLD, reg.into(), get_offset(index)),
+	}
+}
+
+fn store_reg(reg: RiscvReg, index: usize) -> RiscvInstr {
+	match reg.get_type() {
+		VarType::Int => IBinInstr::new(SD, reg.into(), get_offset(index)),
+		VarType::Float => IBinInstr::new(FSD, reg.into(), get_offset(index)),
+	}
+}
+
 impl<'a> RegisterSolver<'a> {
 	pub fn new(mgr: &'a mut TempManager) -> Self {
 		Self {
@@ -38,24 +52,32 @@ impl<'a> RegisterSolver<'a> {
 
 	pub fn solve_parameter(&mut self, func: &mut RiscvFunc) {
 		let mut prelude = Vec::new();
-		for (temp, reg) in func.params.iter().zip(PARAMETER_REGS.iter()).rev() {
-			let reg = self.mgr.new_pre_color_temp(*reg);
-			let temp = self.mgr.get(&temp.into());
-			let instr = RTriInstr::new(Add, temp, reg, X0.into());
-			prelude.push(instr);
+
+		let (regs, stack) = alloc_params_register(func.params.clone());
+
+		for (temp, reg) in regs.into_iter().rev() {
+			let reg = self.mgr.new_pre_color_temp(reg);
+			let rd = self.mgr.get(&(&temp).into());
+			match temp.get_type().into() {
+				VarType::Int => prelude.push(RBinInstr::new(Mv, rd, reg)),
+				VarType::Float => prelude.push(RBinInstr::new(FMv, rd, reg)),
+			}
 		}
-		for (index, param) in func.params.iter().skip(8).enumerate() {
+
+		for (index, param) in stack.into_iter().enumerate() {
 			let temp = self.mgr.get(param.unwrap_temp().as_ref().unwrap());
 			let addr = self.mem_mgr.new_mem_with_addr(index as i32);
 			self.mem_mgr.set_addr(temp, addr);
-			let instr = IBinInstr::new(LD, temp, addr.into());
-			prelude.push(instr);
+			match param.get_type().into() {
+				VarType::Int => prelude.push(IBinInstr::new(LD, temp, addr.into())),
+				VarType::Float => prelude.push(IBinInstr::new(FLW, temp, addr.into())),
+			}
 		}
 		func.cfg.blocks.first().unwrap().borrow_mut().instrs.splice(0..0, prelude);
 	}
 
 	#[allow(clippy::assigning_clones)]
-	pub fn register_alloc(&mut self, func: &mut RiscvFunc) {
+	pub fn register_alloc(&mut self, func: &mut RiscvFunc, var_type: VarType) {
 		func.cfg.clear_data_flow();
 		func.cfg.analysis();
 
@@ -65,7 +87,11 @@ impl<'a> RegisterSolver<'a> {
 			block.live_in = block.live_out.clone();
 		}
 
-		RegAllocator::new(self.mgr, &mut self.mem_mgr)
+		let regs = match var_type {
+			VarType::Int => ALLOCABLE_REGS,
+			VarType::Float => FP_ALLOCABLE_REGS,
+		};
+		RegAllocator::new(self.mgr, &mut self.mem_mgr, var_type, regs)
 			.alloc(func, &mut self.temp_mapper);
 	}
 
@@ -138,7 +164,7 @@ impl<'a> RegisterSolver<'a> {
 						let lives: Vec<_> = lives
 							.iter()
 							.filter_map(|v| v.get_phys())
-							.filter(|v| CALLER_SAVE.iter().skip(1).any(|reg| reg == v))
+							.filter(|v| need_caller_save(v, instr.get_temp_type()))
 							.collect();
 						instr.set_lives(lives.clone());
 						to_save = Some(lives);
@@ -157,8 +183,7 @@ impl<'a> RegisterSolver<'a> {
 							ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into());
 						let mut instrs = vec![prelude];
 						for (index, v) in lives.into_iter().enumerate() {
-							let p = (index * 8) as i32;
-							instrs.push(IBinInstr::new(SD, v.into(), (p, SP.into()).into()));
+							instrs.push(store_reg(v, index));
 						}
 						instrs
 					}
@@ -167,8 +192,7 @@ impl<'a> RegisterSolver<'a> {
 						let size = align16(lives.len() as i32 * 8);
 						let mut instrs = Vec::new();
 						for (index, v) in lives.into_iter().enumerate() {
-							let p = (index * 8) as i32;
-							instrs.push(IBinInstr::new(LD, v.into(), (p, SP.into()).into()));
+							instrs.push(load_reg(v, index));
 						}
 						let epilogue =
 							ITriInstr::new(Addi, SP.into(), SP.into(), size.into());
@@ -188,7 +212,7 @@ impl<'a> RegisterSolver<'a> {
 			for instr in block.instrs.iter() {
 				for temp in instr.get_riscv_write() {
 					if let Some(temp) = temp.get_phys() {
-						if CALLEE_SAVE.iter().any(|v| *v == temp) {
+						if need_callee_save(&temp) {
 							saves.insert(temp);
 						}
 					}
@@ -210,11 +234,10 @@ impl<'a> RegisterSolver<'a> {
 		}
 
 		for (index, &reg) in
-			CALLEE_SAVE.iter().filter(|v| saves.contains(v)).enumerate()
+			saves.iter().filter(|v| need_callee_save(v)).enumerate()
 		{
-			let addr: RiscvImm = (index as i32 * 8, SP.into()).into();
-			prelude.push(IBinInstr::new(SD, reg.into(), addr.clone()));
-			epilogue.push(IBinInstr::new(LD, reg.into(), addr));
+			prelude.push(store_reg(reg, index));
+			epilogue.push(load_reg(reg, index));
 		}
 		if size > 0 {
 			if saves.contains(&FP) {

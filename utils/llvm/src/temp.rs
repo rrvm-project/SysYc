@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use utils::TempTrait;
 
-use crate::{llvmop::Value, llvmvar::VarType};
+use crate::llvmvar::VarType;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LlvmTemp {
@@ -29,15 +29,6 @@ impl LlvmTemp {
 			name: name.to_string(),
 			var_type,
 			is_global,
-		}
-	}
-}
-
-impl Value {
-	pub fn unwrap_temp(&self) -> Option<LlvmTemp> {
-		match self {
-			Self::Temp(v) => Some(v.clone()),
-			_ => None,
 		}
 	}
 }

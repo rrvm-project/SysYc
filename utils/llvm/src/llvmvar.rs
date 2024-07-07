@@ -30,6 +30,18 @@ impl Display for VarType {
 	}
 }
 
+pub fn upgrade(x: VarType, y: VarType) -> Option<VarType> {
+	if x.is_ptr() || y.is_ptr() {
+		None
+	} else {
+		Some(match (x, y) {
+			(VarType::I32, VarType::I32) => VarType::I32,
+			(_, VarType::F32) | (VarType::F32, _) => VarType::F32,
+			_ => unreachable!(),
+		})
+	}
+}
+
 impl VarType {
 	pub fn default_value(&self) -> Value {
 		match self {

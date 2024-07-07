@@ -22,7 +22,7 @@ pub fn spill(
 				for temp in instr.get_read() {
 					if nodes.contains(&temp) {
 						let addr = mem_mgr.get_mem(temp.into());
-						let new_temp = mgr.new_raw_temp(&temp, false);
+						let new_temp = mgr.new_raw_temp(&temp, false, temp.var_type);
 						let load_instr = IBinInstr::new(LD, new_temp.into(), addr.into());
 						new_instrs.push(load_instr);
 						new_map.insert(temp, new_temp);

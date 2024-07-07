@@ -73,6 +73,9 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 	fn get_temp_op(&self) -> Option<TemporayInstrOp> {
 		None
 	}
+	fn get_temp_type(&self) -> llvm::VarType {
+		unreachable!()
+	}
 }
 
 impl UseTemp<Temp> for RiscvInstr {
@@ -147,5 +150,6 @@ pub struct CallInstr {
 #[derive(UseTemp, Clone)]
 pub struct TemporayInstr {
 	pub op: TemporayInstrOp,
+	pub var_type: llvm::VarType,
 	pub lives: Vec<RiscvReg>,
 }
