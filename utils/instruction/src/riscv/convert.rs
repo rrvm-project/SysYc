@@ -336,7 +336,7 @@ pub fn riscv_phi(
 	_instr: &llvm::PhiInstr,
 	_mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
-	unreachable!("phi instruction should be solved before instruction selcetion")
+	unreachable!("phi instruction should be solved before instruction selection")
 }
 
 pub fn riscv_ret(

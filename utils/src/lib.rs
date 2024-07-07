@@ -31,7 +31,11 @@ pub trait UseTemp<U> {
 		None
 	}
 }
-
+pub trait RTN {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		[0; 5]
+	}
+}
 pub trait InstrTrait<U>: Display + UseTemp<U> {
 	fn is_call(&self) -> bool;
 }
