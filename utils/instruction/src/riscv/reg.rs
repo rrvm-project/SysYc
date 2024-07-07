@@ -4,21 +4,11 @@ pub use RiscvReg::*;
 
 use crate::temp::VarType;
 
-pub const CALLER_SAVE: &[RiscvReg] =
-	&[A0, A1, A2, A3, A4, A5, A6, A7, T0, T1, T2, T3, T4, T5, T6];
-pub const CALLEE_SAVE: &[RiscvReg] =
-	&[FP, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, RA];
 pub const ALLOCABLE_REGS: &[RiscvReg] = &[
-	A0, A1, A2, A3, A4, A5, A6, A7, T0, T1, T2, T3, T4, T5, T6, S1, S2, S3, S4,
-	S5, S6, S7, S8, S9, S10, S11,
+	S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, A0, A1, A2, A3, A4, A5, A6, A7,
+	T0, T1, T2, T3, T4, T5, T6,
 ];
 
-pub const FP_CALLER_SAVE: &[RiscvReg] = &[
-	Fa0, Fa1, Fa2, Fa3, Fa4, Fa5, Fa6, Fa7, Ft0, Ft1, Ft2, Ft3, Ft4, Ft5, Ft6,
-	Ft7, Ft8, Ft9, Ft10, Ft11,
-];
-pub const FP_CALLEE_SAVE: &[RiscvReg] =
-	&[Fs0, Fs1, Fs2, Fs3, Fs4, Fs5, Fs6, Fs7, Fs8, Fs9, Fs10, Fs11];
 pub const FP_ALLOCABLE_REGS: &[RiscvReg] = &[
 	Fa0, Fa1, Fa2, Fa3, Fa4, Fa5, Fa6, Fa7, Ft0, Ft1, Ft2, Ft3, Ft4, Ft5, Ft6,
 	Ft7, Ft8, Ft9, Ft10, Ft11, Fs0, Fs1, Fs2, Fs3, Fs4, Fs5, Fs6, Fs7, Fs8, Fs9,
@@ -59,6 +49,29 @@ pub fn alloc_params_register(
 		}
 	}
 	(regs, stack)
+}
+
+const CALLER_SAVE: &[RiscvReg] = &[
+	A0, A1, A2, A3, A4, A5, A6, A7, T0, T1, T2, T3, T4, T5, T6, Fa0, Fa1, Fa2,
+	Fa3, Fa4, Fa5, Fa6, Fa7, Ft0, Ft1, Ft2, Ft3, Ft4, Ft5, Ft6, Ft7, Ft8, Ft9,
+	Ft10, Ft11,
+];
+
+pub fn need_caller_save(reg: &RiscvReg, var_type: llvm::VarType) -> bool {
+	CALLER_SAVE.contains(reg)
+		&& !matches!(
+			(reg, var_type),
+			(Fa0, llvm::VarType::F32) | (A0, llvm::VarType::I32)
+		)
+}
+
+const CALLEE_SAVE: &[RiscvReg] = &[
+	FP, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, RA, Fs0, Fs1, Fs2, Fs3,
+	Fs4, Fs5, Fs6, Fs7, Fs8, Fs9, Fs10, Fs11,
+];
+
+pub fn need_callee_save(reg: &RiscvReg) -> bool {
+	CALLEE_SAVE.contains(reg)
 }
 
 #[derive(Fuyuki, Clone, Copy, PartialEq, Eq, Hash, Debug)]

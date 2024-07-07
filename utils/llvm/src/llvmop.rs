@@ -82,7 +82,6 @@ pub enum CompOp {
 	OGE, // ordered and greater or equal
 	OLT, // ordered and less than
 	OLE, // ordered and less or
-	     // TODO: compare float
 }
 
 impl ArithOp {

@@ -93,7 +93,7 @@ pub enum IBinInstrOp {
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum RBinInstrOp {
 	Mv,
-	#[style("fmv.d")]
+	#[style("fmv.s")]
 	FMv,
 	#[style("fmv.w.x")]
 	MvInt2Float,
@@ -103,6 +103,8 @@ pub enum RBinInstrOp {
 	Float2Int,
 	#[style("sext.w")]
 	Sextw,
+	Seqz,
+	Snez,
 	Negw,
 	Neg,
 }

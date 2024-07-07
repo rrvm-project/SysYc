@@ -318,10 +318,10 @@ impl Visitor for IRGenerator {
 			_ => {
 				let lhs_val = self.solve(lhs_val, lhs_addr, &lcfg);
 				let rhs_val = self.solve(rhs_val, rhs_addr, &rcfg);
-				let lhs = self.type_conv(lhs_val, var_type, &lcfg);
-				let rhs = self.type_conv(rhs_val, var_type, &rcfg);
 				match node.op {
 					Add | Sub | Mul | Div | Mod => {
+						let lhs = self.type_conv(lhs_val, var_type, &lcfg);
+						let rhs = self.type_conv(rhs_val, var_type, &rcfg);
 						let op = to_arith(node.op, var_type);
 						let temp = self.new_temp(var_type, false);
 						let instr = ArithInstr::new(temp.clone(), lhs, op, rhs, var_type);
@@ -332,7 +332,11 @@ impl Visitor for IRGenerator {
 						(lcfg, Some(temp.into()), None)
 					}
 					LT | LE | GE | GT | EQ | NE => {
-						let op = to_comp(node.op, var_type);
+						let comp_type =
+							upgrade(lhs_val.get_type(), rhs_val.get_type()).unwrap();
+						let lhs = self.type_conv(lhs_val, comp_type, &lcfg);
+						let rhs = self.type_conv(rhs_val, comp_type, &rcfg);
+						let op = to_comp(node.op, comp_type);
 						let temp = self.new_temp(var_type, false);
 						let instr = Box::new(CompInstr {
 							kind: get_comp_kind(var_type),
@@ -355,6 +359,8 @@ impl Visitor for IRGenerator {
 							不过测例满足逻辑运算只会出现在 if 或 while 中
 							这么写不影响正确性，摆了
 						*/
+						let lhs = self.type_conv(lhs_val, var_type, &lcfg);
+						let rhs = self.type_conv(rhs_val, var_type, &rcfg);
 						let diff = self.symbol_table.drop();
 						let cfg_empty = self.new_cfg();
 						let diff_empty = HashMap::new();

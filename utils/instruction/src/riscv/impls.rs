@@ -160,14 +160,14 @@ impl RiscvInstrTrait for IBinInstr {
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		match self.op {
 			Li | Lui | LD | LW | LWU | LA | FLW | FLD => vec![self.rd],
-			SB | SH | SW | SD | FSD | FSW => vec![],
+			SB | SH | SW | SD | FSW | FSD => vec![],
 		}
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		[
 			match self.op {
 				Li | Lui | LD | LW | LWU | LA | FLW | FLD => vec![],
-				SB | SH | SW | SD | FSD | FSW => vec![self.rd],
+				SB | SH | SW | SD | FSW | FSD => vec![self.rd],
 			},
 			unwarp_imms(vec![&self.rs1]),
 		]
@@ -334,7 +334,12 @@ impl CallInstr {
 
 impl Display for TemporayInstr {
 	fn fmt(&self, f: &mut Formatter) -> Result {
-		write!(f, "  temporary instr, error happened unless in debug")
+		write!(
+			f,
+			"  {}[{}]",
+			self.op,
+			self.lives.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")
+		)
 	}
 }
 
@@ -348,12 +353,16 @@ impl RiscvInstrTrait for TemporayInstr {
 	fn get_lives(&self) -> Vec<RiscvReg> {
 		self.lives.clone()
 	}
+	fn get_temp_type(&self) -> llvm::VarType {
+		self.var_type
+	}
 }
 
 impl TemporayInstr {
-	pub fn new(op: TemporayInstrOp) -> RiscvInstr {
+	pub fn new(op: TemporayInstrOp, var_type: llvm::VarType) -> RiscvInstr {
 		Box::new(Self {
 			op,
+			var_type,
 			lives: Vec::new(),
 		})
 	}

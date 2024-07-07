@@ -26,6 +26,20 @@ pub struct RegisterSolver<'a> {
 	temp_mapper: HashMap<Temp, RiscvTemp>,
 }
 
+fn load_reg(reg: RiscvReg, index: usize) -> RiscvInstr {
+	match reg.get_type() {
+		VarType::Int => IBinInstr::new(LD, reg.into(), get_offset(index)),
+		VarType::Float => IBinInstr::new(FLD, reg.into(), get_offset(index)),
+	}
+}
+
+fn store_reg(reg: RiscvReg, index: usize) -> RiscvInstr {
+	match reg.get_type() {
+		VarType::Int => IBinInstr::new(SD, reg.into(), get_offset(index)),
+		VarType::Float => IBinInstr::new(FSD, reg.into(), get_offset(index)),
+	}
+}
+
 impl<'a> RegisterSolver<'a> {
 	pub fn new(mgr: &'a mut TempManager) -> Self {
 		Self {
@@ -56,7 +70,7 @@ impl<'a> RegisterSolver<'a> {
 			self.mem_mgr.set_addr(temp, addr);
 			match param.get_type().into() {
 				VarType::Int => prelude.push(IBinInstr::new(LD, temp, addr.into())),
-				VarType::Float => prelude.push(IBinInstr::new(FLD, temp, addr.into())),
+				VarType::Float => prelude.push(IBinInstr::new(FLW, temp, addr.into())),
 			}
 		}
 		func.cfg.blocks.first().unwrap().borrow_mut().instrs.splice(0..0, prelude);
@@ -150,7 +164,7 @@ impl<'a> RegisterSolver<'a> {
 						let lives: Vec<_> = lives
 							.iter()
 							.filter_map(|v| v.get_phys())
-							.filter(|v| CALLER_SAVE.iter().skip(1).any(|reg| reg == v))
+							.filter(|v| need_caller_save(v, instr.get_temp_type()))
 							.collect();
 						instr.set_lives(lives.clone());
 						to_save = Some(lives);
@@ -169,8 +183,7 @@ impl<'a> RegisterSolver<'a> {
 							ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into());
 						let mut instrs = vec![prelude];
 						for (index, v) in lives.into_iter().enumerate() {
-							let p = (index * 8) as i32;
-							instrs.push(IBinInstr::new(SD, v.into(), (p, SP.into()).into()));
+							instrs.push(store_reg(v, index));
 						}
 						instrs
 					}
@@ -179,8 +192,7 @@ impl<'a> RegisterSolver<'a> {
 						let size = align16(lives.len() as i32 * 8);
 						let mut instrs = Vec::new();
 						for (index, v) in lives.into_iter().enumerate() {
-							let p = (index * 8) as i32;
-							instrs.push(IBinInstr::new(LD, v.into(), (p, SP.into()).into()));
+							instrs.push(load_reg(v, index));
 						}
 						let epilogue =
 							ITriInstr::new(Addi, SP.into(), SP.into(), size.into());
@@ -200,7 +212,7 @@ impl<'a> RegisterSolver<'a> {
 			for instr in block.instrs.iter() {
 				for temp in instr.get_riscv_write() {
 					if let Some(temp) = temp.get_phys() {
-						if CALLEE_SAVE.iter().any(|v| *v == temp) {
+						if need_callee_save(&temp) {
 							saves.insert(temp);
 						}
 					}
@@ -222,10 +234,10 @@ impl<'a> RegisterSolver<'a> {
 		}
 
 		for (index, &reg) in
-			CALLEE_SAVE.iter().filter(|v| saves.contains(v)).enumerate()
+			saves.iter().filter(|v| need_callee_save(v)).enumerate()
 		{
-			prelude.push(IBinInstr::new(SD, reg.into(), get_offset(index)));
-			epilogue.push(IBinInstr::new(LD, reg.into(), get_offset(index)));
+			prelude.push(store_reg(reg, index));
+			epilogue.push(load_reg(reg, index));
 		}
 		if size > 0 {
 			if saves.contains(&FP) {

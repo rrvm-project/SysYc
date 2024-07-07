@@ -95,6 +95,10 @@ impl<'a> RegAllocator<'a> {
 			let block = &mut block.borrow_mut();
 			block.instrs.iter_mut().for_each(|v| v.map_temp(&map))
 		}
+		// TODO: delete) this
+		// for (k, v) in map.iter() {
+		// 	eprintln!("{k} -> {v}");
+		// }
 		mapper.extend(map);
 	}
 }
