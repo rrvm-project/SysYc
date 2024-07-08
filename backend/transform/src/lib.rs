@@ -4,30 +4,89 @@ use std::{
 	rc::Rc,
 };
 
-use instr_dag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
-
 use rrvm::prelude::*;
 use transformer::{to_riscv, to_rt_type};
-use utils::errors::Result;
+use utils::{errors::Result, BLOCKSIZE_THRESHOLD};
 
-pub mod instr_dag;
-pub mod instr_schedule;
 pub mod remove_phi;
 pub mod transformer;
-
-use crate::instr_schedule::instr_schedule;
 
 pub fn get_functions(
 	program: &mut RiscvProgram,
 	funcs: Vec<LlvmFunc>,
 ) -> Result<()> {
 	for func in funcs {
-		program.funcs.push(convert_func(func, &mut program.temp_mgr)?);
+		let converted_func = convert_func(func, &mut program.temp_mgr)?;
+		program.funcs.push(instr_schedule(converted_func, &mut program.temp_mgr)?);
 	}
 	Ok(())
 }
 
+pub fn instr_schedule(
+	func: RiscvFunc,
+	mgr: &mut TempManager,
+) -> Result<RiscvFunc> {
+	func.cfg.clear_data_flow();
+	func.cfg.analysis();
+	let mut new_blocks = Vec::new();
+	for node in func.cfg.blocks.iter() {
+		let nodes = instr_schedule_block(node, mgr)?;
+		new_blocks.extend(nodes);
+	}
+	Ok(RiscvFunc {
+		total: mgr.total,
+		spills: 0,
+		cfg: RiscvCFG { blocks: new_blocks },
+		name: func.name,
+		params: func.params,
+		ret_type: func.ret_type,
+		external_resorce: HashSet::new(),
+	})
+}
+pub fn instr_schedule_block(
+	riscv_node: &RiscvNode,
+	mgr: &mut TempManager,
+) -> Result<Vec<RiscvNode>> {
+	let prev = riscv_node
+		.borrow()
+		.prev
+		.iter()
+		.map(|v| v.borrow().id)
+		.collect::<HashSet<_>>();
+	let succ = riscv_node
+		.borrow()
+		.succ
+		.iter()
+		.map(|v| v.borrow().id)
+		.collect::<HashSet<_>>();
+	// 判断 prev 和 succ 是否有交集
+	if prev.intersection(&succ).count() > 0
+		&& riscv_node.borrow().instrs.len() <= BLOCKSIZE_THRESHOLD
+	{
+		// filter call (instrs 中不能有 call 指令)
+		let mut has_call = false;
+		for instr in riscv_node.borrow().instrs.iter() {
+			if instr.is_call() {
+				has_call = true;
+				break;
+			}
+		}
+		if (!has_call) {
+			return transform_loop_block(&riscv_node, mgr, 4);
+		} else {
+			match transform_basic_block_by_pipelining(&riscv_node, mgr) {
+				Ok(v) => Ok(vec![v]),
+				Err(e) => Err(e),
+			}
+		}
+	} else {
+		match transform_basic_block_by_pipelining(&riscv_node, mgr) {
+			Ok(v) => Ok(vec![v]),
+			Err(e) => Err(e),
+		}
+	}
+}
 pub fn convert_func(
 	func: LlvmFunc,
 	mgr: &mut TempManager,
@@ -45,31 +104,26 @@ pub fn convert_func(
 		}
 	}
 
-	func.cfg.clear_data_flow();
-	func.cfg.analysis();
-
 	for block in func.cfg.blocks {
 		let kill_size = (block.borrow().kill_size + 15) & -16;
 		let id = block.borrow().id;
 		edge.extend(block.borrow().succ.iter().map(|v| (id, v.borrow().id)));
-		let converted_nodes = transform_basicblock(&block, mgr)?; // todo 改掉这个函数
-		for node in converted_nodes {
-			table.insert(id, node.clone());
-			if kill_size != 0 {
-				let instr = if is_lower(kill_size) {
-					ITriInstr::new(Addi, SP.into(), SP.into(), kill_size.into())
-				} else {
-					let num = load_imm(kill_size, &mut node.borrow_mut().instrs, mgr);
-					RTriInstr::new(Add, SP.into(), SP.into(), num)
-				};
-				node.borrow_mut().instrs.push(instr);
-			}
-			let mut instrs =
-				to_riscv(block.borrow().jump_instr.as_ref().unwrap(), mgr)?;
-			node.borrow_mut().set_jump(instrs.pop());
-			node.borrow_mut().instrs.extend(instrs);
-			nodes.push(node);
+		let node = transform_basicblock(&block, mgr)?;
+		table.insert(id, node.clone());
+		if kill_size != 0 {
+			let instr = if is_lower(kill_size) {
+				ITriInstr::new(Addi, SP.into(), SP.into(), kill_size.into())
+			} else {
+				let num = load_imm(kill_size, &mut node.borrow_mut().instrs, mgr);
+				RTriInstr::new(Add, SP.into(), SP.into(), num)
+			};
+			node.borrow_mut().instrs.push(instr);
 		}
+		let mut instrs =
+			to_riscv(block.borrow().jump_instr.as_ref().unwrap(), mgr)?;
+		node.borrow_mut().set_jump(instrs.pop());
+		node.borrow_mut().instrs.extend(instrs);
+		nodes.push(node);
 	}
 	for (u, v) in edge {
 		force_link_node(table.get(&u).unwrap(), table.get(&v).unwrap())
@@ -86,16 +140,6 @@ pub fn convert_func(
 	})
 }
 
-fn _transform_basicblock_by_dag(
-	node: &LlvmNode,
-	mgr: &mut TempManager,
-) -> Result<RiscvNode> {
-	let instr_dag = InstrDag::new(&node.borrow().instrs, mgr)?;
-	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
-	block.kill_size = node.borrow().kill_size;
-	block.instrs = instr_schedule(instr_dag)?;
-	Ok(Rc::new(RefCell::new(block)))
-}
 fn transform_loop_block(
 	node: &RiscvNode,
 	mgr: &mut TempManager,
@@ -126,9 +170,9 @@ fn transform_loop_block(
 		}
 	}
 	// 建立数据依赖图
-	let mut dag = HashMap::new();
+	//let mut dag = HashMap::new();
 	// 先加上非数组的边
-	for instr in enumerate(node.borrow().instrs.iter()) {
+	for (idx, instr) in node.borrow().instrs.iter().enumerate() {
 		let read_tmps = instr.get_riscv_read();
 		for i in read_tmps.iter() {
 			// 找上一次 write 的地方
@@ -150,7 +194,7 @@ fn transform_basic_block_by_pipelining(
 fn transform_basicblock(
 	node: &LlvmNode,
 	mgr: &mut TempManager,
-) -> Result<Vec<RiscvNode>> {
+) -> Result<RiscvNode> {
 	// 先识别该基本块是否是基本本块（循环内只有一个基本块的情况），判断其前驱后继是否含有同一个基本块
 	let instrs: Result<Vec<_>, _> =
 		node.borrow().instrs.iter().map(|v| to_riscv(v, mgr)).collect();
@@ -158,31 +202,5 @@ fn transform_basicblock(
 	block.kill_size = node.borrow().kill_size;
 	block.instrs = instrs?.into_iter().flatten().collect();
 	let riscv_node = Rc::new(RefCell::new(block));
-	let prev = riscv_node
-		.borrow()
-		.prev
-		.iter()
-		.map(|v| v.borrow().id)
-		.collect::<HashSet<_>>();
-	let succ = riscv_node
-		.borrow()
-		.succ
-		.iter()
-		.map(|v| v.borrow().id)
-		.collect::<HashSet<_>>();
-	// 判断 prev 和 succ 是否有交集
-	if prev.intersection(&succ).count() > 0 {
-		return transform_loop_block(&riscv_node, mgr, 4);
-	} else {
-		match transform_basic_block_by_pipelining(&riscv_node, mgr) {
-			Ok(v) => Ok(vec![v]),
-			Err(e) => Err(e),
-		}
-	}
-	/*let instrs: Result<Vec<_>, _> =
-		node.borrow().instrs.iter().map(|v| to_riscv(v, mgr)).collect();
-	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
-	block.kill_size = node.borrow().kill_size;
-	block.instrs = instrs?.into_iter().flatten().collect();
-	Ok(Rc::new(RefCell::new(block)))*/
+	Ok(riscv_node)
 }
