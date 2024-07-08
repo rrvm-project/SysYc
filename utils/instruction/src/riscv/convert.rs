@@ -389,7 +389,12 @@ pub fn riscv_store(
 	let mut instrs: RiscvInstrSet = Vec::new();
 	let addr = into_reg(&instr.addr, &mut instrs, mgr);
 	let value = into_reg(&instr.value, &mut instrs, mgr);
-	instrs.push(IBinInstr::new(SW, value, (0, addr).into()));
+	match instr.value.get_type() {
+		llvm::VarType::F32 => {
+			instrs.push(IBinInstr::new(FSW, value, (0, addr).into()))
+		}
+		_ => instrs.push(IBinInstr::new(SW, value, (0, addr).into())),
+	}
 	Ok(instrs)
 }
 
@@ -405,7 +410,12 @@ pub fn riscv_load(
 	} else {
 		let addr = into_reg(&instr.addr, &mut instrs, mgr);
 		let rd = mgr.get(&instr.target);
-		instrs.push(IBinInstr::new(LW, rd, (0, addr).into()));
+		match instr.target.var_type {
+			llvm::VarType::F32 => {
+				instrs.push(IBinInstr::new(FLW, rd, (0, addr).into()))
+			}
+			_ => instrs.push(IBinInstr::new(LW, rd, (0, addr).into())),
+		}
 	}
 	Ok(instrs)
 }

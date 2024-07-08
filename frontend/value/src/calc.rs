@@ -12,7 +12,7 @@ where
 	Foo: Fn(i32, i32) -> i32,
 	Bar: Fn(f32, f32) -> f32,
 {
-	if x.get_type() == BType::Int || y.get_type() == BType::Int {
+	if x.get_type() == BType::Int && y.get_type() == BType::Int {
 		Ok(Value::Int(on_int(x.to_int()?, y.to_int()?)))
 	} else {
 		Ok(Value::Float(on_float(x.to_float()?, y.to_float()?)))
@@ -29,7 +29,7 @@ where
 	Foo: Fn(i32, i32) -> bool,
 	Bar: Fn(f32, f32) -> bool,
 {
-	if x.get_type() == BType::Int || y.get_type() == BType::Int {
+	if x.get_type() == BType::Int && y.get_type() == BType::Int {
 		Ok(Value::Int(on_int(x.to_int()?, y.to_int()?) as i32))
 	} else {
 		Ok(Value::Int(on_float(x.to_float()?, y.to_float()?) as i32))
@@ -75,30 +75,30 @@ pub fn exec_binaryop(x: &Value, op: BinaryOp, y: &Value) -> Result<Value> {
 		BinaryOp::GE => bin_comp(x, y, |x, y| -> bool {x >= y}, |x, y| -> bool {x >= y}),
 		BinaryOp::EQ => bin_comp(x, y, |x, y| -> bool {x == y}, |x, y| -> bool {x == y}),
 		BinaryOp::NE => bin_comp(x, y, |x, y| -> bool {x != y}, |x, y| -> bool {x != y}),
-		BinaryOp::LOr => bin_comp(x, y, |x, y| -> bool {x != 0 || y != 0}, |_, _| -> bool {unreachable!()}),
-		BinaryOp::LAnd => bin_comp(x, y, |x, y| -> bool {x != 0 && y != 0}, |_, _| -> bool {unreachable!()}),
+		BinaryOp::LOr => bin_comp(x, y, |x, y| -> bool {x != 0 || y != 0}, |x, y| -> bool {x != 0.0 || y != 0.0}),
+		BinaryOp::LAnd => bin_comp(x, y, |x, y| -> bool {x != 0 && y != 0}, |x, y| -> bool {x != 0.0 && y != 0.0}),
     BinaryOp::Assign => unreachable!(),
 	}
 }
 
 fn una_calc<Foo, Bar>(x: &Value, on_int: Foo, on_float: Bar) -> Result<Value>
 where
-	Foo: Fn(i32) -> i32,
-	Bar: Fn(f32) -> f32,
+	Foo: Fn(i32) -> Value,
+	Bar: Fn(f32) -> Value,
 {
 	if x.get_type() == BType::Int {
-		Ok(Value::Int(on_int(x.to_int()?)))
+		Ok(on_int(x.to_int()?))
 	} else {
-		Ok(Value::Float(on_float(x.to_float()?)))
+		Ok(on_float(x.to_float()?))
 	}
 }
 
 #[rustfmt::skip]
 pub fn exec_unaryop(op: UnaryOp, x: &Value) -> Result<Value> {
 	match op {
-	  UnaryOp::Plus => una_calc(x, |x|-> i32 {x} ,|x|-> f32 {x}),
-	  UnaryOp::Neg => una_calc(x, |x|-> i32 {-x} ,|x|-> f32 {-x}),
-	  UnaryOp::BitNot => una_calc(x, |x|-> i32 {!x} ,|_|-> f32 {unreachable!()}),
-	  UnaryOp::Not => una_calc(x, |x|-> i32 {(x == 0) as i32} ,|_|-> f32 {unreachable!()}),
+	  UnaryOp::Plus => una_calc(x, Value::Int ,Value::Float),
+	  UnaryOp::Neg => una_calc(x, |x| Value::Int(-x) ,|x| Value::Float(-x)),
+	  UnaryOp::BitNot => una_calc(x, |x|Value::Int(!x) ,|_| unreachable!()),
+	  UnaryOp::Not => una_calc(x, |x|Value::Int((x==0) as i32) ,|x|Value::Int((x==0.0) as i32)),
 	}
 }

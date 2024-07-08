@@ -133,12 +133,12 @@ impl Display for IBinInstr {
 impl RiscvInstrTrait for IBinInstr {
 	fn map_src_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
 		map_imm_temp(&mut self.rs1, map);
-		if matches!(self.op, SB | SH | SW | SD) {
+		if matches!(self.op, SB | SH | SW | SD | FSW | FSD) {
 			map_temp(&mut self.rd, map);
 		}
 	}
 	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
-		if matches!(self.op, SB | Li | Lui | LD | LW | LWU | LA) {
+		if matches!(self.op, SB | Li | Lui | LD | LW | LWU | LA | FLW | FLD) {
 			map_temp(&mut self.rd, map);
 		}
 	}

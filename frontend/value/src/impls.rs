@@ -36,6 +36,17 @@ impl Value {
 			_ => Err(TypeError("try to convert pointer to int".to_string())),
 		}
 	}
+	pub fn conv_type(&self, btype: BType) -> Self {
+		match (btype, self) {
+			(BType::Int, Self::Float(v)) => (*v as i32).into(),
+			(BType::Float, Self::Int(v)) => (*v as f32).into(),
+			(_, Self::Array((dims, v))) => Self::Array((
+				dims.clone(),
+				v.iter().map(|v| v.conv_type(btype)).collect(),
+			)),
+			_ => self.clone(),
+		}
+	}
 	pub fn to_float(&self) -> Result<f32> {
 		match self {
 			Self::Int(v) => Ok(*v as f32),

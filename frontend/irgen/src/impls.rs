@@ -148,7 +148,7 @@ impl IRGenerator {
 		link_cfg(&cfg1, &exit);
 		link_cfg(&cfg2, &exit);
 		let instr = Box::new(JumpCondInstr {
-			var_type: I32,
+			var_type: cond_val.get_type(),
 			cond: cond_val,
 			target_true: cfg1.entry_label(),
 			target_false: cfg2.entry_label(),
