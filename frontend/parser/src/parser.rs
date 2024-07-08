@@ -162,6 +162,31 @@ fn parse_int_lit(s: &str) -> i32 {
 	s.parse().unwrap()
 }
 
+fn parse_hex_float_lit(pair: Pair<Rule>) -> f32 {
+	let mut int_part = 0;
+	let mut frac_part = 0.0;
+	let mut exp = 0;
+	for pair in pair.into_inner() {
+		match pair.as_rule() {
+			Rule::HexInt => {
+				int_part = i32::from_str_radix(pair.as_str(), 16).unwrap()
+			}
+			Rule::HexFrac => {
+				let frac_str = pair.as_str();
+				for (i, digit_char) in frac_str.chars().enumerate() {
+					let digit = digit_char.to_digit(16).unwrap() as f32;
+					frac_part += digit * 16f32.powi(-(i as i32 + 1));
+				}
+			}
+			Rule::HexExp => exp = pair.as_str().parse::<i32>().unwrap(),
+			_ => unreachable!(),
+		}
+	}
+	let base = int_part as f32 + frac_part;
+	let result = base * 2f32.powi(exp);
+	result
+}
+
 fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 	match pair.as_rule() {
 		Rule::Integer => Box::new(LiteralInt {
@@ -171,6 +196,10 @@ fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 		Rule::Float => Box::new(LiteralFloat {
 			_attrs: HashMap::new(),
 			value: parse_float_lit(pair.as_str()),
+		}),
+		Rule::HexFloat => Box::new(LiteralFloat {
+			_attrs: HashMap::new(),
+			value: parse_hex_float_lit(pair),
 		}),
 		Rule::FuncCall => parse_func_call(pair),
 		Rule::Lval => parse_lval(pair),

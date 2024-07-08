@@ -17,7 +17,11 @@ Float = ${ (Decimals ~ "." ~ Decimals? ~ Exponent? ~ ("f" | "F")?)
           | (Decimals ~ Exponent ~ ("f" | "F")?)
           | ("." ~ Decimals ~ Exponent? ~ ("f" | "F")?) }
 
-Number = _{ Float | Integer}
+HexInt = { ASCII_HEX_DIGIT+ }
+HexFrac = { ASCII_HEX_DIGIT+ }
+HexExp = @{ ("+" | "-")? ~ DecimalInteger }
+HexFloat = { "0x" ~ HexInt? ~ ("." ~ HexFrac)? ~ (("p" | "P") ~ HexExp)? }
+Number = _{ HexFloat | Float | Integer}
 
 // 怎么能不支持下划线，我给他加上了
 Identifier = ${ (ASCII_ALPHA | "_") ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
