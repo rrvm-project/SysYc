@@ -7,6 +7,8 @@ use value::{
 	BType, UnaryOp, VarType,
 };
 
+use crate::FUNC_IGNORE_TYPE_CHECK;
+
 #[derive(Default)]
 pub struct Typer {}
 
@@ -101,16 +103,20 @@ impl Visitor for Typer {
 			)));
 		}
 
-		for (x_t, y) in params.iter().zip(node.params.iter()) {
-			let y_t: VarType = y.get_attr("type").unwrap().into();
-			let err_msg =
-				format!("expected `{}` but argument is of type `{}`", x_t, y_t);
-			if x_t.dims.len() != y_t.dims.iter().len()
-				|| x_t.dims.iter().skip(1).ne(y_t.dims.iter().skip(1))
-			{
-				return Err(TypeError(err_msg));
+		// XXX: testcase derich.sy pass pass incorrect type of arguments to the function getfarray.
+		if !FUNC_IGNORE_TYPE_CHECK.contains(&node.ident.as_str()) {
+			for (x_t, y) in params.iter().zip(node.params.iter()) {
+				let y_t: VarType = y.get_attr("type").unwrap().into();
+				let err_msg =
+					format!("expected `{}` but argument is of type `{}`", x_t, y_t);
+				if x_t.dims.len() != y_t.dims.iter().len()
+					|| x_t.dims.iter().skip(1).ne(y_t.dims.iter().skip(1))
+				{
+					return Err(TypeError(err_msg));
+				}
 			}
 		}
+
 		Ok(())
 	}
 
