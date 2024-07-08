@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use instruction::{
 	riscv::{prelude::*, virt_mem::VirtMemManager},
@@ -41,7 +41,12 @@ impl<'a> RegAllocator<'a> {
 
 			for block in func.cfg.blocks.iter() {
 				let block = &block.borrow();
-				let mut lives = block.live_out.clone();
+				let mut lives: HashSet<_> = block
+					.live_out
+					.iter()
+					.filter(|v| v.var_type == self.var_type)
+					.cloned()
+					.collect();
 				for instr in block.instrs.iter().rev() {
 					macro_rules! add_node {
 						($temp:expr) => {
@@ -95,10 +100,6 @@ impl<'a> RegAllocator<'a> {
 			let block = &mut block.borrow_mut();
 			block.instrs.iter_mut().for_each(|v| v.map_temp(&map))
 		}
-		// TODO: delete) this
-		// for (k, v) in map.iter() {
-		// 	eprintln!("{k} -> {v}");
-		// }
 		mapper.extend(map);
 	}
 }
