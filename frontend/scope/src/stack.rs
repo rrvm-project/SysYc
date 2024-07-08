@@ -58,15 +58,14 @@ impl ScopeStack {
 	pub fn is_global(&self) -> bool {
 		self.scopes.len() == 1
 	}
-	pub fn extern_init(&mut self, mgr: &mut SymbolManager) {
-		let intvoid: FuncType = (FuncRetType::Int, Vec::new());
-		let _ =
-			self.set_func("getint", mgr.new_func_symbol("getint", intvoid.clone()));
-		let _ = self.set_func("getch", mgr.new_func_symbol("getch", intvoid));
-		let floatvoid: FuncType = (FuncRetType::Float, Vec::new());
-		let _ =
-			self.set_func("getfloat", mgr.new_func_symbol("getfloat", floatvoid));
-		let getarray: FuncType = (
+	pub fn extern_init(&mut self, mgr: &mut SymbolManager) -> Result<()> {
+		let getint_t = (FuncRetType::Int, Vec::new());
+		self.set_func("getint", mgr.new_func_symbol("getint", getint_t))?;
+		let getch_t = (FuncRetType::Int, Vec::new());
+		self.set_func("getch", mgr.new_func_symbol("getch", getch_t))?;
+		let getfloat_t = (FuncRetType::Float, Vec::new());
+		self.set_func("getfloat", mgr.new_func_symbol("getfloat", getfloat_t))?;
+		let getarray_t = (
 			FuncRetType::Int,
 			vec![VarType {
 				is_lval: true,
@@ -74,24 +73,21 @@ impl ScopeStack {
 				dims: vec![0],
 			}],
 		);
-		let _ =
-			self.set_func("getarray", mgr.new_func_symbol("getarray", getarray));
-		let getfrray: FuncType = (
-			FuncRetType::Float,
+		self.set_func("getarray", mgr.new_func_symbol("getarray", getarray_t))?;
+		let getfrray_t = (
+			FuncRetType::Int,
 			vec![VarType {
 				is_lval: true,
 				type_t: value::BType::Float,
 				dims: vec![0],
 			}],
 		);
-		let _ =
-			self.set_func("getfarray", mgr.new_func_symbol("getfarray", getfrray));
-		let putint: FuncType = (FuncRetType::Void, vec![VarType::new_int()]);
-		let _ =
-			self.set_func("putint", mgr.new_func_symbol("putint", putint.clone()));
-		let _ =
-			self.set_func("putch", mgr.new_func_symbol("putch", putint.clone()));
-		let putarray: FuncType = (
+		self.set_func("getfarray", mgr.new_func_symbol("getfarray", getfrray_t))?;
+		let putint_t = (FuncRetType::Void, vec![VarType::new_int()]);
+		self.set_func("putint", mgr.new_func_symbol("putint", putint_t))?;
+		let putch_t = (FuncRetType::Void, vec![VarType::new_int()]);
+		self.set_func("putch", mgr.new_func_symbol("putch", putch_t))?;
+		let putarray_t = (
 			FuncRetType::Void,
 			vec![
 				VarType::new_int(),
@@ -102,12 +98,10 @@ impl ScopeStack {
 				},
 			],
 		);
-		let _ =
-			self.set_func("putarray", mgr.new_func_symbol("putarray", putarray));
-		let putfloat = (FuncRetType::Void, vec![VarType::new_float()]);
-		let _ =
-			self.set_func("putfloat", mgr.new_func_symbol("putfloat", putfloat));
-		let putfarray: FuncType = (
+		self.set_func("putarray", mgr.new_func_symbol("putarray", putarray_t))?;
+		let putfloat_t = (FuncRetType::Void, vec![VarType::new_float()]);
+		self.set_func("putfloat", mgr.new_func_symbol("putfloat", putfloat_t))?;
+		let putfarray_t = (
 			FuncRetType::Void,
 			vec![
 				VarType::new_int(),
@@ -118,9 +112,9 @@ impl ScopeStack {
 				},
 			],
 		);
-		let _ =
-			self.set_func("putfarray", mgr.new_func_symbol("putfarray", putfarray));
-		let putf: FuncType = (
+		self
+			.set_func("putfarray", mgr.new_func_symbol("putfarray", putfarray_t))?;
+		let putf_t = (
 			FuncRetType::Void,
 			vec![VarType {
 				is_lval: true,
@@ -128,26 +122,35 @@ impl ScopeStack {
 				dims: vec![0],
 			}],
 		);
-		let _ = self.set_func("putf", mgr.new_func_symbol("putf", putf));
-		let void: FuncType = (FuncRetType::Void, vec![]);
-		let _ = self.set_func(
+		self.set_func("putf", mgr.new_func_symbol("putf", putf_t))?;
+		let void_t = (FuncRetType::Void, vec![]);
+		self.set_func(
 			"before_main",
-			mgr.new_func_symbol("before_main", void.clone()),
-		);
-		let _ = self.set_func(
+			mgr.new_func_symbol("before_main", void_t.clone()),
+		)?;
+		self.set_func(
 			"after_main",
-			mgr.new_func_symbol("after_main", void.clone()),
-		);
-		let _ = self
-			.set_func("starttime", mgr.new_func_symbol("starttime", void.clone()));
-		let _ = self.set_func("stoptime", mgr.new_func_symbol("stoptime", void));
-		let _ = self.set_func(
+			mgr.new_func_symbol("after_main", void_t.clone()),
+		)?;
+		self.set_func(
+			"starttime",
+			mgr.new_func_symbol("starttime", void_t.clone()),
+		)?;
+		self.set_func("stoptime", mgr.new_func_symbol("stoptime", void_t))?;
+		self.set_func(
 			"_sysy_starttime",
-			mgr.new_func_symbol("_sysy_starttime", putint.clone()),
-		);
-		let _ = self.set_func(
+			mgr.new_func_symbol(
+				"_sysy_starttime",
+				(FuncRetType::Void, vec![VarType::new_int()]),
+			),
+		)?;
+		self.set_func(
 			"_sysy_stoptime",
-			mgr.new_func_symbol("_sysy_stoptime", putint.clone()),
-		);
+			mgr.new_func_symbol(
+				"_sysy_stoptime",
+				(FuncRetType::Void, vec![VarType::new_int()]),
+			),
+		)?;
+		Ok(())
 	}
 }
