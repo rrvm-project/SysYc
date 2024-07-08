@@ -88,7 +88,8 @@ impl Visitor for IRGenerator {
 			let temp = LlvmTemp::new(&node.ident, var_type, true);
 			self.symbol_table.set(symbol.id, temp.into());
 			let data = if let Some(init) = node.init.as_ref() {
-				to_data(init.get_attr("value").unwrap().into())
+				let value: value::Value = init.get_attr("value").unwrap().into();
+				to_data(value.conv_type(symbol.var_type.type_t))
 			} else {
 				let length = symbol.var_type.dims.iter().product::<usize>();
 				vec![Zero(length * var_type.to_ptr().deref_type().get_size())]
@@ -122,6 +123,7 @@ impl Visitor for IRGenerator {
 				let _ = self.stack.pop().unwrap();
 				for (cfg, value, addr) in self.pop() {
 					let value = self.solve(value, addr, &cfg);
+					let value = self.type_conv(value, var_type.deref_type(), &cfg);
 					let new_temp = self.new_temp(var_type, false);
 					cfg.get_exit().borrow_mut().push(Box::new(StoreInstr {
 						value,

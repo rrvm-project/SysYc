@@ -190,12 +190,14 @@ impl Value {
 	pub fn always_true(&self) -> bool {
 		match self {
 			Self::Int(v) => *v != 0,
+			Self::Float(v) => !v.is_nan() && !v.is_infinite() && *v != 0.0,
 			_ => false,
 		}
 	}
 	pub fn always_false(&self) -> bool {
 		match self {
 			Self::Int(v) => *v == 0,
+			Self::Float(v) => v.is_nan() || v.is_infinite() || *v == 0.0,
 			_ => false,
 		}
 	}

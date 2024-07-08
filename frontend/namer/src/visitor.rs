@@ -55,7 +55,7 @@ impl Namer {
 impl Visitor for Namer {
 	fn visit_program(&mut self, node: &mut Program) -> Result<()> {
 		self.ctx.push();
-		self.ctx.extern_init(&mut self.mgr);
+		self.ctx.extern_init(&mut self.mgr)?;
 		self.is_global = true;
 		for v in node.global_vars.iter_mut() {
 			v.accept(self)?;
@@ -103,7 +103,8 @@ impl Visitor for Namer {
 				.ok_or_else(|| uninitialized(&node.ident))?
 				.get_attr("value")
 				.ok_or_else(|| initialize_by_none(&node.ident))?;
-			self.ctx.set_constant(symbol.id, value.into())?;
+			let value: Value = value.into();
+			self.ctx.set_constant(symbol.id, value.conv_type(btype))?;
 		}
 		Ok(())
 	}

@@ -182,9 +182,7 @@ fn parse_hex_float_lit(pair: Pair<Rule>) -> f32 {
 			_ => unreachable!(),
 		}
 	}
-	let base = int_part as f32 + frac_part;
-	let result = base * 2f32.powi(exp);
-	result
+	(int_part as f32 + frac_part) * 2f32.powi(exp)
 }
 
 fn parse_primary_expr(pair: Pair<Rule>) -> Node {

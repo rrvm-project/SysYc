@@ -40,6 +40,7 @@ impl From<RiscvReg> for RiscvTemp {
 #[derive(Clone)]
 pub enum RiscvImm {
 	Int(i32),
+	Float(f32),
 	LongLong(i64),
 	VirtMem(VirtAddr),
 	Label(utils::Label),
@@ -59,6 +60,7 @@ impl Display for RiscvImm {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::Int(v) => write!(f, "{}", v),
+			Self::Float(v) => write!(f, "{}", v),
 			Self::Label(v) => write!(f, "{}", v),
 			Self::LongLong(v) => write!(f, "{}", v),
 			Self::VirtMem(v) => write!(f, "VirtMem[{}]", v.id),
@@ -82,6 +84,18 @@ impl From<&i32> for RiscvImm {
 impl From<i64> for RiscvImm {
 	fn from(x: i64) -> Self {
 		RiscvImm::LongLong(x)
+	}
+}
+
+impl From<f32> for RiscvImm {
+	fn from(x: f32) -> Self {
+		RiscvImm::Float(x)
+	}
+}
+
+impl From<&f32> for RiscvImm {
+	fn from(x: &f32) -> Self {
+		RiscvImm::Float(*x)
 	}
 }
 

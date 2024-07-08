@@ -76,6 +76,7 @@ impl<'a> RegisterSolver<'a> {
 		func.cfg.blocks.first().unwrap().borrow_mut().instrs.splice(0..0, prelude);
 	}
 
+	#[allow(clippy::assigning_clones)]
 	pub fn init_data_flow(&mut self, func: &mut RiscvFunc) {
 		func.cfg.clear_data_flow();
 		func.cfg.analysis();
@@ -87,7 +88,6 @@ impl<'a> RegisterSolver<'a> {
 		}
 	}
 
-	#[allow(clippy::assigning_clones)]
 	pub fn register_alloc(&mut self, func: &mut RiscvFunc, var_type: VarType) {
 		let regs = match var_type {
 			VarType::Int => ALLOCABLE_REGS,
