@@ -31,7 +31,6 @@ pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub phi_defs: HashSet<LlvmTemp>,
 	pub instrs: Vec<T>,
 	pub jump_instr: Option<T>,
-	pub ranges: HashMap<U, Range>,
 }
 
 fn get_other_label<T: InstrTrait<U>, U: TempTrait>(
@@ -63,7 +62,6 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			phi_defs: HashSet::new(),
 			instrs: Vec::new(),
 			jump_instr: None,
-			ranges: HashMap::new(),
 		}
 	}
 	pub fn new_node(id: i32, weight: f64) -> Node<T, U> {
