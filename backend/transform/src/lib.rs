@@ -65,26 +65,17 @@ pub fn instr_schedule_block(
 		&& riscv_node.borrow().instrs.len() <= BLOCKSIZE_THRESHOLD
 	{
 		// filter call (instrs 中不能有 call 指令)
-		let mut has_call = false;
-		for instr in riscv_node.borrow().instrs.iter() {
-			if instr.is_call() {
-				has_call = true;
-				break;
-			}
-		}
-		if (!has_call) {
-			return transform_loop_block(&riscv_node, mgr, 4);
+		if riscv_node.borrow().instrs.iter().any(|instr| instr.is_call()) {
+			transform_basic_block_by_pipelining(&riscv_node, mgr)
+				.map(|v| vec![v])
+				.map_err(|e| e)
 		} else {
-			match transform_basic_block_by_pipelining(&riscv_node, mgr) {
-				Ok(v) => Ok(vec![v]),
-				Err(e) => Err(e),
-			}
+			transform_loop_block(&riscv_node, mgr, 4)
 		}
 	} else {
-		match transform_basic_block_by_pipelining(&riscv_node, mgr) {
-			Ok(v) => Ok(vec![v]),
-			Err(e) => Err(e),
-		}
+		transform_basic_block_by_pipelining(&riscv_node, mgr)
+			.map(|v| vec![v])
+			.map_err(|e| e)
 	}
 }
 pub fn convert_func(
@@ -171,16 +162,44 @@ fn transform_loop_block(
 		}
 	}
 	// 建立数据依赖图
-	//let mut dag = HashMap::new();
+	let mut dag = HashMap::new();
 	// 先加上非数组的边
 	for (idx, instr) in node.borrow().instrs.iter().enumerate() {
 		let read_tmps = instr.get_riscv_read();
-		for i in read_tmps.iter() {
-			// 找上一次 write 的地方
-			// 先往该基本块,该指令前面的若干指令找write
-			let mut find = false;
-			let mut alpha = 0;
+		for &i in read_tmps.clone().iter() {
+			let mut alpha = -1;
+			for j in (0..idx).rev() {
+				let optime = node.borrow().instrs[j].get_rtn_array()[4];
+				if node.borrow().instrs[j].get_riscv_write().contains(&i) {
+					alpha = j as i32;
+					// 往 dag 里面加边
+					dag
+						.entry((j as i32, i))
+						.and_modify(|e: &mut Vec<(i32, i32)>| e.push((0, optime)))
+						.or_insert(vec![(0, optime)]);
+					break;
+				}
+				if alpha != -1 {
+					// 按照该指令的后一条周期往前遍历
+					for k in idx..node.borrow().instrs.len() {
+						let optime = node.borrow().instrs[k].get_rtn_array()[4];
+						if node.borrow().instrs[k].get_riscv_write().contains(&i) {
+							dag
+								.entry((k as i32, i))
+								.and_modify(|e: &mut Vec<(i32, i32)>| e.push((1, optime)))
+								.or_insert(vec![(1, optime)]);
+							break;
+						}
+					}
+				}
+			}
 		}
+	}
+	// 再加上数组的边,从当前到 DEPENDENCY_EXPLORE_DEPTH
+	// 对于数组中的某个元素，判断它在一个周期内的增量是否是常数
+	//let load_vec=vec![];
+	for i in node.borrow().instrs.iter() {
+		// hunt for array load instruction
 	}
 	Err(utils::SysycError::RiscvGenError(
 		"Loop block not supported".to_string(),
