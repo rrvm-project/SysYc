@@ -143,7 +143,15 @@ pub struct IBinInstr {
 }
 impl RTN for IBinInstr {
 	fn get_rtn_array(&self) -> [i32; 5] {
-		[0, 0, 0, 0, 1]
+		match self.op {
+			IBinInstrOp::LD => [1, 0, 0, 0, 3],
+			IBinInstrOp::LA => [1, 0, 0, 0, 3],
+			IBinInstrOp::Li => [1, 0, 0, 0, 3],
+			IBinInstrOp::LW => [1, 0, 0, 0, 3],
+			IBinInstrOp::LWU => [1, 0, 0, 0, 3],
+			IBinInstrOp::Lui => [1, 0, 0, 0, 3],
+			_ => [1, 0, 0, 0, 1],
+		}
 	}
 }
 #[derive(UseTemp, Clone)]
@@ -208,6 +216,6 @@ pub struct TemporayInstr {
 }
 impl RTN for TemporayInstr {
 	fn get_rtn_array(&self) -> [i32; 5] {
-		[1, 0, 0, 0, 3]
+		return [0, 0, 0, 0, 1];
 	}
 }

@@ -3,7 +3,7 @@ use instruction::{
 	temp::TempManager,
 	RiscvInstrSet,
 };
-use llvm::{ArithOp, LlvmInstr, LlvmInstrVariant};
+use llvm::{LlvmInstr, LlvmInstrVariant};
 
 use utils::errors::Result;
 
