@@ -40,8 +40,9 @@ impl Optimizer1 {
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
-			flag |= FuyukiLocalValueNumber::new().apply(program)?;
-			// flag |= GLobalValueNumber::new().apply(program)?;
+			flag |= PureCheck::new().apply(program)?;
+			// // flag |= FuyukiLocalValueNumber::new().apply(program)?;
+			flag |= GLobalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			if !flag {
 				break;
@@ -69,7 +70,7 @@ impl Optimizer2 {
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= PureCheck::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
-			// flag |= FuyukiLocalValueNumber::new().apply(program)?;
+			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= GLobalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
