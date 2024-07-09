@@ -22,8 +22,9 @@ impl RrvmOptimizer for FoldConstants {
 			let instrs = std::mem::take(&mut block.instrs);
 			let mut sets: HashMap<LlvmTemp, (Value, i32)> = HashMap::new();
 			for instr in instrs.into_iter() {
-				if let LlvmInstrVariant::ArithInstr(v) = instr.get_variant() {
-					match v.op {
+				// if let LlvmInstrVariant::ArithInstr(v) = instr.get_variant() {
+				match instr.get_variant() {
+					LlvmInstrVariant::ArithInstr(v) => match v.op {
 						Add | Sub => match (&v.lhs, &v.rhs) {
 							(Int(x), Int(y)) => {
 								let num = x + y * ((v.op == Add) as i32 * 2 - 1);
@@ -52,9 +53,34 @@ impl RrvmOptimizer for FoldConstants {
 							_ => block.instrs.push(instr),
 						},
 						_ => block.instrs.push(instr),
-					}
-				} else {
-					block.instrs.push(instr);
+					},
+					LlvmInstrVariant::ConvertInstr(v) => match (&v.lhs, v.op) {
+						(Int(t), llvm::ConvertOp::Int2Float) => {
+							let f: f32 = *t as f32;
+							let instr = ArithInstr::new(
+								v.target.clone(),
+								Value::Float(f),
+								Fadd,
+								Value::Float(0f32),
+								F32,
+							);
+							block.instrs.push(instr);
+						}
+						(Float(t), llvm::ConvertOp::Float2Int) => {
+							let i: i32 = *t as i32;
+							let instr = ArithInstr::new(
+								v.target.clone(),
+								Value::Int(i),
+								Add,
+								Value::Int(0),
+								I32,
+							);
+							block.instrs.push(instr);
+						}
+						_ => block.instrs.push(instr),
+					},
+
+					_ => block.instrs.push(instr),
 				}
 			}
 		}

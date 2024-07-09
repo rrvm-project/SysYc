@@ -329,7 +329,6 @@ pub fn solve(
 }
 
 pub fn rewrite_block(block: &LlvmNode, map: &HashMap<LlvmTemp, Value>) {
-	dbg!(&map);
 	let mut new_vec = vec![];
 	for instr in &mut block.borrow_mut().phi_instrs {
 		if instr.replaceable(map) {
