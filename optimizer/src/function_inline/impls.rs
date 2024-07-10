@@ -173,7 +173,6 @@ fn inline(
 		block.borrow_mut().clear();
 	}
 	func.cfg.blocks = blocks;
-	func.cfg.analysis();
 }
 
 fn wrap(block: LlvmBasicBlock) -> (i32, LlvmNode) {
