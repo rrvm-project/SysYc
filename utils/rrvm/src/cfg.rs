@@ -82,12 +82,12 @@ impl LlvmCFG {
 				}
 				let uses = u.borrow().uses.clone();
 				let defs = u.borrow().defs.clone();
-				let mut new_livein: HashSet<_> =
-					new_liveout.difference(&defs).cloned().collect();
-				new_livein.extend(uses);
 				if let Some(phi_live_out) = phi_data.get(&u.borrow().label()).cloned() {
 					new_liveout.extend(phi_live_out)
 				}
+				let mut new_livein: HashSet<_> =
+					new_liveout.difference(&defs).cloned().collect();
+				new_livein.extend(uses);
 				if new_livein != u.borrow().live_in
 					|| new_liveout != u.borrow().live_out
 				{
