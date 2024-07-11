@@ -124,6 +124,27 @@ impl BlockImplyCondition {
 		self.positive.retain(|c| other.positive.contains(c));
 		self.negative.retain(|c| other.negative.contains(c));
 	}
+
+	pub fn substract(&mut self, other: &BlockImplyCondition) {
+		if self.self_contradictory {
+			return;
+		}
+		if other.self_contradictory {
+			return;
+		}
+		self.positive.retain(|c| !other.positive.contains(c));
+		self.negative.retain(|c| !other.negative.contains(c));
+	}
+
+	pub fn extract_necessary<
+		'a,
+		T: IntoIterator<Item = &'a BlockImplyCondition>,
+	>(
+		&mut self,
+		iterator: T,
+	) {
+		self.substract(&general_both_ref(iterator));
+	}
 }
 
 pub fn add_implication(
@@ -173,6 +194,18 @@ pub fn general_both<T: IntoIterator<Item = BlockImplyCondition>>(
 		BlockImplyCondition::contradiction(),
 		|mut c, new| {
 			c.both(&new);
+			c
+		},
+	)
+}
+
+pub fn general_both_ref<'a, T: IntoIterator<Item = &'a BlockImplyCondition>>(
+	iterator: T,
+) -> BlockImplyCondition {
+	iterator.into_iter().fold(
+		BlockImplyCondition::contradiction(),
+		|mut c, new| {
+			c.both(new);
 			c
 		},
 	)

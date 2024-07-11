@@ -1,13 +1,18 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::RangeAnalysis;
+use super::{
+	constrain::Constrain, constrain_graph::ConstrainGraph, RangeAnalysis,
+};
 use crate::{
-	range_analysis::block_imply::{
-		add_implication, flip_lnot, general_both, BlockImplyCondition,
+	range_analysis::{
+		addictive_synonym::LlvmTempAddictiveSynonym,
+		block_imply::{
+			add_implication, flip_lnot, general_both, BlockImplyCondition,
+		},
 	},
 	RrvmOptimizer,
 };
-use llvm::{LlvmInstrTrait, LlvmTemp};
+use llvm::{CompOp, LlvmInstrTrait, LlvmTemp, Value};
 use rrvm::program::{LlvmFunc, LlvmProgram};
 use utils::{errors::Result, from_label};
 
@@ -179,18 +184,19 @@ fn process_function(func: &mut LlvmFunc) {
 			}));
 
 			if old_size < new_cond.size() {
-				if let Some(successor) = id_to_block.get(&current).map(|block| {
-					block
-						.borrow()
-						.succ
-						.iter()
-						.map(|block| block.borrow().id)
-						.collect::<Vec<i32>>()
-				}) {
-					for item in successor {
-						block_implies_workset.push_back(item)
-					}
-				}
+				id_to_block
+					.get(&current)
+					.map(|block| {
+						block
+							.borrow()
+							.succ
+							.iter()
+							.map(|block| block.borrow().id)
+							.collect::<Vec<i32>>()
+					})
+					.map(|successor| {
+						successor.into_iter().map(|i| block_implies_workset.push_back(i))
+					});
 			}
 
 			block_implies.insert(current, new_cond);
@@ -235,10 +241,109 @@ fn process_function(func: &mut LlvmFunc) {
 		flip_lnot(cond, &lnot_pos_rev, &lnot_pos, &lnot_neg);
 	}
 
+	let mut block_implies_necessary = HashMap::new();
+
+	for block in func.cfg.blocks.iter() {
+		let block = block.borrow();
+		let mut imply_necessary = block_implies[&block.id].clone();
+		imply_necessary.extract_necessary(
+			block
+				.get_prev_iter()
+				.flat_map(|item| block_implies.get(&item.borrow().id).into_iter()),
+		);
+		block_implies_necessary.insert(block.id, imply_necessary);
+	}
 	// dbg!(&block_implies);
-	// dbg!(&lnot_pos, &lnot_neg, &lnot_pos_rev);
-	// dbg!(&land);
-	// dbg!(&lor);
+	// dbg!(&block_implies_necessary);
+	build_constrains(func, block_implies_necessary, block_implies, comparisons)
+}
+
+pub fn build_constrains(
+	func: &mut LlvmFunc,
+	block_implies_necessary: HashMap<i32, BlockImplyCondition>,
+	block_implies: HashMap<i32, BlockImplyCondition>,
+	comparisons: HashMap<LlvmTemp, (Value, Value, CompOp, i32)>,
+) {
+	let mut addicitive_synonym = LlvmTempAddictiveSynonym::new();
+
+	for block in func.cfg.blocks.iter() {
+		for instr in &block.borrow().instrs {
+			if let llvm::LlvmInstrVariant::ArithInstr(instr) = instr.get_variant() {
+				match instr.op {
+					llvm::ArithOp::Add => match (&instr.lhs, &instr.rhs) {
+						(Value::Int(i), Value::Temp(t)) => {
+							addicitive_synonym.insert(t, &instr.target, Value::Int(*i))
+						}
+						(Value::Temp(t), Value::Int(i)) => {
+							addicitive_synonym.insert(t, &instr.target, Value::Int(*i))
+						}
+						(Value::Float(f), Value::Temp(t)) => {
+							addicitive_synonym.insert(t, &instr.target, Value::Float(*f))
+						}
+						(Value::Temp(t), Value::Float(f)) => {
+							addicitive_synonym.insert(t, &instr.target, Value::Float(*f))
+						}
+						_ => {}
+					},
+					llvm::ArithOp::Sub => match (&instr.lhs, &instr.rhs) {
+						(Value::Temp(t), Value::Int(i)) => {
+							addicitive_synonym.insert(t, &instr.target, Value::Int(-*i))
+						}
+						(Value::Temp(t), Value::Float(f)) => {
+							addicitive_synonym.insert(t, &instr.target, Value::Float(-*f))
+						}
+						_ => {}
+					},
+					// llvm::ArithOp::Fadd => todo!(), // support float?
+					// llvm::ArithOp::Fsub => todo!(),
+					_ => {}
+				}
+			}
+		}
+	}
+
+	// dbg!(&addicitive_synonym);
+
+	let mut graph = ConstrainGraph::new();
+
+	for block in func.cfg.blocks.iter() {
+		let block = block.borrow();
+		for tmp in block.live_in.iter() {
+			let constrain = Constrain::build(
+				tmp,
+				&block_implies_necessary[&block.id],
+				&block_implies[&block.id],
+				&comparisons,
+				&addicitive_synonym,
+			);
+			graph.handle_live_in(
+				block.get_prev_iter().map(|b| b.borrow().id),
+				tmp.clone(),
+				constrain,
+				block.id,
+			);
+		}
+	}
+
+	for block in func.cfg.blocks.iter() {
+		for phi in &block.borrow().phi_instrs {
+			graph.handle_phi_instr(phi, block.borrow().id);
+		}
+
+		for instr in &block.borrow().instrs {
+			match instr.get_variant() {
+				llvm::LlvmInstrVariant::ArithInstr(arith) => {
+					graph.handle_arith_instr(arith, block.borrow().id)
+				}
+				llvm::LlvmInstrVariant::ConvertInstr(convert) => {
+					graph.handle_convert_instr(convert, block.borrow().id)
+				}
+				_ => {}
+			}
+		}
+	}
+
+	dbg!(&graph);
 }
 
 impl RrvmOptimizer for RangeAnalysis {

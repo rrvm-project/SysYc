@@ -5,7 +5,6 @@ use std::{
 	rc::Rc,
 };
 
-use crate::range::Range;
 use instruction::riscv::RiscvInstr;
 use llvm::{
 	JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp, PhiInstr, RetInstr, Value,
@@ -89,6 +88,9 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 	}
 	pub fn get_succ(&self) -> Node<T, U> {
 		self.succ.first().unwrap().clone()
+	}
+	pub fn get_prev_iter(&self) -> std::slice::Iter<Node<T, U>> {
+		self.prev.iter()
 	}
 	pub fn no_phi(&self) -> bool {
 		self.phi_instrs.is_empty()

@@ -5,7 +5,6 @@ pub mod func;
 pub mod impls;
 pub mod prelude;
 pub mod program;
-pub mod range;
 
 use basicblock::Node;
 use cfg::CFG;
