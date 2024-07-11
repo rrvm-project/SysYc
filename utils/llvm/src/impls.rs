@@ -2,10 +2,7 @@
 
 use std::fmt::Display;
 
-use utils::{
-	constants::VEC_EXTERN, iter::all_equal, purity::ExternalResource, Label,
-	UseTemp,
-};
+use utils::{Label, UseTemp};
 
 use std::collections::HashMap;
 
@@ -92,14 +89,6 @@ impl LlvmInstrTrait for ArithInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::ArithInstr(self)
 	}
-	fn type_valid(&self) -> bool {
-		all_equal(&[
-			&self.var_type,
-			&self.op.oprand_type(),
-			&self.lhs.get_type(),
-			&self.rhs.get_type(),
-		])
-	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.lhs, map);
 		map_llvm_temp(&mut self.rhs, map);
@@ -181,14 +170,6 @@ impl LlvmInstrTrait for CompInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::CompInstr(self)
 	}
-	fn type_valid(&self) -> bool {
-		all_equal(&[
-			&self.var_type,
-			&self.op.oprand_type(),
-			&self.lhs.get_type(),
-			&self.rhs.get_type(),
-		])
-	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.lhs, map);
 		map_llvm_temp(&mut self.rhs, map);
@@ -225,15 +206,13 @@ impl ConvertInstr {
 		target: LlvmTemp,
 		lhs: impl Into<Value>,
 		op: ConvertOp,
-		from_type: VarType,
-		to_type: VarType,
+		var_type: VarType,
 	) -> LlvmInstr {
 		Box::new(Self {
 			target,
 			lhs: lhs.into(),
 			op,
-			from_type,
-			to_type,
+			var_type,
 		})
 	}
 }
@@ -241,8 +220,8 @@ impl Display for ConvertInstr {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(
 			f,
-			"  {} = {} {} {} to {}",
-			self.target, self.op, self.from_type, self.lhs, self.to_type
+			"  {} {} = {} {}",
+			self.target, self.var_type, self.op, self.lhs
 		)
 	}
 }
@@ -259,14 +238,6 @@ impl UseTemp<LlvmTemp> for ConvertInstr {
 impl LlvmInstrTrait for ConvertInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::ConvertInstr(self)
-	}
-	fn type_valid(&self) -> bool {
-		all_equal(&[
-			&self.from_type,
-			&self.op.type_from(),
-			&self.lhs.get_type(),
-			&self.to_type,
-		])
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.lhs, map);
@@ -348,9 +319,6 @@ impl LlvmInstrTrait for JumpCondInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::JumpCondInstr(self)
 	}
-	fn type_valid(&self) -> bool {
-		all_equal(&[&self.cond.get_type(), &self.var_type, &VarType::I32])
-	}
 	fn new_jump(&self) -> Option<JumpInstr> {
 		if self.cond.always_true() {
 			return Some(JumpInstr {
@@ -423,12 +391,6 @@ impl UseTemp<LlvmTemp> for PhiInstr {
 impl LlvmInstrTrait for PhiInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::PhiInstr(self)
-	}
-	fn type_valid(&self) -> bool {
-		let mut v: Vec<_> = self.source.iter().map(|(v, _)| v.get_type()).collect();
-		v.push(self.var_type);
-		v.push(self.target.var_type);
-		all_equal(&v)
 	}
 	fn is_phi(&self) -> bool {
 		true
@@ -543,9 +505,6 @@ impl LlvmInstrTrait for AllocInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::AllocInstr(self)
 	}
-	fn type_valid(&self) -> bool {
-		self.length.get_type() == VarType::I32
-	}
 	fn get_alloc(&self) -> Option<(LlvmTemp, Value)> {
 		Some((self.target.clone(), self.length.clone()))
 	}
@@ -589,14 +548,8 @@ impl UseTemp<LlvmTemp> for StoreInstr {
 }
 
 impl LlvmInstrTrait for StoreInstr {
-	fn external_resorce(&self) -> Option<ExternalResource> {
-		Some(ExternalResource::Memory)
-	}
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::StoreInstr(self)
-	}
-	fn type_valid(&self) -> bool {
-		type_match_ptr(self.value.get_type(), self.addr.get_type())
 	}
 	fn has_sideeffect(&self) -> bool {
 		true
@@ -643,14 +596,8 @@ impl UseTemp<LlvmTemp> for LoadInstr {
 }
 
 impl LlvmInstrTrait for LoadInstr {
-	fn external_resorce(&self) -> Option<ExternalResource> {
-		Some(ExternalResource::Memory)
-	}
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::LoadInstr(self)
-	}
-	fn type_valid(&self) -> bool {
-		type_match_ptr(self.var_type, self.addr.get_type())
 	}
 	fn is_load(&self) -> bool {
 		self.addr.unwrap_temp().map_or(true, |v| !v.is_global)
@@ -702,11 +649,6 @@ impl LlvmInstrTrait for GEPInstr {
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::GEPInstr(self)
 	}
-	fn type_valid(&self) -> bool {
-		is_ptr(self.addr.get_type())
-			&& self.offset.get_type() == VarType::I32
-			&& type_match_ptr(self.var_type, self.addr.get_type())
-	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.addr, map);
 		map_llvm_temp(&mut self.offset, map);
@@ -754,13 +696,6 @@ impl UseTemp<LlvmTemp> for CallInstr {
 }
 
 impl LlvmInstrTrait for CallInstr {
-	fn external_resorce(&self) -> Option<ExternalResource> {
-		if VEC_EXTERN.contains(&self.func.name.as_str()) {
-			Some(ExternalResource::CallExtern)
-		} else {
-			Some(ExternalResource::Call(self.func.name.clone()))
-		}
-	}
 	fn get_variant(&self) -> LlvmInstrVariant {
 		LlvmInstrVariant::CallInstr(self)
 	}

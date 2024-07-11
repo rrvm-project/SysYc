@@ -2,12 +2,10 @@ use crate::{useless_phis::RemoveUselessPhis, *};
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
-use fuyuki_vn::{FuyukiLocalValueNumber, GLobalValueNumber};
+use global_value_numbering::GlobalValueNumbering;
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
-
-use self::pure_check::PureCheck;
 
 impl Optimizer0 {
 	pub fn new() -> Self {
@@ -39,9 +37,6 @@ impl Optimizer1 {
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
-			flag |= PureCheck::new().apply(program)?;
-			// // flag |= FuyukiLocalValueNumber::new().apply(program)?;
-			flag |= GLobalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			if !flag {
 				break;
@@ -57,20 +52,13 @@ impl Optimizer2 {
 		Self::default()
 	}
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
-		// 需在表达式重排前进行，否则，运算指令分布在不同的基本块中， LER做不了任何事情
-		RemoveDeadCode::new().apply(program)?;
-		RemoveUselessCode::new().apply(program)?;
-		RemoveUnreachCode::new().apply(program)?;
-		RemoveUselessCode::new().apply(program)?;
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
-			flag |= PureCheck::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
-			flag |= FuyukiLocalValueNumber::new().apply(program)?;
-			flag |= GLobalValueNumber::new().apply(program)?;
+			flag |= GlobalValueNumbering::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
 			flag |= SolveTailRecursion::new().apply(program)?;

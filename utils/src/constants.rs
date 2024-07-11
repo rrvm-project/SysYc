@@ -1,5 +1,6 @@
 pub const MAX_INLINE_LENGTH: usize = 4096;
 pub const INLINE_PARAMS_THRESHOLD: usize = 50;
+pub const GVN_EVAL_NUMBER: usize = 50;
 
 pub static VEC_EXTERN: [&str; 17] = [
 	"getint",

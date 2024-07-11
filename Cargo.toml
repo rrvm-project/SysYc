@@ -22,7 +22,6 @@ members = [
   "frontend/value",
   "frontend/parser",
   "optimizer",
-  "simulator",
   "backend/transform",
   "backend/register",
   "backend/emission",
@@ -48,13 +47,10 @@ register = { path = "backend/register" }
 emission = { path = "backend/emission" }
 backend_optimizer = { path = "backend/optimizer" }
 
-simulator = { path = "simulator" }
-
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"
 
 [features]
-simu = []
 debug = []
 default = ["debug"]
 
