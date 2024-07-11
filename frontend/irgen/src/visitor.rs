@@ -75,7 +75,6 @@ impl Visitor for IRGenerator {
 			name: node.ident.clone(),
 			ret_type: var_type,
 			params,
-			external_resorce: HashSet::new(),
 		});
 		let _ = self.symbol_table.drop();
 		Ok(())

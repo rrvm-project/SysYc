@@ -44,13 +44,10 @@ pub enum HashableValue {
 	Temp(LlvmTemp),
 }
 
-pub trait LlvmOp: Display {
-	fn oprand_type(&self) -> VarType;
-}
-
 #[derive(Fuyuki, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ArithOp {
 	Add,
+	AddD,
 	Sub,
 	Div,
 	Mul,
@@ -65,7 +62,6 @@ pub enum ArithOp {
 	And,
 	Or,
 	Xor,
-	AddD,
 }
 
 #[derive(Fuyuki, Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -136,7 +132,7 @@ pub enum CompKind {
 	Fcmp,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub enum ConvertOp {
 	Int2Float,
 	Float2Int,
@@ -218,57 +214,6 @@ impl Display for Value {
 			Self::Int(v) => write!(f, "{}", v),
 			Self::Float(v) => write!(f, "{}", v),
 			Self::Temp(v) => write!(f, "{}", v),
-		}
-	}
-}
-
-impl LlvmOp for ArithOp {
-	fn oprand_type(&self) -> VarType {
-		match self {
-			Self::Add => VarType::I32,
-			Self::Sub => VarType::I32,
-			Self::Div => VarType::I32,
-			Self::Mul => VarType::I32,
-			Self::Rem => VarType::I32,
-			Self::Fadd => VarType::F32,
-			Self::Fsub => VarType::F32,
-			Self::Fdiv => VarType::F32,
-			Self::Fmul => VarType::F32,
-			Self::Shl => VarType::I32,
-			Self::Lshr => VarType::I32,
-			Self::Ashr => VarType::I32,
-			Self::And => VarType::I32,
-			Self::Or => VarType::I32,
-			Self::Xor => VarType::I32,
-			_ => unreachable!(),
-		}
-	}
-}
-
-impl LlvmOp for CompOp {
-	fn oprand_type(&self) -> VarType {
-		match self {
-			Self::EQ => VarType::I32,
-			Self::NE => VarType::I32,
-			Self::SGT => VarType::I32,
-			Self::SGE => VarType::I32,
-			Self::SLT => VarType::I32,
-			Self::SLE => VarType::I32,
-			Self::OEQ => VarType::F32,
-			Self::ONE => VarType::F32,
-			Self::OGT => VarType::F32,
-			Self::OGE => VarType::F32,
-			Self::OLT => VarType::F32,
-			Self::OLE => VarType::F32,
-		}
-	}
-}
-
-impl LlvmOp for CompKind {
-	fn oprand_type(&self) -> VarType {
-		match self {
-			Self::Icmp => VarType::I32,
-			Self::Fcmp => VarType::F32,
 		}
 	}
 }

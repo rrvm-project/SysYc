@@ -133,7 +133,6 @@ impl OSR {
 					new_tmp1.clone(),
 					lhs,
 					ConvertOp::Int2Float,
-					VarType::I32,
 					VarType::F32,
 				));
 				let new_tmp2 = self.new_temp(VarType::F32, mgr);
@@ -152,7 +151,6 @@ impl OSR {
 					new_tmp1.clone(),
 					rhs,
 					ConvertOp::Int2Float,
-					VarType::I32,
 					VarType::F32,
 				));
 				let new_tmp2 = self.new_temp(VarType::F32, mgr);
