@@ -51,9 +51,9 @@ impl IRGenerator {
 		if target == value.get_type() {
 			return value;
 		}
-		let (from_type, to_type, op) = match target {
-			I32 => (F32, I32, Float2Int),
-			F32 => (I32, F32, Int2Float),
+		let (to_type, op) = match target {
+			I32 => (I32, Float2Int),
+			F32 => (F32, Int2Float),
 			_ => unreachable!(),
 		};
 		match (target, &value) {
@@ -64,9 +64,8 @@ impl IRGenerator {
 				let instr = Box::new(ConvertInstr {
 					op,
 					target: target.clone(),
-					from_type,
 					lhs: temp.clone().into(),
-					to_type,
+					var_type: to_type,
 				});
 				cfg.get_exit().borrow_mut().push(instr);
 				target.into()

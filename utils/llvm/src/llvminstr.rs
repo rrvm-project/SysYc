@@ -1,4 +1,4 @@
-use utils::{purity::ExternalResource, InstrTrait, Label, UseTemp};
+use utils::{InstrTrait, Label, UseTemp};
 
 use crate::{llvmop::*, LlvmInstrVariant, LlvmTemp, VarType};
 use std::{collections::HashMap, fmt::Display};
@@ -25,9 +25,6 @@ impl Clone for LlvmInstr {
 }
 
 pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
-	fn type_valid(&self) -> bool {
-		true
-	}
 	fn is_phi(&self) -> bool {
 		false
 	}
@@ -52,10 +49,6 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	}
 	fn has_sideeffect(&self) -> bool {
 		false
-	}
-	// needs external
-	fn external_resorce(&self) -> Option<ExternalResource> {
-		None
 	}
 	fn is_ret(&self) -> bool {
 		false
@@ -129,11 +122,10 @@ pub struct CompInstr {
 
 #[derive(Clone)]
 pub struct ConvertInstr {
+	pub var_type: VarType,
 	pub target: LlvmTemp,
 	pub op: ConvertOp,
-	pub from_type: VarType,
 	pub lhs: Value,
-	pub to_type: VarType,
 }
 
 #[derive(Clone)]

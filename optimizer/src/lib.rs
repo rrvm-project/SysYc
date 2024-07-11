@@ -1,9 +1,9 @@
 mod dead_code;
 mod fold_constants;
 mod function_inline;
-mod fuyuki_vn;
+mod global_value_numbering;
 pub mod impls;
-mod pure_check;
+mod partial_edundancy_elimination;
 mod strength_reduce;
 mod tail_recursion;
 mod unreachable;

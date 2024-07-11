@@ -4,7 +4,7 @@ use llvm::{
 	ArithInstr, ArithOp, ConvertInstr, HashableValue, LlvmInstrTrait, LlvmTemp,
 	LlvmTempManager, Value, VarType,
 };
-use rrvm::{dominator::naive::compute_dominator, LlvmCFG};
+use rrvm::{dominator::DomTree, LlvmCFG};
 use utils::UseTemp;
 
 use super::OSR;
@@ -33,16 +33,7 @@ impl OSR {
 			}
 		}
 
-		let mut dominates = HashMap::new();
-		let mut dominates_directly = HashMap::new();
-		let mut dominator = HashMap::new();
-		compute_dominator(
-			cfg,
-			false,
-			&mut dominates,
-			&mut dominates_directly,
-			&mut dominator,
-		);
+		let dom_tree = DomTree::new(cfg, false);
 
 		Self {
 			dfsnum,
@@ -54,7 +45,7 @@ impl OSR {
 			temp_to_instr,
 			new_instr: HashMap::new(),
 			flag: false,
-			dominates,
+			dominates: dom_tree.dominates,
 			params,
 			lstf_map: HashMap::new(),
 			do_not_replace: HashSet::new(),
@@ -540,9 +531,8 @@ impl OSR {
 				let new_convert_instr = ConvertInstr {
 					target: convert_result.clone(),
 					op: llvm::ConvertOp::Int2Float,
-					from_type: VarType::I32,
 					lhs: operand1,
-					to_type: VarType::F32,
+					var_type: VarType::F32,
 				};
 
 				let new_instr = ArithInstr {
@@ -579,9 +569,8 @@ impl OSR {
 				let new_convert_instr = ConvertInstr {
 					target: convert_result.clone(),
 					op: llvm::ConvertOp::Int2Float,
-					from_type: VarType::I32,
+					var_type: VarType::F32,
 					lhs: operand2,
-					to_type: VarType::F32,
 				};
 
 				let new_instr = ArithInstr {

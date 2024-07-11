@@ -22,8 +22,4 @@ pub struct Args {
 
 	#[arg(value_parser)]
 	pub input: Option<String>,
-
-	#[cfg(feature = "simu")]
-	#[arg(value_parser)]
-	pub simu_input: Option<String>,
 }
