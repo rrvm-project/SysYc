@@ -125,7 +125,7 @@ pub fn work(
 			mapper.insert(temp, info.num2value(number, oprand.get_type()).unwrap());
 		}
 	};
-	// eprintln!("{}", instr);
+
 	let (value, number) = match instr.get_variant() {
 		ArithInstr(instr) => {
 			let lhs = info.get_number(&instr.lhs);
@@ -243,9 +243,7 @@ pub fn work(
 			(None, Number::new(rng))
 		}
 	};
-	// eprintln!("{}", instr);
 	instr.map_temp(&mapper);
-	// eprintln!("-> {:?}", value);
 	match instr.get_write() {
 		Some(target) => {
 			info.set_number(target.clone(), number.clone());
