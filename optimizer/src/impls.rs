@@ -35,7 +35,6 @@ impl Optimizer1 {
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
 		loop {
 			let mut flag = false;
-			// eprintln!("{}", program);
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
@@ -55,17 +54,11 @@ impl Optimizer2 {
 		Self::default()
 	}
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
-		// 需在表达式重排前进行，否则，运算指令分布在不同的基本块中， LER做不了任何事情
-		RemoveDeadCode::new().apply(program)?;
-		RemoveUselessCode::new().apply(program)?;
-		// GlobalValueNumbering::new().apply(program)?;
-		RemoveUnreachCode::new().apply(program)?;
-		RemoveUselessCode::new().apply(program)?;
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
+			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= GlobalValueNumbering::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
@@ -81,8 +74,8 @@ impl Optimizer2 {
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
+			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= GlobalValueNumbering::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;

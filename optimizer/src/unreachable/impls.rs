@@ -31,6 +31,9 @@ impl RrvmOptimizer for RemoveUnreachCode {
 					false
 				}
 			});
+			for block in cfg.blocks.iter() {
+				block.borrow_mut().prev.retain(|v| visited.contains(&v.borrow().id));
+			}
 			last || size != cfg.blocks.len()
 		}))
 	}
