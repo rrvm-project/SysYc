@@ -115,10 +115,11 @@ impl LlvmTempAddictiveSynonym {
 					None
 				}
 			}
-			_ => unreachable!(
-				"incorrect type in look_up_offset(): {:?}, {:?}",
-				src.var_type, dst.var_type
-			),
+			// _ => unreachable!(
+			// 	"incorrect type in look_up_offset(): {:?}, {:?}",
+			// 	src.var_type, dst.var_type
+			// ),
+			_ => None
 		}
 	}
 }

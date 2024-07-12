@@ -8,6 +8,7 @@ use std::{collections::HashMap, fmt::Debug, vec};
 use super::{
 	constrain::Constrain,
 	range::{Range, RangeItem},
+	tarjan::Graph,
 };
 
 #[derive(Debug, Clone)]
@@ -35,6 +36,19 @@ pub struct Node {
 	pub range: Option<Range>,
 }
 
+impl Graph<'_> for ConstrainGraph {
+	fn next(&'_ self, u: usize) -> Box<dyn Iterator<Item = usize> + '_> {
+		Box::new(
+			self
+				.get_node_ref(u)
+				.next()
+				.into_iter()
+				.cloned()
+				.chain(self.get_node_ref(u).future().into_iter().cloned()),
+		)
+	}
+}
+
 impl Node {
 	pub fn get_id(&self) -> usize {
 		self.id
@@ -45,6 +59,14 @@ impl Node {
 			NodeInner::Constraint(c) => Some(c),
 			_ => None,
 		}
+	}
+
+	pub fn next(&self) -> &Vec<usize> {
+		&self.next
+	}
+
+	pub fn future(&self) -> &Vec<usize> {
+		&self.future
 	}
 
 	#[allow(dead_code)]
@@ -62,6 +84,10 @@ impl ConstrainGraph {
 			nodes: vec![],
 			tmp_to_nodes: HashMap::new(),
 		}
+	}
+
+	pub fn len(&self) -> usize {
+		self.nodes.len()
 	}
 
 	fn insert_node(&mut self, inner: NodeInner) -> &mut Node {

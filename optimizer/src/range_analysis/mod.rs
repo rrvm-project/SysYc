@@ -4,4 +4,5 @@ mod constrain;
 mod constrain_graph;
 pub mod impls;
 mod range;
+mod tarjan;
 pub struct RangeAnalysis {}

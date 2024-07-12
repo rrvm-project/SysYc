@@ -9,6 +9,7 @@ use crate::{
 		block_imply::{
 			add_implication, flip_lnot, general_both, BlockImplyCondition,
 		},
+		tarjan::Tarjan,
 	},
 	RrvmOptimizer,
 };
@@ -69,10 +70,30 @@ fn solve_phi_comp_reliance(
 	// dbg!(&input);
 }
 
-#[allow(clippy::type_complexity)]
-fn process_function(func: &mut LlvmFunc) {
+fn process_function(func: &mut LlvmFunc) -> bool {
 	func.cfg.analysis();
 
+	let (block_implies_necessary, block_implies, comparisons) =
+		extract_constrain(func);
+	let (sccs, graph) = build_constrains_graph(
+		func,
+		block_implies_necessary,
+		block_implies,
+		comparisons,
+	);
+	let graph = solve(sccs, graph);
+
+	action(func, graph)
+}
+
+#[allow(clippy::type_complexity)]
+fn extract_constrain(
+	func: &mut LlvmFunc,
+) -> (
+	HashMap<i32, BlockImplyCondition>,
+	HashMap<i32, BlockImplyCondition>,
+	HashMap<LlvmTemp, (Value, Value, CompOp, i32)>,
+) {
 	let mut comparisons = HashMap::new();
 
 	let mut lnot_n = 0;
@@ -253,17 +274,16 @@ fn process_function(func: &mut LlvmFunc) {
 		);
 		block_implies_necessary.insert(block.id, imply_necessary);
 	}
-	// dbg!(&block_implies);
-	// dbg!(&block_implies_necessary);
-	build_constrains(func, block_implies_necessary, block_implies, comparisons)
+
+	(block_implies_necessary, block_implies, comparisons)
 }
 
-pub fn build_constrains(
+pub fn build_constrains_graph(
 	func: &mut LlvmFunc,
 	block_implies_necessary: HashMap<i32, BlockImplyCondition>,
 	block_implies: HashMap<i32, BlockImplyCondition>,
 	comparisons: HashMap<LlvmTemp, (Value, Value, CompOp, i32)>,
-) {
+) -> (Vec<Vec<usize>>, ConstrainGraph) {
 	let mut addicitive_synonym = LlvmTempAddictiveSynonym::new();
 
 	for block in func.cfg.blocks.iter() {
@@ -343,7 +363,18 @@ pub fn build_constrains(
 		}
 	}
 
-	dbg!(&graph);
+	(Tarjan::new(graph.len()).work(&graph), graph)
+}
+
+pub fn solve(
+	sccs: Vec<Vec<usize>>,
+	mut graph: ConstrainGraph,
+) -> ConstrainGraph {
+	graph
+}
+
+pub fn action(func: &mut LlvmFunc, graph: ConstrainGraph) -> bool {
+	false
 }
 
 impl RrvmOptimizer for RangeAnalysis {
@@ -352,7 +383,8 @@ impl RrvmOptimizer for RangeAnalysis {
 	}
 
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
-		program.funcs.iter_mut().for_each(process_function);
-		Ok(false)
+		Ok(
+			program.funcs.iter_mut().fold(false, |acc, x| acc || process_function(x)),
+		)
 	}
 }
