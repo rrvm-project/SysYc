@@ -32,7 +32,6 @@ impl Optimizer1 {
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
 		loop {
 			let mut flag = false;
-			// eprintln!("{}", program);
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
@@ -55,8 +54,8 @@ impl Optimizer2 {
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
+			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= GlobalValueNumbering::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;

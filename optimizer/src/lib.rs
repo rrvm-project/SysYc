@@ -3,7 +3,6 @@ mod fold_constants;
 mod function_inline;
 mod global_value_numbering;
 pub mod impls;
-mod partial_edundancy_elimination;
 mod strength_reduce;
 mod tail_recursion;
 mod unreachable;
