@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{
+	collections::{btree_set::Union, HashMap},
+	fmt::Display,
+	ops::{Add, Sub},
+};
 use sysyc_derive::UseTemp;
 use utils::{mapper::LabelMapper, InstrTrait, Label, UseTemp, RTN};
 
@@ -26,7 +30,83 @@ impl Clone for RiscvInstr {
 		self.clone_box()
 	}
 }
-
+#[derive(Clone)]
+pub enum IncrementType {
+	Int(i32),
+	LongLong(i64),
+	None,
+}
+impl Add for IncrementType {
+	type Output = Self;
+	fn add(self, other: Self) -> Self {
+		match (self, other) {
+			(IncrementType::Int(a), IncrementType::Int(b)) => {
+				IncrementType::Int(a + b)
+			}
+			(IncrementType::LongLong(a), IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(a + b)
+			}
+			(IncrementType::Int(a), IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(a as i64 + b)
+			}
+			(IncrementType::LongLong(a), IncrementType::Int(b)) => {
+				IncrementType::LongLong(a + b as i64)
+			}
+			(IncrementType::Int(a), IncrementType::None) => IncrementType::Int(a),
+			(IncrementType::LongLong(a), IncrementType::None) => {
+				IncrementType::LongLong(a)
+			}
+			(IncrementType::None, IncrementType::Int(b)) => IncrementType::Int(b),
+			(IncrementType::None, IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(b)
+			}
+			(IncrementType::None, IncrementType::None) => IncrementType::None,
+		}
+	}
+}
+impl Sub for IncrementType {
+	type Output = Self;
+	fn sub(self, other: Self) -> Self {
+		match (self, other) {
+			(IncrementType::Int(a), IncrementType::Int(b)) => {
+				IncrementType::Int(a - b)
+			}
+			(IncrementType::LongLong(a), IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(a - b)
+			}
+			(IncrementType::Int(a), IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(a as i64 - b)
+			}
+			(IncrementType::LongLong(a), IncrementType::Int(b)) => {
+				IncrementType::LongLong(a - b as i64)
+			}
+			(IncrementType::Int(a), IncrementType::None) => IncrementType::Int(a),
+			(IncrementType::LongLong(a), IncrementType::None) => {
+				IncrementType::LongLong(a)
+			}
+			(IncrementType::None, IncrementType::Int(b)) => IncrementType::Int(-b),
+			(IncrementType::None, IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(-b)
+			}
+			(IncrementType::None, IncrementType::None) => IncrementType::None,
+		}
+	}
+}
+impl PartialEq for IncrementType {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(IncrementType::Int(a), IncrementType::Int(b)) => *a == *b,
+			(IncrementType::LongLong(a), IncrementType::LongLong(b)) => *a == *b,
+			(IncrementType::Int(a), IncrementType::LongLong(b)) => *a as i64 == *b,
+			(IncrementType::LongLong(a), IncrementType::Int(b)) => *a == *b as i64,
+			(IncrementType::Int(a), IncrementType::None) => *a == 0,
+			(IncrementType::LongLong(a), IncrementType::None) => *a == 0,
+			(IncrementType::None, IncrementType::Int(b)) => *b == 0,
+			(IncrementType::None, IncrementType::LongLong(b)) => *b == 0,
+			(IncrementType::None, IncrementType::None) => true,
+		}
+	}
+}
 pub trait RiscvInstrTrait:
 	Display + UseTemp<Temp> + CloneRiscvInstr + RTN
 {
@@ -59,6 +139,9 @@ pub trait RiscvInstrTrait:
 	fn get_write_label(&self) -> Option<Label> {
 		None
 	}
+	fn get_imm(&self) -> Option<RiscvImm> {
+		None
+	}
 	fn is_move(&self) -> bool {
 		false
 	}
@@ -67,6 +150,12 @@ pub trait RiscvInstrTrait:
 	}
 	fn is_call(&self) -> bool {
 		false
+	}
+	fn is_load(&self) -> Option<bool> {
+		None
+	}
+	fn is_store(&self) -> Option<bool> {
+		None
 	}
 	fn map_label(&mut self, _map: &mut LabelMapper) {}
 	fn useless(&self) -> bool {
@@ -77,6 +166,9 @@ pub trait RiscvInstrTrait:
 	}
 	fn get_temp_type(&self) -> llvm::VarType {
 		unreachable!()
+	}
+	fn get_increment(&self) -> IncrementType {
+		IncrementType::None
 	}
 }
 

@@ -111,6 +111,16 @@ impl RiscvInstrTrait for ITriInstr {
 			_ => false,
 		}
 	}
+	fn get_increment(&self) -> IncrementType {
+		match self.op {
+			Addi | Addiw => match self.rs2 {
+				RiscvImm::Int(v) => IncrementType::Int(v),
+				RiscvImm::LongLong(v) => IncrementType::LongLong(v),
+				_ => IncrementType::None,
+			},
+			_ => IncrementType::None,
+		}
+	}
 }
 
 impl ITriInstr {
@@ -176,6 +186,21 @@ impl RiscvInstrTrait for IBinInstr {
 	fn map_label(&mut self, map: &mut LabelMapper) {
 		if self.op != LA {
 			map_imm_label(&mut self.rs1, map);
+		}
+	}
+	fn get_imm(&self) -> Option<RiscvImm> {
+		Some(self.rs1.clone())
+	}
+	fn is_load(&self) -> Option<bool> {
+		match self.op {
+			Li | Lui | LD | LW | LWU | LA => Some(true),
+			SB | SH | SW | SD => Some(false),
+		}
+	}
+	fn is_store(&self) -> Option<bool> {
+		match self.op {
+			Li | Lui | LD | LW | LWU | LA => Some(false),
+			SB | SH | SW | SD => Some(true),
 		}
 	}
 }
