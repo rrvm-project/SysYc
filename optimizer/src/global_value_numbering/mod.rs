@@ -1,6 +1,5 @@
 pub mod impls;
-mod number;
-mod utls;
+mod utils;
 
 #[allow(unused)]
 pub struct GlobalValueNumbering {}

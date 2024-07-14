@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::RrvmOptimizer;
+use crate::{metadata::MetaData, RrvmOptimizer};
 
 use llvm::{JumpInstr, LlvmInstrVariant::*, PhiInstr, *};
 use rrvm::{
@@ -20,7 +20,11 @@ impl RrvmOptimizer for InlineFunction {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(
+		self,
+		program: &mut LlvmProgram,
+		_metadata: &mut MetaData,
+	) -> Result<bool> {
 		let func_list = get_func_list(program);
 		if func_list.is_empty() {
 			return Ok(false);

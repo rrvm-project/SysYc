@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::SolveTailRecursion;
-use crate::RrvmOptimizer;
+use crate::{metadata::MetaData, RrvmOptimizer};
 use llvm::{
 	JumpInstr, LlvmInstrVariant, LlvmTempManager, PhiInstr, Value, VarType,
 };
@@ -16,7 +16,11 @@ impl RrvmOptimizer for SolveTailRecursion {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(
+		self,
+		program: &mut LlvmProgram,
+		_metadata: &mut MetaData,
+	) -> Result<bool> {
 		fn solve(func: &mut LlvmFunc, mgr: &mut LlvmTempManager) -> bool {
 			if func.cfg.blocks.iter().any(|v| v.borrow().tail_call_func(&func.name)) {
 				// prepare new temporaries

@@ -1,5 +1,5 @@
 use super::RemoveUselessPhis;
-use crate::RrvmOptimizer;
+use crate::{metadata::MetaData, RrvmOptimizer};
 use llvm::{LlvmInstrTrait, LlvmTemp, Value};
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use std::collections::{HashMap, HashSet};
@@ -9,7 +9,11 @@ impl RrvmOptimizer for RemoveUselessPhis {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(
+		self,
+		program: &mut LlvmProgram,
+		_metadata: &mut MetaData,
+	) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG) -> bool {
 			let mut flag = false;
 			let mut temp_mapper = HashMap::new();

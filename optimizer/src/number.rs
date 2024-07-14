@@ -26,4 +26,30 @@ impl Number {
 			None
 		}
 	}
+	pub fn add(x: &Number, y: &Number) -> Number {
+		Number {
+			value: x
+				.value
+				.iter()
+				.zip(y.value.iter())
+				.map(|(x, y)| x.wrapping_add(*y))
+				.collect(),
+		}
+	}
+	pub fn sub(x: &Number, y: &Number) -> Number {
+		Number {
+			value: x
+				.value
+				.iter()
+				.zip(y.value.iter())
+				.map(|(x, y)| x.wrapping_sub(*y))
+				.collect(),
+		}
+	}
+}
+
+impl<T: Into<u32>> From<T> for Number {
+	fn from(value: T) -> Self {
+		Number::from(value)
+	}
 }

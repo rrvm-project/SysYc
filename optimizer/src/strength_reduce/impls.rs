@@ -2,7 +2,7 @@ use llvm::{LlvmTemp, LlvmTempManager};
 use rrvm::{program::LlvmProgram, LlvmCFG};
 use utils::Result;
 
-use crate::{strength_reduce::osr::OSR, RrvmOptimizer};
+use crate::{metadata::MetaData, strength_reduce::osr::OSR, RrvmOptimizer};
 
 use super::StrengthReduce;
 
@@ -10,7 +10,11 @@ impl RrvmOptimizer for StrengthReduce {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(
+		self,
+		program: &mut LlvmProgram,
+		_metadata: &mut MetaData,
+	) -> Result<bool> {
 		let solve = |cfg: &mut LlvmCFG,
 		             params: Vec<LlvmTemp>,
 		             mgr: &mut LlvmTempManager|
