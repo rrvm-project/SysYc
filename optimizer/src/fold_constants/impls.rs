@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::FoldConstants;
-use crate::RrvmOptimizer;
+use crate::{metadata::MetaData, RrvmOptimizer};
 use llvm::{
 	ArithInstr,
 	ArithOp::*,
@@ -16,7 +16,11 @@ impl RrvmOptimizer for FoldConstants {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(
+		self,
+		program: &mut LlvmProgram,
+		_metadata: &mut MetaData,
+	) -> Result<bool> {
 		fn solve(block: &LlvmNode) {
 			let block = &mut block.borrow_mut();
 			let instrs = std::mem::take(&mut block.instrs);

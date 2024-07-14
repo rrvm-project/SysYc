@@ -1,23 +1,32 @@
-use llvm::CloneLlvmInstr;
+use llvm::{CloneLlvmInstr, PhiInstr};
 use rand::{rngs::StdRng, SeedableRng};
-use rrvm::{dominator::DomTree, program::LlvmFunc, LlvmNode};
+use rrvm::{
+	dominator::DomTree,
+	program::{LlvmFunc, LlvmProgram},
+	LlvmNode,
+};
+use utils::{Label, Result};
 
-use crate::RrvmOptimizer;
+use crate::{
+	metadata::{FuncData, MetaData},
+	number::Number,
+	RrvmOptimizer,
+};
 
 use super::{
-	number::Number,
-	utls::{work, NodeInfo},
+	utils::{work, NodeInfo},
 	GlobalValueNumbering,
 };
 
-struct Solver {
+struct Solver<'a> {
 	dom_tree: DomTree,
 	rng: StdRng,
 	stack: Vec<NodeInfo>,
+	func_data: &'a mut FuncData,
 }
 
-impl Solver {
-	pub fn new(func: &LlvmFunc) -> Self {
+impl<'a> Solver<'a> {
+	pub fn new(func: &LlvmFunc, func_data: &'a mut FuncData) -> Self {
 		let mut rng = StdRng::from_entropy();
 		let mut info = NodeInfo::default();
 		for param in func.params.iter() {
@@ -30,6 +39,7 @@ impl Solver {
 			dom_tree: DomTree::new(&func.cfg, false),
 			rng,
 			stack,
+			func_data,
 		}
 	}
 
@@ -56,23 +66,20 @@ impl Solver {
 		);
 		block.set_jump(new_jump);
 		let node_label = block.label();
+		fn map_value(instrs: &mut [PhiInstr], info: &NodeInfo, label: &Label) {
+			for instr in instrs.iter_mut() {
+				for (value, instr_label) in instr.source.iter_mut() {
+					if label == instr_label {
+						*value = info.map_value(value);
+					}
+				}
+			}
+		}
 		for v in block.succ.clone() {
 			if std::ptr::eq(v.as_ptr(), node.as_ptr()) {
-				for instr in block.phi_instrs.iter_mut() {
-					for (value, label) in instr.source.iter_mut() {
-						if *label == node_label {
-							*value = info.map_value(value);
-						}
-					}
-				}
+				map_value(&mut block.phi_instrs, &info, &node_label)
 			} else {
-				for instr in v.borrow_mut().phi_instrs.iter_mut() {
-					for (value, label) in instr.source.iter_mut() {
-						if *label == node_label {
-							*value = info.map_value(value);
-						}
-					}
-				}
+				map_value(&mut v.borrow_mut().phi_instrs, &info, &node_label)
 			}
 		}
 		(info, flag)
@@ -82,6 +89,7 @@ impl Solver {
 		let children = self.dom_tree.get_children(node.borrow().id).clone();
 		let (info, mut flag) =
 			self.get_info(node, self.stack.last().cloned().unwrap());
+		self.func_data.num_mapper.extend(info.num_mapper.clone());
 		self.stack.push(info);
 		for v in children {
 			flag |= self.dfs(v);
@@ -97,13 +105,17 @@ impl RrvmOptimizer for GlobalValueNumbering {
 	}
 	fn apply(
 		self,
-		program: &mut rrvm::prelude::LlvmProgram,
-	) -> utils::Result<bool> {
-		fn solve(func: &LlvmFunc) -> bool {
-			let mut solver = Solver::new(func);
+		program: &mut LlvmProgram,
+		metadata: &mut MetaData,
+	) -> Result<bool> {
+		fn solve(func: &LlvmFunc, func_data: &mut FuncData) -> bool {
+			func_data.clear_num_mapper();
+			let mut solver = Solver::new(func, func_data);
 			solver.dfs(func.cfg.get_entry().clone())
 		}
 
-		Ok(program.funcs.iter().fold(false, |last, func| solve(func) || last))
+		Ok(program.funcs.iter().fold(false, |last, func| {
+			solve(func, metadata.get_func_data(&func.name)) || last
+		}))
 	}
 }

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::RemoveUselessCode;
-use crate::RrvmOptimizer;
+use crate::{metadata::MetaData, RrvmOptimizer};
 use llvm::{JumpInstr, LlvmTemp};
 use rrvm::{dominator::*, program::LlvmProgram, LlvmCFG, LlvmNode};
 use utils::{errors::Result, UseTemp};
@@ -10,7 +10,11 @@ impl RrvmOptimizer for RemoveUselessCode {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(
+		self,
+		program: &mut LlvmProgram,
+		_metadata: &mut MetaData,
+	) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG) -> bool {
 			let mut flag: bool = false;
 
@@ -85,8 +89,8 @@ impl RrvmOptimizer for RemoveUselessCode {
 				}
 				let virtual_temp = id_to_virtual_temp[&id].clone();
 				if let Some(jump) = block.jump_instr.as_ref() {
+					jump.get_read().iter().for_each(|v| insert_worklist(v, id));
 					if jump.is_ret() {
-						jump.get_read().iter().for_each(|v| insert_worklist(v, id));
 						insert_worklist(&virtual_temp, id);
 					}
 				}

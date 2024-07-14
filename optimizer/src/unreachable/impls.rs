@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use super::RemoveUnreachCode;
-use crate::RrvmOptimizer;
+use crate::{metadata::MetaData, RrvmOptimizer};
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
 
@@ -9,7 +9,11 @@ impl RrvmOptimizer for RemoveUnreachCode {
 	fn new() -> Self {
 		Self {}
 	}
-	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(
+		self,
+		program: &mut LlvmProgram,
+		_metadata: &mut MetaData,
+	) -> Result<bool> {
 		Ok(program.funcs.iter_mut().fold(false, |last, func| {
 			let size = func.cfg.size();
 			let mut visited = HashSet::new();

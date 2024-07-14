@@ -5,7 +5,7 @@ use std::{
 	hash::{Hash, Hasher},
 };
 
-use super::number::Number;
+use crate::number::Number;
 
 // use this function to solve global variable
 pub fn str2num(input: &str) -> Number {
@@ -43,7 +43,7 @@ impl From<ConvertOp> for HashItem {
 
 #[derive(Default, Clone)]
 pub struct NodeInfo {
-	num_mapper: HashMap<LlvmTemp, Number>,
+	pub num_mapper: HashMap<LlvmTemp, Number>,
 	var_mapper: HashMap<Number, Value>,
 	exp_mapper: HashMap<(HashItem, Number, Number), Number>,
 }
@@ -98,7 +98,7 @@ impl NodeInfo {
 	}
 }
 
-fn calc_number<T>(x: &Number, y: &Number, calculator: T) -> Number
+fn calc<T>(x: &Number, y: &Number, calculator: T) -> Number
 where
 	T: Fn(u32, u32) -> u32,
 {
@@ -128,54 +128,81 @@ pub fn work(
 
 	let (value, number) = match instr.get_variant() {
 		ArithInstr(instr) => {
+			use ArithOp::*;
 			let lhs = info.get_number(&instr.lhs);
 			let rhs = info.get_number(&instr.rhs);
 			insert(&instr.lhs, &lhs);
 			insert(&instr.rhs, &rhs);
-			let number = match instr.op {
-				ArithOp::Add => calc_number(&lhs, &rhs, |x, y| x.wrapping_add(y)),
-				ArithOp::AddD => calc_number(&lhs, &rhs, |x, y| x.wrapping_add(y)),
-				ArithOp::Sub => calc_number(&lhs, &rhs, |x, y| x.wrapping_sub(y)),
-				ArithOp::Mul => calc_number(&lhs, &rhs, |x, y| x.wrapping_mul(y)),
-				ArithOp::Div => info.map_exp(ArithOp::Div, lhs, rhs, rng),
-				ArithOp::Rem => info.map_exp(ArithOp::Rem, lhs, rhs, rng),
-				ArithOp::Shl => info.map_exp(ArithOp::Shl, lhs, rhs, rng),
-				ArithOp::Lshr => info.map_exp(ArithOp::Lshr, lhs, rhs, rng),
-				ArithOp::Ashr => info.map_exp(ArithOp::Ashr, lhs, rhs, rng),
-				ArithOp::And => calc_number(&lhs, &rhs, |x, y| x & y),
-				ArithOp::Or => calc_number(&lhs, &rhs, |x, y| x | y),
-				ArithOp::Xor => calc_number(&lhs, &rhs, |x, y| x ^ y),
-				ArithOp::Fadd => calc_number(&lhs, &rhs, |x, y| {
+			let number = match (instr.op, lhs.same_value(), rhs.same_value()) {
+				(Add, _, _) => calc(&lhs, &rhs, |x, y| x.wrapping_add(y)),
+				(AddD, _, _) => calc(&lhs, &rhs, |x, y| x.wrapping_add(y)),
+				(Sub, _, _) => calc(&lhs, &rhs, |x, y| x.wrapping_sub(y)),
+				(Mul, _, _) => calc(&lhs, &rhs, |x, y| x.wrapping_mul(y)),
+				(Div, Some(x), Some(y)) => Number::from((x as i32 / y as i32) as u32),
+				(Rem, Some(x), Some(y)) => Number::from((x as i32 % y as i32) as u32),
+				(Shl, Some(x), Some(y)) => Number::from(x << y),
+				(Lshr, Some(x), Some(y)) => Number::from(x >> y),
+				(Ashr, Some(x), Some(y)) => Number::from((x as i32 >> y) as u32),
+				(And, _, _) => calc(&lhs, &rhs, |x, y| x & y),
+				(Or, _, _) => calc(&lhs, &rhs, |x, y| x | y),
+				(Xor, _, _) => calc(&lhs, &rhs, |x, y| x ^ y),
+				(Fadd, _, _) => calc(&lhs, &rhs, |x, y| {
 					(f32::from_bits(x) + f32::from_bits(y)).to_bits()
 				}),
-				ArithOp::Fsub => calc_number(&lhs, &rhs, |x, y| {
+				(Fsub, _, _) => calc(&lhs, &rhs, |x, y| {
 					(f32::from_bits(x) - f32::from_bits(y)).to_bits()
 				}),
-				ArithOp::Fmul => calc_number(&lhs, &rhs, |x, y| {
+				(Fmul, _, _) => calc(&lhs, &rhs, |x, y| {
 					(f32::from_bits(x) * f32::from_bits(y)).to_bits()
 				}),
-				ArithOp::Fdiv => info.map_exp(ArithOp::Fdiv, lhs, rhs, rng),
+				(op, _, _) => info.map_exp(op, lhs, rhs, rng),
 			};
 			(info.num2value(&number, instr.var_type), number)
 		}
 		CompInstr(instr) => {
+			use CompOp::*;
 			let lhs = info.get_number(&instr.lhs);
 			let rhs = info.get_number(&instr.rhs);
 			insert(&instr.lhs, &lhs);
 			insert(&instr.rhs, &rhs);
-			let number = match instr.op {
-				CompOp::EQ => info.map_exp(CompOp::EQ, lhs, rhs, rng),
-				CompOp::NE => info.map_exp(CompOp::NE, lhs, rhs, rng),
-				CompOp::SGT => info.map_exp(CompOp::SGT, lhs, rhs, rng),
-				CompOp::SGE => info.map_exp(CompOp::SGE, lhs, rhs, rng),
-				CompOp::SLT => info.map_exp(CompOp::SLT, lhs, rhs, rng),
-				CompOp::SLE => info.map_exp(CompOp::SLE, lhs, rhs, rng),
-				CompOp::OEQ => info.map_exp(CompOp::OEQ, lhs, rhs, rng),
-				CompOp::ONE => info.map_exp(CompOp::ONE, lhs, rhs, rng),
-				CompOp::OGT => info.map_exp(CompOp::OGT, lhs, rhs, rng),
-				CompOp::OGE => info.map_exp(CompOp::OGE, lhs, rhs, rng),
-				CompOp::OLT => info.map_exp(CompOp::OLT, lhs, rhs, rng),
-				CompOp::OLE => info.map_exp(CompOp::OLE, lhs, rhs, rng),
+			let number = match (instr.op, lhs.same_value(), rhs.same_value()) {
+				(EQ, Some(x), Some(y)) => {
+					Number::from(((x as i32) == (y as i32)) as u32)
+				}
+				(NE, Some(x), Some(y)) => {
+					Number::from(((x as i32) != (y as i32)) as u32)
+				}
+				(SGT, Some(x), Some(y)) => {
+					Number::from(((x as i32) > (y as i32)) as u32)
+				}
+				(SGE, Some(x), Some(y)) => {
+					Number::from(((x as i32) >= (y as i32)) as u32)
+				}
+				(SLT, Some(x), Some(y)) => {
+					Number::from(((x as i32) < (y as i32)) as u32)
+				}
+				(SLE, Some(x), Some(y)) => {
+					Number::from(((x as i32) <= (y as i32)) as u32)
+				}
+				(OEQ, Some(x), Some(y)) => {
+					Number::from((f32::from_bits(x) == f32::from_bits(y)) as u32)
+				}
+				(ONE, Some(x), Some(y)) => {
+					Number::from((f32::from_bits(x) != f32::from_bits(y)) as u32)
+				}
+				(OGT, Some(x), Some(y)) => {
+					Number::from((f32::from_bits(x) > f32::from_bits(y)) as u32)
+				}
+				(OGE, Some(x), Some(y)) => {
+					Number::from((f32::from_bits(x) >= f32::from_bits(y)) as u32)
+				}
+				(OLT, Some(x), Some(y)) => {
+					Number::from((f32::from_bits(x) < f32::from_bits(y)) as u32)
+				}
+				(OLE, Some(x), Some(y)) => {
+					Number::from((f32::from_bits(x) <= f32::from_bits(y)) as u32)
+				}
+				(op, _, _) => info.map_exp(op, lhs, rhs, rng),
 			};
 			(info.num2value(&number, instr.var_type), number)
 		}
@@ -205,7 +232,7 @@ pub fn work(
 			let rhs = info.get_number(&instr.offset);
 			insert(&instr.addr, &lhs);
 			insert(&instr.offset, &rhs);
-			let number = calc_number(&lhs, &rhs, |x, y| x.wrapping_add(y));
+			let number = calc(&lhs, &rhs, |x, y| x.wrapping_add(y));
 			(info.num2value(&number, instr.var_type), number)
 		}
 		AllocInstr(_) => (None, Number::new(rng)),
@@ -224,7 +251,9 @@ pub fn work(
 		LoadInstr(instr) => {
 			let temp = instr.addr.unwrap_temp().unwrap();
 			let number = if temp.is_global {
-				str2num(temp.name.as_str())
+				let num = str2num(temp.name.as_str());
+				info.set_number(instr.addr.unwrap_temp().unwrap(), num.clone());
+				num
 			} else {
 				insert(&instr.addr, &info.get_number(&instr.addr));
 				Number::new(rng)
