@@ -1,20 +1,22 @@
-use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use instruction::{riscv::RiscvInstr, temp::TempManager, RiscvInstrSet};
+use instruction::riscv::RiscvInstr;
 use rrvm::RiscvNode;
 use utils::SysycError;
 
 type Node = Rc<RefCell<InstrNode>>;
 #[derive(Clone)]
 pub struct InstrNode {
+	pub id: usize,
 	pub in_deg: usize,
 	pub instr: RiscvInstr,
 	pub succ: Vec<Node>,
 	pub last_use: usize,
 }
 impl InstrNode {
-	pub fn new(instr: &RiscvInstr) -> Self {
+	pub fn new(instr: &RiscvInstr, id: usize) -> Self {
 		Self {
+			id,
 			in_deg: 0,
 			instr: instr.clone(),
 			succ: Vec::new(),
@@ -22,6 +24,8 @@ impl InstrNode {
 		}
 	}
 }
+
+#[derive(Clone)]
 pub struct InstrDag {
 	pub nodes: Vec<Node>,
 }
@@ -34,7 +38,7 @@ impl InstrDag {
 		let mut last_loads: Vec<Node> = Vec::new();
 		let mut last_uses = HashMap::new();
 		for (idx, instr) in node.borrow().instrs.iter().rev().enumerate() {
-			let node = Rc::new(RefCell::new(InstrNode::new(instr)));
+			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
 			let mut instr_node_succ = Vec::new();
 			let instructions_write = instr.get_riscv_write().clone();
 			for instr_write in instructions_write.into_iter() {
@@ -76,6 +80,15 @@ impl InstrDag {
 			node.borrow_mut().succ = instr_node_succ;
 			nodes.push(node);
 		}
-		Err(SysycError::RiscvGenError("Instrdag::todo".to_string()))
+		for node in nodes.iter() {
+			for succ in node.borrow().succ.iter() {
+				succ.borrow_mut().in_deg += 1;
+			}
+		}
+		for (index, instr) in nodes.iter_mut().enumerate().rev() {
+			instr.borrow_mut().last_use +=
+				last_uses.iter().filter(|x| *x.1 == index).count();
+		}
+		Ok(Self { nodes })
 	}
 }

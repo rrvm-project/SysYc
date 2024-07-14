@@ -4,15 +4,18 @@ use std::{
 	rc::Rc,
 };
 
+use instr_schedule::instr_schedule_by_dag;
 use instrdag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager, RiscvInstrSet};
 use rrvm::prelude::*;
 use transformer::{to_riscv, to_rt_type};
 use utils::{errors::Result, BLOCKSIZE_THRESHOLD, DEPENDENCY_EXPLORE_DEPTH};
 
+pub mod instr_schedule;
 pub mod instrdag;
 pub mod remove_phi;
 pub mod transformer;
+
 pub fn get_functions(
 	program: &mut RiscvProgram,
 	funcs: Vec<LlvmFunc>,
@@ -544,16 +547,13 @@ fn transform_basic_block_by_pipelining(
 	mgr: &mut TempManager,
 ) -> Result<RiscvNode> {
 	let mut instr_dag = InstrDag::new(node)?;
+	// todo construct liveliness map?
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
 	block.kill_size = node.borrow().kill_size;
 	block.instrs = instr_schedule_by_dag(instr_dag)?;
 	Ok(Rc::new(RefCell::new(block)))
 }
-fn instr_schedule_by_dag(dag: InstrDag) -> Result<RiscvInstrSet> {
-	return Err(utils::SysycError::RiscvGenError(
-		"Instrdag::todo".to_string(),
-	));
-}
+
 fn transform_basicblock(
 	node: &LlvmNode,
 	mgr: &mut TempManager,
