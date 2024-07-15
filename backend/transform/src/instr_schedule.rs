@@ -17,13 +17,13 @@ fn punishment(dag: InstrDag, state: &mut State, instr_id: usize) -> i32 {
 	let mut score = 0;
 	for i in instr.get_riscv_read().iter() {
 		if state.liveliness_map.get(i).unwrap().use_num == 1
-			&& state.liveliness_map.get(i).unwrap().is_liveout == false
+			&& !state.liveliness_map.get(i).unwrap().is_liveout
 		{
 			score -= 1;
 		}
 	}
 	for i in instr.get_riscv_write().iter() {
-		if state.liveliness_map.get(i).unwrap().is_livein == false {
+		if !state.liveliness_map.get(i).unwrap().is_livein {
 			score -= 1;
 		}
 	}
@@ -136,7 +136,7 @@ fn punishment(dag: InstrDag, state: &mut State, instr_id: usize) -> i32 {
 		+ alloc_score * ADD_ALLOCATABLES
 		+ end_live_score * NEAR_END
 		+ succ_score * REDUCE_SUB;
-	return score;
+	score
 }
 #[derive(Clone)]
 struct State {
@@ -159,7 +159,7 @@ pub fn instr_schedule_by_dag(
 		instrs: Vec::new(),
 		score: 0,
 		indegs: indegs.clone(),
-		liveliness_map: liveliness_map,
+		liveliness_map,
 	});
 	let depth = dag.nodes.len(); // bfs 深度已知，是所需要调度的指令总数
 	for _i in 0..depth {
@@ -196,5 +196,5 @@ pub fn instr_schedule_by_dag(
 			states.truncate(BFS_STATE_THRESHOLD);
 		}
 	}
-	return Ok(states.pop_front().unwrap().instrs);
+	Ok(states.pop_front().unwrap().instrs)
 }

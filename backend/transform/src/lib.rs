@@ -80,16 +80,14 @@ pub fn instr_schedule_block(
 	{
 		// filter call (instrs 中不能有 call 指令)
 		if riscv_node.borrow().instrs.iter().any(|instr| instr.is_call()) {
-			transform_basic_block_by_pipelining(&riscv_node, live_ins, live_outs, mgr)
+			transform_basic_block_by_pipelining(riscv_node, live_ins, live_outs, mgr)
 				.map(|v| vec![v])
-				.map_err(|e| e)
 		} else {
-			transform_loop_block(&riscv_node, mgr, 4)
+			transform_loop_block(riscv_node, mgr, 4)
 		}
 	} else {
-		transform_basic_block_by_pipelining(&riscv_node, live_ins, live_outs, mgr)
+		transform_basic_block_by_pipelining(riscv_node, live_ins, live_outs, mgr)
 			.map(|v| vec![v])
-			.map_err(|e| e)
 	}
 }
 pub fn convert_func(
@@ -259,7 +257,7 @@ fn transform_loop_block(
 					}
 					taint_map
 						.entry((offset, base))
-						.or_insert(Vec::new())
+						.or_default()
 						.extend(relevant_imms);
 				} else {
 					unreachable!();
@@ -392,7 +390,7 @@ fn transform_loop_block(
 					// 在 map_increments[reg] 中找到含有 read_reg 的项并且记录下offset， 检查是否含有 write_reg 的项，如果没有就插入，否则更新write_reg 的项
 					let mut map_offset = IncrementType::None;
 					for (reg, increments, _) in
-						map_increments.get(reg).clone().unwrap().iter()
+						map_increments.get(reg).unwrap().iter()
 					{
 						if reg == read_reg {
 							map_offset = increments.clone();
@@ -401,25 +399,23 @@ fn transform_loop_block(
 					}
 					if let IncrementType::None = map_offset {
 						unreachable!();
-					} else {
-						if let Some(vec) = map_increments.get_mut(reg) {
-							let mut is_update = false;
-							for (reg, offset_old, _) in vec.iter_mut() {
-								if *reg == write_reg {
-									*offset_old = map_offset.clone() - offset.clone();
-									is_update = true;
-									break;
-								}
-							}
-							if !is_update {
-								vec.push((write_reg, map_offset - offset, i));
-							}
-						} else {
-							unreachable!();
-						}
-					}
+					} else if let Some(vec) = map_increments.get_mut(reg) {
+     							let mut is_update = false;
+     							for (reg, offset_old, _) in vec.iter_mut() {
+     								if *reg == write_reg {
+     									*offset_old = map_offset.clone() - offset.clone();
+     									is_update = true;
+     									break;
+     								}
+     							}
+     							if !is_update {
+     								vec.push((write_reg, map_offset - offset, i));
+     							}
+     						} else {
+     							unreachable!();
+     						}
 					if let Some((write_reg, _read_reg, _offset, i)) = entry_write_update {
-						if let None = entry_read_update {
+						if entry_read_update.is_none() {
 							// 从 map_increments[reg] 中删除 含有 write_reg的项
 							if let Some(vec) = map_increments.get_mut(reg) {
 								vec.retain(|(reg, _, _)| *reg != write_reg);
@@ -445,7 +441,7 @@ fn transform_loop_block(
 	let mut taint_map_filtered = HashMap::new();
 	for (offset, store_reg) in taint_map.keys() {
 		if reg_increments.keys().any(|v| v == store_reg) {
-			let increments = taint_map.get(&(*offset, *store_reg)).clone().unwrap();
+			let increments = taint_map.get(&(*offset, *store_reg)).unwrap();
 			let mut filtered_increments = Vec::new();
 			for (increment, read_reg) in increments.iter() {
 				if reg_increments.keys().any(|v| v == read_reg) {
@@ -455,15 +451,12 @@ fn transform_loop_block(
 						.cloned()
 						.unwrap()
 						.iter()
-						.any(|(reg, _increment, _)| reg == read_reg)
-					{
-						if reg_increments[store_reg] == reg_increments[read_reg] {
-							filtered_increments.push((increment, read_reg));
-						}
-					}
+						.any(|(reg, _increment, _)| reg == read_reg) && reg_increments[store_reg] == reg_increments[read_reg] {
+     							filtered_increments.push((increment, read_reg));
+     						}
 				}
 			}
-			if filtered_increments.len() > 0 {
+			if !filtered_increments.is_empty() {
 				taint_map_filtered.insert((*offset, *store_reg), filtered_increments);
 			}
 		}
@@ -477,7 +470,6 @@ fn transform_loop_block(
 		for (offset_read, read_reg) in loads.iter() {
 			let t1 = &map_increments
 				.get(store_reg)
-				.clone()
 				.unwrap()
 				.iter()
 				.find(|(reg, _increment, instr)| reg == *read_reg)
@@ -534,12 +526,12 @@ fn transform_loop_block(
 	// now the dag should be set
 	// get T_0 range by max(\sum_{loop}(alpha)/\sum_{loop}(d))
 	// iterate the loops in dag
-	let mut alpha_sum = 0;
-	let mut d_sum = 0;
+	let alpha_sum = 0;
+	let d_sum = 0;
 	// Iterate over the nodes in the DAG
 	for (node, _) in dag.iter() {
 		let mut visited = HashSet::new();
-		let mut stack = vec![node.clone()];
+		let mut stack = vec![*node];
 
 		// Perform depth-first search
 		while let Some(current) = stack.pop() {
@@ -548,7 +540,7 @@ fn transform_loop_block(
 				// Handle the loop as needed
 				// ...
 			} else {
-				visited.insert(current.clone());
+				visited.insert(current);
 
 				// Add the neighbors of the current node to the stack
 				if let Some(neighbors) = dag.get(&current) {
@@ -633,7 +625,7 @@ fn get_liveliness_map(
 			})
 			.is_liveout = true;
 	}
-	return HashMap::new();
+	HashMap::new()
 }
 fn transform_basicblock(
 	node: &LlvmNode,
