@@ -50,7 +50,7 @@ fn punishment(dag: InstrDag, state: &mut State, instr_id: usize) -> i32 {
 		.iter()
 		.map(|x| state.liveliness_map.get(x).unwrap().use_num)
 		.min()
-		.unwrap();
+		.unwrap_or(0);
 	sum_uses += dag.nodes[instr_id]
 		.borrow()
 		.instr
@@ -180,6 +180,7 @@ pub fn instr_schedule_by_dag(
 				for i in dag.nodes[*i].borrow().instr.get_riscv_read().iter() {
 					new_state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
 				}
+				new_state.indegs.remove(i);
 				for succ in dag.nodes[*i].borrow().succ.iter() {
 					let mut new_indeg = new_state.indegs.clone();
 					new_indeg.insert(

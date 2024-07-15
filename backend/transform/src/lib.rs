@@ -557,13 +557,20 @@ fn transform_basic_block_by_pipelining(
 	_mgr: &mut TempManager,
 ) -> Result<RiscvNode> {
 	let instr_dag = InstrDag::new(node)?;
+	for i in node.borrow().instrs.iter() {
+		println!("{}", i);
+	}
+	println!("-----------------");
 	let liveliness_map = get_liveliness_map(node, live_in, live_out);
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
 	block.kill_size = node.borrow().kill_size;
 	block.instrs = instr_schedule_by_dag(instr_dag, liveliness_map)?;
+	for i in block.instrs.iter() {
+		println!("{}", i);
+	}
 	Ok(Rc::new(RefCell::new(block)))
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Liveliness {
 	is_livein: bool,
 	is_liveout: bool,
@@ -620,7 +627,7 @@ fn get_liveliness_map(
 			})
 			.is_liveout = true;
 	}
-	HashMap::new()
+	map
 }
 fn transform_basicblock(
 	node: &LlvmNode,
