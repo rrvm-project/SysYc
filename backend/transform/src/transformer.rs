@@ -28,5 +28,5 @@ pub fn to_riscv(
 	Ok(riscv_instr)
 }
 pub fn to_rt_type(instr: &RiscvInstr) -> [i32; 5] {
-	return instr.get_rtn_array();
+	instr.get_rtn_array()
 }
