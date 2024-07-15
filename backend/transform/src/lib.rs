@@ -159,11 +159,11 @@ pub fn convert_func(
 
 fn transform_loop_block(
 	node: &RiscvNode,
-	mgr: &mut TempManager,
-	n: usize, // 展开次数
+	_mgr: &mut TempManager,
+	_n: usize, // 展开次数
 ) -> Result<Vec<RiscvNode>> {
 	// calc T_0
-	let R = [1, 1, 1, 1, 2]; // mem,br,mul/div,floating-point,sum
+	let r = [1, 1, 1, 1, 2]; // mem,br,mul/div,floating-point,sum
 												 //按照RT 求出总的资源占用，再和 R 中各项相除求得最大值
 	let mut rt = [0, 0, 0, 0, 0];
 	for instr in node.borrow().instrs.iter() {
@@ -174,7 +174,7 @@ fn transform_loop_block(
 	}
 	let mut t0 = 0;
 	for i in 0..5 {
-		t0 = t0.max((rt[i] + R[i] - 1) / R[i]);
+		t0 = t0.max((rt[i] + r[i] - 1) / r[i]);
 	}
 	// 模数变量扩展
 	// 找到本循环内 def 且 use 非 live_in 非 live_out 的变量
@@ -192,11 +192,11 @@ fn transform_loop_block(
 	for (idx, instr) in node.borrow().instrs.iter().enumerate() {
 		let read_tmps = instr.get_riscv_read();
 		for &i in read_tmps.clone().iter() {
-			let mut alpha = -1;
+			let mut _alpha = -1;
 			for j in (0..idx).rev() {
 				let optime = node.borrow().instrs[j].get_rtn_array()[4];
 				if node.borrow().instrs[j].get_riscv_write().contains(&i) {
-					alpha = j as i32;
+					_alpha = j as i32;
 					// 往 dag 里面加边
 					dag
 						.entry((j as i32, idx))
@@ -204,7 +204,7 @@ fn transform_loop_block(
 						.or_insert(vec![(0, optime)]);
 					break;
 				}
-				if alpha != -1 {
+				if _alpha != -1 {
 					// 按照该指令的后一条周期往前遍历
 					for k in idx..node.borrow().instrs.len() {
 						let optime = node.borrow().instrs[k].get_rtn_array()[4];
@@ -230,40 +230,32 @@ fn transform_loop_block(
 	for (idx, instr) in node.borrow().instrs.iter().enumerate() {
 		if instr.is_store().unwrap_or(false) {
 			store_map.insert(instr.get_imm().unwrap(), idx);
-			if let Some(t) = instr.get_imm() {
-				if let OffsetReg(offset, base) = t {
-					//taint_map.insert((offset, base), vec![instr.get_riscv_read()[0]]); // 此时假设已经消除了一个 basic block 内往同一个地址 store 两次的情况
-					let mut regs = HashSet::new();
-					regs.insert(instr.get_riscv_read()[0]);
-					let mut relevant_imms = Vec::new();
-					// reverse taint analysis
-					for i in (0..idx).rev() {
-						let write_regs = node.borrow().instrs[i].get_riscv_write();
-						// judge if write_regs and taint_map[(offset,base)] has intersection
-						if HashSet::from_iter(write_regs.iter().cloned())
-							.intersection(&regs)
-							.count() > 0
-						{
-							if node.borrow().instrs[i].is_load().unwrap_or(false) {
-								if let OffsetReg(offset, base) =
-									node.borrow().instrs[i].get_imm().unwrap()
-								{
-									relevant_imms.push((offset, base));
-								} else {
-									unreachable!();
-								}
+			if let Some(OffsetReg(offset, base)) = instr.get_imm() {
+				let mut regs = HashSet::new();
+				regs.insert(instr.get_riscv_read()[0]);
+				let mut relevant_imms = Vec::new();
+				// reverse taint analysis
+				for i in (0..idx).rev() {
+					let write_regs = node.borrow().instrs[i].get_riscv_write();
+					// judge if write_regs and taint_map[(offset,base)] has intersection
+					if HashSet::from_iter(write_regs.iter().cloned())
+						.intersection(&regs)
+						.count() > 0
+					{
+						if node.borrow().instrs[i].is_load().unwrap_or(false) {
+							if let OffsetReg(offset, base) =
+								node.borrow().instrs[i].get_imm().unwrap()
+							{
+								relevant_imms.push((offset, base));
 							} else {
-								regs.extend(node.borrow().instrs[i].get_riscv_read());
+								unreachable!();
 							}
+						} else {
+							regs.extend(node.borrow().instrs[i].get_riscv_read());
 						}
 					}
-					taint_map
-						.entry((offset, base))
-						.or_default()
-						.extend(relevant_imms);
-				} else {
-					unreachable!();
 				}
+				taint_map.entry((offset, base)).or_default().extend(relevant_imms);
 			} else {
 				unreachable!();
 			}
@@ -273,10 +265,10 @@ fn transform_loop_block(
 	taint_map.retain(|_, v| !v.is_empty());
 	// 对于 taint_map keys 和 values 里面的 register，找到每个周期的增量，只考虑加减常数，mov 指令
 	let mut taint_regs: HashSet<RiscvTemp> =
-		taint_map.keys().map(|&(offset, base)| base).collect();
+		taint_map.keys().map(|&(_offset, base)| base).collect();
 	let mut reg_increments: HashMap<RiscvTemp, IncrementType> = HashMap::new();
-	for (key, val) in taint_map.iter() {
-		for (idx, reg) in val.iter() {
+	for (_key, val) in taint_map.iter() {
+		for (_idx, reg) in val.iter() {
 			taint_regs.insert(*reg);
 		}
 	}
@@ -391,9 +383,7 @@ fn transform_loop_block(
 				{
 					// 在 map_increments[reg] 中找到含有 read_reg 的项并且记录下offset， 检查是否含有 write_reg 的项，如果没有就插入，否则更新write_reg 的项
 					let mut map_offset = IncrementType::None;
-					for (reg, increments, _) in
-						map_increments.get(reg).unwrap().iter()
-					{
+					for (reg, increments, _) in map_increments.get(reg).unwrap().iter() {
 						if reg == read_reg {
 							map_offset = increments.clone();
 							break;
@@ -402,21 +392,22 @@ fn transform_loop_block(
 					if let IncrementType::None = map_offset {
 						unreachable!();
 					} else if let Some(vec) = map_increments.get_mut(reg) {
-     							let mut is_update = false;
-     							for (reg, offset_old, _) in vec.iter_mut() {
-     								if *reg == write_reg {
-     									*offset_old = map_offset.clone() - offset.clone();
-     									is_update = true;
-     									break;
-     								}
-     							}
-     							if !is_update {
-     								vec.push((write_reg, map_offset - offset, i));
-     							}
-     						} else {
-     							unreachable!();
-     						}
-					if let Some((write_reg, _read_reg, _offset, i)) = entry_write_update {
+						let mut is_update = false;
+						for (reg, offset_old, _) in vec.iter_mut() {
+							if *reg == write_reg {
+								*offset_old = map_offset.clone() - offset.clone();
+								is_update = true;
+								break;
+							}
+						}
+						if !is_update {
+							vec.push((write_reg, map_offset - offset, i));
+						}
+					} else {
+						unreachable!();
+					}
+					if let Some((write_reg, _read_reg, _offset, _i)) = entry_write_update
+					{
 						if entry_read_update.is_none() {
 							// 从 map_increments[reg] 中删除 含有 write_reg的项
 							if let Some(vec) = map_increments.get_mut(reg) {
@@ -453,9 +444,11 @@ fn transform_loop_block(
 						.cloned()
 						.unwrap()
 						.iter()
-						.any(|(reg, _increment, _)| reg == read_reg) && reg_increments[store_reg] == reg_increments[read_reg] {
-     							filtered_increments.push((increment, read_reg));
-     						}
+						.any(|(reg, _increment, _)| reg == read_reg)
+						&& reg_increments[store_reg] == reg_increments[read_reg]
+					{
+						filtered_increments.push((increment, read_reg));
+					}
 				}
 			}
 			if !filtered_increments.is_empty() {
@@ -474,7 +467,7 @@ fn transform_loop_block(
 				.get(store_reg)
 				.unwrap()
 				.iter()
-				.find(|(reg, _increment, instr)| reg == *read_reg)
+				.find(|(reg, _increment, _instr)| reg == *read_reg)
 				.unwrap()
 				.1;
 			let t = t1.clone();
@@ -483,7 +476,7 @@ fn transform_loop_block(
 				.cloned()
 				.unwrap()
 				.iter()
-				.find(|(reg, _increment, instr)| reg == *read_reg)
+				.find(|(reg, _increment, _instr)| reg == *read_reg)
 				.unwrap()
 				.2;
 			match t {
@@ -528,8 +521,8 @@ fn transform_loop_block(
 	// now the dag should be set
 	// get T_0 range by max(\sum_{loop}(alpha)/\sum_{loop}(d))
 	// iterate the loops in dag
-	let alpha_sum = 0;
-	let d_sum = 0;
+	let _alpha_sum = 0;
+	let _d_sum = 0;
 	// Iterate over the nodes in the DAG
 	for (node, _) in dag.iter() {
 		let mut visited = HashSet::new();
@@ -546,7 +539,7 @@ fn transform_loop_block(
 
 				// Add the neighbors of the current node to the stack
 				if let Some(neighbors) = dag.get(&current) {
-					for neighbor in neighbors {
+					for _neighbor in neighbors {
 						todo!();
 					}
 				}
@@ -561,7 +554,7 @@ fn transform_basic_block_by_pipelining(
 	node: &RiscvNode,
 	live_in: &HashSet<RiscvTemp>,
 	live_out: &HashSet<RiscvTemp>,
-	mgr: &mut TempManager,
+	_mgr: &mut TempManager,
 ) -> Result<RiscvNode> {
 	let instr_dag = InstrDag::new(node)?;
 	let liveliness_map = get_liveliness_map(node, live_in, live_out);

@@ -312,6 +312,6 @@ pub struct TemporayInstr {
 }
 impl RTN for TemporayInstr {
 	fn get_rtn_array(&self) -> [i32; 5] {
-		return [0, 0, 0, 0, 1];
+		[0, 0, 0, 0, 1]
 	}
 }
