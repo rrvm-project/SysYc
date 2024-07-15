@@ -53,10 +53,7 @@ impl InstrDag {
 				if let Some(def_instr) = defs.get(instr_read_temp) {
 					instr_node_succ.push(def_instr.clone());
 				}
-				uses
-					.entry(*instr_read_temp)
-					.or_insert(Vec::new())
-					.push(node.clone());
+				uses.entry(*instr_read_temp).or_insert(Vec::new()).push(node.clone());
 				if !last_uses.contains_key(instr_read_temp) {
 					last_uses.insert(*instr_read_temp, idx);
 				}
