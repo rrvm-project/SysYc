@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{
-	constrain::Constrain, constrain_graph::ConstrainGraph, RangeAnalysis,
+	analysis_graph::solve_graph, constrain::Constrain,
+	constrain_graph::ConstrainGraph, RangeAnalysis,
 };
 use crate::{
 	range_analysis::{
@@ -81,7 +82,7 @@ fn process_function(func: &mut LlvmFunc) -> bool {
 		block_implies,
 		comparisons,
 	);
-	let graph = solve(sccs, graph);
+	let graph = solve_graph(sccs, graph);
 
 	action(func, graph)
 }
@@ -364,13 +365,6 @@ pub fn build_constrains_graph(
 	}
 
 	(Tarjan::new(graph.len()).work(&graph), graph)
-}
-
-pub fn solve(
-	sccs: Vec<Vec<usize>>,
-	mut graph: ConstrainGraph,
-) -> ConstrainGraph {
-	graph
 }
 
 pub fn action(func: &mut LlvmFunc, graph: ConstrainGraph) -> bool {

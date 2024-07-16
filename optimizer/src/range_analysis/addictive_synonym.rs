@@ -119,7 +119,7 @@ impl LlvmTempAddictiveSynonym {
 			// 	"incorrect type in look_up_offset(): {:?}, {:?}",
 			// 	src.var_type, dst.var_type
 			// ),
-			_ => None
+			_ => None,
 		}
 	}
 }

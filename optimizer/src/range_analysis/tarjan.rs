@@ -35,8 +35,8 @@ impl Tarjan {
 			dfs: nones.clone(),
 			low: nones,
 			in_stack: falses,
-			object_stack: vec![],
 			calling_stack: vec![],
+			object_stack: vec![],
 			next_dfs_order: 0,
 		}
 	}
@@ -52,17 +52,6 @@ impl Tarjan {
 		let mut node_to_scc = vec![];
 		node_to_scc.resize(self.dfs.len(), None);
 
-		// loop {
-		// 	self.calling_stack.push(CallingStack::Prepare(start));
-		// 	self.main_loop(graph, &mut sccs, &mut node_to_scc);
-		// 	if let Some((next, _)) =
-		// 		node_to_scc.iter().enumerate().find(|&(_, &x)| x.is_none())
-		// 	{
-		// 		start = next;
-		// 	} else {
-		// 		break;
-		// 	}
-		// }
 		for item in 0..self.dfs.len() {
 			self.calling_stack.push(CallingStack::Prepare(item));
 			// println!("{}:{:?}", item, graph.next(item).collect::<Vec<_>>());
@@ -77,8 +66,7 @@ impl Tarjan {
 			for item in scc {
 				for need in graph.next(*item) {
 					if let None = solved.get(&need) {
-						println!("{} needs {}", item, need);
-						assert!(false);
+						unreachable!("{} needs {}", item, need);
 					}
 				}
 			}

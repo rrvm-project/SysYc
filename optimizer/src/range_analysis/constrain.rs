@@ -195,14 +195,17 @@ impl Constrain {
 				itertools::EitherOrBoth::Both(l, u) => result.push(Range {
 					lower: Some(l),
 					upper: Some(u),
+					contra: false,
 				}),
 				itertools::EitherOrBoth::Left(l) => result.push(Range {
 					lower: Some(l),
 					upper: None,
+					contra: false,
 				}),
 				itertools::EitherOrBoth::Right(u) => result.push(Range {
 					lower: None,
 					upper: Some(u),
+					contra: false,
 				}),
 			}
 		}

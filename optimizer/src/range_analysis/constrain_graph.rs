@@ -1,3 +1,4 @@
+use itertools::{ExactlyOneError, Itertools};
 use llvm::{
 	ArithInstr, ArithOp, ConvertInstr, ConvertOp, LlvmTemp, PhiInstr, Value,
 };
@@ -5,9 +6,12 @@ use utils::from_label;
 
 use std::{collections::HashMap, fmt::Debug, vec};
 
+use utils::errors::Result;
+
 use super::{
 	constrain::Constrain,
 	range::{Range, RangeItem},
+	range_arith::{self, range_calculate},
 	tarjan::Graph,
 };
 
@@ -34,6 +38,7 @@ pub struct Node {
 	pub future: Vec<usize>,
 	pub inner: NodeInner,
 	pub range: Option<Range>,
+	pub prev: Vec<usize>,
 }
 
 impl Graph<'_> for ConstrainGraph {
@@ -49,7 +54,192 @@ impl Graph<'_> for ConstrainGraph {
 	}
 }
 
+impl ConstrainGraph {
+	pub fn narrowing_node(&mut self, id: usize) -> Result<bool> {
+		let mut node = self.take_node(id).unwrap();
+		let data: Vec<&Option<Range>> = if let Some(oprants) = node.oprants() {
+			// if the node requries a specific order of data, make it happy,
+			oprants.iter()
+		} else {
+			// else just get the data in increasing order of node.
+			node.prev.iter()
+		}
+		.map(|x| &self.get_node_ref(*x).range)
+		.collect_vec();
+
+		let result = node.narrowing(&data);
+		println!("{:?}", node);
+		self.put_node(id, node);
+
+		result
+	}
+
+	fn set_prev(&mut self) {
+		for node in self.nodes.iter_mut() {
+			if let Some(node) = node {
+				node.prev.clear();
+			}
+		}
+
+		for i in 0..self.nodes.len() {
+			if let Some(node) = self.take_node(i) {
+				node
+					.next()
+					.iter()
+					.map(|index| {
+						self.get_node_mut(*index).prev.push(i);
+					})
+					.count();
+				self.put_node(i, node);
+			}
+		}
+	}
+
+	pub fn prepare(&mut self) {
+		self.set_prev();
+		for node in &mut self.nodes {
+			if let Some(node) = node {
+				match node.inner {
+					NodeInner::PlaceHolder => {
+						unreachable!("place holder should only be used when constructing")
+					}
+					NodeInner::Temp(_, _) => {
+						if node.prev.len() == 0 {
+							node.range = Some(Range::inf())
+						}
+					}
+					_ => {}
+				}
+			}
+		}
+	}
+}
+
+fn extract<'a, T>(input: &Vec<&'a Option<T>>) -> Option<Vec<&'a T>> {
+	let mut result = vec![];
+	for item in input {
+		if let Some(data) = item {
+			result.push(data);
+		} else {
+			return None;
+		}
+	}
+
+	Some(result)
+}
+
+// returns true iff `this` was narrowed or initialized
+// fn intersect_opt(mut this: &mut Option<Range>, that :&Option<Range>) -> bool{
+// 	match (&mut this, &that){
+// 		(None, None) => false,
+// 		(None, Some(_)) => {*this = that.clone(); true},
+// 		(Some(_), None) => false,
+// 		(Some(this), Some(that)) => {
+// 			this.intersection(that)
+// 		},
+// 	}
+// }
+
+fn intersect_ref(mut this: &mut Option<Range>, that: &Range) -> bool {
+	match &mut this {
+		None => {
+			*this = Some(that.clone());
+			true
+		}
+		Some(this) => this.intersection(that),
+	}
+}
+
+// returns true iff `this` was expanded
+// fn union_opt(mut this: &mut Option<Range>, that :&Option<Range>) -> bool{
+// 	match (&mut this, &that){
+// 		(None, None) => false,
+// 		(None, Some(_)) => false,
+// 		(Some(_), None) => {*this = that.clone(); true}
+// 		(Some(this), Some(that)) => {
+// 			this.union(that)
+// 		},
+// 	}
+// }
+
+// returns true iff `this` was expanded or initialized
+fn union_ref(mut this: &mut Option<Range>, that: &Range) -> bool {
+	match &mut this {
+		None => {
+			*this = Some(that.clone());
+			true
+		}
+		Some(this) => this.union(that),
+	}
+}
+
 impl Node {
+	fn update_range(&mut self, new_range: Option<Range>) -> bool {
+		if self.range == new_range {
+			false
+		} else {
+			self.range = new_range;
+			true
+		}
+	}
+
+	pub fn narrowing(&mut self, data: &Vec<&Option<Range>>) -> Result<bool> {
+		if let Some(data) = extract(data) {
+			match (&self.inner, data.len()) {
+				(NodeInner::Temp(_, _), 0) => {
+					Ok(self.update_range(Some(Range::inf())))
+				}
+				(NodeInner::Temp(_, _), 1) => {
+					Ok(self.update_range(Some(data[0].clone())))
+				}
+				(NodeInner::Constraint(range), 1) => {
+					// Ok(intersect_ref(&mut self.range, data[0]))
+					let mut ans = Some(range.clone());
+					intersect_ref(&mut ans, data[0]);
+					Ok(self.update_range(ans))
+				}
+				(NodeInner::Constraint(range), 0) => {
+					// Ok(intersect_ref(&mut self.range, data[0]))
+					Ok(self.update_range(range.clone().into()))
+				}
+
+				(NodeInner::RangePhi(srcs), n) => {
+					if n != srcs.len() {
+						Err(utils::SysycError::SystemError(
+							"incorrect length of input range of rangephi for narrowing"
+								.to_string(),
+						))
+					} else {
+						let mut range = None;
+						for item in data {
+							union_ref(&mut range, item);
+						}
+						Ok(self.update_range(range))
+					}
+				}
+				(NodeInner::Op(op, srcs), n) => {
+					if n != srcs.len() {
+						Err(utils::SysycError::SystemError(
+							"incorrect length of input range of rangephi for narrowing"
+								.to_string(),
+						))
+					} else {
+						let range = range_calculate(op, data);
+						Ok(self.update_range(Some(range)))
+					}
+				}
+				(NodeInner::Convert(ConvertOp, usize), 1) => todo!(),
+				_ => Err(utils::SysycError::SystemError(
+					"incorrect length of input range for narrowing".to_string(),
+				)),
+			}
+		} else {
+			Err(utils::SysycError::SystemError(
+				"option found in input range for narrowing".to_string(),
+			))
+		}
+	}
+
 	pub fn get_id(&self) -> usize {
 		self.id
 	}
@@ -57,6 +247,15 @@ impl Node {
 	pub fn get_inner_range_ref(&self) -> Option<&Range> {
 		match &self.inner {
 			NodeInner::Constraint(c) => Some(c),
+			_ => None,
+		}
+	}
+
+	pub fn oprants(&self) -> Option<&Vec<usize>> {
+		//
+		match &self.inner {
+			NodeInner::Op(_, oprants) => Some(&oprants),
+			// Note: for other types, the order of prevs does not matter!
 			_ => None,
 		}
 	}
@@ -98,6 +297,7 @@ impl ConstrainGraph {
 			future: vec![],
 			inner,
 			range: None,
+			prev: vec![],
 		}));
 
 		self.nodes.get_mut(id).unwrap().as_mut().unwrap()
