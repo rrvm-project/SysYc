@@ -2,6 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use instruction::riscv::RiscvInstr;
 use rrvm::RiscvNode;
+use std::fmt;
 use utils::SysycError;
 
 type Node = Rc<RefCell<InstrNode>>;
@@ -87,5 +88,33 @@ impl InstrDag {
 				last_uses.iter().filter(|x| *x.1 == index).count();
 		}
 		Ok(Self { nodes })
+	}
+}
+impl fmt::Display for InstrDag {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		for node in &self.nodes {
+			let instr_node = node.borrow();
+			writeln!(f, "Node ID: {}", instr_node.id)?;
+			writeln!(f, "In-degree: {}", instr_node.in_deg)?;
+			writeln!(f, "Instruction: {}", instr_node.instr)?;
+			writeln!(
+				f,
+				"Successors: {:?}",
+				instr_node.succ.iter().map(|x| x.borrow().id).collect::<Vec<usize>>()
+			)?;
+			// print successor's in degrees
+			writeln!(
+				f,
+				"Successors' In-degree: {:?}",
+				instr_node
+					.succ
+					.iter()
+					.map(|x| x.borrow().in_deg)
+					.collect::<Vec<usize>>()
+			)?;
+			writeln!(f, "Last Use: {}", instr_node.last_use)?;
+			writeln!(f, "---------------------------")?;
+		}
+		Ok(())
 	}
 }

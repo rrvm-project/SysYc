@@ -181,6 +181,7 @@ pub fn instr_schedule_by_dag(
 					new_state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
 				}
 				new_state.indegs.remove(i);
+				println!("new_state.indegs: {:?}", new_state.indegs);
 				for succ in dag.nodes[*i].borrow().succ.iter() {
 					let mut new_indeg = new_state.indegs.clone();
 					new_indeg.insert(

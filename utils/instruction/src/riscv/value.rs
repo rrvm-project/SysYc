@@ -37,7 +37,7 @@ impl From<RiscvReg> for RiscvTemp {
 	}
 }
 
-#[derive(Clone, PartialEq, Hash, Eq)]
+#[derive(Clone, PartialEq)]
 pub enum RiscvImm {
 	Int(i32),
 	Float(f32),

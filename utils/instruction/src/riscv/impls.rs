@@ -193,14 +193,14 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn is_load(&self) -> Option<bool> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA => Some(true),
-			SB | SH | SW | SD => Some(false),
+			Li | Lui | LD | LW | LWU | LA | FLD | FLW => Some(true),
+			SB | SH | SW | SD | FSD | FSW => Some(false),
 		}
 	}
 	fn is_store(&self) -> Option<bool> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA => Some(false),
-			SB | SH | SW | SD => Some(true),
+			Li | Lui | LD | LW | LWU | LA | FLD | FLW => Some(false),
+			SB | SH | SW | SD | FSD | FSW => Some(true),
 		}
 	}
 }
