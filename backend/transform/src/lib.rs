@@ -22,12 +22,13 @@ pub fn get_functions(
 ) -> Result<()> {
 	for func in funcs {
 		let converted_func = convert_func(func, &mut program.temp_mgr)?;
-		program.funcs.push(instr_schedule(
+		let func = instr_schedule(
 			converted_func.0,
 			converted_func.1,
 			converted_func.2,
 			&mut program.temp_mgr,
-		)?);
+		)?;
+		program.funcs.push(func);
 	}
 	Ok(())
 }
@@ -42,12 +43,6 @@ pub fn instr_schedule(
 	func.cfg.analysis();
 	let mut new_blocks = Vec::new();
 	for (idx, node) in func.cfg.blocks.iter().enumerate() {
-		// debug print node
-		println!("block {}", idx);
-		for instr in node.borrow().instrs.iter() {
-			println!("{}", instr);
-		}
-		println!("~~~~~~~~");
 		let nodes =
 			instr_schedule_block(node, &live_ins[idx], &live_outs[idx], mgr)?;
 		new_blocks.extend(nodes);
@@ -90,7 +85,9 @@ pub fn instr_schedule_block(
 			transform_basic_block_by_pipelining(riscv_node, live_ins, live_outs, mgr)
 				.map(|v| vec![v])
 		} else {
-			transform_loop_block(riscv_node, mgr, 4)
+			//transform_loop_block(riscv_node, mgr, 4)
+			transform_basic_block_by_pipelining(riscv_node, live_ins, live_outs, mgr)
+				.map(|v| vec![v])
 		}
 	} else {
 		transform_basic_block_by_pipelining(riscv_node, live_ins, live_outs, mgr)
@@ -109,15 +106,6 @@ pub fn convert_func(
 	let mut live_outs = Vec::new();
 	func.cfg.blocks.iter().for_each(remove_phi::remove_phi);
 	// debug print
-	println!("in convert func:");
-	for block in func.cfg.blocks.iter() {
-		println!("block {}", block.borrow().id);
-		for instr in block.borrow().instrs.iter() {
-			println!("{}", instr);
-		}
-		println!("~~~~~~~~");
-	}
-	println!("---------~~~~~~~");
 	for block in func.cfg.blocks.iter() {
 		for instr in block.borrow().instrs.iter() {
 			if let Some((temp, length)) = instr.get_alloc() {
@@ -574,19 +562,9 @@ fn transform_basic_block_by_pipelining(
 	_mgr: &mut TempManager,
 ) -> Result<RiscvNode> {
 	let instr_dag = InstrDag::new(node)?;
-	for i in node.borrow().instrs.iter() {
-		println!("{}", i);
-	}
-	println!("-----------------");
 	let liveliness_map = get_liveliness_map(node, live_in, live_out);
-	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
-	block.kill_size = node.borrow().kill_size;
-	println!("{}", instr_dag);
-	block.instrs = instr_schedule_by_dag(instr_dag, liveliness_map)?;
-	for i in block.instrs.iter() {
-		println!("{}", i);
-	}
-	Ok(Rc::new(RefCell::new(block)))
+	node.borrow_mut().instrs = instr_schedule_by_dag(instr_dag, liveliness_map)?;
+	Ok(node.clone())
 }
 #[derive(Clone, Debug)]
 pub struct Liveliness {
