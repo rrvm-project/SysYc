@@ -36,36 +36,22 @@ pub struct InstrDag {
 fn preprocess_call(
 	node: &RiscvNode,
 	call_related: &mut Vec<Vec<Box<dyn RiscvInstrTrait>>>,
-	call_read_vec: &mut Vec<Vec<RiscvTemp>>,
-	call_write_vec: &mut Vec<Vec<RiscvTemp>>,
 ) -> Vec<Box<dyn RiscvInstrTrait>> {
 	let mut instrs = Vec::new();
 	let mut save_instr = false;
 	let mut my_call_related = Vec::new();
 	let mut is_last_restore = false;
-	let mut call_read = Vec::new();
-	let mut call_write = Vec::new();
 	for i in node.borrow().instrs.iter() {
 		if is_last_restore {
 			is_last_restore = false;
 			if i.get_riscv_read().len() == 1 {
 				if let RiscvTemp::PhysReg(A0) = i.get_riscv_read()[0] {
 					my_call_related.push(i.clone());
-					call_read.append(&mut i.get_riscv_read().clone());
-					call_write.append(&mut i.get_riscv_write().clone());
-					call_read_vec.push(call_read);
-					call_write_vec.push(call_write);
-					call_read = Vec::new();
-					call_write = Vec::new();
 					call_related.push(my_call_related);
 					my_call_related = Vec::new();
 					continue;
 				}
 			}
-			call_read_vec.push(call_read);
-			call_write_vec.push(call_write);
-			call_read = Vec::new();
-			call_write = Vec::new();
 			call_related.push(my_call_related);
 			my_call_related = Vec::new();
 		}
@@ -80,8 +66,6 @@ fn preprocess_call(
 			instrs.push(i.clone());
 			my_call_related.push(i.clone());
 		} else if save_instr {
-			call_read.append(&mut i.get_riscv_read().clone());
-			call_write.append(&mut i.get_riscv_write().clone());
 			my_call_related.push(i.clone());
 		} else {
 			instrs.push(i.clone());
@@ -112,15 +96,8 @@ impl InstrDag {
 		let mut last_loads: Vec<Node> = Vec::new();
 		let mut call_related = Vec::new();
 		let mut last_uses = HashMap::new();
-		let mut call_read_vec = Vec::new();
-		let mut call_write_vec = Vec::new();
 		// preprocessing call related: 把 call 前后的 从 save 到 restore 的若干条指令保存在 call_related 里面,然后加入到 is_filtered_idx 之后遍历instrs 的时候遇到就直接continue
-		let mut processed_instrs = preprocess_call(
-			node,
-			&mut call_related,
-			&mut call_read_vec,
-			&mut call_write_vec,
-		);
+		let mut processed_instrs = preprocess_call(node, &mut call_related);
 		// println!(" after processed_instrs: {:?} {:?}",call_read_vec,call_write_vec);
 		// println!("call related instructions:");
 		// for i in call_related.iter() {
@@ -129,6 +106,10 @@ impl InstrDag {
 		// 	}println!("----");
 		// }
 		// println!("---------------------------");
+		// println!("processed_instrs len: {}",processed_instrs.len());
+		// for i in processed_instrs.iter() {
+		// 	println!("{}",i);
+		// }
 		for (idx, instr) in processed_instrs.iter().rev().enumerate() {
 			// println!("instr id:{} {}",instr, idx);
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
@@ -138,10 +119,10 @@ impl InstrDag {
 				instr_node_succ.extend(
 					uses.get(&instr_write).unwrap_or(&Vec::new()).iter().cloned(),
 				);
-				// println!("in instr {} write extending..",node.borrow().id);
-				// for i in uses.get(&instr_write).unwrap_or(&Vec::<Rc<RefCell<InstrNode>>>::new()).iter().map(|z| z.borrow().id).collect::<Vec<_>>() {
-				// 	println!("id: {}", i);
-				// }
+				//  println!("in instr {} write extending..",node.borrow().id);
+				//  for i in uses.get(&instr_write).unwrap_or(&Vec::<Rc<RefCell<InstrNode>>>::new()).iter().map(|z| z.borrow().id).collect::<Vec<_>>() {
+				//  	println!("intr write extending to id: {}", i);
+				//  }
 				uses.remove(&instr_write);
 			}
 			let instr_read = instr.get_riscv_read().clone();
@@ -158,23 +139,6 @@ impl InstrDag {
 			// 处理 load call store 指令的依赖关系
 			if instr.is_call() {
 				instr_node_succ.extend(last_loads.iter().cloned());
-				let call_reads = call_read_vec.pop().unwrap_or(Vec::new());
-				let call_writes = call_write_vec.pop().unwrap_or(Vec::new());
-				for instr_write in call_writes {
-					instr_node_succ.extend(
-						uses.get(&instr_write).unwrap_or(&Vec::new()).iter().cloned(),
-					);
-					uses.remove(&instr_write);
-				}
-				for instr_read_temp in call_reads.iter() {
-					if let Some(def_instr) = defs.get(instr_read_temp) {
-						instr_node_succ.push(def_instr.clone());
-					}
-					uses.entry(*instr_read_temp).or_default().push(node.clone());
-					if !last_uses.contains_key(instr_read_temp) {
-						last_uses.insert(*instr_read_temp, idx);
-					}
-				}
 				//	println!("in is_call {} extending loads {:?}",node.borrow().id,last_loads.iter().map(|x| x.borrow().id).collect::<Vec<_>>());
 				last_loads.clear();
 				last_call = Some(node.clone());
@@ -194,9 +158,9 @@ impl InstrDag {
 			nodes.push(node);
 		}
 		for node in nodes.iter() {
-			// println!("node id: {}", node.borrow().id);
-			// println!("node successors: {:?}", node.borrow().succ.iter().map(|s| s.borrow().id).collect::<Vec<usize>>());
-			// println!("---------");
+			//  println!("node id: {}", node.borrow().id);
+			//  println!("node successors: {:?}", node.borrow().succ.iter().map(|s| s.borrow().id).collect::<Vec<usize>>());
+			//  println!("---------");
 			for succ in node.borrow().succ.iter() {
 				succ.borrow_mut().in_deg += 1;
 			}
