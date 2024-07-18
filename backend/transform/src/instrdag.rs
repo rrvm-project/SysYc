@@ -41,7 +41,7 @@ fn preprocess_call(
 	let mut save_instr = false;
 	let mut my_call_related = Vec::new();
 	let mut is_last_restore = false;
-	for i in node.borrow().instrs.iter() {
+	for (idx, i) in node.borrow().instrs.iter().enumerate() {
 		if is_last_restore {
 			is_last_restore = false;
 			if i.get_riscv_read().len() == 1 {
@@ -62,6 +62,10 @@ fn preprocess_call(
 			save_instr = false;
 			my_call_related.push(i.clone());
 			is_last_restore = true;
+			if idx == node.borrow().instrs.len() - 1 {
+				call_related.push(my_call_related);
+				return instrs;
+			}
 		} else if i.is_call() {
 			instrs.push(i.clone());
 			my_call_related.push(i.clone());
@@ -97,19 +101,22 @@ impl InstrDag {
 		let mut call_related = Vec::new();
 		let mut last_uses = HashMap::new();
 		// preprocessing call related: 把 call 前后的 从 save 到 restore 的若干条指令保存在 call_related 里面,然后加入到 is_filtered_idx 之后遍历instrs 的时候遇到就直接continue
+		// println!("original instrs :");
+		// for i in node.borrow().instrs.iter() {
+		// 	println!("{}",i);
+		// }
 		let mut processed_instrs = preprocess_call(node, &mut call_related);
-		// println!(" after processed_instrs: {:?} {:?}",call_read_vec,call_write_vec);
 		// println!("call related instructions:");
 		// for i in call_related.iter() {
 		// 	for j in i.iter() {
 		// 		println!("{}", j);
 		// 	}println!("----");
 		// }
-		// println!("---------------------------");
 		// println!("processed_instrs len: {}",processed_instrs.len());
 		// for i in processed_instrs.iter() {
 		// 	println!("{}",i);
 		// }
+		// println!("---------------------------");
 		for (idx, instr) in processed_instrs.iter().rev().enumerate() {
 			// println!("instr id:{} {}",instr, idx);
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
