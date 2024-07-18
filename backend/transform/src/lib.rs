@@ -22,12 +22,26 @@ pub fn get_functions(
 ) -> Result<()> {
 	for func in funcs {
 		let converted_func = convert_func(func, &mut program.temp_mgr)?;
+		// println!("--- before instr schedule: ---");
+		// for i in converted_func.0.cfg.blocks.iter() {
+		// 	for j in i.borrow().instrs.iter() {
+		// 		println!("{}", j);
+		// 	}
+		// }
+		// println!("---end---");
 		let func = instr_schedule(
 			converted_func.0,
 			converted_func.1,
 			converted_func.2,
 			&mut program.temp_mgr,
 		)?;
+		// println!("--------");
+		// for i in func.cfg.blocks.iter() {
+		// 	for j in i.borrow().instrs.iter() {
+		// 		println!("{}", j);
+		// 	}
+		// }
+		// println!("--------");
 		program.funcs.push(func);
 	}
 	Ok(())

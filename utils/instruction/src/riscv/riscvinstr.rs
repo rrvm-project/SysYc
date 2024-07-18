@@ -170,6 +170,12 @@ pub trait RiscvInstrTrait:
 	fn get_increment(&self) -> IncrementType {
 		IncrementType::None
 	}
+	fn is_save(&self) -> bool {
+		false
+	}
+	fn is_restore(&self) -> bool {
+		false
+	}
 }
 
 impl UseTemp<Temp> for RiscvInstr {

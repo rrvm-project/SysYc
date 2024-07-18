@@ -3,7 +3,10 @@ use std::{
 	collections::{HashMap, VecDeque},
 };
 
-use crate::{instrdag::InstrDag, Liveliness};
+use crate::{
+	instrdag::{postprocess_call, InstrDag},
+	Liveliness,
+};
 use instruction::{riscv::value::RiscvTemp, RiscvInstrSet};
 use utils::{
 	SysycError, ADD_ALLOCATABLES, BFS_STATE_THRESHOLD, NEAR_END, REDUCE_LIVE,
@@ -197,5 +200,8 @@ pub fn instr_schedule_by_dag(
 			states.truncate(BFS_STATE_THRESHOLD);
 		}
 	}
-	Ok(states.pop_front().unwrap().instrs)
+	Ok(postprocess_call(
+		states.pop_front().unwrap().instrs,
+		&mut dag.call_related.clone(),
+	))
 }

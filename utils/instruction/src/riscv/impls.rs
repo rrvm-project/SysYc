@@ -385,6 +385,12 @@ impl RiscvInstrTrait for TemporayInstr {
 	fn get_temp_type(&self) -> llvm::VarType {
 		self.var_type
 	}
+	fn is_save(&self) -> bool {
+		matches!(self.op, TemporayInstrOp::Save)
+	}
+	fn is_restore(&self) -> bool {
+		matches!(self.op, TemporayInstrOp::Restore)
+	}
 }
 
 impl TemporayInstr {
