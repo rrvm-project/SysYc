@@ -37,7 +37,7 @@ pub struct InstrDag {
 fn preprocess_call(
 	node: &RiscvNode,
 	call_related: &mut Vec<Vec<Box<dyn RiscvInstrTrait>>>,
-	call_write: &mut Vec<RiscvTemp>,
+	call_write: &mut Vec<Option<RiscvTemp>>,
 ) -> Vec<Box<dyn RiscvInstrTrait>> {
 	let mut instrs = Vec::new();
 	let mut save_instr = false;
@@ -51,9 +51,13 @@ fn preprocess_call(
 					my_call_related.push(i.clone());
 					call_related.push(my_call_related);
 					my_call_related = Vec::new();
-					call_write.push(i.get_riscv_write()[0]);
+					call_write.push(Some(i.get_riscv_write()[0]));
 					continue;
+				} else {
+					call_write.push(None);
 				}
+			} else {
+				call_write.push(None);
 			}
 			call_related.push(my_call_related);
 			my_call_related = Vec::new();
@@ -67,6 +71,7 @@ fn preprocess_call(
 			is_last_restore = true;
 			if idx == node.borrow().instrs.len() - 1 {
 				call_related.push(my_call_related);
+				call_write.push(None);
 				return instrs;
 			}
 		} else if i.is_call() {
@@ -158,9 +163,11 @@ impl InstrDag {
 				}
 			} else {
 				let tmp = call_write.pop().unwrap();
-				instr_node_succ
-					.extend(uses.get(&tmp).unwrap_or(&Vec::new()).iter().cloned());
-				uses.remove(&tmp);
+				if let Some(tmp) = tmp {
+					instr_node_succ
+						.extend(uses.get(&tmp).unwrap_or(&Vec::new()).iter().cloned());
+					uses.remove(&tmp);
+				}
 			}
 			let instr_read = instr.get_riscv_read().clone();
 			for instr_read_temp in instr_read.iter() {
