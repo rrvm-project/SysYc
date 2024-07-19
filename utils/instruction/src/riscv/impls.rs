@@ -297,6 +297,9 @@ impl RiscvInstrTrait for BranInstr {
 			_ => unreachable!(),
 		}
 	}
+	fn is_branch(&self) -> bool {
+		true
+	}
 }
 
 impl BranInstr {

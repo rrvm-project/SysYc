@@ -176,6 +176,9 @@ pub trait RiscvInstrTrait:
 	fn is_restore(&self) -> bool {
 		false
 	}
+	fn is_branch(&self) -> bool {
+		false
+	}
 }
 
 impl UseTemp<Temp> for RiscvInstr {

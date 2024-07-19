@@ -203,5 +203,6 @@ pub fn instr_schedule_by_dag(
 	Ok(postprocess_call(
 		states.pop_front().unwrap().instrs,
 		&mut dag.call_related.clone(),
+		dag.branch.clone(),
 	))
 }

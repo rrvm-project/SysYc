@@ -32,6 +32,7 @@ impl InstrNode {
 pub struct InstrDag {
 	pub nodes: Vec<Node>,
 	pub call_related: Vec<Vec<Box<dyn RiscvInstrTrait>>>,
+	pub branch: Option<Box<dyn RiscvInstrTrait>>,
 }
 fn preprocess_call(
 	node: &RiscvNode,
@@ -80,6 +81,7 @@ fn preprocess_call(
 pub fn postprocess_call(
 	instrs: Vec<Box<dyn RiscvInstrTrait>>,
 	call_related: &mut Vec<Vec<Box<dyn RiscvInstrTrait>>>,
+	branch_related: Option<Box<dyn RiscvInstrTrait>>,
 ) -> Vec<Box<dyn RiscvInstrTrait>> {
 	let mut my_instrs = Vec::new();
 	for i in instrs {
@@ -89,6 +91,15 @@ pub fn postprocess_call(
 			my_instrs.push(i);
 		}
 	}
+	if let Some(instr) = branch_related {
+		my_instrs.push(instr);
+	}
+	// debug print
+	// println!("postprocess call instrs:");
+	// for i in my_instrs.iter() {
+	// 	println!("{}",i);
+	// }
+	// println!("postprocess call instrs end");
 	my_instrs
 }
 impl InstrDag {
@@ -100,12 +111,20 @@ impl InstrDag {
 		let mut last_loads: Vec<Node> = Vec::new();
 		let mut call_related = Vec::new();
 		let mut last_uses = HashMap::new();
+		let mut last_branch: Option<Box<dyn RiscvInstrTrait>> = None;
 		// preprocessing call related: 把 call 前后的 从 save 到 restore 的若干条指令保存在 call_related 里面,然后加入到 is_filtered_idx 之后遍历instrs 的时候遇到就直接continue
 		// println!("original instrs :");
 		// for i in node.borrow().instrs.iter() {
 		// 	println!("{}",i);
 		// }
 		let mut processed_instrs = preprocess_call(node, &mut call_related);
+		if processed_instrs.len() > 0 {
+			let last_instr = processed_instrs.last().unwrap();
+			if last_instr.is_branch() {
+				last_branch = Some(last_instr.clone());
+				let _ = processed_instrs.pop();
+			}
+		}
 		// println!("call related instructions:");
 		// for i in call_related.iter() {
 		// 	for j in i.iter() {
@@ -179,6 +198,7 @@ impl InstrDag {
 		Ok(Self {
 			nodes,
 			call_related,
+			branch: last_branch,
 		})
 	}
 }
