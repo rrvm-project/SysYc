@@ -120,6 +120,7 @@ impl InstrDag {
 		let mut last_uses = HashMap::new();
 		let mut last_branch: Option<Box<dyn RiscvInstrTrait>> = None;
 		let mut call_write = Vec::new();
+		let mut li_ret = None;
 		// preprocessing call related: 把 call 前后的 从 save 到 restore 的若干条指令保存在 call_related 里面,然后加入到 is_filtered_idx 之后遍历instrs 的时候遇到就直接continue
 		// println!("original instrs :");
 		// for i in node.borrow().instrs.iter() {
@@ -148,6 +149,14 @@ impl InstrDag {
 		for (idx, instr) in processed_instrs.iter().rev().enumerate() {
 			// println!("instr id:{} {}",instr, idx);
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
+			if idx == 0 {
+				if instr.is_load().unwrap_or(false)
+					&& instr.get_riscv_write().len() == 1
+					&& instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
+				{
+					li_ret = Some(node.clone());
+				}
+			}
 			let mut instr_node_succ = Vec::new();
 			let instructions_write = instr.get_riscv_write().clone();
 			if instr.is_call() == false {
@@ -187,6 +196,9 @@ impl InstrDag {
 				//	println!("in is_call {} extending loads {:?}",node.borrow().id,last_loads.iter().map(|x| x.borrow().id).collect::<Vec<_>>());
 				last_loads.clear();
 				last_call = Some(node.clone());
+				if let Some(node) = li_ret.clone() {
+					instr_node_succ.push(node);
+				}
 			} else if instr.is_load().unwrap_or(false) {
 				if let Some(last_call) = last_call.clone() {
 					//	println!("in is_load {} extending last_call {}",node.borrow().id,last_call.borrow().id);

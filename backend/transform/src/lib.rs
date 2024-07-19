@@ -39,13 +39,13 @@ pub fn get_functions(
 			converted_func.2,
 			&mut program.temp_mgr,
 		)?;
-		//  println!("--------");
-		//  for i in func.cfg.blocks.iter() {
-		//  	for j in i.borrow().instrs.iter() {
-		//  		println!("{}", j);
-		//  	}
-		//  }
-		//  println!("--------");
+		// println!("--------");
+		// for i in func.cfg.blocks.iter() {
+		// 	for j in i.borrow().instrs.iter() {
+		// 		println!("{}", j);
+		// 	}
+		// }
+		// println!("--------");
 		program.funcs.push(func);
 	}
 	Ok(())
