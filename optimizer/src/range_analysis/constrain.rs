@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use llvm::{CompOp, LlvmTemp, Value};
 use std::collections::HashMap;
+use utils::float_util::{f32_add_eps, f32_sub_eps};
 
 use super::{
 	addictive_synonym::LlvmTempAddictiveSynonym,
@@ -60,10 +61,12 @@ fn equal(v: &Value, block_id: i32) -> Option<RangeItem> {
 fn over(v: &Value, block_id: i32) -> Option<RangeItem> {
 	match v {
 		Value::Int(i) => Some(RangeItem::IntValue(*i + 1)),
-		Value::Float(_f) => None, // TODO
+		Value::Float(f) => Some(RangeItem::FloatValue(f32_add_eps(*f))),
 		Value::Temp(v) => match v.var_type {
 			llvm::VarType::I32 => Some(RangeItem::IntFuture(v.clone(), block_id, 1)),
-			llvm::VarType::F32 => None,
+			llvm::VarType::F32 => {
+				Some(RangeItem::FloatFuture(v.clone(), block_id, 0f32))
+			}
 			_ => None,
 		},
 	}
@@ -72,10 +75,12 @@ fn over(v: &Value, block_id: i32) -> Option<RangeItem> {
 fn under(v: &Value, block_id: i32) -> Option<RangeItem> {
 	match v {
 		Value::Int(i) => Some(RangeItem::IntValue(*i - 1)),
-		Value::Float(_f) => None, // TODO
+		Value::Float(f) => Some(RangeItem::FloatValue(f32_sub_eps(*f))),
 		Value::Temp(v) => match v.var_type {
 			llvm::VarType::I32 => Some(RangeItem::IntFuture(v.clone(), block_id, -1)),
-			llvm::VarType::F32 => None,
+			llvm::VarType::F32 => {
+				Some(RangeItem::FloatFuture(v.clone(), block_id, 0f32))
+			}
 			_ => None,
 		},
 	}
@@ -88,13 +93,12 @@ fn calc_item(
 	offset: Value,
 ) -> (Option<RangeItem>, Option<RangeItem>) {
 	let (l, u) = match op {
-		CompOp::EQ => (equal(that, block_id), equal(that, block_id)),
-		CompOp::NE => (None, None),
-		CompOp::SGT => (over(that, block_id), None),
-		CompOp::SGE => (equal(that, block_id), None),
-		CompOp::SLT => (None, under(that, block_id)),
-		CompOp::SLE => (None, equal(that, block_id)),
-		_ => (None, None),
+		CompOp::EQ | CompOp::OEQ => (equal(that, block_id), equal(that, block_id)),
+		CompOp::NE | CompOp::ONE => (None, None),
+		CompOp::SGT | CompOp::OGT => (over(that, block_id), None),
+		CompOp::SGE | CompOp::OGE => (equal(that, block_id), None),
+		CompOp::SLT | CompOp::OLT => (None, under(that, block_id)),
+		CompOp::SLE | CompOp::OLE => (None, equal(that, block_id)),
 	};
 
 	fn add_offset(
@@ -192,21 +196,15 @@ impl Constrain {
 
 		for pair in lower.into_iter().zip_longest(upper.into_iter()) {
 			match pair {
-				itertools::EitherOrBoth::Both(l, u) => result.push(Range {
-					lower: Some(l),
-					upper: Some(u),
-					contra: false,
-				}),
-				itertools::EitherOrBoth::Left(l) => result.push(Range {
-					lower: Some(l),
-					upper: None,
-					contra: false,
-				}),
-				itertools::EitherOrBoth::Right(u) => result.push(Range {
-					lower: None,
-					upper: Some(u),
-					contra: false,
-				}),
+				itertools::EitherOrBoth::Both(l, u) => {
+					result.push(Range::from_items(l, u))
+				}
+				itertools::EitherOrBoth::Left(l) => {
+					result.push(Range::from_items(l, RangeItem::PosInf))
+				}
+				itertools::EitherOrBoth::Right(u) => {
+					result.push(Range::from_items(RangeItem::NegInf, u))
+				}
 			}
 		}
 

@@ -1,5 +1,6 @@
 pub mod constants;
 pub mod errors;
+pub mod float_util;
 pub mod global_var;
 pub mod iter;
 pub mod label;

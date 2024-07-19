@@ -1,8 +1,4 @@
-use super::constrain_graph::ConstrainGraph;
-use std::{
-	collections::{HashSet, VecDeque},
-	usize::MAX,
-};
+use std::collections::HashSet;
 
 enum CallingStack {
 	Prepare(usize),
@@ -45,7 +41,7 @@ impl Tarjan {
 		mut self,
 		graph: &'a (impl Graph<'a> + 'a),
 	) -> Vec<Vec<usize>> {
-		if self.dfs.len() == 0 {
+		if self.dfs.is_empty() {
 			return vec![];
 		}
 		let mut sccs = vec![];
@@ -65,7 +61,7 @@ impl Tarjan {
 			}
 			for item in scc {
 				for need in graph.next(*item) {
-					if let None = solved.get(&need) {
+					if !solved.contains(&need) {
 						unreachable!("{} needs {}", item, need);
 					}
 				}
@@ -78,7 +74,7 @@ impl Tarjan {
 		&mut self,
 		graph: &'a (impl Graph<'a> + 'a),
 		result: &mut Vec<Vec<usize>>,
-		node_to_scc: &mut Vec<Option<usize>>,
+		node_to_scc: &mut [Option<usize>],
 	) {
 		fn min(a: Option<usize>, b: Option<usize>) -> usize {
 			let a = a.unwrap();

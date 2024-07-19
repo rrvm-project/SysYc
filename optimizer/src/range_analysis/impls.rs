@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{
 	analysis_graph::solve_graph, constrain::Constrain,
-	constrain_graph::ConstrainGraph, RangeAnalysis,
+	constrain_graph::ConstrainGraph, range::Range,
+	range_compare::comp_must_never, RangeAnalysis,
 };
 use crate::{
 	range_analysis::{
@@ -14,7 +15,10 @@ use crate::{
 	},
 	RrvmOptimizer,
 };
-use llvm::{CompOp, LlvmInstrTrait, LlvmTemp, Value};
+use llvm::{
+	ArithInstr, ArithOp, CompOp, LlvmInstrTrait, LlvmInstrVariant, LlvmTemp,
+	Value, VarType,
+};
 use rrvm::program::{LlvmFunc, LlvmProgram};
 use utils::{errors::Result, from_label};
 
@@ -368,7 +372,40 @@ pub fn build_constrains_graph(
 }
 
 pub fn action(func: &mut LlvmFunc, graph: ConstrainGraph) -> bool {
-	false
+	let get_range = |value: &Value, basicblockid: i32| match value {
+		Value::Int(v) => Range::fromi32(*v),
+		Value::Float(v) => Range::fromf32(*v),
+		Value::Temp(t) => {
+			graph.look_up_tmp_node(t, basicblockid).map_or_else(Range::inf, |node| {
+				graph.get_node_ref(node).range.clone().unwrap_or_else(Range::inf)
+			})
+		}
+	};
+	let mut changed = false;
+	for block in func.cfg.blocks.iter_mut() {
+		let id = block.borrow().id;
+		for instr in &mut block.borrow_mut().instrs {
+			if let LlvmInstrVariant::CompInstr(c) = instr.get_variant() {
+				let op = &c.op;
+
+				let new_instr = |t: bool| ArithInstr {
+					target: c.target.clone(),
+					op: ArithOp::Add,
+					var_type: VarType::I32,
+					lhs: 0.into(),
+					rhs: if t { 1 } else { 0 }.into(),
+				};
+
+				if let Some(t) =
+					comp_must_never(op, &get_range(&c.lhs, id), &get_range(&c.rhs, id))
+				{
+					*instr = Box::new(new_instr(t));
+					changed = true;
+				}
+			}
+		}
+	}
+	changed
 }
 
 impl RrvmOptimizer for RangeAnalysis {
@@ -377,8 +414,6 @@ impl RrvmOptimizer for RangeAnalysis {
 	}
 
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
-		Ok(
-			program.funcs.iter_mut().fold(false, |acc, x| acc || process_function(x)),
-		)
+		Ok(program.funcs.iter_mut().any(process_function))
 	}
 }

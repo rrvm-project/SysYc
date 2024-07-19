@@ -6,5 +6,7 @@ mod constrain_graph;
 pub mod impls;
 mod range;
 mod range_arith;
+mod range_compare;
 mod tarjan;
+mod widen_operator;
 pub struct RangeAnalysis {}
