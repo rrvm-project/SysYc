@@ -88,6 +88,7 @@ fn process_function(func: &mut LlvmFunc) -> bool {
 	);
 	let graph = solve_graph(sccs, graph);
 
+
 	action(func, graph)
 }
 
@@ -331,8 +332,30 @@ pub fn build_constrains_graph(
 
 	let mut graph = ConstrainGraph::new();
 
+
 	for block in func.cfg.blocks.iter() {
+		let mut processed = HashSet::new();
 		let block = block.borrow();
+		for phi in &block.phi_instrs {
+			graph.handle_phi_instr(phi, block.id);
+			processed.insert(phi.target.clone());
+		}
+
+		dbg!(&block.id, &block.live_in);
+
+		for instr in &block.instrs {
+			
+			match instr.get_variant() {
+				llvm::LlvmInstrVariant::ArithInstr(arith) => {
+					graph.handle_arith_instr(arith, block.id)
+				}
+				llvm::LlvmInstrVariant::ConvertInstr(convert) => {
+					graph.handle_convert_instr(convert, block.id)
+				}
+				_ => {}
+			}
+		}
+
 		for tmp in block.live_in.iter() {
 			let constrain = Constrain::build(
 				tmp,
@@ -350,23 +373,6 @@ pub fn build_constrains_graph(
 		}
 	}
 
-	for block in func.cfg.blocks.iter() {
-		for phi in &block.borrow().phi_instrs {
-			graph.handle_phi_instr(phi, block.borrow().id);
-		}
-
-		for instr in &block.borrow().instrs {
-			match instr.get_variant() {
-				llvm::LlvmInstrVariant::ArithInstr(arith) => {
-					graph.handle_arith_instr(arith, block.borrow().id)
-				}
-				llvm::LlvmInstrVariant::ConvertInstr(convert) => {
-					graph.handle_convert_instr(convert, block.borrow().id)
-				}
-				_ => {}
-			}
-		}
-	}
 
 	(Tarjan::new(graph.len()).work(&graph), graph)
 }
@@ -395,7 +401,9 @@ pub fn action(func: &mut LlvmFunc, graph: ConstrainGraph) -> bool {
 					lhs: 0.into(),
 					rhs: if t { 1 } else { 0 }.into(),
 				};
-
+				if let Some(t) =
+					comp_must_never(op, &get_range(&c.lhs, id), &get_range(&c.rhs, id))
+				{
 				println!(
 					"{} {} {} {:?} {:?}",
 					c.target,
@@ -405,9 +413,7 @@ pub fn action(func: &mut LlvmFunc, graph: ConstrainGraph) -> bool {
 					&get_range(&c.rhs, id)
 				);
 
-				if let Some(t) =
-					comp_must_never(op, &get_range(&c.lhs, id), &get_range(&c.rhs, id))
-				{
+				
 					*instr = Box::new(new_instr(t));
 					changed = true;
 				}

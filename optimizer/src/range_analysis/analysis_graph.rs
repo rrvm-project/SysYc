@@ -13,7 +13,11 @@ pub fn solve_graph(
 }
 
 fn analysis_scc(scc: &Vec<usize>, graph: &mut ConstrainGraph) {
+	dbg!(&graph);
 	graph.grow_analysis(scc);
+	dbg!(&graph);
 	graph.solve_future(scc);
+	dbg!(&graph);
 	graph.narrowing(scc);
+	dbg!(&graph);
 }

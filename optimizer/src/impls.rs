@@ -55,53 +55,86 @@ impl Optimizer1 {
 	}
 }
 
+
 impl Optimizer2 {
 	pub fn new() -> Self {
 		Self::default()
 	}
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
-		// 需在表达式重排前进行，否则，运算指令分布在不同的基本块中， LER做不了任何事情
-		RemoveDeadCode::new().apply(program)?;
-		RemoveUselessCode::new().apply(program)?;
-		RemoveUnreachCode::new().apply(program)?;
-		RemoveUselessCode::new().apply(program)?;
+
+
+
 		loop {
 			let mut flag = false;
-
+			// eprintln!("{}", program);
+			println!("{}", &program);
+			RangeAnalysis::new().apply(program)?;
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
-			flag |= PureCheck::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
-			flag |= FuyukiLocalValueNumber::new().apply(program)?;
+			flag |= PureCheck::new().apply(program)?;
+			// // flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= GLobalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
-			flag |= InlineFunction::new().apply(program)?;
-			flag |= SolveTailRecursion::new().apply(program)?;
 			if !flag {
 				break;
 			}
 		}
-
-		StrengthReduce::new().apply(program)?;
-
-		loop {
-			let mut flag = false;
-			flag |= RangeAnalysis::new().apply(program)?;
-			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUnreachCode::new().apply(program)?;
-			flag |= RemoveUselessCode::new().apply(program)?;
-			flag |= FoldConstants::new().apply(program)?;
-			flag |= FuyukiLocalValueNumber::new().apply(program)?;
-			flag |= RemoveUselessPhis::new().apply(program)?;
-			flag |= InlineFunction::new().apply(program)?;
-			flag |= SolveTailRecursion::new().apply(program)?;
-			if !flag {
-				break;
-			}
-		}
+		
 		program.analysis();
-		RangeAnalysis::new().apply(program)?;
 		Ok(())
 	}
 }
+
+// impl Optimizer2 {
+// 	pub fn new() -> Self {
+// 		Self::default()
+// 	}
+// 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
+// 		// 需在表达式重排前进行，否则，运算指令分布在不同的基本块中， LER做不了任何事情
+// 		RemoveDeadCode::new().apply(program)?;
+// 		RemoveUselessCode::new().apply(program)?;
+// 		RemoveUnreachCode::new().apply(program)?;
+// 		RemoveUselessCode::new().apply(program)?;
+// 		loop {
+// 			let mut flag = false;
+
+// 			flag |= RemoveDeadCode::new().apply(program)?;
+// 			flag |= RemoveUnreachCode::new().apply(program)?;
+// 			flag |= RemoveUselessCode::new().apply(program)?;
+// 			flag |= PureCheck::new().apply(program)?;
+// 			flag |= FoldConstants::new().apply(program)?;
+// 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
+// 			flag |= GLobalValueNumber::new().apply(program)?;
+// 			flag |= RemoveUselessPhis::new().apply(program)?;
+// 			flag |= InlineFunction::new().apply(program)?;
+// 			flag |= SolveTailRecursion::new().apply(program)?;
+// 			if !flag {
+// 				break;
+// 			}
+// 		}
+
+// 		StrengthReduce::new().apply(program)?;
+
+// 		loop {
+// 			let mut flag = false;
+// 			println!("{}", &program);
+// 			flag |= RangeAnalysis::new().apply(program)?;
+// 			flag |= RemoveDeadCode::new().apply(program)?;
+// 			flag |= RemoveUnreachCode::new().apply(program)?;
+// 			flag |= RemoveUselessCode::new().apply(program)?;
+// 			flag |= FoldConstants::new().apply(program)?;
+// 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
+// 			flag |= RemoveUselessPhis::new().apply(program)?;
+// 			flag |= InlineFunction::new().apply(program)?;
+// 			flag |= SolveTailRecursion::new().apply(program)?;
+// 			if !flag {
+// 				break;
+// 			}
+// 		}
+// 		program.analysis();
+// 		RangeAnalysis::new().apply(program)?;
+// 		Ok(())
+// 	}
+// }

@@ -20,10 +20,24 @@ use super::{
 	widen_operator::{SimpleWidenOperator, WidenOp},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ConstrainGraph {
 	nodes: Vec<Option<Node>>,
 	tmp_to_nodes: HashMap<LlvmTemp, HashMap<i32, usize>>,
+}
+
+impl std::fmt::Debug for ConstrainGraph{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str("ConstrainGraph:".into())?;
+		for (i, node) in self.nodes.iter().enumerate(){
+			if let Some(node) = node{
+				f.write_fmt(format_args!("{}: prev{:?} next{:?} future{:?} range{:?} inner{:?}\n",i, node.prev, node.next, node.future, node.range, node.inner))?;
+			} else {
+				f.write_fmt(format_args!("{}: TAKEN\n", i))?;
+			}
+		}
+		Ok(())
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -251,6 +265,22 @@ impl ConstrainGraph {
 					})
 					.count();
 				self.put_node(i, node);
+			}
+		}
+
+		for node in self.nodes.iter(){
+			if let Some(node) = node{
+				match (&node.inner, node.prev.len()) {
+					(NodeInner::Temp(t,bbid) ,n) => {
+						if n > 1{
+							for prev in &node.prev{
+								dbg!(&self.nodes[*prev]);
+							}
+							assert!(n <= 1,"{:?}@{}, {:?}", t, bbid, node.prev)
+						}
+					}
+					_ => ()
+				}
 			}
 		}
 	}
