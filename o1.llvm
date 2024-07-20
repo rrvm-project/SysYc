@@ -1,0 +1,2971 @@
+GlobalVar { ident: "SHIFT_TABLE", data: [Word(1), Word(2), Word(4), Word(8), Word(16), Word(32), Word(64), Word(128), Word(256), Word(512), Word(1024), Word(2048), Word(4096), Word(8192), Word(16384), Word(32768)], is_float: false }
+define i32 @long_func(){
+  entry:
+    br label %B9
+  B9:
+    %3 = phi i32 [1, label %entry], [%240, label %B809]
+    %5 = phi i32 [0, label %entry], [%476, label %B809]
+    %6 = phi i32 [2, label %entry], [%248, label %B809]
+    %8 = icmp sgt i32 %5, 0
+    br i32 %8, label %B11, label %B817
+  B11:
+    br label %B20
+  B20:
+    %10 = phi i32 [%5, label %B11], [%24, label %B34]
+    %11 = phi i32 [0, label %B11], [%23, label %B34]
+    %12 = phi i32 [1, label %B11], [%25, label %B34]
+    %9 = phi i32 [0, label %B11], [%26, label %B34]
+    %13 = icmp slt i32 %9, 16
+    br i32 %13, label %B22, label %B45
+  B22:
+    %14 = rem i32 %10, 2
+    br i32 %14, label %B24, label %B26
+  B24:
+    %15 = rem i32 %12, 2
+    br label %B27
+  B26:
+    br label %B27
+  B27:
+    %16 = phi i32 [0, label %B26], [%15, label %B24]
+    br i32 %16, label %B28, label %B33
+  B28:
+    %17 = load i32*, i32* @SHIFT_TABLE
+    %18 = mul i32 %9, 4
+    %19 = getelementptr i32* %17, i32 %18
+    %20 = load i32, i32* %19
+    %22 = add i32 %11, %20
+    br label %B34
+  B33:
+    br label %B34
+  B34:
+    %23 = phi i32 [%22, label %B28], [%11, label %B33]
+    %24 = div i32 %10, 2
+    %25 = div i32 %12, 2
+    %26 = add i32 %9, 1
+    br label %B20
+  B45:
+    br i32 %11, label %B47, label %B411
+  B47:
+    br label %B51
+  B51:
+    %28 = phi i32 [%6, label %B47], [%231, label %B398]
+    %30 = phi i32 [%3, label %B47], [%132, label %B398]
+    %31 = phi i32 [0, label %B47], [%127, label %B398]
+    br i32 %28, label %B52, label %B406
+  B52:
+    br label %B61
+  B61:
+    %34 = phi i32 [0, label %B52], [%48, label %B75]
+    %35 = phi i32 [1, label %B52], [%50, label %B75]
+    %36 = phi i32 [%28, label %B52], [%49, label %B75]
+    %37 = phi i32 [0, label %B52], [%51, label %B75]
+    %38 = icmp slt i32 %37, 16
+    br i32 %38, label %B63, label %B86
+  B63:
+    %39 = rem i32 %36, 2
+    br i32 %39, label %B65, label %B67
+  B65:
+    %40 = rem i32 %35, 2
+    br label %B68
+  B67:
+    br label %B68
+  B68:
+    %41 = phi i32 [0, label %B67], [%40, label %B65]
+    br i32 %41, label %B69, label %B74
+  B69:
+    %42 = load i32*, i32* @SHIFT_TABLE
+    %43 = mul i32 %37, 4
+    %44 = getelementptr i32* %42, i32 %43
+    %45 = load i32, i32* %44
+    %47 = add i32 %34, %45
+    br label %B75
+  B74:
+    br label %B75
+  B75:
+    %48 = phi i32 [%47, label %B69], [%34, label %B74]
+    %49 = div i32 %36, 2
+    %50 = div i32 %35, 2
+    %51 = add i32 %37, 1
+    br label %B61
+  B86:
+    br i32 %34, label %B88, label %B226
+  B88:
+    br label %B92
+  B92:
+    %56 = phi i32 [%30, label %B88], [%108, label %B214]
+    %58 = phi i32 [%31, label %B88], [%62, label %B214]
+    br i32 %56, label %B93, label %B221
+  B93:
+    br label %B102
+  B102:
+    %59 = phi i32 [%58, label %B93], [%83, label %B125]
+    %60 = phi i32 [%56, label %B93], [%84, label %B125]
+    %61 = phi i32 [0, label %B93], [%85, label %B125]
+    %62 = phi i32 [0, label %B93], [%82, label %B125]
+    %63 = icmp slt i32 %61, 16
+    br i32 %63, label %B104, label %B136
+  B104:
+    %64 = rem i32 %59, 2
+    br i32 %64, label %B106, label %B116
+  B106:
+    %65 = rem i32 %60, 2
+    %66 = icmp eq i32 %65, 0
+    br i32 %66, label %B109, label %B114
+  B109:
+    %67 = load i32*, i32* @SHIFT_TABLE
+    %68 = mul i32 %61, 4
+    %69 = getelementptr i32* %67, i32 %68
+    %70 = load i32, i32* %69
+    %72 = add i32 %62, %70
+    br label %B115
+  B114:
+    br label %B115
+  B115:
+    %73 = phi i32 [%72, label %B109], [%62, label %B114]
+    br label %B125
+  B116:
+    %74 = rem i32 %60, 2
+    br i32 %74, label %B118, label %B123
+  B118:
+    %75 = load i32*, i32* @SHIFT_TABLE
+    %76 = mul i32 %61, 4
+    %77 = getelementptr i32* %75, i32 %76
+    %78 = load i32, i32* %77
+    %80 = add i32 %62, %78
+    br label %B124
+  B123:
+    br label %B124
+  B124:
+    %81 = phi i32 [%80, label %B118], [%62, label %B123]
+    br label %B125
+  B125:
+    %82 = phi i32 [%73, label %B115], [%81, label %B124]
+    %83 = div i32 %59, 2
+    %84 = div i32 %60, 2
+    %85 = add i32 %61, 1
+    br label %B102
+  B136:
+    br label %B148
+  B148:
+    %86 = phi i32 [0, label %B136], [%103, label %B162]
+    %87 = phi i32 [0, label %B136], [%100, label %B162]
+    %88 = phi i32 [%56, label %B136], [%102, label %B162]
+    %89 = phi i32 [%58, label %B136], [%101, label %B162]
+    %90 = icmp slt i32 %86, 16
+    br i32 %90, label %B150, label %B173
+  B150:
+    %91 = rem i32 %89, 2
+    br i32 %91, label %B152, label %B154
+  B152:
+    %92 = rem i32 %88, 2
+    br label %B155
+  B154:
+    br label %B155
+  B155:
+    %93 = phi i32 [0, label %B154], [%92, label %B152]
+    br i32 %93, label %B156, label %B161
+  B156:
+    %94 = load i32*, i32* @SHIFT_TABLE
+    %95 = mul i32 %86, 4
+    %96 = getelementptr i32* %94, i32 %95
+    %97 = load i32, i32* %96
+    %99 = add i32 %87, %97
+    br label %B162
+  B161:
+    br label %B162
+  B162:
+    %100 = phi i32 [%99, label %B156], [%87, label %B161]
+    %101 = div i32 %89, 2
+    %102 = div i32 %88, 2
+    %103 = add i32 %86, 1
+    br label %B148
+  B173:
+    %104 = mul i32 %87, 2
+    br label %B189
+  B189:
+    %105 = phi i32 [65535, label %B173], [%121, label %B203]
+    %106 = phi i32 [%104, label %B173], [%120, label %B203]
+    %107 = phi i32 [0, label %B173], [%122, label %B203]
+    %108 = phi i32 [0, label %B173], [%119, label %B203]
+    %109 = icmp slt i32 %107, 16
+    br i32 %109, label %B191, label %B214
+  B191:
+    %110 = rem i32 %106, 2
+    br i32 %110, label %B193, label %B195
+  B193:
+    %111 = rem i32 %105, 2
+    br label %B196
+  B195:
+    br label %B196
+  B196:
+    %112 = phi i32 [0, label %B195], [%111, label %B193]
+    br i32 %112, label %B197, label %B202
+  B197:
+    %113 = load i32*, i32* @SHIFT_TABLE
+    %114 = mul i32 %107, 4
+    %115 = getelementptr i32* %113, i32 %114
+    %116 = load i32, i32* %115
+    %118 = add i32 %108, %116
+    br label %B203
+  B202:
+    br label %B203
+  B203:
+    %119 = phi i32 [%118, label %B197], [%108, label %B202]
+    %120 = div i32 %106, 2
+    %121 = div i32 %105, 2
+    %122 = add i32 %107, 1
+    br label %B189
+  B214:
+    br label %B92
+  B221:
+    br label %B227
+  B226:
+    br label %B227
+  B227:
+    %127 = phi i32 [%58, label %B221], [%31, label %B226]
+    br label %B232
+  B232:
+    %132 = phi i32 [%30, label %B227], [%142, label %B354]
+    %134 = phi i32 [%30, label %B227], [%187, label %B354]
+    br i32 %134, label %B233, label %B361
+  B233:
+    br label %B242
+  B242:
+    %139 = phi i32 [%134, label %B233], [%164, label %B265]
+    %140 = phi i32 [0, label %B233], [%165, label %B265]
+    %141 = phi i32 [%132, label %B233], [%163, label %B265]
+    %142 = phi i32 [0, label %B233], [%162, label %B265]
+    %143 = icmp slt i32 %140, 16
+    br i32 %143, label %B244, label %B276
+  B244:
+    %144 = rem i32 %141, 2
+    br i32 %144, label %B246, label %B256
+  B246:
+    %145 = rem i32 %139, 2
+    %146 = icmp eq i32 %145, 0
+    br i32 %146, label %B249, label %B254
+  B249:
+    %147 = load i32*, i32* @SHIFT_TABLE
+    %148 = mul i32 %140, 4
+    %149 = getelementptr i32* %147, i32 %148
+    %150 = load i32, i32* %149
+    %152 = add i32 %142, %150
+    br label %B255
+  B254:
+    br label %B255
+  B255:
+    %153 = phi i32 [%152, label %B249], [%142, label %B254]
+    br label %B265
+  B256:
+    %154 = rem i32 %139, 2
+    br i32 %154, label %B258, label %B263
+  B258:
+    %155 = load i32*, i32* @SHIFT_TABLE
+    %156 = mul i32 %140, 4
+    %157 = getelementptr i32* %155, i32 %156
+    %158 = load i32, i32* %157
+    %160 = add i32 %142, %158
+    br label %B264
+  B263:
+    br label %B264
+  B264:
+    %161 = phi i32 [%160, label %B258], [%142, label %B263]
+    br label %B265
+  B265:
+    %162 = phi i32 [%153, label %B255], [%161, label %B264]
+    %163 = div i32 %141, 2
+    %164 = div i32 %139, 2
+    %165 = add i32 %140, 1
+    br label %B242
+  B276:
+    br label %B288
+  B288:
+    %166 = phi i32 [0, label %B276], [%180, label %B302]
+    %167 = phi i32 [%132, label %B276], [%181, label %B302]
+    %168 = phi i32 [0, label %B276], [%183, label %B302]
+    %169 = phi i32 [%134, label %B276], [%182, label %B302]
+    %170 = icmp slt i32 %168, 16
+    br i32 %170, label %B290, label %B313
+  B290:
+    %171 = rem i32 %167, 2
+    br i32 %171, label %B292, label %B294
+  B292:
+    %172 = rem i32 %169, 2
+    br label %B295
+  B294:
+    br label %B295
+  B295:
+    %173 = phi i32 [0, label %B294], [%172, label %B292]
+    br i32 %173, label %B296, label %B301
+  B296:
+    %174 = load i32*, i32* @SHIFT_TABLE
+    %175 = mul i32 %168, 4
+    %176 = getelementptr i32* %174, i32 %175
+    %177 = load i32, i32* %176
+    %179 = add i32 %166, %177
+    br label %B302
+  B301:
+    br label %B302
+  B302:
+    %180 = phi i32 [%179, label %B296], [%166, label %B301]
+    %181 = div i32 %167, 2
+    %182 = div i32 %169, 2
+    %183 = add i32 %168, 1
+    br label %B288
+  B313:
+    %184 = mul i32 %166, 2
+    br label %B329
+  B329:
+    %185 = phi i32 [65535, label %B313], [%201, label %B343]
+    %186 = phi i32 [%184, label %B313], [%200, label %B343]
+    %187 = phi i32 [0, label %B313], [%199, label %B343]
+    %188 = phi i32 [0, label %B313], [%202, label %B343]
+    %189 = icmp slt i32 %188, 16
+    br i32 %189, label %B331, label %B354
+  B331:
+    %190 = rem i32 %186, 2
+    br i32 %190, label %B333, label %B335
+  B333:
+    %191 = rem i32 %185, 2
+    br label %B336
+  B335:
+    br label %B336
+  B336:
+    %192 = phi i32 [0, label %B335], [%191, label %B333]
+    br i32 %192, label %B337, label %B342
+  B337:
+    %193 = load i32*, i32* @SHIFT_TABLE
+    %194 = mul i32 %188, 4
+    %195 = getelementptr i32* %193, i32 %194
+    %196 = load i32, i32* %195
+    %198 = add i32 %187, %196
+    br label %B343
+  B342:
+    br label %B343
+  B343:
+    %199 = phi i32 [%198, label %B337], [%187, label %B342]
+    %200 = div i32 %186, 2
+    %201 = div i32 %185, 2
+    %202 = add i32 %188, 1
+    br label %B329
+  B354:
+    br label %B232
+  B361:
+    %211 = sitofp i32 %28 to f32
+    %212 = icmp ogt i32 %211, 32767
+    br i32 %212, label %B383, label %B394
+  B383:
+    %213 = load i32*, i32* @SHIFT_TABLE
+    %215 = getelementptr i32* %213, i32 4
+    %216 = load i32, i32* %215
+    %217 = div i32 %28, %216
+    %218 = add i32 %217, 65536
+    %219 = load i32*, i32* @SHIFT_TABLE
+    %223 = getelementptr i32* %219, i32 60
+    %224 = load i32, i32* %223
+    %225 = sub i32 %218, %224
+    br label %B398
+  B394:
+    %226 = load i32*, i32* @SHIFT_TABLE
+    %228 = getelementptr i32* %226, i32 4
+    %229 = load i32, i32* %228
+    %230 = div i32 %28, %229
+    br label %B398
+  B398:
+    %231 = phi i32 [%225, label %B383], [%230, label %B394]
+    br label %B51
+  B406:
+    br label %B412
+  B411:
+    br label %B412
+  B412:
+    %240 = phi i32 [%31, label %B406], [%3, label %B411]
+    br label %B417
+  B417:
+    %244 = phi i32 [%6, label %B412], [%350, label %B764]
+    %246 = phi i32 [%6, label %B412], [%446, label %B764]
+    %248 = phi i32 [0, label %B412], [%343, label %B764]
+    br i32 %246, label %B418, label %B772
+  B418:
+    br label %B427
+  B427:
+    %249 = phi i32 [1, label %B418], [%265, label %B441]
+    %250 = phi i32 [%246, label %B418], [%264, label %B441]
+    %251 = phi i32 [0, label %B418], [%266, label %B441]
+    %252 = phi i32 [0, label %B418], [%263, label %B441]
+    %253 = icmp slt i32 %251, 16
+    br i32 %253, label %B429, label %B452
+  B429:
+    %254 = rem i32 %250, 2
+    br i32 %254, label %B431, label %B433
+  B431:
+    %255 = rem i32 %249, 2
+    br label %B434
+  B433:
+    br label %B434
+  B434:
+    %256 = phi i32 [0, label %B433], [%255, label %B431]
+    br i32 %256, label %B435, label %B440
+  B435:
+    %257 = load i32*, i32* @SHIFT_TABLE
+    %258 = mul i32 %251, 4
+    %259 = getelementptr i32* %257, i32 %258
+    %260 = load i32, i32* %259
+    %262 = add i32 %252, %260
+    br label %B441
+  B440:
+    br label %B441
+  B441:
+    %263 = phi i32 [%262, label %B435], [%252, label %B440]
+    %264 = div i32 %250, 2
+    %265 = div i32 %249, 2
+    %266 = add i32 %251, 1
+    br label %B427
+  B452:
+    br i32 %252, label %B454, label %B592
+  B454:
+    br label %B458
+  B458:
+    %267 = phi i32 [%248, label %B454], [%274, label %B580]
+    %270 = phi i32 [%244, label %B454], [%322, label %B580]
+    br i32 %270, label %B459, label %B587
+  B459:
+    br label %B468
+  B468:
+    %274 = phi i32 [0, label %B459], [%297, label %B491]
+    %275 = phi i32 [%267, label %B459], [%298, label %B491]
+    %276 = phi i32 [0, label %B459], [%300, label %B491]
+    %277 = phi i32 [%270, label %B459], [%299, label %B491]
+    %278 = icmp slt i32 %276, 16
+    br i32 %278, label %B470, label %B502
+  B470:
+    %279 = rem i32 %275, 2
+    br i32 %279, label %B472, label %B482
+  B472:
+    %280 = rem i32 %277, 2
+    %281 = icmp eq i32 %280, 0
+    br i32 %281, label %B475, label %B480
+  B475:
+    %282 = load i32*, i32* @SHIFT_TABLE
+    %283 = mul i32 %276, 4
+    %284 = getelementptr i32* %282, i32 %283
+    %285 = load i32, i32* %284
+    %287 = add i32 %274, %285
+    br label %B481
+  B480:
+    br label %B481
+  B481:
+    %288 = phi i32 [%287, label %B475], [%274, label %B480]
+    br label %B491
+  B482:
+    %289 = rem i32 %277, 2
+    br i32 %289, label %B484, label %B489
+  B484:
+    %290 = load i32*, i32* @SHIFT_TABLE
+    %291 = mul i32 %276, 4
+    %292 = getelementptr i32* %290, i32 %291
+    %293 = load i32, i32* %292
+    %295 = add i32 %274, %293
+    br label %B490
+  B489:
+    br label %B490
+  B490:
+    %296 = phi i32 [%295, label %B484], [%274, label %B489]
+    br label %B491
+  B491:
+    %297 = phi i32 [%288, label %B481], [%296, label %B490]
+    %298 = div i32 %275, 2
+    %299 = div i32 %277, 2
+    %300 = add i32 %276, 1
+    br label %B468
+  B502:
+    br label %B514
+  B514:
+    %301 = phi i32 [0, label %B502], [%318, label %B528]
+    %302 = phi i32 [%267, label %B502], [%316, label %B528]
+    %303 = phi i32 [0, label %B502], [%315, label %B528]
+    %304 = phi i32 [%270, label %B502], [%317, label %B528]
+    %305 = icmp slt i32 %301, 16
+    br i32 %305, label %B516, label %B539
+  B516:
+    %306 = rem i32 %302, 2
+    br i32 %306, label %B518, label %B520
+  B518:
+    %307 = rem i32 %304, 2
+    br label %B521
+  B520:
+    br label %B521
+  B521:
+    %308 = phi i32 [0, label %B520], [%307, label %B518]
+    br i32 %308, label %B522, label %B527
+  B522:
+    %309 = load i32*, i32* @SHIFT_TABLE
+    %310 = mul i32 %301, 4
+    %311 = getelementptr i32* %309, i32 %310
+    %312 = load i32, i32* %311
+    %314 = add i32 %303, %312
+    br label %B528
+  B527:
+    br label %B528
+  B528:
+    %315 = phi i32 [%314, label %B522], [%303, label %B527]
+    %316 = div i32 %302, 2
+    %317 = div i32 %304, 2
+    %318 = add i32 %301, 1
+    br label %B514
+  B539:
+    %319 = mul i32 %303, 2
+    br label %B555
+  B555:
+    %320 = phi i32 [%319, label %B539], [%335, label %B569]
+    %321 = phi i32 [65535, label %B539], [%336, label %B569]
+    %322 = phi i32 [0, label %B539], [%334, label %B569]
+    %323 = phi i32 [0, label %B539], [%337, label %B569]
+    %324 = icmp slt i32 %323, 16
+    br i32 %324, label %B557, label %B580
+  B557:
+    %325 = rem i32 %320, 2
+    br i32 %325, label %B559, label %B561
+  B559:
+    %326 = rem i32 %321, 2
+    br label %B562
+  B561:
+    br label %B562
+  B562:
+    %327 = phi i32 [0, label %B561], [%326, label %B559]
+    br i32 %327, label %B563, label %B568
+  B563:
+    %328 = load i32*, i32* @SHIFT_TABLE
+    %329 = mul i32 %323, 4
+    %330 = getelementptr i32* %328, i32 %329
+    %331 = load i32, i32* %330
+    %333 = add i32 %322, %331
+    br label %B569
+  B568:
+    br label %B569
+  B569:
+    %334 = phi i32 [%333, label %B563], [%322, label %B568]
+    %335 = div i32 %320, 2
+    %336 = div i32 %321, 2
+    %337 = add i32 %323, 1
+    br label %B555
+  B580:
+    br label %B458
+  B587:
+    br label %B593
+  B592:
+    br label %B593
+  B593:
+    %343 = phi i32 [%267, label %B587], [%248, label %B592]
+    br label %B598
+  B598:
+    %349 = phi i32 [%244, label %B593], [%401, label %B720]
+    %350 = phi i32 [%244, label %B593], [%356, label %B720]
+    br i32 %349, label %B599, label %B727
+  B599:
+    br label %B608
+  B608:
+    %354 = phi i32 [%350, label %B599], [%378, label %B631]
+    %355 = phi i32 [%349, label %B599], [%379, label %B631]
+    %356 = phi i32 [0, label %B599], [%377, label %B631]
+    %357 = phi i32 [0, label %B599], [%380, label %B631]
+    %358 = icmp slt i32 %357, 16
+    br i32 %358, label %B610, label %B642
+  B610:
+    %359 = rem i32 %354, 2
+    br i32 %359, label %B612, label %B622
+  B612:
+    %360 = rem i32 %355, 2
+    %361 = icmp eq i32 %360, 0
+    br i32 %361, label %B615, label %B620
+  B615:
+    %362 = load i32*, i32* @SHIFT_TABLE
+    %363 = mul i32 %357, 4
+    %364 = getelementptr i32* %362, i32 %363
+    %365 = load i32, i32* %364
+    %367 = add i32 %356, %365
+    br label %B621
+  B620:
+    br label %B621
+  B621:
+    %368 = phi i32 [%367, label %B615], [%356, label %B620]
+    br label %B631
+  B622:
+    %369 = rem i32 %355, 2
+    br i32 %369, label %B624, label %B629
+  B624:
+    %370 = load i32*, i32* @SHIFT_TABLE
+    %371 = mul i32 %357, 4
+    %372 = getelementptr i32* %370, i32 %371
+    %373 = load i32, i32* %372
+    %375 = add i32 %356, %373
+    br label %B630
+  B629:
+    br label %B630
+  B630:
+    %376 = phi i32 [%375, label %B624], [%356, label %B629]
+    br label %B631
+  B631:
+    %377 = phi i32 [%368, label %B621], [%376, label %B630]
+    %378 = div i32 %354, 2
+    %379 = div i32 %355, 2
+    %380 = add i32 %357, 1
+    br label %B608
+  B642:
+    br label %B654
+  B654:
+    %381 = phi i32 [%350, label %B642], [%396, label %B668]
+    %382 = phi i32 [0, label %B642], [%398, label %B668]
+    %383 = phi i32 [0, label %B642], [%395, label %B668]
+    %384 = phi i32 [%349, label %B642], [%397, label %B668]
+    %385 = icmp slt i32 %382, 16
+    br i32 %385, label %B656, label %B679
+  B656:
+    %386 = rem i32 %381, 2
+    br i32 %386, label %B658, label %B660
+  B658:
+    %387 = rem i32 %384, 2
+    br label %B661
+  B660:
+    br label %B661
+  B661:
+    %388 = phi i32 [0, label %B660], [%387, label %B658]
+    br i32 %388, label %B662, label %B667
+  B662:
+    %389 = load i32*, i32* @SHIFT_TABLE
+    %390 = mul i32 %382, 4
+    %391 = getelementptr i32* %389, i32 %390
+    %392 = load i32, i32* %391
+    %394 = add i32 %383, %392
+    br label %B668
+  B667:
+    br label %B668
+  B668:
+    %395 = phi i32 [%394, label %B662], [%383, label %B667]
+    %396 = div i32 %381, 2
+    %397 = div i32 %384, 2
+    %398 = add i32 %382, 1
+    br label %B654
+  B679:
+    %399 = mul i32 %383, 2
+    br label %B695
+  B695:
+    %400 = phi i32 [65535, label %B679], [%416, label %B709]
+    %401 = phi i32 [0, label %B679], [%414, label %B709]
+    %402 = phi i32 [0, label %B679], [%417, label %B709]
+    %403 = phi i32 [%399, label %B679], [%415, label %B709]
+    %404 = icmp slt i32 %402, 16
+    br i32 %404, label %B697, label %B720
+  B697:
+    %405 = rem i32 %403, 2
+    br i32 %405, label %B699, label %B701
+  B699:
+    %406 = rem i32 %400, 2
+    br label %B702
+  B701:
+    br label %B702
+  B702:
+    %407 = phi i32 [0, label %B701], [%406, label %B699]
+    br i32 %407, label %B703, label %B708
+  B703:
+    %408 = load i32*, i32* @SHIFT_TABLE
+    %409 = mul i32 %402, 4
+    %410 = getelementptr i32* %408, i32 %409
+    %411 = load i32, i32* %410
+    %413 = add i32 %401, %411
+    br label %B709
+  B708:
+    br label %B709
+  B709:
+    %414 = phi i32 [%413, label %B703], [%401, label %B708]
+    %415 = div i32 %403, 2
+    %416 = div i32 %400, 2
+    %417 = add i32 %402, 1
+    br label %B695
+  B720:
+    br label %B598
+  B727:
+    %426 = sitofp i32 %246 to f32
+    %427 = icmp ogt i32 %426, 32767
+    br i32 %427, label %B749, label %B760
+  B749:
+    %428 = load i32*, i32* @SHIFT_TABLE
+    %430 = getelementptr i32* %428, i32 4
+    %431 = load i32, i32* %430
+    %432 = div i32 %246, %431
+    %433 = add i32 %432, 65536
+    %434 = load i32*, i32* @SHIFT_TABLE
+    %438 = getelementptr i32* %434, i32 60
+    %439 = load i32, i32* %438
+    %440 = sub i32 %433, %439
+    br label %B764
+  B760:
+    %441 = load i32*, i32* @SHIFT_TABLE
+    %443 = getelementptr i32* %441, i32 4
+    %444 = load i32, i32* %443
+    %445 = div i32 %246, %444
+    br label %B764
+  B764:
+    %446 = phi i32 [%440, label %B749], [%445, label %B760]
+    br label %B417
+  B772:
+    %456 = sitofp i32 %5 to f32
+    %457 = icmp ogt i32 %456, 32767
+    br i32 %457, label %B794, label %B805
+  B794:
+    %458 = load i32*, i32* @SHIFT_TABLE
+    %460 = getelementptr i32* %458, i32 4
+    %461 = load i32, i32* %460
+    %462 = div i32 %5, %461
+    %463 = add i32 %462, 65536
+    %464 = load i32*, i32* @SHIFT_TABLE
+    %468 = getelementptr i32* %464, i32 60
+    %469 = load i32, i32* %468
+    %470 = sub i32 %463, %469
+    br label %B809
+  B805:
+    %471 = load i32*, i32* @SHIFT_TABLE
+    %473 = getelementptr i32* %471, i32 4
+    %474 = load i32, i32* %473
+    %475 = div i32 %5, %474
+    br label %B809
+  B809:
+    %476 = phi i32 [%470, label %B794], [%475, label %B805]
+    br label %B9
+  B817:
+    %482 = call void @putint(i32 %3)
+    %483 = call void @putch(i32 10)
+    br label %B826
+  B826:
+    %485 = phi i32 [1, label %B817], [%722, label %B1626]
+    %488 = phi i32 [1, label %B817], [%959, label %B1626]
+    %490 = phi i32 [2, label %B817], [%730, label %B1626]
+    %491 = icmp sgt i32 %488, 0
+    br i32 %491, label %B828, label %B1634
+  B828:
+    br label %B837
+  B837:
+    %492 = phi i32 [%488, label %B828], [%507, label %B851]
+    %493 = phi i32 [1, label %B828], [%508, label %B851]
+    %494 = phi i32 [0, label %B828], [%506, label %B851]
+    %495 = phi i32 [0, label %B828], [%509, label %B851]
+    %496 = icmp slt i32 %495, 16
+    br i32 %496, label %B839, label %B862
+  B839:
+    %497 = rem i32 %492, 2
+    br i32 %497, label %B841, label %B843
+  B841:
+    %498 = rem i32 %493, 2
+    br label %B844
+  B843:
+    br label %B844
+  B844:
+    %499 = phi i32 [0, label %B843], [%498, label %B841]
+    br i32 %499, label %B845, label %B850
+  B845:
+    %500 = load i32*, i32* @SHIFT_TABLE
+    %501 = mul i32 %495, 4
+    %502 = getelementptr i32* %500, i32 %501
+    %503 = load i32, i32* %502
+    %505 = add i32 %494, %503
+    br label %B851
+  B850:
+    br label %B851
+  B851:
+    %506 = phi i32 [%505, label %B845], [%494, label %B850]
+    %507 = div i32 %492, 2
+    %508 = div i32 %493, 2
+    %509 = add i32 %495, 1
+    br label %B837
+  B862:
+    br i32 %494, label %B864, label %B1228
+  B864:
+    br label %B868
+  B868:
+    %510 = phi i32 [%485, label %B864], [%617, label %B1215]
+    %514 = phi i32 [0, label %B864], [%613, label %B1215]
+    %516 = phi i32 [%490, label %B864], [%715, label %B1215]
+    br i32 %516, label %B869, label %B1223
+  B869:
+    br label %B878
+  B878:
+    %517 = phi i32 [1, label %B869], [%533, label %B892]
+    %518 = phi i32 [0, label %B869], [%531, label %B892]
+    %519 = phi i32 [0, label %B869], [%534, label %B892]
+    %520 = phi i32 [%516, label %B869], [%532, label %B892]
+    %521 = icmp slt i32 %519, 16
+    br i32 %521, label %B880, label %B903
+  B880:
+    %522 = rem i32 %520, 2
+    br i32 %522, label %B882, label %B884
+  B882:
+    %523 = rem i32 %517, 2
+    br label %B885
+  B884:
+    br label %B885
+  B885:
+    %524 = phi i32 [0, label %B884], [%523, label %B882]
+    br i32 %524, label %B886, label %B891
+  B886:
+    %525 = load i32*, i32* @SHIFT_TABLE
+    %526 = mul i32 %519, 4
+    %527 = getelementptr i32* %525, i32 %526
+    %528 = load i32, i32* %527
+    %530 = add i32 %518, %528
+    br label %B892
+  B891:
+    br label %B892
+  B892:
+    %531 = phi i32 [%530, label %B886], [%518, label %B891]
+    %532 = div i32 %520, 2
+    %533 = div i32 %517, 2
+    %534 = add i32 %519, 1
+    br label %B878
+  B903:
+    br i32 %518, label %B905, label %B1043
+  B905:
+    br label %B909
+  B909:
+    %540 = phi i32 [%510, label %B905], [%590, label %B1031]
+    %541 = phi i32 [%514, label %B905], [%545, label %B1031]
+    br i32 %540, label %B910, label %B1038
+  B910:
+    br label %B919
+  B919:
+    %542 = phi i32 [0, label %B910], [%568, label %B942]
+    %543 = phi i32 [%540, label %B910], [%567, label %B942]
+    %544 = phi i32 [%541, label %B910], [%566, label %B942]
+    %545 = phi i32 [0, label %B910], [%565, label %B942]
+    %546 = icmp slt i32 %542, 16
+    br i32 %546, label %B921, label %B953
+  B921:
+    %547 = rem i32 %544, 2
+    br i32 %547, label %B923, label %B933
+  B923:
+    %548 = rem i32 %543, 2
+    %549 = icmp eq i32 %548, 0
+    br i32 %549, label %B926, label %B931
+  B926:
+    %550 = load i32*, i32* @SHIFT_TABLE
+    %551 = mul i32 %542, 4
+    %552 = getelementptr i32* %550, i32 %551
+    %553 = load i32, i32* %552
+    %555 = add i32 %545, %553
+    br label %B932
+  B931:
+    br label %B932
+  B932:
+    %556 = phi i32 [%555, label %B926], [%545, label %B931]
+    br label %B942
+  B933:
+    %557 = rem i32 %543, 2
+    br i32 %557, label %B935, label %B940
+  B935:
+    %558 = load i32*, i32* @SHIFT_TABLE
+    %559 = mul i32 %542, 4
+    %560 = getelementptr i32* %558, i32 %559
+    %561 = load i32, i32* %560
+    %563 = add i32 %545, %561
+    br label %B941
+  B940:
+    br label %B941
+  B941:
+    %564 = phi i32 [%563, label %B935], [%545, label %B940]
+    br label %B942
+  B942:
+    %565 = phi i32 [%556, label %B932], [%564, label %B941]
+    %566 = div i32 %544, 2
+    %567 = div i32 %543, 2
+    %568 = add i32 %542, 1
+    br label %B919
+  B953:
+    br label %B965
+  B965:
+    %569 = phi i32 [0, label %B953], [%583, label %B979]
+    %570 = phi i32 [%541, label %B953], [%584, label %B979]
+    %571 = phi i32 [%540, label %B953], [%585, label %B979]
+    %572 = phi i32 [0, label %B953], [%586, label %B979]
+    %573 = icmp slt i32 %572, 16
+    br i32 %573, label %B967, label %B990
+  B967:
+    %574 = rem i32 %570, 2
+    br i32 %574, label %B969, label %B971
+  B969:
+    %575 = rem i32 %571, 2
+    br label %B972
+  B971:
+    br label %B972
+  B972:
+    %576 = phi i32 [0, label %B971], [%575, label %B969]
+    br i32 %576, label %B973, label %B978
+  B973:
+    %577 = load i32*, i32* @SHIFT_TABLE
+    %578 = mul i32 %572, 4
+    %579 = getelementptr i32* %577, i32 %578
+    %580 = load i32, i32* %579
+    %582 = add i32 %569, %580
+    br label %B979
+  B978:
+    br label %B979
+  B979:
+    %583 = phi i32 [%582, label %B973], [%569, label %B978]
+    %584 = div i32 %570, 2
+    %585 = div i32 %571, 2
+    %586 = add i32 %572, 1
+    br label %B965
+  B990:
+    %587 = mul i32 %569, 2
+    br label %B1006
+  B1006:
+    %588 = phi i32 [65535, label %B990], [%604, label %B1020]
+    %589 = phi i32 [%587, label %B990], [%603, label %B1020]
+    %590 = phi i32 [0, label %B990], [%602, label %B1020]
+    %591 = phi i32 [0, label %B990], [%605, label %B1020]
+    %592 = icmp slt i32 %591, 16
+    br i32 %592, label %B1008, label %B1031
+  B1008:
+    %593 = rem i32 %589, 2
+    br i32 %593, label %B1010, label %B1012
+  B1010:
+    %594 = rem i32 %588, 2
+    br label %B1013
+  B1012:
+    br label %B1013
+  B1013:
+    %595 = phi i32 [0, label %B1012], [%594, label %B1010]
+    br i32 %595, label %B1014, label %B1019
+  B1014:
+    %596 = load i32*, i32* @SHIFT_TABLE
+    %597 = mul i32 %591, 4
+    %598 = getelementptr i32* %596, i32 %597
+    %599 = load i32, i32* %598
+    %601 = add i32 %590, %599
+    br label %B1020
+  B1019:
+    br label %B1020
+  B1020:
+    %602 = phi i32 [%601, label %B1014], [%590, label %B1019]
+    %603 = div i32 %589, 2
+    %604 = div i32 %588, 2
+    %605 = add i32 %591, 1
+    br label %B1006
+  B1031:
+    br label %B909
+  B1038:
+    br label %B1044
+  B1043:
+    br label %B1044
+  B1044:
+    %613 = phi i32 [%541, label %B1038], [%514, label %B1043]
+    br label %B1049
+  B1049:
+    %616 = phi i32 [%510, label %B1044], [%669, label %B1171]
+    %617 = phi i32 [%510, label %B1044], [%623, label %B1171]
+    br i32 %616, label %B1050, label %B1178
+  B1050:
+    br label %B1059
+  B1059:
+    %622 = phi i32 [%616, label %B1050], [%647, label %B1082]
+    %623 = phi i32 [0, label %B1050], [%645, label %B1082]
+    %624 = phi i32 [%617, label %B1050], [%646, label %B1082]
+    %625 = phi i32 [0, label %B1050], [%648, label %B1082]
+    %626 = icmp slt i32 %625, 16
+    br i32 %626, label %B1061, label %B1093
+  B1061:
+    %627 = rem i32 %624, 2
+    br i32 %627, label %B1063, label %B1073
+  B1063:
+    %628 = rem i32 %622, 2
+    %629 = icmp eq i32 %628, 0
+    br i32 %629, label %B1066, label %B1071
+  B1066:
+    %630 = load i32*, i32* @SHIFT_TABLE
+    %631 = mul i32 %625, 4
+    %632 = getelementptr i32* %630, i32 %631
+    %633 = load i32, i32* %632
+    %635 = add i32 %623, %633
+    br label %B1072
+  B1071:
+    br label %B1072
+  B1072:
+    %636 = phi i32 [%635, label %B1066], [%623, label %B1071]
+    br label %B1082
+  B1073:
+    %637 = rem i32 %622, 2
+    br i32 %637, label %B1075, label %B1080
+  B1075:
+    %638 = load i32*, i32* @SHIFT_TABLE
+    %639 = mul i32 %625, 4
+    %640 = getelementptr i32* %638, i32 %639
+    %641 = load i32, i32* %640
+    %643 = add i32 %623, %641
+    br label %B1081
+  B1080:
+    br label %B1081
+  B1081:
+    %644 = phi i32 [%643, label %B1075], [%623, label %B1080]
+    br label %B1082
+  B1082:
+    %645 = phi i32 [%636, label %B1072], [%644, label %B1081]
+    %646 = div i32 %624, 2
+    %647 = div i32 %622, 2
+    %648 = add i32 %625, 1
+    br label %B1059
+  B1093:
+    br label %B1105
+  B1105:
+    %649 = phi i32 [0, label %B1093], [%663, label %B1119]
+    %650 = phi i32 [%617, label %B1093], [%664, label %B1119]
+    %651 = phi i32 [%616, label %B1093], [%665, label %B1119]
+    %652 = phi i32 [0, label %B1093], [%666, label %B1119]
+    %653 = icmp slt i32 %652, 16
+    br i32 %653, label %B1107, label %B1130
+  B1107:
+    %654 = rem i32 %650, 2
+    br i32 %654, label %B1109, label %B1111
+  B1109:
+    %655 = rem i32 %651, 2
+    br label %B1112
+  B1111:
+    br label %B1112
+  B1112:
+    %656 = phi i32 [0, label %B1111], [%655, label %B1109]
+    br i32 %656, label %B1113, label %B1118
+  B1113:
+    %657 = load i32*, i32* @SHIFT_TABLE
+    %658 = mul i32 %652, 4
+    %659 = getelementptr i32* %657, i32 %658
+    %660 = load i32, i32* %659
+    %662 = add i32 %649, %660
+    br label %B1119
+  B1118:
+    br label %B1119
+  B1119:
+    %663 = phi i32 [%662, label %B1113], [%649, label %B1118]
+    %664 = div i32 %650, 2
+    %665 = div i32 %651, 2
+    %666 = add i32 %652, 1
+    br label %B1105
+  B1130:
+    %667 = mul i32 %649, 2
+    br label %B1146
+  B1146:
+    %668 = phi i32 [65535, label %B1130], [%684, label %B1160]
+    %669 = phi i32 [0, label %B1130], [%682, label %B1160]
+    %670 = phi i32 [0, label %B1130], [%685, label %B1160]
+    %671 = phi i32 [%667, label %B1130], [%683, label %B1160]
+    %672 = icmp slt i32 %670, 16
+    br i32 %672, label %B1148, label %B1171
+  B1148:
+    %673 = rem i32 %671, 2
+    br i32 %673, label %B1150, label %B1152
+  B1150:
+    %674 = rem i32 %668, 2
+    br label %B1153
+  B1152:
+    br label %B1153
+  B1153:
+    %675 = phi i32 [0, label %B1152], [%674, label %B1150]
+    br i32 %675, label %B1154, label %B1159
+  B1154:
+    %676 = load i32*, i32* @SHIFT_TABLE
+    %677 = mul i32 %670, 4
+    %678 = getelementptr i32* %676, i32 %677
+    %679 = load i32, i32* %678
+    %681 = add i32 %669, %679
+    br label %B1160
+  B1159:
+    br label %B1160
+  B1160:
+    %682 = phi i32 [%681, label %B1154], [%669, label %B1159]
+    %683 = div i32 %671, 2
+    %684 = div i32 %668, 2
+    %685 = add i32 %670, 1
+    br label %B1146
+  B1171:
+    br label %B1049
+  B1178:
+    %694 = sitofp i32 %516 to f32
+    %695 = icmp ogt i32 %694, 32767
+    br i32 %695, label %B1200, label %B1211
+  B1200:
+    %696 = load i32*, i32* @SHIFT_TABLE
+    %698 = getelementptr i32* %696, i32 4
+    %699 = load i32, i32* %698
+    %700 = div i32 %516, %699
+    %701 = add i32 %700, 65536
+    %702 = load i32*, i32* @SHIFT_TABLE
+    %706 = getelementptr i32* %702, i32 60
+    %707 = load i32, i32* %706
+    %708 = sub i32 %701, %707
+    br label %B1215
+  B1211:
+    %709 = load i32*, i32* @SHIFT_TABLE
+    %711 = getelementptr i32* %709, i32 4
+    %712 = load i32, i32* %711
+    %713 = div i32 %516, %712
+    br label %B1215
+  B1215:
+    %715 = phi i32 [%708, label %B1200], [%713, label %B1211]
+    br label %B868
+  B1223:
+    br label %B1229
+  B1228:
+    br label %B1229
+  B1229:
+    %722 = phi i32 [%514, label %B1223], [%485, label %B1228]
+    br label %B1234
+  B1234:
+    %725 = phi i32 [%490, label %B1229], [%834, label %B1581]
+    %726 = phi i32 [%490, label %B1229], [%929, label %B1581]
+    %730 = phi i32 [0, label %B1229], [%828, label %B1581]
+    br i32 %726, label %B1235, label %B1589
+  B1235:
+    br label %B1244
+  B1244:
+    %732 = phi i32 [0, label %B1235], [%746, label %B1258]
+    %733 = phi i32 [1, label %B1235], [%748, label %B1258]
+    %734 = phi i32 [%726, label %B1235], [%747, label %B1258]
+    %735 = phi i32 [0, label %B1235], [%749, label %B1258]
+    %736 = icmp slt i32 %735, 16
+    br i32 %736, label %B1246, label %B1269
+  B1246:
+    %737 = rem i32 %734, 2
+    br i32 %737, label %B1248, label %B1250
+  B1248:
+    %738 = rem i32 %733, 2
+    br label %B1251
+  B1250:
+    br label %B1251
+  B1251:
+    %739 = phi i32 [0, label %B1250], [%738, label %B1248]
+    br i32 %739, label %B1252, label %B1257
+  B1252:
+    %740 = load i32*, i32* @SHIFT_TABLE
+    %741 = mul i32 %735, 4
+    %742 = getelementptr i32* %740, i32 %741
+    %743 = load i32, i32* %742
+    %745 = add i32 %732, %743
+    br label %B1258
+  B1257:
+    br label %B1258
+  B1258:
+    %746 = phi i32 [%745, label %B1252], [%732, label %B1257]
+    %747 = div i32 %734, 2
+    %748 = div i32 %733, 2
+    %749 = add i32 %735, 1
+    br label %B1244
+  B1269:
+    br i32 %732, label %B1271, label %B1409
+  B1271:
+    br label %B1275
+  B1275:
+    %752 = phi i32 [%730, label %B1271], [%759, label %B1397]
+    %753 = phi i32 [%725, label %B1271], [%803, label %B1397]
+    br i32 %753, label %B1276, label %B1404
+  B1276:
+    br label %B1285
+  B1285:
+    %757 = phi i32 [%752, label %B1276], [%781, label %B1308]
+    %758 = phi i32 [0, label %B1276], [%783, label %B1308]
+    %759 = phi i32 [0, label %B1276], [%780, label %B1308]
+    %760 = phi i32 [%753, label %B1276], [%782, label %B1308]
+    %761 = icmp slt i32 %758, 16
+    br i32 %761, label %B1287, label %B1319
+  B1287:
+    %762 = rem i32 %757, 2
+    br i32 %762, label %B1289, label %B1299
+  B1289:
+    %763 = rem i32 %760, 2
+    %764 = icmp eq i32 %763, 0
+    br i32 %764, label %B1292, label %B1297
+  B1292:
+    %765 = load i32*, i32* @SHIFT_TABLE
+    %766 = mul i32 %758, 4
+    %767 = getelementptr i32* %765, i32 %766
+    %768 = load i32, i32* %767
+    %770 = add i32 %759, %768
+    br label %B1298
+  B1297:
+    br label %B1298
+  B1298:
+    %771 = phi i32 [%770, label %B1292], [%759, label %B1297]
+    br label %B1308
+  B1299:
+    %772 = rem i32 %760, 2
+    br i32 %772, label %B1301, label %B1306
+  B1301:
+    %773 = load i32*, i32* @SHIFT_TABLE
+    %774 = mul i32 %758, 4
+    %775 = getelementptr i32* %773, i32 %774
+    %776 = load i32, i32* %775
+    %778 = add i32 %759, %776
+    br label %B1307
+  B1306:
+    br label %B1307
+  B1307:
+    %779 = phi i32 [%778, label %B1301], [%759, label %B1306]
+    br label %B1308
+  B1308:
+    %780 = phi i32 [%771, label %B1298], [%779, label %B1307]
+    %781 = div i32 %757, 2
+    %782 = div i32 %760, 2
+    %783 = add i32 %758, 1
+    br label %B1285
+  B1319:
+    br label %B1331
+  B1331:
+    %784 = phi i32 [0, label %B1319], [%798, label %B1345]
+    %785 = phi i32 [%752, label %B1319], [%799, label %B1345]
+    %786 = phi i32 [%753, label %B1319], [%800, label %B1345]
+    %787 = phi i32 [0, label %B1319], [%801, label %B1345]
+    %788 = icmp slt i32 %787, 16
+    br i32 %788, label %B1333, label %B1356
+  B1333:
+    %789 = rem i32 %785, 2
+    br i32 %789, label %B1335, label %B1337
+  B1335:
+    %790 = rem i32 %786, 2
+    br label %B1338
+  B1337:
+    br label %B1338
+  B1338:
+    %791 = phi i32 [0, label %B1337], [%790, label %B1335]
+    br i32 %791, label %B1339, label %B1344
+  B1339:
+    %792 = load i32*, i32* @SHIFT_TABLE
+    %793 = mul i32 %787, 4
+    %794 = getelementptr i32* %792, i32 %793
+    %795 = load i32, i32* %794
+    %797 = add i32 %784, %795
+    br label %B1345
+  B1344:
+    br label %B1345
+  B1345:
+    %798 = phi i32 [%797, label %B1339], [%784, label %B1344]
+    %799 = div i32 %785, 2
+    %800 = div i32 %786, 2
+    %801 = add i32 %787, 1
+    br label %B1331
+  B1356:
+    %802 = mul i32 %784, 2
+    br label %B1372
+  B1372:
+    %803 = phi i32 [0, label %B1356], [%817, label %B1386]
+    %804 = phi i32 [0, label %B1356], [%820, label %B1386]
+    %805 = phi i32 [%802, label %B1356], [%818, label %B1386]
+    %806 = phi i32 [65535, label %B1356], [%819, label %B1386]
+    %807 = icmp slt i32 %804, 16
+    br i32 %807, label %B1374, label %B1397
+  B1374:
+    %808 = rem i32 %805, 2
+    br i32 %808, label %B1376, label %B1378
+  B1376:
+    %809 = rem i32 %806, 2
+    br label %B1379
+  B1378:
+    br label %B1379
+  B1379:
+    %810 = phi i32 [0, label %B1378], [%809, label %B1376]
+    br i32 %810, label %B1380, label %B1385
+  B1380:
+    %811 = load i32*, i32* @SHIFT_TABLE
+    %812 = mul i32 %804, 4
+    %813 = getelementptr i32* %811, i32 %812
+    %814 = load i32, i32* %813
+    %816 = add i32 %803, %814
+    br label %B1386
+  B1385:
+    br label %B1386
+  B1386:
+    %817 = phi i32 [%816, label %B1380], [%803, label %B1385]
+    %818 = div i32 %805, 2
+    %819 = div i32 %806, 2
+    %820 = add i32 %804, 1
+    br label %B1372
+  B1397:
+    br label %B1275
+  B1404:
+    br label %B1410
+  B1409:
+    br label %B1410
+  B1410:
+    %828 = phi i32 [%752, label %B1404], [%730, label %B1409]
+    br label %B1415
+  B1415:
+    %831 = phi i32 [%725, label %B1410], [%885, label %B1537]
+    %834 = phi i32 [%725, label %B1410], [%840, label %B1537]
+    br i32 %831, label %B1416, label %B1544
+  B1416:
+    br label %B1425
+  B1425:
+    %837 = phi i32 [0, label %B1416], [%863, label %B1448]
+    %838 = phi i32 [%831, label %B1416], [%862, label %B1448]
+    %839 = phi i32 [%834, label %B1416], [%861, label %B1448]
+    %840 = phi i32 [0, label %B1416], [%860, label %B1448]
+    %841 = icmp slt i32 %837, 16
+    br i32 %841, label %B1427, label %B1459
+  B1427:
+    %842 = rem i32 %839, 2
+    br i32 %842, label %B1429, label %B1439
+  B1429:
+    %843 = rem i32 %838, 2
+    %844 = icmp eq i32 %843, 0
+    br i32 %844, label %B1432, label %B1437
+  B1432:
+    %845 = load i32*, i32* @SHIFT_TABLE
+    %846 = mul i32 %837, 4
+    %847 = getelementptr i32* %845, i32 %846
+    %848 = load i32, i32* %847
+    %850 = add i32 %840, %848
+    br label %B1438
+  B1437:
+    br label %B1438
+  B1438:
+    %851 = phi i32 [%850, label %B1432], [%840, label %B1437]
+    br label %B1448
+  B1439:
+    %852 = rem i32 %838, 2
+    br i32 %852, label %B1441, label %B1446
+  B1441:
+    %853 = load i32*, i32* @SHIFT_TABLE
+    %854 = mul i32 %837, 4
+    %855 = getelementptr i32* %853, i32 %854
+    %856 = load i32, i32* %855
+    %858 = add i32 %840, %856
+    br label %B1447
+  B1446:
+    br label %B1447
+  B1447:
+    %859 = phi i32 [%858, label %B1441], [%840, label %B1446]
+    br label %B1448
+  B1448:
+    %860 = phi i32 [%851, label %B1438], [%859, label %B1447]
+    %861 = div i32 %839, 2
+    %862 = div i32 %838, 2
+    %863 = add i32 %837, 1
+    br label %B1425
+  B1459:
+    br label %B1471
+  B1471:
+    %864 = phi i32 [%834, label %B1459], [%879, label %B1485]
+    %865 = phi i32 [0, label %B1459], [%878, label %B1485]
+    %866 = phi i32 [0, label %B1459], [%881, label %B1485]
+    %867 = phi i32 [%831, label %B1459], [%880, label %B1485]
+    %868 = icmp slt i32 %866, 16
+    br i32 %868, label %B1473, label %B1496
+  B1473:
+    %869 = rem i32 %864, 2
+    br i32 %869, label %B1475, label %B1477
+  B1475:
+    %870 = rem i32 %867, 2
+    br label %B1478
+  B1477:
+    br label %B1478
+  B1478:
+    %871 = phi i32 [0, label %B1477], [%870, label %B1475]
+    br i32 %871, label %B1479, label %B1484
+  B1479:
+    %872 = load i32*, i32* @SHIFT_TABLE
+    %873 = mul i32 %866, 4
+    %874 = getelementptr i32* %872, i32 %873
+    %875 = load i32, i32* %874
+    %877 = add i32 %865, %875
+    br label %B1485
+  B1484:
+    br label %B1485
+  B1485:
+    %878 = phi i32 [%877, label %B1479], [%865, label %B1484]
+    %879 = div i32 %864, 2
+    %880 = div i32 %867, 2
+    %881 = add i32 %866, 1
+    br label %B1471
+  B1496:
+    %882 = mul i32 %865, 2
+    br label %B1512
+  B1512:
+    %883 = phi i32 [%882, label %B1496], [%898, label %B1526]
+    %884 = phi i32 [65535, label %B1496], [%899, label %B1526]
+    %885 = phi i32 [0, label %B1496], [%897, label %B1526]
+    %886 = phi i32 [0, label %B1496], [%900, label %B1526]
+    %887 = icmp slt i32 %886, 16
+    br i32 %887, label %B1514, label %B1537
+  B1514:
+    %888 = rem i32 %883, 2
+    br i32 %888, label %B1516, label %B1518
+  B1516:
+    %889 = rem i32 %884, 2
+    br label %B1519
+  B1518:
+    br label %B1519
+  B1519:
+    %890 = phi i32 [0, label %B1518], [%889, label %B1516]
+    br i32 %890, label %B1520, label %B1525
+  B1520:
+    %891 = load i32*, i32* @SHIFT_TABLE
+    %892 = mul i32 %886, 4
+    %893 = getelementptr i32* %891, i32 %892
+    %894 = load i32, i32* %893
+    %896 = add i32 %885, %894
+    br label %B1526
+  B1525:
+    br label %B1526
+  B1526:
+    %897 = phi i32 [%896, label %B1520], [%885, label %B1525]
+    %898 = div i32 %883, 2
+    %899 = div i32 %884, 2
+    %900 = add i32 %886, 1
+    br label %B1512
+  B1537:
+    br label %B1415
+  B1544:
+    %909 = sitofp i32 %726 to f32
+    %910 = icmp ogt i32 %909, 32767
+    br i32 %910, label %B1566, label %B1577
+  B1566:
+    %911 = load i32*, i32* @SHIFT_TABLE
+    %913 = getelementptr i32* %911, i32 4
+    %914 = load i32, i32* %913
+    %915 = div i32 %726, %914
+    %916 = add i32 %915, 65536
+    %917 = load i32*, i32* @SHIFT_TABLE
+    %921 = getelementptr i32* %917, i32 60
+    %922 = load i32, i32* %921
+    %923 = sub i32 %916, %922
+    br label %B1581
+  B1577:
+    %924 = load i32*, i32* @SHIFT_TABLE
+    %926 = getelementptr i32* %924, i32 4
+    %927 = load i32, i32* %926
+    %928 = div i32 %726, %927
+    br label %B1581
+  B1581:
+    %929 = phi i32 [%923, label %B1566], [%928, label %B1577]
+    br label %B1234
+  B1589:
+    %939 = sitofp i32 %488 to f32
+    %940 = icmp ogt i32 %939, 32767
+    br i32 %940, label %B1611, label %B1622
+  B1611:
+    %941 = load i32*, i32* @SHIFT_TABLE
+    %943 = getelementptr i32* %941, i32 4
+    %944 = load i32, i32* %943
+    %945 = div i32 %488, %944
+    %946 = add i32 %945, 65536
+    %947 = load i32*, i32* @SHIFT_TABLE
+    %951 = getelementptr i32* %947, i32 60
+    %952 = load i32, i32* %951
+    %953 = sub i32 %946, %952
+    br label %B1626
+  B1622:
+    %954 = load i32*, i32* @SHIFT_TABLE
+    %956 = getelementptr i32* %954, i32 4
+    %957 = load i32, i32* %956
+    %958 = div i32 %488, %957
+    br label %B1626
+  B1626:
+    %959 = phi i32 [%953, label %B1611], [%958, label %B1622]
+    br label %B826
+  B1634:
+    %965 = call void @putint(i32 %485)
+    %966 = call void @putch(i32 10)
+    br label %B1642
+  B1642:
+    %969 = phi i32 [2, label %B1634], [%1456, label %B2456]
+    %972 = icmp slt i32 %969, 16
+    br i32 %972, label %B1644, label %B2465
+  B1644:
+    br label %B1648
+  B1648:
+    %973 = phi i32 [1, label %B1644], [%1210, label %B2448]
+    %974 = phi i32 [%969, label %B1644], [%1449, label %B2448]
+    %977 = phi i32 [2, label %B1644], [%1219, label %B2448]
+    %980 = icmp sgt i32 %974, 0
+    br i32 %980, label %B1650, label %B2456
+  B1650:
+    br label %B1659
+  B1659:
+    %981 = phi i32 [0, label %B1650], [%998, label %B1673]
+    %982 = phi i32 [1, label %B1650], [%997, label %B1673]
+    %983 = phi i32 [%974, label %B1650], [%996, label %B1673]
+    %984 = phi i32 [0, label %B1650], [%995, label %B1673]
+    %985 = icmp slt i32 %981, 16
+    br i32 %985, label %B1661, label %B1684
+  B1661:
+    %986 = rem i32 %983, 2
+    br i32 %986, label %B1663, label %B1665
+  B1663:
+    %987 = rem i32 %982, 2
+    br label %B1666
+  B1665:
+    br label %B1666
+  B1666:
+    %988 = phi i32 [0, label %B1665], [%987, label %B1663]
+    br i32 %988, label %B1667, label %B1672
+  B1667:
+    %989 = load i32*, i32* @SHIFT_TABLE
+    %990 = mul i32 %981, 4
+    %991 = getelementptr i32* %989, i32 %990
+    %992 = load i32, i32* %991
+    %994 = add i32 %984, %992
+    br label %B1673
+  B1672:
+    br label %B1673
+  B1673:
+    %995 = phi i32 [%994, label %B1667], [%984, label %B1672]
+    %996 = div i32 %983, 2
+    %997 = div i32 %982, 2
+    %998 = add i32 %981, 1
+    br label %B1659
+  B1684:
+    br i32 %984, label %B1686, label %B2050
+  B1686:
+    br label %B1690
+  B1690:
+    %1000 = phi i32 [0, label %B1686], [%1103, label %B2037]
+    %1005 = phi i32 [%973, label %B1686], [%1105, label %B2037]
+    %999 = phi i32 [%977, label %B1686], [%1203, label %B2037]
+    br i32 %999, label %B1691, label %B2045
+  B1691:
+    br label %B1700
+  B1700:
+    %1006 = phi i32 [1, label %B1691], [%1022, label %B1714]
+    %1007 = phi i32 [0, label %B1691], [%1020, label %B1714]
+    %1008 = phi i32 [%999, label %B1691], [%1021, label %B1714]
+    %1009 = phi i32 [0, label %B1691], [%1023, label %B1714]
+    %1010 = icmp slt i32 %1009, 16
+    br i32 %1010, label %B1702, label %B1725
+  B1702:
+    %1011 = rem i32 %1008, 2
+    br i32 %1011, label %B1704, label %B1706
+  B1704:
+    %1012 = rem i32 %1006, 2
+    br label %B1707
+  B1706:
+    br label %B1707
+  B1707:
+    %1013 = phi i32 [0, label %B1706], [%1012, label %B1704]
+    br i32 %1013, label %B1708, label %B1713
+  B1708:
+    %1014 = load i32*, i32* @SHIFT_TABLE
+    %1015 = mul i32 %1009, 4
+    %1016 = getelementptr i32* %1014, i32 %1015
+    %1017 = load i32, i32* %1016
+    %1019 = add i32 %1007, %1017
+    br label %B1714
+  B1713:
+    br label %B1714
+  B1714:
+    %1020 = phi i32 [%1019, label %B1708], [%1007, label %B1713]
+    %1021 = div i32 %1008, 2
+    %1022 = div i32 %1006, 2
+    %1023 = add i32 %1009, 1
+    br label %B1700
+  B1725:
+    br i32 %1007, label %B1727, label %B1865
+  B1727:
+    br label %B1731
+  B1731:
+    %1024 = phi i32 [%1000, label %B1727], [%1031, label %B1853]
+    %1028 = phi i32 [%1005, label %B1727], [%1079, label %B1853]
+    br i32 %1028, label %B1732, label %B1860
+  B1732:
+    br label %B1741
+  B1741:
+    %1031 = phi i32 [0, label %B1732], [%1054, label %B1764]
+    %1032 = phi i32 [0, label %B1732], [%1057, label %B1764]
+    %1033 = phi i32 [%1024, label %B1732], [%1055, label %B1764]
+    %1034 = phi i32 [%1028, label %B1732], [%1056, label %B1764]
+    %1035 = icmp slt i32 %1032, 16
+    br i32 %1035, label %B1743, label %B1775
+  B1743:
+    %1036 = rem i32 %1033, 2
+    br i32 %1036, label %B1745, label %B1755
+  B1745:
+    %1037 = rem i32 %1034, 2
+    %1038 = icmp eq i32 %1037, 0
+    br i32 %1038, label %B1748, label %B1753
+  B1748:
+    %1039 = load i32*, i32* @SHIFT_TABLE
+    %1040 = mul i32 %1032, 4
+    %1041 = getelementptr i32* %1039, i32 %1040
+    %1042 = load i32, i32* %1041
+    %1044 = add i32 %1031, %1042
+    br label %B1754
+  B1753:
+    br label %B1754
+  B1754:
+    %1045 = phi i32 [%1044, label %B1748], [%1031, label %B1753]
+    br label %B1764
+  B1755:
+    %1046 = rem i32 %1034, 2
+    br i32 %1046, label %B1757, label %B1762
+  B1757:
+    %1047 = load i32*, i32* @SHIFT_TABLE
+    %1048 = mul i32 %1032, 4
+    %1049 = getelementptr i32* %1047, i32 %1048
+    %1050 = load i32, i32* %1049
+    %1052 = add i32 %1031, %1050
+    br label %B1763
+  B1762:
+    br label %B1763
+  B1763:
+    %1053 = phi i32 [%1052, label %B1757], [%1031, label %B1762]
+    br label %B1764
+  B1764:
+    %1054 = phi i32 [%1045, label %B1754], [%1053, label %B1763]
+    %1055 = div i32 %1033, 2
+    %1056 = div i32 %1034, 2
+    %1057 = add i32 %1032, 1
+    br label %B1741
+  B1775:
+    br label %B1787
+  B1787:
+    %1058 = phi i32 [%1024, label %B1775], [%1073, label %B1801]
+    %1059 = phi i32 [0, label %B1775], [%1072, label %B1801]
+    %1060 = phi i32 [0, label %B1775], [%1075, label %B1801]
+    %1061 = phi i32 [%1028, label %B1775], [%1074, label %B1801]
+    %1062 = icmp slt i32 %1060, 16
+    br i32 %1062, label %B1789, label %B1812
+  B1789:
+    %1063 = rem i32 %1058, 2
+    br i32 %1063, label %B1791, label %B1793
+  B1791:
+    %1064 = rem i32 %1061, 2
+    br label %B1794
+  B1793:
+    br label %B1794
+  B1794:
+    %1065 = phi i32 [0, label %B1793], [%1064, label %B1791]
+    br i32 %1065, label %B1795, label %B1800
+  B1795:
+    %1066 = load i32*, i32* @SHIFT_TABLE
+    %1067 = mul i32 %1060, 4
+    %1068 = getelementptr i32* %1066, i32 %1067
+    %1069 = load i32, i32* %1068
+    %1071 = add i32 %1059, %1069
+    br label %B1801
+  B1800:
+    br label %B1801
+  B1801:
+    %1072 = phi i32 [%1071, label %B1795], [%1059, label %B1800]
+    %1073 = div i32 %1058, 2
+    %1074 = div i32 %1061, 2
+    %1075 = add i32 %1060, 1
+    br label %B1787
+  B1812:
+    %1076 = mul i32 %1059, 2
+    br label %B1828
+  B1828:
+    %1077 = phi i32 [0, label %B1812], [%1094, label %B1842]
+    %1078 = phi i32 [%1076, label %B1812], [%1092, label %B1842]
+    %1079 = phi i32 [0, label %B1812], [%1091, label %B1842]
+    %1080 = phi i32 [65535, label %B1812], [%1093, label %B1842]
+    %1081 = icmp slt i32 %1077, 16
+    br i32 %1081, label %B1830, label %B1853
+  B1830:
+    %1082 = rem i32 %1078, 2
+    br i32 %1082, label %B1832, label %B1834
+  B1832:
+    %1083 = rem i32 %1080, 2
+    br label %B1835
+  B1834:
+    br label %B1835
+  B1835:
+    %1084 = phi i32 [0, label %B1834], [%1083, label %B1832]
+    br i32 %1084, label %B1836, label %B1841
+  B1836:
+    %1085 = load i32*, i32* @SHIFT_TABLE
+    %1086 = mul i32 %1077, 4
+    %1087 = getelementptr i32* %1085, i32 %1086
+    %1088 = load i32, i32* %1087
+    %1090 = add i32 %1079, %1088
+    br label %B1842
+  B1841:
+    br label %B1842
+  B1842:
+    %1091 = phi i32 [%1090, label %B1836], [%1079, label %B1841]
+    %1092 = div i32 %1078, 2
+    %1093 = div i32 %1080, 2
+    %1094 = add i32 %1077, 1
+    br label %B1828
+  B1853:
+    br label %B1731
+  B1860:
+    br label %B1866
+  B1865:
+    br label %B1866
+  B1866:
+    %1103 = phi i32 [%1024, label %B1860], [%1000, label %B1865]
+    br label %B1871
+  B1871:
+    %1105 = phi i32 [%1005, label %B1866], [%1111, label %B1993]
+    %1107 = phi i32 [%1005, label %B1866], [%1157, label %B1993]
+    br i32 %1107, label %B1872, label %B2000
+  B1872:
+    br label %B1881
+  B1881:
+    %1111 = phi i32 [0, label %B1872], [%1134, label %B1904]
+    %1112 = phi i32 [%1105, label %B1872], [%1135, label %B1904]
+    %1113 = phi i32 [%1107, label %B1872], [%1136, label %B1904]
+    %1114 = phi i32 [0, label %B1872], [%1137, label %B1904]
+    %1115 = icmp slt i32 %1114, 16
+    br i32 %1115, label %B1883, label %B1915
+  B1883:
+    %1116 = rem i32 %1112, 2
+    br i32 %1116, label %B1885, label %B1895
+  B1885:
+    %1117 = rem i32 %1113, 2
+    %1118 = icmp eq i32 %1117, 0
+    br i32 %1118, label %B1888, label %B1893
+  B1888:
+    %1119 = load i32*, i32* @SHIFT_TABLE
+    %1120 = mul i32 %1114, 4
+    %1121 = getelementptr i32* %1119, i32 %1120
+    %1122 = load i32, i32* %1121
+    %1124 = add i32 %1111, %1122
+    br label %B1894
+  B1893:
+    br label %B1894
+  B1894:
+    %1125 = phi i32 [%1124, label %B1888], [%1111, label %B1893]
+    br label %B1904
+  B1895:
+    %1126 = rem i32 %1113, 2
+    br i32 %1126, label %B1897, label %B1902
+  B1897:
+    %1127 = load i32*, i32* @SHIFT_TABLE
+    %1128 = mul i32 %1114, 4
+    %1129 = getelementptr i32* %1127, i32 %1128
+    %1130 = load i32, i32* %1129
+    %1132 = add i32 %1111, %1130
+    br label %B1903
+  B1902:
+    br label %B1903
+  B1903:
+    %1133 = phi i32 [%1132, label %B1897], [%1111, label %B1902]
+    br label %B1904
+  B1904:
+    %1134 = phi i32 [%1125, label %B1894], [%1133, label %B1903]
+    %1135 = div i32 %1112, 2
+    %1136 = div i32 %1113, 2
+    %1137 = add i32 %1114, 1
+    br label %B1881
+  B1915:
+    br label %B1927
+  B1927:
+    %1138 = phi i32 [%1105, label %B1915], [%1153, label %B1941]
+    %1139 = phi i32 [0, label %B1915], [%1155, label %B1941]
+    %1140 = phi i32 [%1107, label %B1915], [%1154, label %B1941]
+    %1141 = phi i32 [0, label %B1915], [%1152, label %B1941]
+    %1142 = icmp slt i32 %1139, 16
+    br i32 %1142, label %B1929, label %B1952
+  B1929:
+    %1143 = rem i32 %1138, 2
+    br i32 %1143, label %B1931, label %B1933
+  B1931:
+    %1144 = rem i32 %1140, 2
+    br label %B1934
+  B1933:
+    br label %B1934
+  B1934:
+    %1145 = phi i32 [0, label %B1933], [%1144, label %B1931]
+    br i32 %1145, label %B1935, label %B1940
+  B1935:
+    %1146 = load i32*, i32* @SHIFT_TABLE
+    %1147 = mul i32 %1139, 4
+    %1148 = getelementptr i32* %1146, i32 %1147
+    %1149 = load i32, i32* %1148
+    %1151 = add i32 %1141, %1149
+    br label %B1941
+  B1940:
+    br label %B1941
+  B1941:
+    %1152 = phi i32 [%1151, label %B1935], [%1141, label %B1940]
+    %1153 = div i32 %1138, 2
+    %1154 = div i32 %1140, 2
+    %1155 = add i32 %1139, 1
+    br label %B1927
+  B1952:
+    %1156 = mul i32 %1141, 2
+    br label %B1968
+  B1968:
+    %1157 = phi i32 [0, label %B1952], [%1171, label %B1982]
+    %1158 = phi i32 [65535, label %B1952], [%1173, label %B1982]
+    %1159 = phi i32 [%1156, label %B1952], [%1172, label %B1982]
+    %1160 = phi i32 [0, label %B1952], [%1174, label %B1982]
+    %1161 = icmp slt i32 %1160, 16
+    br i32 %1161, label %B1970, label %B1993
+  B1970:
+    %1162 = rem i32 %1159, 2
+    br i32 %1162, label %B1972, label %B1974
+  B1972:
+    %1163 = rem i32 %1158, 2
+    br label %B1975
+  B1974:
+    br label %B1975
+  B1975:
+    %1164 = phi i32 [0, label %B1974], [%1163, label %B1972]
+    br i32 %1164, label %B1976, label %B1981
+  B1976:
+    %1165 = load i32*, i32* @SHIFT_TABLE
+    %1166 = mul i32 %1160, 4
+    %1167 = getelementptr i32* %1165, i32 %1166
+    %1168 = load i32, i32* %1167
+    %1170 = add i32 %1157, %1168
+    br label %B1982
+  B1981:
+    br label %B1982
+  B1982:
+    %1171 = phi i32 [%1170, label %B1976], [%1157, label %B1981]
+    %1172 = div i32 %1159, 2
+    %1173 = div i32 %1158, 2
+    %1174 = add i32 %1160, 1
+    br label %B1968
+  B1993:
+    br label %B1871
+  B2000:
+    %1183 = sitofp i32 %999 to f32
+    %1184 = icmp ogt i32 %1183, 32767
+    br i32 %1184, label %B2022, label %B2033
+  B2022:
+    %1185 = load i32*, i32* @SHIFT_TABLE
+    %1187 = getelementptr i32* %1185, i32 4
+    %1188 = load i32, i32* %1187
+    %1189 = div i32 %999, %1188
+    %1190 = add i32 %1189, 65536
+    %1191 = load i32*, i32* @SHIFT_TABLE
+    %1195 = getelementptr i32* %1191, i32 60
+    %1196 = load i32, i32* %1195
+    %1197 = sub i32 %1190, %1196
+    br label %B2037
+  B2033:
+    %1198 = load i32*, i32* @SHIFT_TABLE
+    %1200 = getelementptr i32* %1198, i32 4
+    %1201 = load i32, i32* %1200
+    %1202 = div i32 %999, %1201
+    br label %B2037
+  B2037:
+    %1203 = phi i32 [%1197, label %B2022], [%1202, label %B2033]
+    br label %B1690
+  B2045:
+    br label %B2051
+  B2050:
+    br label %B2051
+  B2051:
+    %1210 = phi i32 [%1000, label %B2045], [%973, label %B2050]
+    br label %B2056
+  B2056:
+    %1214 = phi i32 [%977, label %B2051], [%1325, label %B2403]
+    %1215 = phi i32 [%977, label %B2051], [%1418, label %B2403]
+    %1219 = phi i32 [0, label %B2051], [%1316, label %B2403]
+    br i32 %1215, label %B2057, label %B2411
+  B2057:
+    br label %B2066
+  B2066:
+    %1221 = phi i32 [1, label %B2057], [%1237, label %B2080]
+    %1222 = phi i32 [%1215, label %B2057], [%1236, label %B2080]
+    %1223 = phi i32 [0, label %B2057], [%1238, label %B2080]
+    %1224 = phi i32 [0, label %B2057], [%1235, label %B2080]
+    %1225 = icmp slt i32 %1223, 16
+    br i32 %1225, label %B2068, label %B2091
+  B2068:
+    %1226 = rem i32 %1222, 2
+    br i32 %1226, label %B2070, label %B2072
+  B2070:
+    %1227 = rem i32 %1221, 2
+    br label %B2073
+  B2072:
+    br label %B2073
+  B2073:
+    %1228 = phi i32 [0, label %B2072], [%1227, label %B2070]
+    br i32 %1228, label %B2074, label %B2079
+  B2074:
+    %1229 = load i32*, i32* @SHIFT_TABLE
+    %1230 = mul i32 %1223, 4
+    %1231 = getelementptr i32* %1229, i32 %1230
+    %1232 = load i32, i32* %1231
+    %1234 = add i32 %1224, %1232
+    br label %B2080
+  B2079:
+    br label %B2080
+  B2080:
+    %1235 = phi i32 [%1234, label %B2074], [%1224, label %B2079]
+    %1236 = div i32 %1222, 2
+    %1237 = div i32 %1221, 2
+    %1238 = add i32 %1223, 1
+    br label %B2066
+  B2091:
+    br i32 %1224, label %B2093, label %B2231
+  B2093:
+    br label %B2097
+  B2097:
+    %1239 = phi i32 [%1214, label %B2093], [%1293, label %B2219]
+    %1241 = phi i32 [%1219, label %B2093], [%1248, label %B2219]
+    br i32 %1239, label %B2098, label %B2226
+  B2098:
+    br label %B2107
+  B2107:
+    %1246 = phi i32 [%1239, label %B2098], [%1271, label %B2130]
+    %1247 = phi i32 [0, label %B2098], [%1272, label %B2130]
+    %1248 = phi i32 [0, label %B2098], [%1269, label %B2130]
+    %1249 = phi i32 [%1241, label %B2098], [%1270, label %B2130]
+    %1250 = icmp slt i32 %1247, 16
+    br i32 %1250, label %B2109, label %B2141
+  B2109:
+    %1251 = rem i32 %1249, 2
+    br i32 %1251, label %B2111, label %B2121
+  B2111:
+    %1252 = rem i32 %1246, 2
+    %1253 = icmp eq i32 %1252, 0
+    br i32 %1253, label %B2114, label %B2119
+  B2114:
+    %1254 = load i32*, i32* @SHIFT_TABLE
+    %1255 = mul i32 %1247, 4
+    %1256 = getelementptr i32* %1254, i32 %1255
+    %1257 = load i32, i32* %1256
+    %1259 = add i32 %1248, %1257
+    br label %B2120
+  B2119:
+    br label %B2120
+  B2120:
+    %1260 = phi i32 [%1259, label %B2114], [%1248, label %B2119]
+    br label %B2130
+  B2121:
+    %1261 = rem i32 %1246, 2
+    br i32 %1261, label %B2123, label %B2128
+  B2123:
+    %1262 = load i32*, i32* @SHIFT_TABLE
+    %1263 = mul i32 %1247, 4
+    %1264 = getelementptr i32* %1262, i32 %1263
+    %1265 = load i32, i32* %1264
+    %1267 = add i32 %1248, %1265
+    br label %B2129
+  B2128:
+    br label %B2129
+  B2129:
+    %1268 = phi i32 [%1267, label %B2123], [%1248, label %B2128]
+    br label %B2130
+  B2130:
+    %1269 = phi i32 [%1260, label %B2120], [%1268, label %B2129]
+    %1270 = div i32 %1249, 2
+    %1271 = div i32 %1246, 2
+    %1272 = add i32 %1247, 1
+    br label %B2107
+  B2141:
+    br label %B2153
+  B2153:
+    %1273 = phi i32 [0, label %B2141], [%1287, label %B2167]
+    %1274 = phi i32 [0, label %B2141], [%1290, label %B2167]
+    %1275 = phi i32 [%1239, label %B2141], [%1289, label %B2167]
+    %1276 = phi i32 [%1241, label %B2141], [%1288, label %B2167]
+    %1277 = icmp slt i32 %1274, 16
+    br i32 %1277, label %B2155, label %B2178
+  B2155:
+    %1278 = rem i32 %1276, 2
+    br i32 %1278, label %B2157, label %B2159
+  B2157:
+    %1279 = rem i32 %1275, 2
+    br label %B2160
+  B2159:
+    br label %B2160
+  B2160:
+    %1280 = phi i32 [0, label %B2159], [%1279, label %B2157]
+    br i32 %1280, label %B2161, label %B2166
+  B2161:
+    %1281 = load i32*, i32* @SHIFT_TABLE
+    %1282 = mul i32 %1274, 4
+    %1283 = getelementptr i32* %1281, i32 %1282
+    %1284 = load i32, i32* %1283
+    %1286 = add i32 %1273, %1284
+    br label %B2167
+  B2166:
+    br label %B2167
+  B2167:
+    %1287 = phi i32 [%1286, label %B2161], [%1273, label %B2166]
+    %1288 = div i32 %1276, 2
+    %1289 = div i32 %1275, 2
+    %1290 = add i32 %1274, 1
+    br label %B2153
+  B2178:
+    %1291 = mul i32 %1273, 2
+    br label %B2194
+  B2194:
+    %1292 = phi i32 [65535, label %B2178], [%1308, label %B2208]
+    %1293 = phi i32 [0, label %B2178], [%1306, label %B2208]
+    %1294 = phi i32 [0, label %B2178], [%1309, label %B2208]
+    %1295 = phi i32 [%1291, label %B2178], [%1307, label %B2208]
+    %1296 = icmp slt i32 %1294, 16
+    br i32 %1296, label %B2196, label %B2219
+  B2196:
+    %1297 = rem i32 %1295, 2
+    br i32 %1297, label %B2198, label %B2200
+  B2198:
+    %1298 = rem i32 %1292, 2
+    br label %B2201
+  B2200:
+    br label %B2201
+  B2201:
+    %1299 = phi i32 [0, label %B2200], [%1298, label %B2198]
+    br i32 %1299, label %B2202, label %B2207
+  B2202:
+    %1300 = load i32*, i32* @SHIFT_TABLE
+    %1301 = mul i32 %1294, 4
+    %1302 = getelementptr i32* %1300, i32 %1301
+    %1303 = load i32, i32* %1302
+    %1305 = add i32 %1293, %1303
+    br label %B2208
+  B2207:
+    br label %B2208
+  B2208:
+    %1306 = phi i32 [%1305, label %B2202], [%1293, label %B2207]
+    %1307 = div i32 %1295, 2
+    %1308 = div i32 %1292, 2
+    %1309 = add i32 %1294, 1
+    br label %B2194
+  B2219:
+    br label %B2097
+  B2226:
+    br label %B2232
+  B2231:
+    br label %B2232
+  B2232:
+    %1316 = phi i32 [%1241, label %B2226], [%1219, label %B2231]
+    br label %B2237
+  B2237:
+    %1324 = phi i32 [%1214, label %B2232], [%1374, label %B2359]
+    %1325 = phi i32 [%1214, label %B2232], [%1328, label %B2359]
+    br i32 %1324, label %B2238, label %B2366
+  B2238:
+    br label %B2247
+  B2247:
+    %1326 = phi i32 [0, label %B2238], [%1352, label %B2270]
+    %1327 = phi i32 [%1324, label %B2238], [%1351, label %B2270]
+    %1328 = phi i32 [0, label %B2238], [%1349, label %B2270]
+    %1329 = phi i32 [%1325, label %B2238], [%1350, label %B2270]
+    %1330 = icmp slt i32 %1326, 16
+    br i32 %1330, label %B2249, label %B2281
+  B2249:
+    %1331 = rem i32 %1329, 2
+    br i32 %1331, label %B2251, label %B2261
+  B2251:
+    %1332 = rem i32 %1327, 2
+    %1333 = icmp eq i32 %1332, 0
+    br i32 %1333, label %B2254, label %B2259
+  B2254:
+    %1334 = load i32*, i32* @SHIFT_TABLE
+    %1335 = mul i32 %1326, 4
+    %1336 = getelementptr i32* %1334, i32 %1335
+    %1337 = load i32, i32* %1336
+    %1339 = add i32 %1328, %1337
+    br label %B2260
+  B2259:
+    br label %B2260
+  B2260:
+    %1340 = phi i32 [%1339, label %B2254], [%1328, label %B2259]
+    br label %B2270
+  B2261:
+    %1341 = rem i32 %1327, 2
+    br i32 %1341, label %B2263, label %B2268
+  B2263:
+    %1342 = load i32*, i32* @SHIFT_TABLE
+    %1343 = mul i32 %1326, 4
+    %1344 = getelementptr i32* %1342, i32 %1343
+    %1345 = load i32, i32* %1344
+    %1347 = add i32 %1328, %1345
+    br label %B2269
+  B2268:
+    br label %B2269
+  B2269:
+    %1348 = phi i32 [%1347, label %B2263], [%1328, label %B2268]
+    br label %B2270
+  B2270:
+    %1349 = phi i32 [%1340, label %B2260], [%1348, label %B2269]
+    %1350 = div i32 %1329, 2
+    %1351 = div i32 %1327, 2
+    %1352 = add i32 %1326, 1
+    br label %B2247
+  B2281:
+    br label %B2293
+  B2293:
+    %1353 = phi i32 [0, label %B2281], [%1367, label %B2307]
+    %1354 = phi i32 [%1325, label %B2281], [%1368, label %B2307]
+    %1355 = phi i32 [0, label %B2281], [%1370, label %B2307]
+    %1356 = phi i32 [%1324, label %B2281], [%1369, label %B2307]
+    %1357 = icmp slt i32 %1355, 16
+    br i32 %1357, label %B2295, label %B2318
+  B2295:
+    %1358 = rem i32 %1354, 2
+    br i32 %1358, label %B2297, label %B2299
+  B2297:
+    %1359 = rem i32 %1356, 2
+    br label %B2300
+  B2299:
+    br label %B2300
+  B2300:
+    %1360 = phi i32 [0, label %B2299], [%1359, label %B2297]
+    br i32 %1360, label %B2301, label %B2306
+  B2301:
+    %1361 = load i32*, i32* @SHIFT_TABLE
+    %1362 = mul i32 %1355, 4
+    %1363 = getelementptr i32* %1361, i32 %1362
+    %1364 = load i32, i32* %1363
+    %1366 = add i32 %1353, %1364
+    br label %B2307
+  B2306:
+    br label %B2307
+  B2307:
+    %1367 = phi i32 [%1366, label %B2301], [%1353, label %B2306]
+    %1368 = div i32 %1354, 2
+    %1369 = div i32 %1356, 2
+    %1370 = add i32 %1355, 1
+    br label %B2293
+  B2318:
+    %1371 = mul i32 %1353, 2
+    br label %B2334
+  B2334:
+    %1372 = phi i32 [%1371, label %B2318], [%1387, label %B2348]
+    %1373 = phi i32 [0, label %B2318], [%1389, label %B2348]
+    %1374 = phi i32 [0, label %B2318], [%1386, label %B2348]
+    %1375 = phi i32 [65535, label %B2318], [%1388, label %B2348]
+    %1376 = icmp slt i32 %1373, 16
+    br i32 %1376, label %B2336, label %B2359
+  B2336:
+    %1377 = rem i32 %1372, 2
+    br i32 %1377, label %B2338, label %B2340
+  B2338:
+    %1378 = rem i32 %1375, 2
+    br label %B2341
+  B2340:
+    br label %B2341
+  B2341:
+    %1379 = phi i32 [0, label %B2340], [%1378, label %B2338]
+    br i32 %1379, label %B2342, label %B2347
+  B2342:
+    %1380 = load i32*, i32* @SHIFT_TABLE
+    %1381 = mul i32 %1373, 4
+    %1382 = getelementptr i32* %1380, i32 %1381
+    %1383 = load i32, i32* %1382
+    %1385 = add i32 %1374, %1383
+    br label %B2348
+  B2347:
+    br label %B2348
+  B2348:
+    %1386 = phi i32 [%1385, label %B2342], [%1374, label %B2347]
+    %1387 = div i32 %1372, 2
+    %1388 = div i32 %1375, 2
+    %1389 = add i32 %1373, 1
+    br label %B2334
+  B2359:
+    br label %B2237
+  B2366:
+    %1398 = sitofp i32 %1215 to f32
+    %1399 = icmp ogt i32 %1398, 32767
+    br i32 %1399, label %B2388, label %B2399
+  B2388:
+    %1400 = load i32*, i32* @SHIFT_TABLE
+    %1402 = getelementptr i32* %1400, i32 4
+    %1403 = load i32, i32* %1402
+    %1404 = div i32 %1215, %1403
+    %1405 = add i32 %1404, 65536
+    %1406 = load i32*, i32* @SHIFT_TABLE
+    %1410 = getelementptr i32* %1406, i32 60
+    %1411 = load i32, i32* %1410
+    %1412 = sub i32 %1405, %1411
+    br label %B2403
+  B2399:
+    %1413 = load i32*, i32* @SHIFT_TABLE
+    %1415 = getelementptr i32* %1413, i32 4
+    %1416 = load i32, i32* %1415
+    %1417 = div i32 %1215, %1416
+    br label %B2403
+  B2403:
+    %1418 = phi i32 [%1412, label %B2388], [%1417, label %B2399]
+    br label %B2056
+  B2411:
+    %1428 = sitofp i32 %974 to f32
+    %1429 = icmp ogt i32 %1428, 32767
+    br i32 %1429, label %B2433, label %B2444
+  B2433:
+    %1430 = load i32*, i32* @SHIFT_TABLE
+    %1432 = getelementptr i32* %1430, i32 4
+    %1433 = load i32, i32* %1432
+    %1434 = div i32 %974, %1433
+    %1435 = add i32 %1434, 65536
+    %1436 = load i32*, i32* @SHIFT_TABLE
+    %1440 = getelementptr i32* %1436, i32 60
+    %1441 = load i32, i32* %1440
+    %1442 = sub i32 %1435, %1441
+    br label %B2448
+  B2444:
+    %1443 = load i32*, i32* @SHIFT_TABLE
+    %1445 = getelementptr i32* %1443, i32 4
+    %1446 = load i32, i32* %1445
+    %1447 = div i32 %974, %1446
+    br label %B2448
+  B2448:
+    %1449 = phi i32 [%1442, label %B2433], [%1447, label %B2444]
+    br label %B1648
+  B2456:
+    %1454 = call void @putint(i32 %973)
+    %1455 = call void @putch(i32 10)
+    %1456 = add i32 %969, 1
+    br label %B1642
+  B2465:
+    br label %B2469
+  B2469:
+    %1458 = phi i32 [0, label %B2465], [%1949, label %B3290]
+    %1462 = icmp slt i32 %1458, 16
+    br i32 %1462, label %B2471, label %B3296
+  B2471:
+    br label %B2475
+  B2475:
+    %1464 = phi i32 [%1458, label %B2471], [%1939, label %B3275]
+    %1465 = phi i32 [2, label %B2471], [%1710, label %B3275]
+    %1469 = phi i32 [1, label %B2471], [%1702, label %B3275]
+    %1470 = icmp sgt i32 %1464, 0
+    br i32 %1470, label %B2477, label %B3283
+  B2477:
+    br label %B2486
+  B2486:
+    %1471 = phi i32 [0, label %B2477], [%1485, label %B2500]
+    %1472 = phi i32 [1, label %B2477], [%1487, label %B2500]
+    %1473 = phi i32 [0, label %B2477], [%1488, label %B2500]
+    %1474 = phi i32 [%1464, label %B2477], [%1486, label %B2500]
+    %1475 = icmp slt i32 %1473, 16
+    br i32 %1475, label %B2488, label %B2511
+  B2488:
+    %1476 = rem i32 %1474, 2
+    br i32 %1476, label %B2490, label %B2492
+  B2490:
+    %1477 = rem i32 %1472, 2
+    br label %B2493
+  B2492:
+    br label %B2493
+  B2493:
+    %1478 = phi i32 [0, label %B2492], [%1477, label %B2490]
+    br i32 %1478, label %B2494, label %B2499
+  B2494:
+    %1479 = load i32*, i32* @SHIFT_TABLE
+    %1480 = mul i32 %1473, 4
+    %1481 = getelementptr i32* %1479, i32 %1480
+    %1482 = load i32, i32* %1481
+    %1484 = add i32 %1471, %1482
+    br label %B2500
+  B2499:
+    br label %B2500
+  B2500:
+    %1485 = phi i32 [%1484, label %B2494], [%1471, label %B2499]
+    %1486 = div i32 %1474, 2
+    %1487 = div i32 %1472, 2
+    %1488 = add i32 %1473, 1
+    br label %B2486
+  B2511:
+    br i32 %1471, label %B2513, label %B2877
+  B2513:
+    br label %B2517
+  B2517:
+    %1489 = phi i32 [%1469, label %B2513], [%1594, label %B2864]
+    %1491 = phi i32 [0, label %B2513], [%1593, label %B2864]
+    %1492 = phi i32 [%1465, label %B2513], [%1693, label %B2864]
+    br i32 %1492, label %B2518, label %B2872
+  B2518:
+    br label %B2527
+  B2527:
+    %1496 = phi i32 [0, label %B2518], [%1510, label %B2541]
+    %1497 = phi i32 [0, label %B2518], [%1513, label %B2541]
+    %1498 = phi i32 [1, label %B2518], [%1512, label %B2541]
+    %1499 = phi i32 [%1492, label %B2518], [%1511, label %B2541]
+    %1500 = icmp slt i32 %1497, 16
+    br i32 %1500, label %B2529, label %B2552
+  B2529:
+    %1501 = rem i32 %1499, 2
+    br i32 %1501, label %B2531, label %B2533
+  B2531:
+    %1502 = rem i32 %1498, 2
+    br label %B2534
+  B2533:
+    br label %B2534
+  B2534:
+    %1503 = phi i32 [0, label %B2533], [%1502, label %B2531]
+    br i32 %1503, label %B2535, label %B2540
+  B2535:
+    %1504 = load i32*, i32* @SHIFT_TABLE
+    %1505 = mul i32 %1497, 4
+    %1506 = getelementptr i32* %1504, i32 %1505
+    %1507 = load i32, i32* %1506
+    %1509 = add i32 %1496, %1507
+    br label %B2541
+  B2540:
+    br label %B2541
+  B2541:
+    %1510 = phi i32 [%1509, label %B2535], [%1496, label %B2540]
+    %1511 = div i32 %1499, 2
+    %1512 = div i32 %1498, 2
+    %1513 = add i32 %1497, 1
+    br label %B2527
+  B2552:
+    br i32 %1496, label %B2554, label %B2692
+  B2554:
+    br label %B2558
+  B2558:
+    %1516 = phi i32 [%1489, label %B2554], [%1569, label %B2680]
+    %1517 = phi i32 [%1491, label %B2554], [%1523, label %B2680]
+    br i32 %1516, label %B2559, label %B2687
+  B2559:
+    br label %B2568
+  B2568:
+    %1521 = phi i32 [%1517, label %B2559], [%1545, label %B2591]
+    %1522 = phi i32 [0, label %B2559], [%1547, label %B2591]
+    %1523 = phi i32 [0, label %B2559], [%1544, label %B2591]
+    %1524 = phi i32 [%1516, label %B2559], [%1546, label %B2591]
+    %1525 = icmp slt i32 %1522, 16
+    br i32 %1525, label %B2570, label %B2602
+  B2570:
+    %1526 = rem i32 %1521, 2
+    br i32 %1526, label %B2572, label %B2582
+  B2572:
+    %1527 = rem i32 %1524, 2
+    %1528 = icmp eq i32 %1527, 0
+    br i32 %1528, label %B2575, label %B2580
+  B2575:
+    %1529 = load i32*, i32* @SHIFT_TABLE
+    %1530 = mul i32 %1522, 4
+    %1531 = getelementptr i32* %1529, i32 %1530
+    %1532 = load i32, i32* %1531
+    %1534 = add i32 %1523, %1532
+    br label %B2581
+  B2580:
+    br label %B2581
+  B2581:
+    %1535 = phi i32 [%1534, label %B2575], [%1523, label %B2580]
+    br label %B2591
+  B2582:
+    %1536 = rem i32 %1524, 2
+    br i32 %1536, label %B2584, label %B2589
+  B2584:
+    %1537 = load i32*, i32* @SHIFT_TABLE
+    %1538 = mul i32 %1522, 4
+    %1539 = getelementptr i32* %1537, i32 %1538
+    %1540 = load i32, i32* %1539
+    %1542 = add i32 %1523, %1540
+    br label %B2590
+  B2589:
+    br label %B2590
+  B2590:
+    %1543 = phi i32 [%1542, label %B2584], [%1523, label %B2589]
+    br label %B2591
+  B2591:
+    %1544 = phi i32 [%1535, label %B2581], [%1543, label %B2590]
+    %1545 = div i32 %1521, 2
+    %1546 = div i32 %1524, 2
+    %1547 = add i32 %1522, 1
+    br label %B2568
+  B2602:
+    br label %B2614
+  B2614:
+    %1548 = phi i32 [%1516, label %B2602], [%1564, label %B2628]
+    %1549 = phi i32 [0, label %B2602], [%1562, label %B2628]
+    %1550 = phi i32 [0, label %B2602], [%1565, label %B2628]
+    %1551 = phi i32 [%1517, label %B2602], [%1563, label %B2628]
+    %1552 = icmp slt i32 %1550, 16
+    br i32 %1552, label %B2616, label %B2639
+  B2616:
+    %1553 = rem i32 %1551, 2
+    br i32 %1553, label %B2618, label %B2620
+  B2618:
+    %1554 = rem i32 %1548, 2
+    br label %B2621
+  B2620:
+    br label %B2621
+  B2621:
+    %1555 = phi i32 [0, label %B2620], [%1554, label %B2618]
+    br i32 %1555, label %B2622, label %B2627
+  B2622:
+    %1556 = load i32*, i32* @SHIFT_TABLE
+    %1557 = mul i32 %1550, 4
+    %1558 = getelementptr i32* %1556, i32 %1557
+    %1559 = load i32, i32* %1558
+    %1561 = add i32 %1549, %1559
+    br label %B2628
+  B2627:
+    br label %B2628
+  B2628:
+    %1562 = phi i32 [%1561, label %B2622], [%1549, label %B2627]
+    %1563 = div i32 %1551, 2
+    %1564 = div i32 %1548, 2
+    %1565 = add i32 %1550, 1
+    br label %B2614
+  B2639:
+    %1566 = mul i32 %1549, 2
+    br label %B2655
+  B2655:
+    %1567 = phi i32 [%1566, label %B2639], [%1582, label %B2669]
+    %1568 = phi i32 [65535, label %B2639], [%1583, label %B2669]
+    %1569 = phi i32 [0, label %B2639], [%1581, label %B2669]
+    %1570 = phi i32 [0, label %B2639], [%1584, label %B2669]
+    %1571 = icmp slt i32 %1570, 16
+    br i32 %1571, label %B2657, label %B2680
+  B2657:
+    %1572 = rem i32 %1567, 2
+    br i32 %1572, label %B2659, label %B2661
+  B2659:
+    %1573 = rem i32 %1568, 2
+    br label %B2662
+  B2661:
+    br label %B2662
+  B2662:
+    %1574 = phi i32 [0, label %B2661], [%1573, label %B2659]
+    br i32 %1574, label %B2663, label %B2668
+  B2663:
+    %1575 = load i32*, i32* @SHIFT_TABLE
+    %1576 = mul i32 %1570, 4
+    %1577 = getelementptr i32* %1575, i32 %1576
+    %1578 = load i32, i32* %1577
+    %1580 = add i32 %1569, %1578
+    br label %B2669
+  B2668:
+    br label %B2669
+  B2669:
+    %1581 = phi i32 [%1580, label %B2663], [%1569, label %B2668]
+    %1582 = div i32 %1567, 2
+    %1583 = div i32 %1568, 2
+    %1584 = add i32 %1570, 1
+    br label %B2655
+  B2680:
+    br label %B2558
+  B2687:
+    br label %B2693
+  B2692:
+    br label %B2693
+  B2693:
+    %1593 = phi i32 [%1517, label %B2687], [%1491, label %B2692]
+    br label %B2698
+  B2698:
+    %1594 = phi i32 [%1489, label %B2693], [%1601, label %B2820]
+    %1600 = phi i32 [%1489, label %B2693], [%1647, label %B2820]
+    br i32 %1600, label %B2699, label %B2827
+  B2699:
+    br label %B2708
+  B2708:
+    %1601 = phi i32 [0, label %B2699], [%1624, label %B2731]
+    %1602 = phi i32 [%1594, label %B2699], [%1625, label %B2731]
+    %1603 = phi i32 [0, label %B2699], [%1627, label %B2731]
+    %1604 = phi i32 [%1600, label %B2699], [%1626, label %B2731]
+    %1605 = icmp slt i32 %1603, 16
+    br i32 %1605, label %B2710, label %B2742
+  B2710:
+    %1606 = rem i32 %1602, 2
+    br i32 %1606, label %B2712, label %B2722
+  B2712:
+    %1607 = rem i32 %1604, 2
+    %1608 = icmp eq i32 %1607, 0
+    br i32 %1608, label %B2715, label %B2720
+  B2715:
+    %1609 = load i32*, i32* @SHIFT_TABLE
+    %1610 = mul i32 %1603, 4
+    %1611 = getelementptr i32* %1609, i32 %1610
+    %1612 = load i32, i32* %1611
+    %1614 = add i32 %1601, %1612
+    br label %B2721
+  B2720:
+    br label %B2721
+  B2721:
+    %1615 = phi i32 [%1614, label %B2715], [%1601, label %B2720]
+    br label %B2731
+  B2722:
+    %1616 = rem i32 %1604, 2
+    br i32 %1616, label %B2724, label %B2729
+  B2724:
+    %1617 = load i32*, i32* @SHIFT_TABLE
+    %1618 = mul i32 %1603, 4
+    %1619 = getelementptr i32* %1617, i32 %1618
+    %1620 = load i32, i32* %1619
+    %1622 = add i32 %1601, %1620
+    br label %B2730
+  B2729:
+    br label %B2730
+  B2730:
+    %1623 = phi i32 [%1622, label %B2724], [%1601, label %B2729]
+    br label %B2731
+  B2731:
+    %1624 = phi i32 [%1615, label %B2721], [%1623, label %B2730]
+    %1625 = div i32 %1602, 2
+    %1626 = div i32 %1604, 2
+    %1627 = add i32 %1603, 1
+    br label %B2708
+  B2742:
+    br label %B2754
+  B2754:
+    %1628 = phi i32 [0, label %B2742], [%1642, label %B2768]
+    %1629 = phi i32 [%1594, label %B2742], [%1643, label %B2768]
+    %1630 = phi i32 [%1600, label %B2742], [%1644, label %B2768]
+    %1631 = phi i32 [0, label %B2742], [%1645, label %B2768]
+    %1632 = icmp slt i32 %1631, 16
+    br i32 %1632, label %B2756, label %B2779
+  B2756:
+    %1633 = rem i32 %1629, 2
+    br i32 %1633, label %B2758, label %B2760
+  B2758:
+    %1634 = rem i32 %1630, 2
+    br label %B2761
+  B2760:
+    br label %B2761
+  B2761:
+    %1635 = phi i32 [0, label %B2760], [%1634, label %B2758]
+    br i32 %1635, label %B2762, label %B2767
+  B2762:
+    %1636 = load i32*, i32* @SHIFT_TABLE
+    %1637 = mul i32 %1631, 4
+    %1638 = getelementptr i32* %1636, i32 %1637
+    %1639 = load i32, i32* %1638
+    %1641 = add i32 %1628, %1639
+    br label %B2768
+  B2767:
+    br label %B2768
+  B2768:
+    %1642 = phi i32 [%1641, label %B2762], [%1628, label %B2767]
+    %1643 = div i32 %1629, 2
+    %1644 = div i32 %1630, 2
+    %1645 = add i32 %1631, 1
+    br label %B2754
+  B2779:
+    %1646 = mul i32 %1628, 2
+    br label %B2795
+  B2795:
+    %1647 = phi i32 [0, label %B2779], [%1661, label %B2809]
+    %1648 = phi i32 [65535, label %B2779], [%1663, label %B2809]
+    %1649 = phi i32 [%1646, label %B2779], [%1662, label %B2809]
+    %1650 = phi i32 [0, label %B2779], [%1664, label %B2809]
+    %1651 = icmp slt i32 %1650, 16
+    br i32 %1651, label %B2797, label %B2820
+  B2797:
+    %1652 = rem i32 %1649, 2
+    br i32 %1652, label %B2799, label %B2801
+  B2799:
+    %1653 = rem i32 %1648, 2
+    br label %B2802
+  B2801:
+    br label %B2802
+  B2802:
+    %1654 = phi i32 [0, label %B2801], [%1653, label %B2799]
+    br i32 %1654, label %B2803, label %B2808
+  B2803:
+    %1655 = load i32*, i32* @SHIFT_TABLE
+    %1656 = mul i32 %1650, 4
+    %1657 = getelementptr i32* %1655, i32 %1656
+    %1658 = load i32, i32* %1657
+    %1660 = add i32 %1647, %1658
+    br label %B2809
+  B2808:
+    br label %B2809
+  B2809:
+    %1661 = phi i32 [%1660, label %B2803], [%1647, label %B2808]
+    %1662 = div i32 %1649, 2
+    %1663 = div i32 %1648, 2
+    %1664 = add i32 %1650, 1
+    br label %B2795
+  B2820:
+    br label %B2698
+  B2827:
+    %1673 = sitofp i32 %1492 to f32
+    %1674 = icmp ogt i32 %1673, 32767
+    br i32 %1674, label %B2849, label %B2860
+  B2849:
+    %1675 = load i32*, i32* @SHIFT_TABLE
+    %1677 = getelementptr i32* %1675, i32 4
+    %1678 = load i32, i32* %1677
+    %1679 = div i32 %1492, %1678
+    %1680 = add i32 %1679, 65536
+    %1681 = load i32*, i32* @SHIFT_TABLE
+    %1685 = getelementptr i32* %1681, i32 60
+    %1686 = load i32, i32* %1685
+    %1687 = sub i32 %1680, %1686
+    br label %B2864
+  B2860:
+    %1688 = load i32*, i32* @SHIFT_TABLE
+    %1690 = getelementptr i32* %1688, i32 4
+    %1691 = load i32, i32* %1690
+    %1692 = div i32 %1492, %1691
+    br label %B2864
+  B2864:
+    %1693 = phi i32 [%1687, label %B2849], [%1692, label %B2860]
+    br label %B2517
+  B2872:
+    br label %B2878
+  B2877:
+    br label %B2878
+  B2878:
+    %1702 = phi i32 [%1491, label %B2872], [%1469, label %B2877]
+    br label %B2883
+  B2883:
+    %1706 = phi i32 [%1465, label %B2878], [%1909, label %B3230]
+    %1708 = phi i32 [%1465, label %B2878], [%1814, label %B3230]
+    %1710 = phi i32 [0, label %B2878], [%1805, label %B3230]
+    br i32 %1706, label %B2884, label %B3238
+  B2884:
+    br label %B2893
+  B2893:
+    %1711 = phi i32 [%1706, label %B2884], [%1726, label %B2907]
+    %1712 = phi i32 [0, label %B2884], [%1725, label %B2907]
+    %1713 = phi i32 [1, label %B2884], [%1727, label %B2907]
+    %1714 = phi i32 [0, label %B2884], [%1728, label %B2907]
+    %1715 = icmp slt i32 %1714, 16
+    br i32 %1715, label %B2895, label %B2918
+  B2895:
+    %1716 = rem i32 %1711, 2
+    br i32 %1716, label %B2897, label %B2899
+  B2897:
+    %1717 = rem i32 %1713, 2
+    br label %B2900
+  B2899:
+    br label %B2900
+  B2900:
+    %1718 = phi i32 [0, label %B2899], [%1717, label %B2897]
+    br i32 %1718, label %B2901, label %B2906
+  B2901:
+    %1719 = load i32*, i32* @SHIFT_TABLE
+    %1720 = mul i32 %1714, 4
+    %1721 = getelementptr i32* %1719, i32 %1720
+    %1722 = load i32, i32* %1721
+    %1724 = add i32 %1712, %1722
+    br label %B2907
+  B2906:
+    br label %B2907
+  B2907:
+    %1725 = phi i32 [%1724, label %B2901], [%1712, label %B2906]
+    %1726 = div i32 %1711, 2
+    %1727 = div i32 %1713, 2
+    %1728 = add i32 %1714, 1
+    br label %B2893
+  B2918:
+    br i32 %1712, label %B2920, label %B3058
+  B2920:
+    br label %B2924
+  B2924:
+    %1730 = phi i32 [%1708, label %B2920], [%1782, label %B3046]
+    %1731 = phi i32 [%1710, label %B2920], [%1738, label %B3046]
+    br i32 %1730, label %B2925, label %B3053
+  B2925:
+    br label %B2934
+  B2934:
+    %1736 = phi i32 [%1731, label %B2925], [%1760, label %B2957]
+    %1737 = phi i32 [0, label %B2925], [%1762, label %B2957]
+    %1738 = phi i32 [0, label %B2925], [%1759, label %B2957]
+    %1739 = phi i32 [%1730, label %B2925], [%1761, label %B2957]
+    %1740 = icmp slt i32 %1737, 16
+    br i32 %1740, label %B2936, label %B2968
+  B2936:
+    %1741 = rem i32 %1736, 2
+    br i32 %1741, label %B2938, label %B2948
+  B2938:
+    %1742 = rem i32 %1739, 2
+    %1743 = icmp eq i32 %1742, 0
+    br i32 %1743, label %B2941, label %B2946
+  B2941:
+    %1744 = load i32*, i32* @SHIFT_TABLE
+    %1745 = mul i32 %1737, 4
+    %1746 = getelementptr i32* %1744, i32 %1745
+    %1747 = load i32, i32* %1746
+    %1749 = add i32 %1738, %1747
+    br label %B2947
+  B2946:
+    br label %B2947
+  B2947:
+    %1750 = phi i32 [%1749, label %B2941], [%1738, label %B2946]
+    br label %B2957
+  B2948:
+    %1751 = rem i32 %1739, 2
+    br i32 %1751, label %B2950, label %B2955
+  B2950:
+    %1752 = load i32*, i32* @SHIFT_TABLE
+    %1753 = mul i32 %1737, 4
+    %1754 = getelementptr i32* %1752, i32 %1753
+    %1755 = load i32, i32* %1754
+    %1757 = add i32 %1738, %1755
+    br label %B2956
+  B2955:
+    br label %B2956
+  B2956:
+    %1758 = phi i32 [%1757, label %B2950], [%1738, label %B2955]
+    br label %B2957
+  B2957:
+    %1759 = phi i32 [%1750, label %B2947], [%1758, label %B2956]
+    %1760 = div i32 %1736, 2
+    %1761 = div i32 %1739, 2
+    %1762 = add i32 %1737, 1
+    br label %B2934
+  B2968:
+    br label %B2980
+  B2980:
+    %1763 = phi i32 [%1731, label %B2968], [%1778, label %B2994]
+    %1764 = phi i32 [0, label %B2968], [%1777, label %B2994]
+    %1765 = phi i32 [%1730, label %B2968], [%1779, label %B2994]
+    %1766 = phi i32 [0, label %B2968], [%1780, label %B2994]
+    %1767 = icmp slt i32 %1766, 16
+    br i32 %1767, label %B2982, label %B3005
+  B2982:
+    %1768 = rem i32 %1763, 2
+    br i32 %1768, label %B2984, label %B2986
+  B2984:
+    %1769 = rem i32 %1765, 2
+    br label %B2987
+  B2986:
+    br label %B2987
+  B2987:
+    %1770 = phi i32 [0, label %B2986], [%1769, label %B2984]
+    br i32 %1770, label %B2988, label %B2993
+  B2988:
+    %1771 = load i32*, i32* @SHIFT_TABLE
+    %1772 = mul i32 %1766, 4
+    %1773 = getelementptr i32* %1771, i32 %1772
+    %1774 = load i32, i32* %1773
+    %1776 = add i32 %1764, %1774
+    br label %B2994
+  B2993:
+    br label %B2994
+  B2994:
+    %1777 = phi i32 [%1776, label %B2988], [%1764, label %B2993]
+    %1778 = div i32 %1763, 2
+    %1779 = div i32 %1765, 2
+    %1780 = add i32 %1766, 1
+    br label %B2980
+  B3005:
+    %1781 = mul i32 %1764, 2
+    br label %B3021
+  B3021:
+    %1782 = phi i32 [0, label %B3005], [%1796, label %B3035]
+    %1783 = phi i32 [%1781, label %B3005], [%1797, label %B3035]
+    %1784 = phi i32 [65535, label %B3005], [%1798, label %B3035]
+    %1785 = phi i32 [0, label %B3005], [%1799, label %B3035]
+    %1786 = icmp slt i32 %1785, 16
+    br i32 %1786, label %B3023, label %B3046
+  B3023:
+    %1787 = rem i32 %1783, 2
+    br i32 %1787, label %B3025, label %B3027
+  B3025:
+    %1788 = rem i32 %1784, 2
+    br label %B3028
+  B3027:
+    br label %B3028
+  B3028:
+    %1789 = phi i32 [0, label %B3027], [%1788, label %B3025]
+    br i32 %1789, label %B3029, label %B3034
+  B3029:
+    %1790 = load i32*, i32* @SHIFT_TABLE
+    %1791 = mul i32 %1785, 4
+    %1792 = getelementptr i32* %1790, i32 %1791
+    %1793 = load i32, i32* %1792
+    %1795 = add i32 %1782, %1793
+    br label %B3035
+  B3034:
+    br label %B3035
+  B3035:
+    %1796 = phi i32 [%1795, label %B3029], [%1782, label %B3034]
+    %1797 = div i32 %1783, 2
+    %1798 = div i32 %1784, 2
+    %1799 = add i32 %1785, 1
+    br label %B3021
+  B3046:
+    br label %B2924
+  B3053:
+    br label %B3059
+  B3058:
+    br label %B3059
+  B3059:
+    %1805 = phi i32 [%1731, label %B3053], [%1710, label %B3058]
+    br label %B3064
+  B3064:
+    %1813 = phi i32 [%1708, label %B3059], [%1862, label %B3186]
+    %1814 = phi i32 [%1708, label %B3059], [%1816, label %B3186]
+    br i32 %1813, label %B3065, label %B3193
+  B3065:
+    br label %B3074
+  B3074:
+    %1816 = phi i32 [0, label %B3065], [%1839, label %B3097]
+    %1817 = phi i32 [0, label %B3065], [%1842, label %B3097]
+    %1818 = phi i32 [%1814, label %B3065], [%1840, label %B3097]
+    %1819 = phi i32 [%1813, label %B3065], [%1841, label %B3097]
+    %1820 = icmp slt i32 %1817, 16
+    br i32 %1820, label %B3076, label %B3108
+  B3076:
+    %1821 = rem i32 %1818, 2
+    br i32 %1821, label %B3078, label %B3088
+  B3078:
+    %1822 = rem i32 %1819, 2
+    %1823 = icmp eq i32 %1822, 0
+    br i32 %1823, label %B3081, label %B3086
+  B3081:
+    %1824 = load i32*, i32* @SHIFT_TABLE
+    %1825 = mul i32 %1817, 4
+    %1826 = getelementptr i32* %1824, i32 %1825
+    %1827 = load i32, i32* %1826
+    %1829 = add i32 %1816, %1827
+    br label %B3087
+  B3086:
+    br label %B3087
+  B3087:
+    %1830 = phi i32 [%1829, label %B3081], [%1816, label %B3086]
+    br label %B3097
+  B3088:
+    %1831 = rem i32 %1819, 2
+    br i32 %1831, label %B3090, label %B3095
+  B3090:
+    %1832 = load i32*, i32* @SHIFT_TABLE
+    %1833 = mul i32 %1817, 4
+    %1834 = getelementptr i32* %1832, i32 %1833
+    %1835 = load i32, i32* %1834
+    %1837 = add i32 %1816, %1835
+    br label %B3096
+  B3095:
+    br label %B3096
+  B3096:
+    %1838 = phi i32 [%1837, label %B3090], [%1816, label %B3095]
+    br label %B3097
+  B3097:
+    %1839 = phi i32 [%1830, label %B3087], [%1838, label %B3096]
+    %1840 = div i32 %1818, 2
+    %1841 = div i32 %1819, 2
+    %1842 = add i32 %1817, 1
+    br label %B3074
+  B3108:
+    br label %B3120
+  B3120:
+    %1843 = phi i32 [0, label %B3108], [%1860, label %B3134]
+    %1844 = phi i32 [%1814, label %B3108], [%1858, label %B3134]
+    %1845 = phi i32 [%1813, label %B3108], [%1859, label %B3134]
+    %1846 = phi i32 [0, label %B3108], [%1857, label %B3134]
+    %1847 = icmp slt i32 %1843, 16
+    br i32 %1847, label %B3122, label %B3145
+  B3122:
+    %1848 = rem i32 %1844, 2
+    br i32 %1848, label %B3124, label %B3126
+  B3124:
+    %1849 = rem i32 %1845, 2
+    br label %B3127
+  B3126:
+    br label %B3127
+  B3127:
+    %1850 = phi i32 [0, label %B3126], [%1849, label %B3124]
+    br i32 %1850, label %B3128, label %B3133
+  B3128:
+    %1851 = load i32*, i32* @SHIFT_TABLE
+    %1852 = mul i32 %1843, 4
+    %1853 = getelementptr i32* %1851, i32 %1852
+    %1854 = load i32, i32* %1853
+    %1856 = add i32 %1846, %1854
+    br label %B3134
+  B3133:
+    br label %B3134
+  B3134:
+    %1857 = phi i32 [%1856, label %B3128], [%1846, label %B3133]
+    %1858 = div i32 %1844, 2
+    %1859 = div i32 %1845, 2
+    %1860 = add i32 %1843, 1
+    br label %B3120
+  B3145:
+    %1861 = mul i32 %1846, 2
+    br label %B3161
+  B3161:
+    %1862 = phi i32 [0, label %B3145], [%1876, label %B3175]
+    %1863 = phi i32 [%1861, label %B3145], [%1877, label %B3175]
+    %1864 = phi i32 [0, label %B3145], [%1879, label %B3175]
+    %1865 = phi i32 [65535, label %B3145], [%1878, label %B3175]
+    %1866 = icmp slt i32 %1864, 16
+    br i32 %1866, label %B3163, label %B3186
+  B3163:
+    %1867 = rem i32 %1863, 2
+    br i32 %1867, label %B3165, label %B3167
+  B3165:
+    %1868 = rem i32 %1865, 2
+    br label %B3168
+  B3167:
+    br label %B3168
+  B3168:
+    %1869 = phi i32 [0, label %B3167], [%1868, label %B3165]
+    br i32 %1869, label %B3169, label %B3174
+  B3169:
+    %1870 = load i32*, i32* @SHIFT_TABLE
+    %1871 = mul i32 %1864, 4
+    %1872 = getelementptr i32* %1870, i32 %1871
+    %1873 = load i32, i32* %1872
+    %1875 = add i32 %1862, %1873
+    br label %B3175
+  B3174:
+    br label %B3175
+  B3175:
+    %1876 = phi i32 [%1875, label %B3169], [%1862, label %B3174]
+    %1877 = div i32 %1863, 2
+    %1878 = div i32 %1865, 2
+    %1879 = add i32 %1864, 1
+    br label %B3161
+  B3186:
+    br label %B3064
+  B3193:
+    %1888 = sitofp i32 %1706 to f32
+    %1889 = icmp ogt i32 %1888, 32767
+    br i32 %1889, label %B3215, label %B3226
+  B3215:
+    %1890 = load i32*, i32* @SHIFT_TABLE
+    %1892 = getelementptr i32* %1890, i32 4
+    %1893 = load i32, i32* %1892
+    %1894 = div i32 %1706, %1893
+    %1895 = add i32 %1894, 65536
+    %1896 = load i32*, i32* @SHIFT_TABLE
+    %1900 = getelementptr i32* %1896, i32 60
+    %1901 = load i32, i32* %1900
+    %1902 = sub i32 %1895, %1901
+    br label %B3230
+  B3226:
+    %1903 = load i32*, i32* @SHIFT_TABLE
+    %1905 = getelementptr i32* %1903, i32 4
+    %1906 = load i32, i32* %1905
+    %1907 = div i32 %1706, %1906
+    br label %B3230
+  B3230:
+    %1909 = phi i32 [%1902, label %B3215], [%1907, label %B3226]
+    br label %B2883
+  B3238:
+    %1918 = sitofp i32 %1464 to f32
+    %1919 = icmp ogt i32 %1918, 32767
+    br i32 %1919, label %B3260, label %B3271
+  B3260:
+    %1920 = load i32*, i32* @SHIFT_TABLE
+    %1922 = getelementptr i32* %1920, i32 4
+    %1923 = load i32, i32* %1922
+    %1924 = div i32 %1464, %1923
+    %1925 = add i32 %1924, 65536
+    %1926 = load i32*, i32* @SHIFT_TABLE
+    %1930 = getelementptr i32* %1926, i32 60
+    %1931 = load i32, i32* %1930
+    %1932 = sub i32 %1925, %1931
+    br label %B3275
+  B3271:
+    %1933 = load i32*, i32* @SHIFT_TABLE
+    %1935 = getelementptr i32* %1933, i32 4
+    %1936 = load i32, i32* %1935
+    %1937 = div i32 %1464, %1936
+    br label %B3275
+  B3275:
+    %1939 = phi i32 [%1932, label %B3260], [%1937, label %B3271]
+    br label %B2475
+  B3283:
+    %1944 = load i32*, i32* @SHIFT_TABLE
+    %1945 = mul i32 %1458, 4
+    %1946 = getelementptr i32* %1944, i32 %1945
+    %1947 = load i32, i32* %1946
+    %1948 = icmp ne i32 %1947, %1469
+    br i32 %1948, label %B3289, label %B3290
+  B3289:
+    ret i32 1
+  B3290:
+    %1949 = add i32 %1458, 1
+    br label %B2469
+  B3296:
+    ret i32 0
+}
+define i32 @main(){
+  entry:
+    %1950 = call i32 @long_func()
+    ret i32 %1950
+}

@@ -147,19 +147,31 @@ fn parse_float_lit(s: &str) -> f32 {
 	s1.parse().unwrap()
 }
 
-fn parse_int_lit(s: &str) -> i32 {
+fn parse_int_lit(s: &str) -> Result<i32> {
 	if s == "0" {
-		return 0;
+		return Ok(0);
 	}
 	if s.contains('x') || s.contains('X') {
-		return i32::from_str_radix(&s[2..], 16).unwrap();
+		return i32::from_str_radix(&s[2..], 16).map_err(|_| {
+			utils::SysycError::SemanticError(format!("failed to convert as hex int"))
+		});
 	} else if s.contains('b') || s.contains('B') {
-		return i32::from_str_radix(&s[2..], 2).unwrap();
+		return i32::from_str_radix(&s[2..], 2).map_err(|_| {
+			utils::SysycError::SemanticError(format!(
+				"failed to convert as binary int"
+			))
+		});
 	}
 	if s.starts_with('0') {
-		return i32::from_str_radix(s, 8).unwrap();
+		return i32::from_str_radix(s, 8).map_err(|_| {
+			utils::SysycError::SemanticError(format!("failed to convert as oct int"))
+		});
 	}
-	s.parse().unwrap()
+	s.parse().map_err(|_| {
+		utils::SysycError::SemanticError(format!(
+			"failed to convert as decimal int"
+		))
+	})
 }
 
 fn parse_hex_float_lit(pair: Pair<Rule>) -> f32 {
@@ -189,16 +201,25 @@ fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 	match pair.as_rule() {
 		Rule::Integer => Box::new(LiteralInt {
 			_attrs: HashMap::new(),
-			value: parse_int_lit(pair.as_str()),
+			value: parse_int_lit(pair.as_str()).unwrap(),
 		}),
 		Rule::Float => Box::new(LiteralFloat {
 			_attrs: HashMap::new(),
 			value: parse_float_lit(pair.as_str()),
 		}),
-		Rule::HexFloat => Box::new(LiteralFloat {
-			_attrs: HashMap::new(),
-			value: parse_hex_float_lit(pair),
-		}),
+		Rule::HexFloat => {
+			if let Ok(value) = parse_int_lit(pair.as_str()) {
+				Box::new(LiteralInt {
+					_attrs: HashMap::new(),
+					value: value,
+				})
+			} else {
+				Box::new(LiteralFloat {
+					_attrs: HashMap::new(),
+					value: parse_hex_float_lit(pair),
+				})
+			}
+		}
 		Rule::FuncCall => parse_func_call(pair),
 		Rule::Lval => parse_lval(pair),
 		Rule::Expr => parse_expr(pair),

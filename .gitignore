@@ -5,3 +5,4 @@ Cargo.lock
 !src/main.rs
 sysyc-tests
 .vscode
+test_error.sh

@@ -396,6 +396,15 @@ pub fn action(func: &mut LlvmFunc, graph: ConstrainGraph) -> bool {
 					rhs: if t { 1 } else { 0 }.into(),
 				};
 
+				println!(
+					"{} {} {} {:?} {:?}",
+					c.target,
+					id,
+					&op,
+					&get_range(&c.lhs, id),
+					&get_range(&c.rhs, id)
+				);
+
 				if let Some(t) =
 					comp_must_never(op, &get_range(&c.lhs, id), &get_range(&c.rhs, id))
 				{

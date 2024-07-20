@@ -5,6 +5,11 @@ fn putint(output: &mut Vec<String>, data: i32) -> (bool, Option<StackValue>) {
 	(true, None)
 }
 
+fn putchar(output: &mut Vec<String>, data: i32) -> (bool, Option<StackValue>) {
+	output.push(format!("char{:?}", data));
+	(true, None)
+}
+
 fn is_blank(char: i32) -> bool {
 	!(char > ' ' as i32 && char < 127)
 }
@@ -87,6 +92,7 @@ pub fn inout(
 	match name {
 		"putint" => putint(output, params[0].as_i32()),
 		"getch" => (true, get_chr(false).map(StackValue::from)),
+		"putch" => putchar(output, params[0].as_i32()),
 		"getint" => (true, getint(&mut get_chr).map(StackValue::from)),
 		_ => (false, None),
 	}
