@@ -823,20 +823,20 @@ mod tests {
 
 	fn traverse(a: &Range, b: &Range) -> Vec<String> {
 		vec![
-			format!("{:?}", a.intersection(&b)).to_string(),
-			format!("{:?}", b.intersection(&a)).to_string(),
-			format!("{:?}", b.union(&a)).to_string(),
-			format!("{:?}", a.union(&b)).to_string(),
-			format!("{:?}", a.add(&b)).to_string(),
-			format!("{:?}", b.add(&a)).to_string(),
-			format!("{:?}", a.sub(&b)).to_string(),
-			format!("{:?}", b.sub(&a)).to_string(),
-			format!("{:?}", a.mul(&b)).to_string(),
-			format!("{:?}", b.mul(&a)).to_string(),
-			format!("{:?}", a.div(&b)).to_string(),
-			format!("{:?}", b.div(&a)).to_string(),
-			format!("{:?}", a.rem(&b)).to_string(),
-			format!("{:?}", b.rem(&a)).to_string(),
+			format!("{:?}", a.intersection(b)).to_string(),
+			format!("{:?}", b.intersection(a)).to_string(),
+			format!("{:?}", b.union(a)).to_string(),
+			format!("{:?}", a.union(b)).to_string(),
+			format!("{:?}", a.add(b)).to_string(),
+			format!("{:?}", b.add(a)).to_string(),
+			format!("{:?}", a.sub(b)).to_string(),
+			format!("{:?}", b.sub(a)).to_string(),
+			format!("{:?}", a.mul(b)).to_string(),
+			format!("{:?}", b.mul(a)).to_string(),
+			format!("{:?}", a.div(b)).to_string(),
+			format!("{:?}", b.div(a)).to_string(),
+			format!("{:?}", a.rem(b)).to_string(),
+			format!("{:?}", b.rem(a)).to_string(),
 		]
 	}
 

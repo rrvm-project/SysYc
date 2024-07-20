@@ -21,6 +21,11 @@ Compiler of Sysy2022, a programming language for ..what?
 
 `-Ox`：指定优化方式/等级（支持 `-O0`，`-O1`，`-O2` 三种优化等级，其中 `-O2` 可能产生错误）。
 
+#### Features
+
+`simu`: 以中端代码模拟器运行。示例 `cargo run --features "simu"  -- <源代码> [<输入文件>]` 。
+`debug`: 用于调试。
+
 ## Usage
 
 `cargo run -- <input_file>` to complie the file inputed.
@@ -39,4 +44,10 @@ An error occurs in case of no output mode is specified.
 
 `-o`: Specify the output file. Will output into standard output if not specified.
 
-`-Ox`: Specify the optimization level. supports three levels of optimization: `-O0`, `-O1`, `-O2`, where `-O2` may produce errors
+`-Ox`: Specify the optimization level. supports three levels of optimization: `-O0`, `-O1`, `-O2`, where `-O2` may produce errors.
+
+
+#### Features
+
+`simu`: Run as an simulator for our llvm IR. Usage `cargo run --features "simu"  -- <source> [<input>]` .
+`debug`: For debugging.
