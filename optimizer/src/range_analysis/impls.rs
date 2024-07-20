@@ -76,8 +76,6 @@ fn solve_phi_comp_reliance(
 }
 
 fn process_function(func: &mut LlvmFunc) -> bool {
-	func.cfg.analysis();
-
 	let (block_implies_necessary, block_implies, comparisons) =
 		extract_constrain(func);
 	let (sccs, graph) = build_constrains_graph(
@@ -396,14 +394,14 @@ pub fn action(func: &mut LlvmFunc, graph: ConstrainGraph) -> bool {
 					rhs: if t { 1 } else { 0 }.into(),
 				};
 
-				println!(
-					"{} {} {} {:?} {:?}",
-					c.target,
-					id,
-					&op,
-					&get_range(&c.lhs, id),
-					&get_range(&c.rhs, id)
-				);
+				// println!(
+				// 	"{} {} {} {:?} {:?}",
+				// 	c.target,
+				// 	id,
+				// 	&op,
+				// 	&get_range(&c.lhs, id),
+				// 	&get_range(&c.rhs, id)
+				// );
 
 				if let Some(t) =
 					comp_must_never(op, &get_range(&c.lhs, id), &get_range(&c.rhs, id))
@@ -423,6 +421,7 @@ impl RrvmOptimizer for RangeAnalysis {
 	}
 
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+		program.analysis();
 		Ok(program.funcs.iter_mut().any(process_function))
 	}
 }

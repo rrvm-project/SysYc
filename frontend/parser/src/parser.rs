@@ -153,24 +153,28 @@ fn parse_int_lit(s: &str) -> Result<i32> {
 	}
 	if s.contains('x') || s.contains('X') {
 		return i32::from_str_radix(&s[2..], 16).map_err(|_| {
-			utils::SysycError::SemanticError(format!("failed to convert as hex int"))
+			utils::SysycError::SemanticError(
+				"failed to convert as hex int".to_string(),
+			)
 		});
 	} else if s.contains('b') || s.contains('B') {
 		return i32::from_str_radix(&s[2..], 2).map_err(|_| {
-			utils::SysycError::SemanticError(format!(
-				"failed to convert as binary int"
-			))
+			utils::SysycError::SemanticError(
+				"failed to convert as binary int".to_string(),
+			)
 		});
 	}
 	if s.starts_with('0') {
 		return i32::from_str_radix(s, 8).map_err(|_| {
-			utils::SysycError::SemanticError(format!("failed to convert as oct int"))
+			utils::SysycError::SemanticError(
+				"failed to convert as oct int".to_string(),
+			)
 		});
 	}
 	s.parse().map_err(|_| {
-		utils::SysycError::SemanticError(format!(
-			"failed to convert as decimal int"
-		))
+		utils::SysycError::SemanticError(
+			"failed to convert as decimal int".to_string(),
+		)
 	})
 }
 
@@ -211,7 +215,7 @@ fn parse_primary_expr(pair: Pair<Rule>) -> Node {
 			if let Ok(value) = parse_int_lit(pair.as_str()) {
 				Box::new(LiteralInt {
 					_attrs: HashMap::new(),
-					value: value,
+					value,
 				})
 			} else {
 				Box::new(LiteralFloat {
