@@ -482,7 +482,7 @@ impl Range {
 			(RangeItem::FloatValue(l), RangeItem::FloatValue(u)) => l > u,
 			(RangeItem::PosInf, _) | (_, RangeItem::NegInf) => true,
 			(_, RangeItem::PosInf) | (RangeItem::NegInf, _) => false,
-			_ => unreachable!(),
+			_ => false,
 		} {
 			self.lower = RangeItem::PosInf;
 			self.upper = RangeItem::NegInf;
