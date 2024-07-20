@@ -2,8 +2,35 @@ use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use super::RemoveUnreachCode;
 use crate::RrvmOptimizer;
+use llvm::{LlvmInstrTrait, LlvmTemp};
 use rrvm::{cfg::BasicBlock, program::LlvmProgram};
 use utils::errors::Result;
+
+fn clear_prev_succ(v: &Rc<RefCell<BasicBlock<Box<dyn LlvmInstrTrait>, LlvmTemp>>>){
+	let this = v.borrow().id;
+
+	for prev in &v.borrow().prev{
+		//try_borrow失败的情况下，这里的prev就是v, 在稍后整个块会被直接清理，不用管
+		if let Ok(mut prev) = prev.try_borrow_mut(){
+			prev.succ.retain(|block|{
+				// 如果这里block是prev, borrow 会失败（能走到这里，prev不是要删除的v）。is_ok_and返回的是false, 整体是true
+				!block.try_borrow().is_ok_and(|block|{block.id == this})
+			});
+		}
+	}
+
+	for succ in &v.borrow().succ{
+		//try_borrow失败的情况下，这里的succ就是v, 在稍后整个块会被直接清理，不用管
+		if let Ok(mut succ) = succ.try_borrow_mut(){
+			succ.prev.retain(|block|{
+				// 如果这里block是succ, borrow 会失败（能走到这里，succ不是要删除的v）。is_ok_and返回的是false, 整体是true
+				!block.try_borrow().is_ok_and(|block|{block.id == this})
+			});
+		}
+	}
+
+}
+
 
 impl RrvmOptimizer for RemoveUnreachCode {
 	fn new() -> Self {
@@ -25,8 +52,12 @@ impl RrvmOptimizer for RemoveUnreachCode {
 					}
 				}
 			}
+
+
+
 			cfg.blocks.retain(|v| {
 				visited.contains(&v.borrow().id) || {
+					clear_prev_succ(v);
 					v.borrow_mut().clear();
 					false
 				}
@@ -71,6 +102,7 @@ impl RrvmOptimizer for RemoveUnreachCode {
 			cfg.blocks.retain(|v| {
 				visited.contains(&v.borrow().id) || {
 					v.borrow_mut().clear();
+					clear_prev_succ(v);
 					false
 				}
 			});
