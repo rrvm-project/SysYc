@@ -136,7 +136,7 @@ pub enum CompKind {
 	Fcmp,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ConvertOp {
 	Int2Float,
 	Float2Int,

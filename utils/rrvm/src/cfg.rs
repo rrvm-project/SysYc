@@ -61,7 +61,8 @@ impl LlvmCFG {
 			}
 		}
 	}
-	pub fn analysis(&self) {
+	//防止写 optimizer 时误用
+	pub(crate) fn analysis(&self) {
 		self.blocks.iter().for_each(|v| v.borrow_mut().init_data_flow());
 		let mut phi_data: HashMap<_, HashSet<_>> = HashMap::new();
 		for node in self.blocks.iter() {

@@ -5,6 +5,7 @@ use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
 use fuyuki_vn::{FuyukiLocalValueNumber, GLobalValueNumber};
+use range_analysis::RangeAnalysis;
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
@@ -66,6 +67,7 @@ impl Optimizer2 {
 		RemoveUselessCode::new().apply(program)?;
 		loop {
 			let mut flag = false;
+
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
@@ -85,6 +87,7 @@ impl Optimizer2 {
 
 		loop {
 			let mut flag = false;
+			flag |= RangeAnalysis::new().apply(program)?;
 			flag |= RemoveDeadCode::new().apply(program)?;
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;

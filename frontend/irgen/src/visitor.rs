@@ -339,14 +339,15 @@ impl Visitor for IRGenerator {
 						let lhs = self.type_conv(lhs_val, comp_type, &lcfg);
 						let rhs = self.type_conv(rhs_val, comp_type, &rcfg);
 						let op = to_comp(node.op, comp_type);
+
 						let temp = self.new_temp(var_type, false);
 						let instr = Box::new(CompInstr {
-							kind: get_comp_kind(var_type),
+							kind: get_comp_kind(comp_type),
 							target: temp.clone(),
 							op,
 							lhs,
 							rhs,
-							var_type,
+							var_type: comp_type,
 						});
 						rcfg.get_exit().borrow_mut().push(instr);
 						link_cfg(&lcfg, &rcfg);
