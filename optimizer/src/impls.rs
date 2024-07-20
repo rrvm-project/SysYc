@@ -101,7 +101,6 @@ impl Optimizer2 {
 			}
 		}
 		program.analysis();
-		RangeAnalysis::new().apply(program)?;
 		Ok(())
 	}
 }

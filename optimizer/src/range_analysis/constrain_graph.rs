@@ -186,12 +186,17 @@ impl ConstrainGraph {
 	pub fn narrowing(&mut self, scc: &[usize]) {
 		let mut work_list = VecDeque::new();
 		scc.iter().for_each(|node_id| work_list.push_back(*node_id));
+		let mut total_time = scc.len() * 100_000;
 
 		while let Some(id) = work_list.pop_front() {
 			if self.narrowing_node(id).unwrap_or(false) {
 				for next in self.get_node_ref(id).next() {
 					work_list.push_back(*next)
 				}
+			}
+			total_time -= 1;
+			if total_time == 0 {
+				break;
 			}
 		}
 	}
