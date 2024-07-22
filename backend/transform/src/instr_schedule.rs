@@ -147,11 +147,13 @@ struct State {
 	score: i32,
 	indegs: HashMap<usize, usize>, // 把节点的 id 映射到入度
 	liveliness_map: HashMap<RiscvTemp, Liveliness>,
+	call_ids: Vec<usize>,
 }
 pub fn instr_schedule_by_dag(
 	dag: InstrDag,
 	liveliness_map: HashMap<RiscvTemp, Liveliness>,
 ) -> Result<RiscvInstrSet, SysycError> {
+	// println!("{}",dag);
 	let mut states = VecDeque::new();
 	// calculate indegs
 	let mut indegs = HashMap::new();
@@ -163,11 +165,12 @@ pub fn instr_schedule_by_dag(
 		score: 0,
 		indegs: indegs.clone(),
 		liveliness_map,
+		call_ids: Vec::new(),
 	});
 	let depth = dag.nodes.len(); // bfs 深度已知，是所需要调度的指令总数
 	for _i in 0..depth {
 		let real_cnt = states.len();
-		for _i in 0..real_cnt {
+		for _j in 0..real_cnt {
 			let state = states.pop_front().unwrap();
 			let state_indeg = state.indegs.clone();
 			let allocatables: Vec<_> = state_indeg
@@ -175,10 +178,18 @@ pub fn instr_schedule_by_dag(
 				.filter(|(_k, v)| *v == 0)
 				.map(|(k, _)| k)
 				.collect();
+			// println!("allocatables: {:?} _i: {:?} _j: {:?} ", allocatables,_i,_j);
+			// println!("state instrs:");
+			// for i in state.instrs.iter() {
+			// 	println!("{}", i);
+			// }
 			for i in allocatables.iter() {
 				let mut new_state = state.clone();
 				new_state.instrs.push(dag.nodes[*i].borrow().instr.clone());
 				new_state.score += punishment(dag.clone(), &mut new_state, *i);
+				if dag.nodes[*i].borrow().instr.is_call() {
+					new_state.call_ids.push(*i);
+				}
 				// decl the use in new_state's liveliness_map
 				for i in dag.nodes[*i].borrow().instr.get_riscv_read().iter() {
 					new_state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
@@ -200,9 +211,21 @@ pub fn instr_schedule_by_dag(
 			states.truncate(BFS_STATE_THRESHOLD);
 		}
 	}
+	// for i in states.iter() {
+	// 	println!("final state instructions:");
+	// 	for j in i.instrs.iter() {
+	// 		println!("{}", j);
+	// 	}
+	// }
+	let final_state = states.pop_front().unwrap();
+	// println!("final state instructions:");
+	// for i in final_state.instrs.iter() {
+	// 	println!("{}", i);
+	// }
 	Ok(postprocess_call(
-		states.pop_front().unwrap().instrs,
-		&mut dag.call_related.clone(),
+		final_state.instrs,
+		&mut dag.call_related.clone(), // 是我call的顺序可能会调换，post_process 的时候和原本push进去的顺序不一致
 		dag.branch.clone(),
+		&mut final_state.call_ids.clone(), // todo 改掉他
 	))
 }
