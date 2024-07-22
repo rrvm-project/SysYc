@@ -5,7 +5,10 @@ use std::{
 };
 
 use instruction::riscv::{
-	reg::RiscvReg::A0, riscvinstr::RiscvInstrTrait, value::RiscvTemp, RiscvInstr,
+	reg::RiscvReg::{A0, SP},
+	riscvinstr::RiscvInstrTrait,
+	value::RiscvTemp,
+	RiscvInstr,
 };
 use rrvm::RiscvNode;
 use std::fmt;
@@ -48,15 +51,23 @@ fn preprocess_call(
 	let mut save_instr = false;
 	let mut my_call_related = Vec::new();
 	let mut is_last_restore = false;
+	let mut push_this = false;
 	for (idx, i) in node.borrow().instrs.iter().enumerate() {
+		if push_this {
+			push_this = false;
+			my_call_related.push(i.clone());
+			call_write.push(Some(i.get_riscv_write()[0]));
+			call_related.push(my_call_related);
+			my_call_related = Vec::new();
+			continue;
+		}
 		if is_last_restore {
 			is_last_restore = false;
 			if i.get_riscv_read().len() == 1 {
 				if let RiscvTemp::PhysReg(A0) = i.get_riscv_read()[0] {
 					my_call_related.push(i.clone());
-					call_related.push(my_call_related);
-					my_call_related = Vec::new();
-					call_write.push(Some(i.get_riscv_write()[0]));
+					//call_write.push(Some(i.get_riscv_write()[0]));
+					push_this = true;
 					continue;
 				} else {
 					call_write.push(None);
@@ -92,6 +103,8 @@ fn preprocess_call(
 	for call_instrs in call_related.iter() {
 		// 获取所有 instr 中的riscv_reads 的并集
 		let mut riscv_reads = HashSet::new();
+		// 先把 SP 扔进 riscv_reads
+		riscv_reads.insert(RiscvTemp::PhysReg(SP));
 		for instr in call_instrs.iter() {
 			riscv_reads.extend(instr.get_riscv_read().iter().cloned());
 		}
@@ -106,7 +119,6 @@ fn preprocess_call(
 		}
 		call_reads.push(riscv_reads.iter().cloned().collect());
 	}
-
 	instrs
 }
 pub fn postprocess_call(
@@ -134,7 +146,7 @@ pub fn postprocess_call(
 	// 	println!("{}", i);
 	// }
 	// println!("---------------postprocess call instrs end---------------------");
-	// todo puts 相关函数次序不能颠倒
+	// todo 把 ret 相关 mov 指令焊死在最后
 	my_instrs
 }
 impl InstrDag {
@@ -210,8 +222,7 @@ impl InstrDag {
 			// println!("instr write: {:?}",instr.get_riscv_write());
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
 			if idx == 0 {
-				if instr.is_load().unwrap_or(false)
-					&& instr.get_riscv_write().len() == 1
+				if instr.get_riscv_write().len() == 1
 					&& instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
 				{
 					li_ret = Some(node.clone());
