@@ -126,7 +126,7 @@ fn main() -> Result<()> {
 		}
 
 		let code = code_emission(riscv, file_name);
-		write!(writer, "asfdgarere{}", code)?;
+		write!(writer, "{}", code)?;
 	}
 
 	Ok(())
