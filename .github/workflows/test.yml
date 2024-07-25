@@ -9,9 +9,8 @@ jobs:
     - name: get test repo
       uses: actions/checkout@v4
       with:
+        repository: ${{ vars.TEST_CLIENT_REPO }}
         token: ${{ secrets.TEST_TOKEN }}
-        submodules: 'recursive'
 
     - name: send test request
-      working-directory: ./sysyc_tester_client
       run: cargo run -- -a ${{ secrets.BACKEND_ADDRESS }} -p 12345 -b ${{ github.ref_name }} -c ${{ github.sha }}
