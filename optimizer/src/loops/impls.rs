@@ -13,8 +13,11 @@ impl RrvmOptimizer for HandleLoops {
 		Self {}
 	}
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
-		fn solve(func: &mut LlvmFunc, temp_mgr: &mut LlvmTempManager) -> bool {
-			let cfg = &mut func.cfg;
+		fn solve(
+			func: &mut LlvmFunc,
+			temp_mgr: &mut LlvmTempManager,
+			loop_unroll_time: &mut usize,
+		) -> bool {
 			let flag: bool = false;
 			func.cfg.compute_dominator();
 			let loops = func.cfg.loop_analysis();

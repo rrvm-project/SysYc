@@ -10,7 +10,7 @@ impl RrvmOptimizer for PureCheck {
 		Self {}
 	}
 
-	fn apply(&self, program: &mut LlvmProgram) -> Result<bool> {
+	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
 		let mut work_list: VecDeque<String> = VecDeque::new();
 		let mut inverse_call_relation: HashMap<String, HashSet<String>> =
 			HashMap::new();
