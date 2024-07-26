@@ -14,6 +14,16 @@ pub enum Value {
 	Temp(LlvmTemp),
 }
 
+impl Value {
+	pub fn get_temp(self) -> Option<LlvmTemp> {
+		if let Value::Temp(t) = self {
+			Some(t)
+		} else {
+			None
+		}
+	}
+}
+
 impl Eq for Value {}
 
 impl Hash for Value {
