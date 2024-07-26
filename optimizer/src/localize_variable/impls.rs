@@ -1,10 +1,9 @@
 use super::LocalizeVariable;
-use std::{collections::HashSet, mem::replace};
+use std::collections::HashSet;
 
 use crate::RrvmOptimizer;
 use llvm::{
-	AllocInstr, LlvmInstrTrait, LlvmInstrVariant, LlvmTemp, Value,
-	VarType,
+	AllocInstr, LlvmInstrTrait, LlvmInstrVariant, LlvmTemp, Value, VarType,
 };
 use rrvm::program::LlvmProgram;
 use utils::{errors::Result, GlobalVar};
@@ -35,7 +34,7 @@ impl RrvmOptimizer for LocalizeVariable {
 		let mut killed_global = vec![];
 
 		std::mem::take(&mut program.global_vars).into_iter().for_each(|var| {
-			if var.size() > 1_000_000 || not_appliable.contains(&var.ident) {
+			if var.size() > 4 || not_appliable.contains(&var.ident) {
 				program.global_vars.push(var);
 			} else {
 				killed_global.push(var);
@@ -52,16 +51,19 @@ impl RrvmOptimizer for LocalizeVariable {
 			} else {
 				VarType::I32Ptr
 			};
-			let length: Value = g.size().into();
-			result.push(Box::new(AllocInstr {
-				target: LlvmTemp {
-					name: g.ident,
-					is_global: false,
-					var_type,
-				},
-				var_type,
-				length,
-			}));
+			let length = g.size();
+			assert!(length == 4);// Do not support array here!
+
+
+			// result.push(Box::new(AllocInstr {
+			// 	target: LlvmTemp {
+			// 		name: g.ident,
+			// 		is_global: false,
+			// 		var_type,
+			// 	},
+			// 	var_type,
+			// 	length,
+			// }));mainmai
 
 			result
 		}

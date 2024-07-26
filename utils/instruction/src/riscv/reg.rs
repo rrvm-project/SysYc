@@ -61,7 +61,10 @@ pub fn need_caller_save(reg: &RiscvReg, var_type: llvm::VarType) -> bool {
 	CALLER_SAVE.contains(reg)
 		&& !matches!(
 			(reg, var_type),
-			(Fa0, llvm::VarType::F32) | (A0, llvm::VarType::I32)
+			(Fa0, llvm::VarType::F32)
+				| (A0, llvm::VarType::I32)
+				| (A0, llvm::VarType::I32Ptr)
+				| (A0, llvm::VarType::F32Ptr)
 		)
 }
 
