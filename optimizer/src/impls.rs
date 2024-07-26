@@ -6,9 +6,11 @@ use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
 use fuyuki_vn::{FuyukiLocalValueNumber, GLobalValueNumber};
 use loops::HandleLoops;
+use localize_variable::LocalizeVariable;
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
+use zero_init::ZeroInit;
 
 use self::pure_check::PureCheck;
 
@@ -65,6 +67,7 @@ impl Optimizer2 {
 		RemoveUselessCode::new().apply(program)?;
 		RemoveUnreachCode::new().apply(program)?;
 		RemoveUselessCode::new().apply(program)?;
+		ZeroInit::new().apply(program)?;
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
@@ -72,6 +75,7 @@ impl Optimizer2 {
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= PureCheck::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
+			flag |= LocalizeVariable::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= GLobalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
@@ -90,6 +94,7 @@ impl Optimizer2 {
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
+			flag |= LocalizeVariable::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
