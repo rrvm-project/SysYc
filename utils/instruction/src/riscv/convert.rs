@@ -471,19 +471,20 @@ pub fn riscv_call(
 	}
 	instrs.push(TemporayInstr::new(Restore, instr.var_type));
 	match instr.var_type {
-		llvm::VarType::I32 => {
+		llvm::VarType::I32 | llvm::VarType::I32Ptr | llvm::VarType::F32Ptr => {
 			let ret_val = mgr.new_pre_color_temp(A0);
 			instrs.push(RBinInstr::new(Mv, ret_val, A0.into()));
 			let rd = mgr.get(&instr.target);
 			instrs.push(RBinInstr::new(Mv, rd, ret_val));
 		}
+
 		llvm::VarType::F32 => {
 			let ret_val = mgr.new_pre_color_temp(Fa0);
 			instrs.push(RBinInstr::new(FMv, ret_val, Fa0.into()));
 			let rd = mgr.get(&instr.target);
 			instrs.push(RBinInstr::new(FMv, rd, ret_val));
 		}
-		_ => {}
+		llvm::VarType::Void => {}
 	}
 	Ok(instrs)
 }

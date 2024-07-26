@@ -75,7 +75,7 @@ impl Optimizer2 {
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= PureCheck::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
-			flag |= LocalizeVariable::new().apply(program)?;
+			// flag |= LocalizeVariable::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= GLobalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
@@ -94,7 +94,7 @@ impl Optimizer2 {
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
-			flag |= LocalizeVariable::new().apply(program)?;
+			// flag |= LocalizeVariable::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;

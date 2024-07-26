@@ -1,13 +1,10 @@
 use super::ZeroInit;
-use std::{
-	mem::{replace},
-	vec,
-};
+use std::{mem::replace, vec};
 
 use crate::RrvmOptimizer;
 use llvm::{
-	CallInstr, LlvmInstrTrait, LlvmInstrVariant, LlvmTemp,
-	LlvmTempManager, Value, VarType,
+	CallInstr, LlvmInstrTrait, LlvmInstrVariant, LlvmTemp, LlvmTempManager,
+	Value, VarType,
 };
 use rrvm::program::LlvmProgram;
 use utils::{errors::Result, Label};
@@ -36,13 +33,7 @@ fn work(
 		if let Some(this) = instr {
 			match &this.get_variant() {
 				LlvmInstrVariant::StoreInstr(i) => {
-					let ok = match i.value {
-						Value::Int(0) => true,
-						Value::Float(0f32) => true,
-						_ => false,
-					};
-
-					if !ok {
+					if !matches!(i.value, Value::Int(0) | Value::Float(0f32)) {
 						return (State::Init, false, Some(this));
 					}
 
@@ -101,7 +92,8 @@ fn work(
 		// let d : Vec<_> = this.iter().map(instr_format).collect();
 		// println!("{} {:?} {}", expected, d, pending.len());
 		if !expected {
-			if pending.len() > 5 {
+			//1024个以上再启用这个机制！
+			if pending.len() >= 2047 {
 				let begin_addr = match pending.first().unwrap().get_variant() {
 					LlvmInstrVariant::StoreInstr(i) => i.addr.clone(),
 					_ => unreachable!(),
@@ -122,6 +114,7 @@ fn work(
 						(VarType::I32, (((pending.len() + 1) / 2) as i32).into()),
 					],
 				}));
+
 				pending.clear();
 			} else {
 				result.append(&mut pending);

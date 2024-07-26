@@ -61,16 +61,36 @@ pub const RUNTIME_FUNCTION: &str = r#"
 	.L3_builtin:
 		jr ra
 
-	
+
 	__fill_zero_words:
-		ble a1, zero, .L5_builtin
-	.L4_builtin:
+		ble a1, zero, .L8_builtin 
 		addi a1, a1, -1
+		slliw a1, a1, 2
+		add a2, a1, a0  # 最后一次4字节
+		addi a3, a2, -1
+		andi a3, a3, -8 # 最后一次8字节
+		andi a4, a0, 7
+		beq a4, x0, .L4_builtin
+
 		sw x0, 0(a0)
 		addi a0, a0, 4
-		bgt a1, zero, .L4_builtin
-	.L5_builtin:
-		jr ra
+
+		.L4_builtin:
+			bgtu a0, a3, .L7_builtin 
+
+		.L5_builtin:
+			sd x0, 0(a0)
+			addi a0, a0, 8
+			ble a0, a3, .L5_builtin
+
+		.L7_builtin:
+			bgtu a0, a2, .L8_builtin # 如果不够最后一次4字节
+			sw x0, 0(a0)
+			addi a0, a0, 4
+
+		.L8_builtin:
+			jr ra
+
 		
 
 "#;
