@@ -1,8 +1,5 @@
 use std::{
-	cell::RefCell,
-	collections::{HashMap, HashSet},
-	fmt::Display,
-	rc::Rc,
+	cell::RefCell, collections::{HashMap, HashSet}, fmt::Display, hash::Hash, rc::Rc
 };
 
 use instruction::riscv::RiscvInstr;
@@ -11,6 +8,7 @@ use llvm::{
 	VarType,
 };
 use utils::{instr_format, to_label, InstrTrait, Label, TempTrait, UseTemp};
+use super::rrvm_loop::LoopPtr;
 
 pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
 pub type LlvmBasicBlock = BasicBlock<LlvmInstr, llvm::LlvmTemp>;
@@ -30,6 +28,8 @@ pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub phi_defs: HashSet<LlvmTemp>,
 	pub instrs: Vec<T>,
 	pub jump_instr: Option<T>,
+	// 该 block 属于哪个 loop
+	pub loop_: Option<LoopPtr>,
 }
 
 fn get_other_label<T: InstrTrait<U>, U: TempTrait>(
@@ -61,6 +61,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			phi_defs: HashSet::new(),
 			instrs: Vec::new(),
 			jump_instr: None,
+			loop_: None,
 		}
 	}
 	pub fn new_node(id: i32, weight: f64) -> Node<T, U> {
@@ -201,9 +202,23 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 	}
 }
 
-impl PartialEq for LlvmBasicBlock {
+// impl PartialEq for LlvmBasicBlock {
+// 	fn eq(&self, other: &Self) -> bool {
+// 		self.id == other.id
+// 	}
+// }
+
+impl<T: InstrTrait<U>, U: TempTrait> PartialEq for BasicBlock<T, U> {
 	fn eq(&self, other: &Self) -> bool {
 		self.id == other.id
+	}
+}
+
+impl<T: InstrTrait<U>, U: TempTrait> Eq for BasicBlock<T, U> {}
+
+impl<T: InstrTrait<U>, U: TempTrait> Hash for BasicBlock<T, U> {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.id.hash(state);
 	}
 }
 
