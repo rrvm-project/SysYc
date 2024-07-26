@@ -74,7 +74,7 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	fn replaceable(&self, _map: &HashMap<LlvmTemp, Value>) -> bool {
 		false
 	}
-	fn is_candidate_operator(&self) -> Option<ArithOp> {
+	fn get_candidate_operator(&self) -> Option<ArithOp> {
 		None
 	}
 	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
@@ -83,7 +83,7 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	fn swap_target(&mut self, _new: LlvmTemp) {
 		unreachable!()
 	}
-	fn get_read_values(&mut self) -> Vec<Value>;
+	fn get_read_values(&self) -> Vec<Value>;
 	fn set_read_values(&mut self, id: usize, value: Value);
 }
 

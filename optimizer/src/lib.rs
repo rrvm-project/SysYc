@@ -5,6 +5,7 @@ mod fold_constants;
 mod function_inline;
 mod global_value_numbering;
 pub mod impls;
+mod loops;
 mod mem2reg;
 mod metadata;
 mod number;

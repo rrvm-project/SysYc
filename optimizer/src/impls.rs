@@ -7,6 +7,7 @@ use function_inline::InlineFunction;
 use global_value_numbering::GlobalValueNumbering;
 use mem2reg::Mem2Reg;
 use strength_reduce::StrengthReduce;
+use loops::HandleLoops;
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
@@ -93,6 +94,7 @@ impl Optimizer2 {
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
+			flag |= HandleLoops::new().apply(program)?;
 			if !flag {
 				break;
 			}
