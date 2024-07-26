@@ -100,14 +100,17 @@ impl LlvmInstrTrait for ArithInstr {
 		map.get(&self.target).is_some()
 	}
 	// 在强度削弱时使用，用于判断候选操作
-	fn is_candidate_operator(&self) -> Option<ArithOp> {
+	fn get_candidate_operator(&self) -> Option<ArithOp> {
 		match self.op {
 			ArithOp::Add
 			| ArithOp::Fadd
 			| ArithOp::Mul
 			| ArithOp::Fmul
 			| ArithOp::Sub
-			| ArithOp::Fsub => Some(self.op),
+			| ArithOp::Fsub
+			| ArithOp::Div
+			| ArithOp::Fdiv
+			| ArithOp::Rem => Some(self.op),
 			_ => None,
 		}
 	}
@@ -117,7 +120,7 @@ impl LlvmInstrTrait for ArithInstr {
 	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.lhs.clone(), self.rhs.clone()]
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {
@@ -183,7 +186,7 @@ impl LlvmInstrTrait for CompInstr {
 	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.lhs.clone(), self.rhs.clone()]
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {
@@ -251,7 +254,7 @@ impl LlvmInstrTrait for ConvertInstr {
 	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.lhs.clone()]
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {
@@ -277,7 +280,7 @@ impl LlvmInstrTrait for JumpInstr {
 	fn is_direct_jump(&self) -> bool {
 		true
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		Vec::new()
 	}
 	fn set_read_values(&mut self, _id: usize, _value: Value) {
@@ -351,7 +354,7 @@ impl LlvmInstrTrait for JumpCondInstr {
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		map_llvm_temp(&mut self.cond, map);
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.cond.clone()]
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {
@@ -413,7 +416,7 @@ impl LlvmInstrTrait for PhiInstr {
 	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		self.source.iter().map(|(v, _)| v.clone()).collect()
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {
@@ -466,7 +469,7 @@ impl LlvmInstrTrait for RetInstr {
 		}
 	}
 	fn map_label(&mut self, _map: &HashMap<Label, Label>) {}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		self.value.as_ref().map_or(Vec::new(), |v| vec![v.clone()])
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {
@@ -517,7 +520,7 @@ impl LlvmInstrTrait for AllocInstr {
 	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.length.clone()]
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {
@@ -561,7 +564,7 @@ impl LlvmInstrTrait for StoreInstr {
 		map_llvm_temp(&mut self.value, map);
 		map_llvm_temp(&mut self.addr, map);
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.value.clone(), self.addr.clone()]
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {
@@ -611,7 +614,7 @@ impl LlvmInstrTrait for LoadInstr {
 	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.addr.clone()]
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {
@@ -659,7 +662,7 @@ impl LlvmInstrTrait for GEPInstr {
 	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.addr.clone(), self.offset.clone()]
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {
@@ -719,7 +722,7 @@ impl LlvmInstrTrait for CallInstr {
 	fn swap_target(&mut self, _new: LlvmTemp) {
 		self.target = _new;
 	}
-	fn get_read_values(&mut self) -> Vec<Value> {
+	fn get_read_values(&self) -> Vec<Value> {
 		self.params.iter().map(|(_, x)| x.clone()).collect()
 	}
 	fn set_read_values(&mut self, id: usize, value: Value) {

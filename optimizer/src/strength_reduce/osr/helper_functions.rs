@@ -18,7 +18,7 @@ impl OSR {
 			return None;
 		}
 		let instr = &cfg.blocks[bb_id].borrow().instrs[instr_id];
-		if let Some(op) = instr.is_candidate_operator() {
+		if let Some(op) = instr.get_candidate_operator() {
 			match op {
 				ArithOp::Add | ArithOp::Mul | ArithOp::Fadd | ArithOp::Fmul => {
 					let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
@@ -144,7 +144,7 @@ impl OSR {
 		}
 		let instr = &cfg.blocks[bb_index].borrow().instrs[instr_index];
 		let iv_header = phi_temp.clone();
-		if let Some(op) = instr.is_candidate_operator() {
+		if let Some(op) = instr.get_candidate_operator() {
 			match op {
 				ArithOp::Add | ArithOp::Fadd => {
 					let (lhs, rhs) = instr.get_lhs_and_rhs().unwrap();
