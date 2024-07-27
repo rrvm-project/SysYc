@@ -2,11 +2,67 @@ use super::LocalizeVariable;
 use std::collections::HashSet;
 
 use crate::RrvmOptimizer;
-use llvm::{
-	AllocInstr, LlvmInstrTrait, LlvmInstrVariant, LlvmTemp, Value, VarType,
-};
-use rrvm::program::LlvmProgram;
-use utils::{errors::Result, GlobalVar};
+use llvm::{LlvmInstrVariant, LlvmTemp, LoadInstr, Value};
+use rrvm::{func::Entrance, program::LlvmProgram};
+use utils::{errors::Result, GlobalVar, ValueItem::Zero};
+
+fn move_local_array(program: &mut LlvmProgram) -> Result<bool> {
+	let changed = false;
+	let mut new_global = vec![];
+	program
+		.funcs
+		.iter_mut()
+		.filter(|func| func.entrance == Entrance::Single)
+		.for_each(|func| {
+			let name = func.name.clone();
+			let new_name =
+				|t: &LlvmTemp| format!("__optimized_local_array_{}_{}", &name, t.name);
+			for block in &func.cfg.blocks {
+				let mut new_instrs = vec![];
+				let mut unkill_size = 0;
+				std::mem::take(&mut block.borrow_mut().instrs).into_iter().for_each(
+					|instr| {
+						new_instrs.push(match instr.get_variant() {
+							LlvmInstrVariant::AllocInstr(i) => {
+								if let Value::Int(size) = i.length {
+									if size > 4 {
+										new_global.push(GlobalVar {
+											ident: new_name(&i.target),
+											data: vec![Zero(size as usize)],
+											is_array: true,
+											is_float: i.var_type.is_float(),
+										});
+										unkill_size += size;
+										Box::new(LoadInstr {
+											target: i.target.clone(),
+											var_type: i.var_type,
+											addr: Value::Temp(LlvmTemp {
+												name: new_name(&i.target),
+												is_global: true,
+												var_type: i.var_type,
+											}),
+										})
+									} else {
+										instr
+									}
+								} else {
+									instr
+								}
+							}
+							_ => instr,
+						})
+					},
+				);
+
+				block.borrow_mut().instrs = new_instrs;
+				block.borrow_mut().kill_size -= unkill_size;
+			}
+		});
+
+	program.global_vars.append(&mut new_global);
+
+	Ok(changed)
+}
 
 impl RrvmOptimizer for LocalizeVariable {
 	fn new() -> Self {
@@ -14,6 +70,8 @@ impl RrvmOptimizer for LocalizeVariable {
 	}
 
 	fn apply(self, program: &mut LlvmProgram) -> Result<bool> {
+		let move_local = move_local_array(program)?;
+
 		let mut not_appliable = HashSet::new();
 		program.funcs.iter().filter(|func| func.name.as_str() != "main").for_each(
 			|func| {
@@ -31,66 +89,25 @@ impl RrvmOptimizer for LocalizeVariable {
 			},
 		);
 
-		let mut killed_global = vec![];
+		// let mut killed_global = vec![];
 
 		std::mem::take(&mut program.global_vars).into_iter().for_each(|var| {
-			if var.size() > 4 || not_appliable.contains(&var.ident) {
-				program.global_vars.push(var);
-			} else {
-				killed_global.push(var);
-			}
+			// if var.size() > 4 || not_appliable.contains(&var.ident) || true{
+			// 	program.global_vars.push(var);
+			// } else {
+			// 	killed_global.push(var);
+			// }
+			program.global_vars.push(var);
 		});
 
-		fn initalize_variable(
-			g: GlobalVar,
-			program: &mut LlvmProgram,
-		) -> Vec<Box<dyn LlvmInstrTrait>> {
-			let mut result: Vec<Box<dyn LlvmInstrTrait>> = vec![];
-			let var_type = if g.is_float {
-				VarType::F32Ptr
-			} else {
-				VarType::I32Ptr
-			};
-			let length = g.size();
-			assert!(length == 4);// Do not support array here!
+		// program
+		// 	.funcs
+		// 	.iter_mut()
+		// 	.filter(|func| func.name.as_str() == "main")
+		// 	.for_each(|func| {
 
+		// 	});
 
-			// result.push(Box::new(AllocInstr {
-			// 	target: LlvmTemp {
-			// 		name: g.ident,
-			// 		is_global: false,
-			// 		var_type,
-			// 	},
-			// 	var_type,
-			// 	length,
-			// }));mainmai
-
-			result
-		}
-
-		program
-			.funcs
-			.iter_mut()
-			.filter(|func| func.name.as_str() == "main")
-			.for_each(|func| {
-				// func.cfg.get_entry().borrow_mut().instrs.append(
-				//     // killed_global
-
-				// );
-
-				// func.cfg.blocks.iter_mut().for_each(|block|{
-				//     block.borrow().instrs.iter_mut().for_each(|instr|{
-				//         if let LlvmInstrVariant::LoadInstr(instr) = instr.get_variant(){
-				//             if let Value::Temp(t) = &instr.addr{
-				//                 if t.is_global {
-				//                     not_appliable.insert(t.clone());
-				//                 }
-				//             }
-				//         }
-				//     })
-				// })
-			});
-
-		Ok(false)
+		Ok(move_local)
 	}
 }

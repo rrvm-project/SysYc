@@ -78,6 +78,7 @@ pub fn convert_func(
 		params: func.params,
 		ret_type: func.ret_type,
 		external_resorce: HashSet::new(),
+		entrance: Entrance::Unkonwn,
 	})
 }
 

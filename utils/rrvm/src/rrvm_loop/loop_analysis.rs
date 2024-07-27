@@ -2,6 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::super::{dominator::compute_dominator, LlvmCFG, LlvmNode};
 
+<<<<<<< HEAD
 use super::{Loop, LoopPtr};
 
 impl LlvmCFG {
@@ -24,6 +25,13 @@ impl LlvmCFG {
 
 		loop_dfs(self.get_entry(), loop_map, &dominates, &dominates_directly);
 
+=======
+use super::LoopPtr;
+
+impl LlvmCFG {
+	pub fn loop_analysis(&mut self) -> Vec<LoopPtr> {
+		loop_dfs(self.get_entry(), self);
+>>>>>>> 6506c1f (feat: kill stack array)
 		for bb in self.blocks.iter() {
 			if let Some(l) = loop_map.get(&bb.borrow().id).cloned() {
 				if l.borrow().outer.is_none() {
@@ -59,12 +67,27 @@ impl LlvmCFG {
 
 // 这里本来想实现成 LlvmNode 的一个成员函数的，但这样做，参数中就会有一个 &mut self,
 // 而它常常是一个 borrow_mut 的结果，这导致在函数体内无法再对自己 borrow。
+<<<<<<< HEAD
 pub fn loop_dfs(
 	cur_bb: LlvmNode,
 	loop_map: &mut HashMap<i32, LoopPtr>,
 	dominates: &HashMap<i32, Vec<LlvmNode>>,
 	dominates_directly: &HashMap<i32, Vec<LlvmNode>>,
 ) {
+=======
+pub fn loop_dfs(cur_bb: LlvmNode, cfg: &LlvmCFG) {
+	let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
+	let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
+	let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
+	compute_dominator(
+		cfg,
+		true,
+		&mut dominates,
+		&mut dominates_directly,
+		&mut dominator,
+	);
+
+>>>>>>> 6506c1f (feat: kill stack array)
 	// dfs on dom tree
 	// 换成 hashmap 存储后，就不用标记成 None 了
 	// cur_bb.borrow_mut().loop_ = None;
@@ -72,7 +95,11 @@ pub fn loop_dfs(
 	for next in
 		dominates_directly.get(&cur_bb_id).cloned().unwrap_or_default().iter()
 	{
+<<<<<<< HEAD
 		loop_dfs(next.clone(), loop_map, dominates, dominates_directly);
+=======
+		loop_dfs(next.clone(), cfg);
+>>>>>>> 6506c1f (feat: kill stack array)
 	}
 	let mut bbs = Vec::new();
 	// 看看自己的前驱有没有被自己支配的，有的话就有循环存在，与自己前驱之间的边就是 backedge
