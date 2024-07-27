@@ -2,12 +2,11 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::super::{dominator::compute_dominator, LlvmCFG, LlvmNode};
 
-
 use super::LoopPtr;
 
 impl LlvmCFG {
 	pub fn loop_analysis(&mut self) -> Vec<LoopPtr> {
-		loop_dfs(self.get_entry(), &self);
+		loop_dfs(self.get_entry(), self);
 		for bb in self.blocks.iter() {
 			calc_loop_level(bb.borrow().loop_.clone());
 		}
@@ -42,7 +41,6 @@ fn calc_loop_level(loop_: Option<LoopPtr>) {
 // 这里本来想实现成 LlvmNode 的一个成员函数的，但这样做，参数中就会有一个 &mut self,
 // 而它常常是一个 borrow_mut 的结果，这导致在函数体内无法再对自己 borrow。
 pub fn loop_dfs(cur_bb: LlvmNode, cfg: &LlvmCFG) {
-
 	let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 	let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 	let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
@@ -57,7 +55,9 @@ pub fn loop_dfs(cur_bb: LlvmNode, cfg: &LlvmCFG) {
 	// dfs on dom tree
 	cur_bb.borrow_mut().loop_ = None;
 	let cur_bb_id = cur_bb.borrow().id;
-	for next in dominates_directly.get(&cur_bb_id).cloned().unwrap_or_default().iter() {
+	for next in
+		dominates_directly.get(&cur_bb_id).cloned().unwrap_or_default().iter()
+	{
 		loop_dfs(next.clone(), cfg);
 	}
 	let mut bbs = Vec::new();

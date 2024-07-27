@@ -3,7 +3,7 @@ mod fold_constants;
 mod function_inline;
 mod fuyuki_vn;
 pub mod impls;
-// mod localize_variable;
+mod localize_variable;
 mod pure_check;
 mod strength_reduce;
 mod tail_recursion;

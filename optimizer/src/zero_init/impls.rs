@@ -93,7 +93,7 @@ fn work(
 		// println!("{} {:?} {}", expected, d, pending.len());
 		if !expected {
 			//1024个以上再启用这个机制！
-			if pending.len() >= 2047 {
+			if pending.len() >= 2 {
 				let begin_addr = match pending.first().unwrap().get_variant() {
 					LlvmInstrVariant::StoreInstr(i) => i.addr.clone(),
 					_ => unreachable!(),

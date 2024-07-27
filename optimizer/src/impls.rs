@@ -5,7 +5,7 @@ use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
 use fuyuki_vn::{FuyukiLocalValueNumber, GLobalValueNumber};
-// use localize_variable::LocalizeVariable;
+use localize_variable::LocalizeVariable;
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
@@ -73,8 +73,8 @@ impl Optimizer2 {
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= PureCheck::new().apply(program)?;
+			flag |= LocalizeVariable::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
-			// flag |= LocalizeVariable::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= GLobalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
@@ -93,7 +93,7 @@ impl Optimizer2 {
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
-			// flag |= LocalizeVariable::new().apply(program)?;
+			flag |= LocalizeVariable::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
