@@ -32,5 +32,5 @@ pub static ADD_ALLOCATABLES: i32 = 1;
 pub static NEAR_END: i32 = 2; // 寄存器生命周期更快结束的指令优先
 pub static REDUCE_SUB: i32 = 2; // 后继中的节点对应指令，寄存器生命周期更快结束的指令优先
 pub static REDUCE_LIVE: i32 = 10;
-pub static LIVE_THROUGH: i32 = 100;
+pub static LIVE_THROUGH: usize = 100;
 pub static SUM_MIN_RATIO: i32 = 1;

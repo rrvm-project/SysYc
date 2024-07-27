@@ -7,27 +7,39 @@ use crate::{
 	instrdag::{postprocess_call, InstrDag},
 	Liveliness,
 };
-use instruction::{riscv::value::RiscvTemp, RiscvInstrSet};
+use instruction::{
+	riscv::{
+		reg::RiscvReg::A0,
+		value::RiscvTemp::{self, PhysReg},
+	},
+	RiscvInstrSet,
+};
 use utils::{
-	SysycError, ADD_ALLOCATABLES, BFS_STATE_THRESHOLD, NEAR_END, REDUCE_LIVE,
-	REDUCE_SUB, SUM_MIN_RATIO,
+	SysycError, ADD_ALLOCATABLES, BFS_STATE_THRESHOLD, LIVE_THROUGH, NEAR_END,
+	REDUCE_LIVE, REDUCE_SUB, SUM_MIN_RATIO,
 };
 
 // 当前惩罚策略：在指令为 instrs 的情况下，在运行每一条指令期间活跃的最大寄存器数目
-// 接受参数：dag:在最初始图上删除和 instr 相关边所得到的图，instrs:当前的指令序列，基本块内 SSA
-fn punishment(dag: InstrDag, state: &mut State, instr_id: usize) -> i32 {
+// 接受参数：dag:初始图，instrs:当前的指令序列，基本块内 SSA
+fn punishment(
+	dag: InstrDag,
+	state: &mut State,
+	instr_id: usize,
+	my_reads: Vec<RiscvTemp>,
+	my_writes: Vec<RiscvTemp>,
+) -> i32 {
 	let instr = state.instrs.last().unwrap();
 	let mut score = 0;
-	for i in instr.get_riscv_read().iter() {
+	for i in my_reads.iter() {
 		if state.liveliness_map.get(i).unwrap().use_num == 1
 			&& !state.liveliness_map.get(i).unwrap().is_liveout
 		{
 			score -= 1;
 		}
 	}
-	for i in instr.get_riscv_write().iter() {
+	for i in my_writes.iter() {
 		if !state.liveliness_map.get(i).unwrap().is_livein {
-			score -= 1;
+			score += 1;
 		}
 	}
 	// 判断选择这条指令之后，有多少节点可以变成可调度节点
@@ -38,36 +50,49 @@ fn punishment(dag: InstrDag, state: &mut State, instr_id: usize) -> i32 {
 		.filter(|x| state.indegs[&x.borrow().id] == 1)
 		.count();
 	let alloc_score = -(new_allocatables as i32) * ADD_ALLOCATABLES;
-	// 判断使得寄存器生命周期尽快结束的惩罚，一方面可以判断 read/write 的寄存器的尽快结束之和，另一方面可以判断 read/write 的寄存器最小离结束的次数
-	let mut sum_uses: usize = dag.nodes[instr_id]
-		.borrow()
-		.instr
-		.get_riscv_read()
+	// 判断使得寄存器生命周期尽快结束的惩罚，一方面可以判断 read/write 的寄存器的尽快结束之和，另一方面可以判断 read/write 的寄存器最小离结束的次数,这一段 read 和 write 都是加，是没问题的
+	// 思考 live_through 这个参数定义了没用，该怎么用上
+	let mut sum_uses: usize = my_reads
 		.iter()
-		.map(|x| state.liveliness_map.get(x).unwrap().use_num)
+		.map(|x| {
+			if state.liveliness_map.get(x).unwrap().is_liveout {
+				state.liveliness_map.get(x).unwrap().use_num + LIVE_THROUGH
+			} else {
+				state.liveliness_map.get(x).unwrap().use_num
+			}
+		})
 		.sum();
-	let mut min_uses: usize = dag.nodes[instr_id]
-		.borrow()
-		.instr
-		.get_riscv_read()
+	let mut min_uses: usize = my_reads
 		.iter()
-		.map(|x| state.liveliness_map.get(x).unwrap().use_num)
+		.map(|x| {
+			if state.liveliness_map.get(x).unwrap().is_liveout {
+				state.liveliness_map.get(x).unwrap().use_num + LIVE_THROUGH
+			} else {
+				state.liveliness_map.get(x).unwrap().use_num
+			}
+		})
 		.min()
 		.unwrap_or(0);
-	sum_uses += dag.nodes[instr_id]
-		.borrow()
-		.instr
-		.get_riscv_write()
+	sum_uses += my_writes
 		.iter()
-		.map(|x| state.liveliness_map.get(x).unwrap().use_num)
+		.map(|x| {
+			if state.liveliness_map.get(x).unwrap().is_livein {
+				state.liveliness_map.get(x).unwrap().use_num + LIVE_THROUGH
+			} else {
+				state.liveliness_map.get(x).unwrap().use_num
+			}
+		})
 		.sum::<usize>();
 	min_uses = min(
-		dag.nodes[instr_id]
-			.borrow()
-			.instr
-			.get_riscv_write()
+		my_writes
 			.iter()
-			.map(|x| state.liveliness_map.get(x).unwrap().use_num)
+			.map(|x| {
+				if state.liveliness_map.get(x).unwrap().is_livein {
+					state.liveliness_map.get(x).unwrap().use_num + LIVE_THROUGH
+				} else {
+					state.liveliness_map.get(x).unwrap().use_num
+				}
+			})
 			.min()
 			.unwrap_or(0),
 		min_uses,
@@ -75,64 +100,70 @@ fn punishment(dag: InstrDag, state: &mut State, instr_id: usize) -> i32 {
 	let mut end_live_score = (sum_uses as i32) * SUM_MIN_RATIO;
 	end_live_score += min_uses as i32;
 	// 判断对后继的影响
-	let succ_sum = dag.nodes[instr_id]
-		.borrow()
-		.succ
-		.iter()
-		.map(|x| {
-			x.borrow()
-				.instr
-				.get_riscv_read()
-				.iter()
-				.map(|y| state.liveliness_map.get(y).unwrap().use_num)
-				.sum::<usize>()
-		})
-		.sum::<usize>()
-		+ dag.nodes[instr_id]
-			.borrow()
-			.succ
+	let mut succ_sum = 0;
+	let mut succ_min = 0;
+	for i in dag.nodes[instr_id].borrow().succ.iter() {
+		let mut my_succ_reads = Vec::new();
+		if i.borrow().instr.is_call() {
+			my_succ_reads = dag.call_reads[state.call_ids.len()].clone();
+		} else {
+			my_succ_reads = i.borrow().instr.get_riscv_read().clone();
+		}
+		succ_sum += my_succ_reads
 			.iter()
 			.map(|x| {
-				x.borrow()
-					.instr
-					.get_riscv_write()
-					.iter()
-					.map(|y| state.liveliness_map.get(y).unwrap().use_num)
-					.sum::<usize>()
+				if state.liveliness_map.get(x).unwrap().is_liveout {
+					state.liveliness_map.get(x).unwrap().use_num + LIVE_THROUGH
+				} else {
+					state.liveliness_map.get(x).unwrap().use_num
+				}
 			})
 			.sum::<usize>();
-	let succ_min = min(
-		dag.nodes[instr_id]
-			.borrow()
-			.succ
+		succ_min = min(
+			my_succ_reads
+				.iter()
+				.map(|x| state.liveliness_map.get(x).unwrap().use_num)
+				.min()
+				.unwrap_or(0),
+			succ_min,
+		);
+		// 对 write 寄存器的情况考虑如上
+		let mut my_succ_writes = Vec::new();
+		if i.borrow().instr.is_call() {
+			my_succ_writes = if let Some(tmp) = dag.call_writes[state.call_ids.len()]
+			{
+				vec![tmp]
+			} else {
+				Vec::new()
+			};
+		} else {
+			my_succ_writes = i.borrow().instr.get_riscv_write().clone();
+		}
+		succ_sum += my_succ_writes
 			.iter()
 			.map(|x| {
-				x.borrow()
-					.instr
-					.get_riscv_read()
-					.iter()
-					.map(|y| state.liveliness_map.get(y).unwrap().use_num)
-					.min()
-					.unwrap_or(0)
+				if state.liveliness_map.get(x).unwrap().is_livein {
+					state.liveliness_map.get(x).unwrap().use_num + LIVE_THROUGH
+				} else {
+					state.liveliness_map.get(x).unwrap().use_num
+				}
 			})
-			.min()
-			.unwrap_or(0),
-		dag.nodes[instr_id]
-			.borrow()
-			.succ
-			.iter()
-			.map(|x| {
-				x.borrow()
-					.instr
-					.get_riscv_write()
-					.iter()
-					.map(|y| state.liveliness_map.get(y).unwrap().use_num)
-					.min()
-					.unwrap_or(0)
-			})
-			.min()
-			.unwrap_or(0),
-	);
+			.sum::<usize>();
+		succ_min = min(
+			my_succ_writes
+				.iter()
+				.map(|x| {
+					if state.liveliness_map.get(x).unwrap().is_livein {
+						state.liveliness_map.get(x).unwrap().use_num + LIVE_THROUGH
+					} else {
+						state.liveliness_map.get(x).unwrap().use_num
+					}
+				})
+				.min()
+				.unwrap_or(0),
+			succ_min,
+		);
+	}
 	let mut succ_score = (succ_sum as i32) * SUM_MIN_RATIO;
 	succ_score += succ_min as i32;
 	score = score * REDUCE_LIVE
@@ -186,12 +217,34 @@ pub fn instr_schedule_by_dag(
 			for i in allocatables.iter() {
 				let mut new_state = state.clone();
 				new_state.instrs.push(dag.nodes[*i].borrow().instr.clone());
-				new_state.score += punishment(dag.clone(), &mut new_state, *i);
+				// get riscv reads and writes
+				let mut my_reads = Vec::new();
+				let mut my_writes = Vec::new();
+				if dag.nodes[*i].borrow().instr.is_call() {
+					//check state's call_id length
+					my_reads = dag.call_reads[new_state.call_ids.len()].clone();
+					my_writes =
+						if let Some(tmp) = dag.call_writes[new_state.call_ids.len()] {
+							vec![tmp]
+						} else {
+							Vec::new()
+						};
+				} else {
+					my_reads = dag.nodes[*i].borrow().instr.get_riscv_read().clone();
+					my_writes = dag.nodes[*i].borrow().instr.get_riscv_write().clone();
+				}
+				new_state.score += punishment(
+					dag.clone(),
+					&mut new_state,
+					*i,
+					my_reads.clone(),
+					my_writes.clone(),
+				);
 				if dag.nodes[*i].borrow().instr.is_call() {
 					new_state.call_ids.push(*i);
 				}
 				// decl the use in new_state's liveliness_map
-				for i in dag.nodes[*i].borrow().instr.get_riscv_read().iter() {
+				for i in my_reads.iter() {
 					new_state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
 				}
 				new_state.indegs.remove(i);
@@ -226,6 +279,6 @@ pub fn instr_schedule_by_dag(
 		final_state.instrs,
 		&mut dag.call_related.clone(), // 是我call的顺序可能会调换，post_process 的时候和原本push进去的顺序不一致
 		dag.branch.clone(),
-		&mut final_state.call_ids.clone(), // todo 改掉他
+		&mut final_state.call_ids.clone(),
 	))
 }

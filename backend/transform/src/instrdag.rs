@@ -40,6 +40,8 @@ pub struct InstrDag {
 	pub nodes: Vec<Node>,
 	pub call_related: HashMap<usize, Vec<Box<dyn RiscvInstrTrait>>>,
 	pub branch: Option<Box<dyn RiscvInstrTrait>>,
+	pub call_writes: Vec<Option<RiscvTemp>>,
+	pub call_reads: Vec<Vec<RiscvTemp>>,
 }
 fn preprocess_call(
 	node: &RiscvNode,
@@ -146,7 +148,6 @@ pub fn postprocess_call(
 	// 	println!("{}", i);
 	// }
 	// println!("---------------postprocess call instrs end---------------------");
-	// todo 把 ret 相关 mov 指令焊死在最后
 	my_instrs
 }
 impl InstrDag {
@@ -165,6 +166,8 @@ impl InstrDag {
 		let mut call_related_map = HashMap::new();
 		let mut call_instrs: Vec<Rc<RefCell<InstrNode>>> = Vec::new();
 		let mut my_call_write = None;
+		let mut ret_call_writes = Vec::new();
+		let mut ret_call_reads = Vec::new();
 		// preprocessing call related: 把 call 前后的 从 save 到 restore 的若干条指令保存在 call_related 里面,然后加入到 is_filtered_idx 之后遍历instrs 的时候遇到就直接continue
 		// println!("original instrs :");
 		// for i in node.borrow().instrs.iter() {
@@ -176,6 +179,8 @@ impl InstrDag {
 			&mut call_write,
 			&mut call_reads,
 		);
+		ret_call_writes = call_write.clone();
+		ret_call_reads = call_reads.clone();
 		if processed_instrs.len() > 0 {
 			let last_instr = processed_instrs.last().unwrap();
 			if last_instr.is_branch() {
@@ -342,6 +347,8 @@ impl InstrDag {
 			nodes,
 			call_related: call_related_map,
 			branch: last_branch,
+			call_reads: ret_call_reads,
+			call_writes: ret_call_writes,
 		})
 	}
 }

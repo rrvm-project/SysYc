@@ -580,7 +580,7 @@ fn transform_basic_block_by_pipelining(
 	_mgr: &mut TempManager,
 ) -> Result<RiscvNode> {
 	let instr_dag = InstrDag::new(node)?;
-	let liveliness_map = get_liveliness_map(node, live_in, live_out);
+	let liveliness_map = get_liveliness_map(&instr_dag, live_in, live_out);
 	node.borrow_mut().instrs = instr_schedule_by_dag(instr_dag, liveliness_map)?;
 	Ok(node.clone())
 }
@@ -591,33 +591,56 @@ pub struct Liveliness {
 	use_num: usize,
 }
 fn get_liveliness_map(
-	node: &RiscvNode,
+	node: &InstrDag,
 	live_in: &HashSet<RiscvTemp>,
 	live_out: &HashSet<RiscvTemp>,
 ) -> HashMap<RiscvTemp, Liveliness> {
 	let mut map = HashMap::new();
-	for instr in node.borrow().instrs.iter() {
-		let read_tmps = instr.get_riscv_read();
-		let write_tmps = instr.get_riscv_write();
-		for tmp in read_tmps.iter() {
-			map
-				.entry(*tmp)
-				.or_insert(Liveliness {
+	let mut call_reads = node.call_reads.clone();
+	call_reads.reverse();
+	let mut call_writes = node.call_writes.clone();
+	call_writes.reverse();
+	// 它这里要求是正序遍历，所以遍历次序是和 node 的顺序反的，需要 iter.rev(),同样，call_reads,call_writes 也要reverse再pop
+	for instrnode in node.nodes.iter().rev() {
+		let instr = &instrnode.borrow().instr;
+		if !instr.is_call() {
+			for tmp in instr.get_riscv_read().iter() {
+				map
+					.entry(*tmp)
+					.or_insert(Liveliness {
+						is_livein: false,
+						is_liveout: false,
+						use_num: 0,
+					})
+					.use_num += 1;
+			}
+			for tmp in instr.get_riscv_write().iter() {
+				map.entry(*tmp).or_insert(Liveliness {
 					is_livein: false,
 					is_liveout: false,
 					use_num: 0,
-				})
-				.use_num += 1;
-		}
-		for tmp in write_tmps.iter() {
-			map
-				.entry(*tmp)
-				.or_insert(Liveliness {
+				});
+			}
+		} else {
+			let call_read = call_reads.pop().unwrap();
+			for tmp in call_read.iter() {
+				map
+					.entry(*tmp)
+					.or_insert(Liveliness {
+						is_livein: false,
+						is_liveout: false,
+						use_num: 0,
+					})
+					.use_num += 1;
+			}
+			let call_write = call_writes.pop().unwrap();
+			for tmp in call_write.iter() {
+				map.entry(*tmp).or_insert(Liveliness {
 					is_livein: false,
 					is_liveout: false,
 					use_num: 0,
-				})
-				.is_liveout = true;
+				});
+			}
 		}
 	}
 	// do live_in
