@@ -1,14 +1,18 @@
 use std::{
-	cell::RefCell, collections::{HashMap, HashSet}, fmt::Display, hash::Hash, rc::Rc
+	cell::RefCell,
+	collections::{HashMap, HashSet},
+	fmt::Display,
+	hash::Hash,
+	rc::Rc,
 };
 
+use super::rrvm_loop::LoopPtr;
 use instruction::riscv::RiscvInstr;
 use llvm::{
 	JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp, PhiInstr, RetInstr, Value,
 	VarType,
 };
 use utils::{instr_format, to_label, InstrTrait, Label, TempTrait, UseTemp};
-use super::rrvm_loop::LoopPtr;
 
 pub type Node<T, U> = Rc<RefCell<BasicBlock<T, U>>>;
 pub type LlvmBasicBlock = BasicBlock<LlvmInstr, llvm::LlvmTemp>;

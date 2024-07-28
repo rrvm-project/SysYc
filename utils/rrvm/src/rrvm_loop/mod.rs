@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Display, rc::Rc};
+use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
 
 use super::LlvmNode;
 
@@ -12,11 +12,12 @@ pub mod loop_info;
 // Instances of this class are used to represent loops that are detected in the flow graph.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Loop {
+	pub id: u32,
 	// 外层 loop
 	pub outer: Option<LoopPtr>,
 	// 循环头，即 loop 的入口
 	pub header: LlvmNode,
-	// 循环的嵌套层数
+	// 循环的嵌套层数, 一层循环为 1, 二层循环为 2, 被视为一个只执行一次的循环的整个控制流为 0
 	pub level: i32,
 	// 子 loop
 	pub subloops: Vec<LoopPtr>,
@@ -28,6 +29,7 @@ pub struct Loop {
 impl Loop {
 	fn new(header: LlvmNode) -> Self {
 		Self {
+			id: 0,
 			outer: None,
 			header,
 			level: -1,
@@ -100,6 +102,12 @@ impl Loop {
 	}
 	fn no_inner(&self) -> bool {
 		self.subloops.is_empty()
+	}
+}
+
+impl Hash for Loop {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.id.hash(state);
 	}
 }
 

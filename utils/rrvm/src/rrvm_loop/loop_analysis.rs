@@ -2,25 +2,33 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::super::{dominator::compute_dominator, LlvmCFG, LlvmNode};
 
-
-use super::LoopPtr;
+use super::{Loop, LoopPtr};
 
 impl LlvmCFG {
-	pub fn loop_analysis(&mut self) -> Vec<LoopPtr> {
+	pub fn loop_analysis(&mut self) -> LoopPtr {
+		// dfs，在这个过程中创建所有的 loop, 并记在每个 basicblock 的 loop_ 域中，用一个 Rc 指着
 		loop_dfs(self.get_entry(), &self);
+		// 计算每一个 loop 的深度
 		for bb in self.blocks.iter() {
 			calc_loop_level(bb.borrow().loop_.clone());
 		}
-		// 收集所有的 loop
-		let mut loops = Vec::new();
+		// 创造 loop tree 的根节点，也就是代表整个控制流的那个，只执行一次的 loop
+		let root_loop = Rc::new(RefCell::new(Loop::new(self.get_entry())));
+		root_loop.borrow_mut().level = 0;
+		let mut cur_id = 1;
 		for bb in self.blocks.iter() {
-			if let Some(loop_) = bb.borrow().loop_.clone() {
-				if !loops.contains(&loop_) {
-					loops.push(loop_);
+			if let Some(l) = bb.borrow().loop_.clone() {
+				if l.borrow().id == 0 {
+					l.borrow_mut().id = cur_id;
+					cur_id += 1;
+				}
+				if l.borrow().outer.is_none() {
+					root_loop.borrow_mut().subloops.push(l.clone());
+					l.borrow_mut().outer.replace(root_loop.clone());
 				}
 			}
 		}
-		loops
+		root_loop
 	}
 }
 
@@ -42,7 +50,6 @@ fn calc_loop_level(loop_: Option<LoopPtr>) {
 // 这里本来想实现成 LlvmNode 的一个成员函数的，但这样做，参数中就会有一个 &mut self,
 // 而它常常是一个 borrow_mut 的结果，这导致在函数体内无法再对自己 borrow。
 pub fn loop_dfs(cur_bb: LlvmNode, cfg: &LlvmCFG) {
-
 	let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 	let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 	let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
@@ -57,7 +64,9 @@ pub fn loop_dfs(cur_bb: LlvmNode, cfg: &LlvmCFG) {
 	// dfs on dom tree
 	cur_bb.borrow_mut().loop_ = None;
 	let cur_bb_id = cur_bb.borrow().id;
-	for next in dominates_directly.get(&cur_bb_id).cloned().unwrap_or_default().iter() {
+	for next in
+		dominates_directly.get(&cur_bb_id).cloned().unwrap_or_default().iter()
+	{
 		loop_dfs(next.clone(), cfg);
 	}
 	let mut bbs = Vec::new();
