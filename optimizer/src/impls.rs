@@ -71,6 +71,7 @@ impl Optimizer2 {
 		RemoveUnreachCode::new().apply(program)?;
 		RemoveUselessCode::new().apply(program)?;
 		ZeroInit::new().apply(program)?;
+		// eprintln!("{}", &program);
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program)?;
@@ -78,6 +79,7 @@ impl Optimizer2 {
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= PureCheck::new().apply(program)?;
 			flag |= LocalizeVariable::new().apply(program)?;
+			// eprintln!("{}", &program);
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= GLobalValueNumber::new().apply(program)?;
@@ -98,6 +100,7 @@ impl Optimizer2 {
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= LocalizeVariable::new().apply(program)?;
+			// eprintln!("{}", &program);
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;

@@ -4,6 +4,7 @@ use std::{
 };
 
 use sysyc_derive::Fuyuki;
+use utils::{GlobalVar, ValueItem};
 
 use crate::{llvmvar::VarType, LlvmTemp};
 
@@ -20,6 +21,31 @@ impl Value {
 			Some(t)
 		} else {
 			None
+		}
+	}
+
+	pub fn get_temp_ref(&self) -> Option<&LlvmTemp> {
+		if let Value::Temp(t) = self {
+			Some(t)
+		} else {
+			None
+		}
+	}
+}
+
+pub fn from_globalvar(var: &GlobalVar) -> Option<Value> {
+	if var.is_array {
+		None
+	} else {
+		let word: u32 = match var.data[0] {
+			ValueItem::Word(i) => i,
+			ValueItem::Zero(_) => 0,
+		};
+
+		if var.is_float {
+			Value::Float(f32::from_bits(word)).into()
+		} else {
+			Value::Int(unsafe { std::mem::transmute(word) }).into()
 		}
 	}
 }
