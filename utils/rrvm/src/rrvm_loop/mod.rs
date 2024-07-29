@@ -1,23 +1,29 @@
 use std::{
-	cell::RefCell, collections::HashMap, fmt::Display, hash::Hash, rc::Rc,
+	cell::RefCell,
+	collections::{HashMap, HashSet},
+	fmt::Display,
+	hash::Hash,
+	rc::{Rc, Weak},
 };
 
 use crate::LlvmCFG;
 
 use super::LlvmNode;
 
-// use self::utils::is_legal_to_hoist_into;
-
 pub type LoopPtr = Rc<RefCell<Loop>>;
+pub type LoopWeakPtr = Weak<RefCell<Loop>>;
 
 pub mod loop_analysis;
 
 // Instances of this class are used to represent loops that are detected in the flow graph.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct Loop {
-	pub id: u32,
+	//
+	pub id: u32,     // dfs的begin
+	pub ura_id: u32, // 里id, dfs的end
 	// 外层 loop
-	pub outer: Option<LoopPtr>,
+	// 防止内存泄漏！
+	pub outer: Option<LoopWeakPtr>,
 	// 循环头，即 loop 的入口
 	pub header: LlvmNode,
 	// 循环的嵌套层数, 一层循环为 1, 二层循环为 2, 被视为一个只执行一次的循环的整个控制流为 0
@@ -25,14 +31,25 @@ pub struct Loop {
 	// 子 loop
 	pub subloops: Vec<LoopPtr>,
 	// loop 中的所有 block，不包括子 loop 中的 block
-	// pub blocks: Vec<LlvmNode>,
 }
 
 #[allow(unused)]
 impl Loop {
+	fn is_strict_super_loop_of(&self, other: &LoopPtr) -> bool {
+		let other = other.borrow();
+		self.id < other.id && other.ura_id < self.ura_id
+	}
+
+	fn is_super_loop_of(&self, other: &LoopPtr) -> bool {
+		let other = other.borrow();
+		(self.id < other.id && other.ura_id < self.ura_id)
+			|| (self.id == other.id && self.ura_id == other.ura_id)
+	}
+
 	fn new(header: LlvmNode) -> Self {
 		Self {
 			id: 0,
+			ura_id: 0,
 			outer: None,
 			header,
 			level: -1,
@@ -109,19 +126,19 @@ impl Loop {
 		loop_map: &HashMap<i32, LoopPtr>,
 	) -> Vec<LlvmNode> {
 		// 从 header 开始，遍历在同一循环内的后继，直到回到 header
+		let mut deduplicate = HashSet::new();
 		let mut visited = Vec::new();
 		let mut stack = vec![self.header.clone()];
 		while let Some(bb) = stack.pop() {
-			if visited.contains(&bb) {
-				continue;
-			}
-			visited.push(bb.clone());
-			for succ in bb.borrow().succ.iter() {
-				if loop_map
-					.get(&succ.borrow().id)
-					.is_some_and(|l| l.borrow().id == self.id)
-				{
-					stack.push(succ.clone());
+			if deduplicate.insert(bb.borrow().id) {
+				visited.push(bb.clone());
+				for succ in bb.borrow().succ.iter() {
+					if loop_map
+						.get(&succ.borrow().id)
+						.is_some_and(|l| self.is_super_loop_of(l))
+					{
+						stack.push(succ.clone());
+					}
 				}
 			}
 		}
@@ -138,7 +155,11 @@ impl Hash for Loop {
 impl Display for Loop {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let outer = if let Some(outer) = &self.outer {
-			format!("outer: {}", outer.borrow().header.borrow().id)
+			if let Some(outer) = outer.upgrade() {
+				format!("outer: {}", outer.borrow().id)
+			} else {
+				"outer: None".to_string()
+			}
 		} else {
 			"outer: None".to_string()
 		};
