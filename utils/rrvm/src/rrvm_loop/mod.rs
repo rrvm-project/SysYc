@@ -103,10 +103,10 @@ impl Loop {
 		self.subloops.is_empty()
 	}
 	// 临时计算 loop 内有哪些 block, 包括子循环的 block
-	fn blocks(
+	pub fn blocks(
 		&self,
 		cfg: &LlvmCFG,
-		loop_map: HashMap<i32, LoopPtr>,
+		loop_map: &HashMap<i32, LoopPtr>,
 	) -> Vec<LlvmNode> {
 		// 从 header 开始，遍历在同一循环内的后继，直到回到 header
 		let mut visited = Vec::new();
