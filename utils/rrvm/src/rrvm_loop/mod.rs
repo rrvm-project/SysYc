@@ -35,12 +35,12 @@ pub struct Loop {
 
 #[allow(unused)]
 impl Loop {
-	fn is_strict_super_loop_of(&self, other: &LoopPtr) -> bool {
+	pub fn is_strict_super_loop_of(&self, other: &LoopPtr) -> bool {
 		let other = other.borrow();
 		self.id < other.id && other.ura_id < self.ura_id
 	}
 
-	fn is_super_loop_of(&self, other: &LoopPtr) -> bool {
+	pub fn is_super_loop_of(&self, other: &LoopPtr) -> bool {
 		let other = other.borrow();
 		(self.id < other.id && other.ura_id < self.ura_id)
 			|| (self.id == other.id && self.ura_id == other.ura_id)

@@ -6,7 +6,6 @@ use std::{
 	rc::Rc,
 };
 
-use super::rrvm_loop::LoopPtr;
 use instruction::riscv::RiscvInstr;
 use llvm::{
 	JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp, PhiInstr, RetInstr, Value,

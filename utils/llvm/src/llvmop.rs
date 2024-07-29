@@ -120,6 +120,25 @@ pub enum CompOp {
 	OLE, // ordered and less or
 }
 
+impl CompOp {
+	pub fn reverse_lhs_rhs(self) -> CompOp{
+		match self {
+			CompOp::EQ =>  CompOp::EQ,
+			CompOp::NE =>  CompOp::NE,
+			CompOp::SGT => CompOp::SLT,
+			CompOp::SGE => CompOp::SLE,
+			CompOp::SLT => CompOp::SGT,
+			CompOp::SLE => CompOp::SGE,
+			CompOp::OEQ => CompOp::OEQ,
+			CompOp::ONE => CompOp::ONE,
+			CompOp::OGT => CompOp::OLT,
+			CompOp::OGE => CompOp::OLE,
+			CompOp::OLT => CompOp::OGT,
+			CompOp::OLE => CompOp::OGE,
+		}
+	}
+}
+
 impl ArithOp {
 	pub fn is_commutative(&self) -> bool {
 		matches!(

@@ -3,8 +3,8 @@ mod fold_constants;
 mod function_inline;
 mod fuyuki_vn;
 pub mod impls;
-mod loops;
 mod localize_variable;
+mod loops;
 mod pure_check;
 mod strength_reduce;
 mod tail_recursion;
@@ -14,6 +14,9 @@ mod useless_phis;
 mod zero_init;
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
+mod loop_parallel;
+
+mod simplify_compare;
 
 pub trait RrvmOptimizer {
 	fn new() -> Self;
