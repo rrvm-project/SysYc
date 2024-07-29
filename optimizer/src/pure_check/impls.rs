@@ -164,9 +164,7 @@ impl RrvmOptimizer for PureCheck {
 			}
 		}
 
-		// program.funcs.retain(|func|{
-		// 	func.entrance != Entrance::Never
-		// });
+		program.funcs.retain(|func| func.entrance != Entrance::Never);
 
 		Ok(false)
 	}

@@ -259,7 +259,6 @@ fn move_global_scalar(program: &mut LlvmProgram) -> Result<bool> {
 		if var.is_array || not_appliable.contains(&var.ident) {
 			program.global_vars.push(var);
 		} else {
-			// program.global_vars.push(var.clone());
 			killed_global.push(var);
 		}
 	});
