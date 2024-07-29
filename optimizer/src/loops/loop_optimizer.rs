@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use llvm::LlvmTemp;
 use rrvm::{rrvm_loop::LoopPtr, LlvmCFG};
 
 use super::{loopinfo::LoopInfo, LoopOptimizer};
@@ -16,17 +17,14 @@ impl LoopOptimizer {
 		let mut flag = false;
 		self.build_graph(cfg);
 		println!("{}", self.temp_graph);
-		self.loop_map.iter().for_each(|(k, v)| {
-			println!("{}: {}", k, v.borrow().id);
-		});
-		flag |= self.bfs(loop_);
+		flag |= self.dfs(loop_);
 		flag
 	}
 
-	fn bfs(&mut self, loop_: LoopPtr) -> bool {
+	fn dfs(&mut self, loop_: LoopPtr) -> bool {
 		let mut flag = false;
 		for l in loop_.borrow().subloops.iter() {
-			flag |= self.bfs(l.clone());
+			flag |= self.dfs(l.clone());
 		}
 		flag |= self.visit_loop(loop_);
 		flag
@@ -38,4 +36,7 @@ impl LoopOptimizer {
 		let mut _info = LoopInfo::new();
 		_flag
 	}
+
+	#[allow(unused)]
+	fn dfs_temp(&mut self, temp: LlvmTemp) {}
 }

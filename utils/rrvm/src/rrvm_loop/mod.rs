@@ -1,4 +1,8 @@
-use std::{cell::RefCell, fmt::Display, hash::Hash, rc::Rc};
+use std::{
+	cell::RefCell, collections::HashMap, fmt::Display, hash::Hash, rc::Rc,
+};
+
+use crate::LlvmCFG;
 
 use super::LlvmNode;
 
@@ -21,7 +25,7 @@ pub struct Loop {
 	// 子 loop
 	pub subloops: Vec<LoopPtr>,
 	// loop 中的所有 block，不包括子 loop 中的 block
-	pub blocks: Vec<LlvmNode>,
+	// pub blocks: Vec<LlvmNode>,
 }
 
 #[allow(unused)]
@@ -33,7 +37,6 @@ impl Loop {
 			header,
 			level: -1,
 			subloops: Vec::new(),
-			blocks: Vec::new(),
 		}
 	}
 	/// getLoopPreheader - If there is a preheader for this loop, return it.  A
@@ -44,8 +47,9 @@ impl Loop {
 	///
 	/// This method returns null if there is no preheader for the loop.
 	///
-	pub fn get_loop_preheader(&self) -> Option<LlvmNode> {
-		let pred = self.get_loop_predecessor()?;
+	/// @param blocks - The set of blocks in the loop.
+	pub fn get_loop_preheader(&self, blocks: &[LlvmNode]) -> Option<LlvmNode> {
+		let pred = self.get_loop_predecessor(blocks)?;
 		if !is_legal_to_hoist_into(pred.clone()) {
 			println!("Preheader is not legal to hoist into");
 			return None;
@@ -61,12 +65,12 @@ impl Loop {
 	/// predecessor outside the loop, return it. Otherwise return None.
 	/// This is less strict that the loop "preheader" concept, which requires
 	/// the predecessor to have exactly one successor.
-	///
-	pub fn get_loop_predecessor(&self) -> Option<LlvmNode> {
+	/// @param blocks - The set of blocks in the loop.
+	pub fn get_loop_predecessor(&self, blocks: &[LlvmNode]) -> Option<LlvmNode> {
 		let header = self.header.borrow();
 		let mut pred = None;
 		for pred_ in header.prev.iter() {
-			if !self.contains_block(pred_) {
+			if !blocks.contains(pred_) {
 				if pred.is_some() && pred != Some(pred_.clone()) {
 					return None;
 				}
@@ -81,11 +85,12 @@ impl Loop {
 	}
 	/// getLoopLatch - If there is a single latch block for this loop, return it.
 	/// A latch block is a block that contains a branch back to the header.
-	pub fn get_loop_latch(&self) -> Option<LlvmNode> {
+	/// @param blocks - The set of blocks in the loop.
+	pub fn get_loop_latch(&self, blocks: &[LlvmNode]) -> Option<LlvmNode> {
 		let header = self.header.borrow();
 		let mut latch = None;
 		for pred in header.prev.iter() {
-			if self.contains_block(pred) {
+			if blocks.contains(pred) {
 				if latch.is_some() {
 					return None;
 				}
@@ -94,13 +99,33 @@ impl Loop {
 		}
 		latch
 	}
-	// 不仅看自己包不包含该 block，还要看自己的子 loop 有没有包含该 block
-	fn contains_block(&self, block: &LlvmNode) -> bool {
-		self.blocks.contains(block)
-			|| self.subloops.iter().any(|loop_| loop_.borrow().contains_block(block))
-	}
 	fn no_inner(&self) -> bool {
 		self.subloops.is_empty()
+	}
+	// 临时计算 loop 内有哪些 block, 包括子循环的 block
+	fn blocks(
+		&self,
+		cfg: &LlvmCFG,
+		loop_map: HashMap<i32, LoopPtr>,
+	) -> Vec<LlvmNode> {
+		// 从 header 开始，遍历在同一循环内的后继，直到回到 header
+		let mut visited = Vec::new();
+		let mut stack = vec![self.header.clone()];
+		while let Some(bb) = stack.pop() {
+			if visited.contains(&bb) {
+				continue;
+			}
+			visited.push(bb.clone());
+			for succ in bb.borrow().succ.iter() {
+				if loop_map
+					.get(&succ.borrow().id)
+					.is_some_and(|l| l.borrow().id == self.id)
+				{
+					stack.push(succ.clone());
+				}
+			}
+		}
+		visited
 	}
 }
 

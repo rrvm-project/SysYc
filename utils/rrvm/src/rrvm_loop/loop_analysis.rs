@@ -92,11 +92,11 @@ pub fn loop_dfs(
 	}
 	if !bbs.is_empty() {
 		let new_loop = Rc::new(RefCell::new(super::Loop::new(cur_bb.clone())));
-		new_loop.borrow_mut().blocks.push(cur_bb.clone());
+		// new_loop.borrow_mut().blocks.push(cur_bb.clone());
 		while let Some(bb) = bbs.pop() {
 			if loop_map.get(&bb.borrow().id).is_none() {
 				loop_map.insert(bb.borrow().id, new_loop.clone());
-				new_loop.borrow_mut().blocks.push(bb.clone());
+				// new_loop.borrow_mut().blocks.push(bb.clone());
 				if bb.borrow().id != cur_bb.borrow().id {
 					bbs.append(bb.borrow().prev.clone().as_mut());
 				}
