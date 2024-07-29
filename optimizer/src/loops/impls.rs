@@ -13,7 +13,7 @@ impl RrvmOptimizer for HandleLoops {
 		fn solve(cfg: &mut LlvmCFG) -> bool {
 			let mut flag: bool = false;
 			let mut opter = LoopOptimizer::new();
-			let root_loop = cfg.loop_analysis();
+			let root_loop = cfg.loop_analysis(&mut opter.loop_map);
 			flag |= opter.apply(root_loop.clone(), cfg);
 			flag
 		}

@@ -4,7 +4,7 @@ use super::{OpType, TempGraph};
 
 impl Display for TempGraph {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "==========TempGraph:==========")?;
+		writeln!(f, "==========TempGraph:==========")?;
 		let mut res = String::new();
 		for (temp, ops) in &self.temp_graph {
 			res.push_str(&format!("{}: ", temp));

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use llvm::{LlvmTemp, Value};
+use rrvm::rrvm_loop::LoopPtr;
 
 pub mod display;
 pub mod impls;
@@ -15,6 +16,8 @@ pub struct HandleLoops {}
 pub struct LoopOptimizer {
 	// 从自己指向自己的 use
 	temp_graph: TempGraph,
+	// 每个 basicblock 属于哪个循环
+	loop_map: HashMap<i32, LoopPtr>,
 }
 
 pub struct TempGraph {

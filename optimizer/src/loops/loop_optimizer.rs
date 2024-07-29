@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rrvm::{rrvm_loop::LoopPtr, LlvmCFG};
 
 use super::{loopinfo::LoopInfo, LoopOptimizer};
@@ -6,13 +8,17 @@ impl LoopOptimizer {
 	pub fn new() -> Self {
 		Self {
 			temp_graph: super::TempGraph::new(),
+			loop_map: HashMap::new(),
 		}
 	}
 
 	pub fn apply(&mut self, loop_: LoopPtr, cfg: &LlvmCFG) -> bool {
 		let mut flag = false;
 		self.build_graph(cfg);
-        println!("{}", self.temp_graph);
+		println!("{}", self.temp_graph);
+		self.loop_map.iter().for_each(|(k, v)| {
+			println!("{}: {}", k, v.borrow().id);
+		});
 		flag |= self.bfs(loop_);
 		flag
 	}

@@ -5,19 +5,37 @@ use super::super::{dominator::compute_dominator, LlvmCFG, LlvmNode};
 use super::{Loop, LoopPtr};
 
 impl LlvmCFG {
-	pub fn loop_analysis(&mut self) -> LoopPtr {
-		// dfs，在这个过程中创建所有的 loop, 并记在每个 basicblock 的 loop_ 域中，用一个 Rc 指着
-		loop_dfs(self.get_entry(), &self);
+	pub fn loop_analysis(
+		&mut self,
+		loop_map: &mut HashMap<i32, LoopPtr>,
+	) -> LoopPtr {
+		let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
+		let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
+		let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
+		compute_dominator(
+			self,
+			false,
+			&mut dominates,
+			&mut dominates_directly,
+			&mut dominator,
+		);
+		loop_dfs(
+			self.get_entry(),
+			self,
+			loop_map,
+			&dominates,
+			&dominates_directly,
+		);
 		// 计算每一个 loop 的深度
 		for bb in self.blocks.iter() {
-			calc_loop_level(bb.borrow().loop_.clone());
+			calc_loop_level(loop_map.get(&bb.borrow().id).cloned());
 		}
 		// 创造 loop tree 的根节点，也就是代表整个控制流的那个，只执行一次的 loop
 		let root_loop = Rc::new(RefCell::new(Loop::new(self.get_entry())));
 		root_loop.borrow_mut().level = 0;
 		let mut cur_id = 1;
 		for bb in self.blocks.iter() {
-			if let Some(l) = bb.borrow().loop_.clone() {
+			if let Some(l) = loop_map.get(&bb.borrow().id).cloned() {
 				if l.borrow().id == 0 {
 					l.borrow_mut().id = cur_id;
 					cur_id += 1;
@@ -49,25 +67,21 @@ fn calc_loop_level(loop_: Option<LoopPtr>) {
 
 // 这里本来想实现成 LlvmNode 的一个成员函数的，但这样做，参数中就会有一个 &mut self,
 // 而它常常是一个 borrow_mut 的结果，这导致在函数体内无法再对自己 borrow。
-pub fn loop_dfs(cur_bb: LlvmNode, cfg: &LlvmCFG) {
-	let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-	let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-	let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
-	compute_dominator(
-		cfg,
-		true,
-		&mut dominates,
-		&mut dominates_directly,
-		&mut dominator,
-	);
-
+pub fn loop_dfs(
+	cur_bb: LlvmNode,
+	_cfg: &LlvmCFG,
+	loop_map: &mut HashMap<i32, LoopPtr>,
+	dominates: &HashMap<i32, Vec<LlvmNode>>,
+	dominates_directly: &HashMap<i32, Vec<LlvmNode>>,
+) {
 	// dfs on dom tree
-	cur_bb.borrow_mut().loop_ = None;
+	// 换成 hashmap 存储后，就不用标记成 None 了
+	// cur_bb.borrow_mut().loop_ = None;
 	let cur_bb_id = cur_bb.borrow().id;
 	for next in
 		dominates_directly.get(&cur_bb_id).cloned().unwrap_or_default().iter()
 	{
-		loop_dfs(next.clone(), cfg);
+		loop_dfs(next.clone(), _cfg, loop_map, dominates, dominates_directly);
 	}
 	let mut bbs = Vec::new();
 	// 看看自己的前驱有没有被自己支配的，有的话就有循环存在，与自己前驱之间的边就是 backedge
@@ -80,14 +94,14 @@ pub fn loop_dfs(cur_bb: LlvmNode, cfg: &LlvmCFG) {
 		let new_loop = Rc::new(RefCell::new(super::Loop::new(cur_bb.clone())));
 		new_loop.borrow_mut().blocks.push(cur_bb.clone());
 		while let Some(bb) = bbs.pop() {
-			if bb.borrow().loop_.is_none() {
-				bb.borrow_mut().loop_ = Some(new_loop.clone());
+			if loop_map.get(&bb.borrow().id).is_none() {
+				loop_map.insert(bb.borrow().id, new_loop.clone());
 				new_loop.borrow_mut().blocks.push(bb.clone());
 				if bb.borrow().id != cur_bb.borrow().id {
 					bbs.append(bb.borrow().prev.clone().as_mut());
 				}
 			} else {
-				let mut inner_loop = bb.borrow().loop_.clone().unwrap();
+				let mut inner_loop = loop_map.get(&bb.borrow().id).cloned().unwrap();
 				let mut outer_loop = inner_loop.borrow().outer.clone();
 				while let Some(outer) = outer_loop.clone() {
 					inner_loop = outer;

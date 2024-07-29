@@ -7,7 +7,6 @@ use super::LlvmNode;
 pub type LoopPtr = Rc<RefCell<Loop>>;
 
 pub mod loop_analysis;
-pub mod loop_info;
 
 // Instances of this class are used to represent loops that are detected in the flow graph.
 #[derive(Clone, PartialEq, Eq)]
