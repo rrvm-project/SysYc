@@ -12,6 +12,7 @@ impl LoopOptimizer {
 	pub fn apply(&mut self, loop_: LoopPtr, cfg: &LlvmCFG) -> bool {
 		let mut flag = false;
 		self.build_graph(cfg);
+        println!("{}", self.temp_graph);
 		flag |= self.bfs(loop_);
 		flag
 	}

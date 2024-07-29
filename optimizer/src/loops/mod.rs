@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use llvm::{LlvmTemp, Value};
 
+pub mod display;
 pub mod impls;
 pub mod indvar;
 pub mod loop_optimizer;
@@ -21,11 +22,16 @@ pub struct TempGraph {
 	temp_graph: HashMap<LlvmTemp, Vec<OpType>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OpType {
 	Add(Value),
+	Fadd(Value),
 	Sub(Value),
+	Fsub(Value),
 	Mul(Value),
+	Fmul(Value),
 	Div(Value),
+	Fdiv(Value),
 	// 取模
 	Mod(Value),
 	Phi(Value),
