@@ -23,7 +23,7 @@ use utils::{
 // 接受参数：dag:初始图，instrs:当前的指令序列，基本块内 SSA
 fn punishment(
 	dag: InstrDag,
-	state: &mut State,
+	state: &State,
 	instr_id: usize,
 	my_reads: Vec<RiscvTemp>,
 	my_writes: Vec<RiscvTemp>,
@@ -180,6 +180,10 @@ struct State {
 	liveliness_map: HashMap<RiscvTemp, Liveliness>,
 	call_ids: Vec<usize>,
 }
+// todo 降常数复杂度（只对前面的若干个去 clone liveliness_map 和 indegs），问中端友友纯函数怎么判断，改纯函数的 InstrDag
+// 咱想想怎么设计：改动：
+// 1. 先不去 clone state，对于每个可以分配的 instruction 把 instr 先 push 再 pop 最后把 pop_front 得到的 State 再 push 回去
+// 2. 每一步的计算保留以下3个参数：total_punishment,state_idx,node_id,最后根据 total_punishment 排序并且把前 BFS_STATE_THRESHOLD 给 push 进去
 pub fn instr_schedule_by_dag(
 	dag: InstrDag,
 	liveliness_map: HashMap<RiscvTemp, Liveliness>,
@@ -202,12 +206,12 @@ pub fn instr_schedule_by_dag(
 	for _i in 0..depth {
 		let real_cnt = states.len();
 		for _j in 0..real_cnt {
-			let state = states.pop_front().unwrap();
-			let state_indeg = state.indegs.clone();
-			let allocatables: Vec<_> = state_indeg
-				.into_iter()
-				.filter(|(_k, v)| *v == 0)
-				.map(|(k, _)| k)
+			let mut state = states.pop_front().unwrap();
+			let allocatables: Vec<_> = state
+				.indegs
+				.iter()
+				.filter(|(_k, v)| **v == 0)
+				.map(|(k, _)| *k)
 				.collect();
 			// println!("allocatables: {:?} _i: {:?} _j: {:?} ", allocatables,_i,_j);
 			// println!("state instrs:");
@@ -235,7 +239,7 @@ pub fn instr_schedule_by_dag(
 				}
 				new_state.score += punishment(
 					dag.clone(),
-					&mut new_state,
+					&new_state,
 					*i,
 					my_reads.clone(),
 					my_writes.clone(),

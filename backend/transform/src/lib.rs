@@ -73,7 +73,7 @@ pub fn instr_schedule(
 		params: func.params,
 		ret_type: func.ret_type,
 		external_resorce: HashSet::new(),
-		entrance: Entrance::Unkonwn
+		entrance: Entrance::Unkonwn,
 	})
 }
 pub fn instr_schedule_block(
