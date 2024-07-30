@@ -34,3 +34,4 @@ pub static REDUCE_SUB: i32 = 2; // 后继中的节点对应指令，寄存器生
 pub static REDUCE_LIVE: i32 = 10;
 pub static LIVE_THROUGH: usize = 100;
 pub static SUM_MIN_RATIO: i32 = 1;
+pub static SCHEDULE_THRESHOLD: usize = 15000;

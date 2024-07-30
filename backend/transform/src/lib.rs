@@ -1,6 +1,7 @@
 use std::{
 	cell::RefCell,
 	collections::{HashMap, HashSet},
+	io::{self, Write},
 	rc::Rc,
 };
 
@@ -9,7 +10,10 @@ use instrdag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
 use rrvm::prelude::*;
 use transformer::{to_riscv, to_rt_type};
-use utils::{errors::Result, BLOCKSIZE_THRESHOLD, DEPENDENCY_EXPLORE_DEPTH};
+use utils::{
+	errors::Result, BLOCKSIZE_THRESHOLD, DEPENDENCY_EXPLORE_DEPTH,
+	SCHEDULE_THRESHOLD,
+};
 
 pub mod instr_schedule;
 pub mod instrdag;
@@ -27,18 +31,21 @@ pub fn get_functions(
 		// 	for j in i.borrow().instrs.iter() {
 		// 		println!("{}", j);
 		// 	}
+		// 	println!("block end");
 		// 	// println!(
 		// 	// 	"jump instruction: {}",
 		// 	// 	i.borrow().jump_instr.as_ref().unwrap()
 		// 	// );
 		// }
 		// println!("---end---");
+		// io::stdout().flush().unwrap();
 		let func = instr_schedule(
 			converted_func.0,
 			converted_func.1,
 			converted_func.2,
 			&mut program.temp_mgr,
 		)?;
+		program.funcs.push(func);
 		// println!("--------");
 		// for i in func.cfg.blocks.iter() {
 		// 	for j in i.borrow().instrs.iter() {
@@ -46,7 +53,6 @@ pub fn get_functions(
 		// 	}
 		// }
 		// println!("--------");
-		program.funcs.push(func);
 	}
 	Ok(())
 }
@@ -82,6 +88,9 @@ pub fn instr_schedule_block(
 	live_outs: &HashSet<RiscvTemp>,
 	mgr: &mut TempManager,
 ) -> Result<Vec<RiscvNode>> {
+	if riscv_node.borrow().instrs.len() >= SCHEDULE_THRESHOLD {
+		return Ok(vec![riscv_node.clone()]);
+	}
 	let prev = riscv_node
 		.borrow()
 		.prev
