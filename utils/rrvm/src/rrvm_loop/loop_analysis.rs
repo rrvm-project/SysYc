@@ -5,10 +5,7 @@ use super::super::{dominator::compute_dominator, LlvmCFG, LlvmNode};
 use super::{Loop, LoopPtr};
 
 impl LlvmCFG {
-	pub fn loop_analysis(
-		&mut self,
-		loop_map: &mut HashMap<i32, LoopPtr>,
-	) -> LoopPtr {
+	pub fn loop_analysis(&self, loop_map: &mut HashMap<i32, LoopPtr>) -> LoopPtr {
 		let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 		let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 		let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();

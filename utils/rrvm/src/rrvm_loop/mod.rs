@@ -35,12 +35,12 @@ pub struct Loop {
 
 #[allow(unused)]
 impl Loop {
-	fn is_strict_super_loop_of(&self, other: &LoopPtr) -> bool {
+	pub fn is_strict_super_loop_of(&self, other: &LoopPtr) -> bool {
 		let other = other.borrow();
 		self.id < other.id && other.ura_id < self.ura_id
 	}
 
-	fn is_super_loop_of(&self, other: &LoopPtr) -> bool {
+	pub fn is_super_loop_of(&self, other: &LoopPtr) -> bool {
 		let other = other.borrow();
 		(self.id < other.id && other.ura_id < self.ura_id)
 			|| (self.id == other.id && self.ura_id == other.ura_id)
@@ -64,7 +64,7 @@ impl Loop {
 	///
 	/// This method returns null if there is no preheader for the loop.
 	///
-	/// @param blocks - The set of blocks in the loop.
+	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
 	pub fn get_loop_preheader(&self, blocks: &[LlvmNode]) -> Option<LlvmNode> {
 		let pred = self.get_loop_predecessor(blocks)?;
 		if !is_legal_to_hoist_into(pred.clone()) {
@@ -82,13 +82,13 @@ impl Loop {
 	/// predecessor outside the loop, return it. Otherwise return None.
 	/// This is less strict that the loop "preheader" concept, which requires
 	/// the predecessor to have exactly one successor.
-	/// @param blocks - The set of blocks in the loop.
+	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
 	pub fn get_loop_predecessor(&self, blocks: &[LlvmNode]) -> Option<LlvmNode> {
 		let header = self.header.borrow();
 		let mut pred = None;
 		for pred_ in header.prev.iter() {
 			if !blocks.contains(pred_) {
-				if pred.is_some() && pred != Some(pred_.clone()) {
+				if pred.is_some_and(|p| p != pred_.clone()) {
 					return None;
 				}
 				pred = Some(pred_.clone());
@@ -102,7 +102,7 @@ impl Loop {
 	}
 	/// getLoopLatch - If there is a single latch block for this loop, return it.
 	/// A latch block is a block that contains a branch back to the header.
-	/// @param blocks - The set of blocks in the loop.
+	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
 	pub fn get_loop_latch(&self, blocks: &[LlvmNode]) -> Option<LlvmNode> {
 		let header = self.header.borrow();
 		let mut latch = None;
@@ -138,6 +138,32 @@ impl Loop {
 						.is_some_and(|l| self.is_super_loop_of(l))
 					{
 						stack.push(succ.clone());
+					}
+				}
+			}
+		}
+		visited
+	}
+	// 临时计算 loop 内有哪些 block, 不包括子循环的 block
+	pub fn blocks_without_subloops(
+		&self,
+		cfg: &LlvmCFG,
+		loop_map: &HashMap<i32, LoopPtr>,
+	) -> Vec<LlvmNode> {
+		// 从 header 开始，遍历在同一循环内的后继，直到回到 header
+		let mut deduplicate = HashSet::new();
+		let mut visited = Vec::new();
+		let mut stack = vec![self.header.clone()];
+		while let Some(bb) = stack.pop() {
+			if deduplicate.insert(bb.borrow().id) {
+				visited.push(bb.clone());
+				for succ in bb.borrow().succ.iter() {
+					if let Some(l) = loop_map.get(&succ.borrow().id) {
+						if l.borrow().id == self.id {
+							stack.push(succ.clone());
+						} else if self.is_super_loop_of(l) {
+							stack.push(l.borrow().header.clone());
+						}
 					}
 				}
 			}

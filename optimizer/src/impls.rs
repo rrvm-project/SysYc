@@ -79,7 +79,7 @@ impl Optimizer2 {
 			}
 		}
 
-		StrengthReduce::new().apply(program, &mut metadata)?;
+		HandleLoops::new().apply(program)?;
 
 		loop {
 			let mut flag = false;
@@ -94,11 +94,11 @@ impl Optimizer2 {
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
-			flag |= HandleLoops::new().apply(program)?;
 			if !flag {
 				break;
 			}
 		}
+
 		program.analysis();
 		Ok(())
 	}

@@ -3,10 +3,10 @@ use utils::{
 	InstrTrait, TempTrait, INLINE_PARAMS_THRESHOLD, MAX_INLINE_LENGTH,
 };
 
-use crate::cfg::CFG;
+use crate::cfg::{BasicBlock, CFG};
 
 pub struct RrvmFunc<T: InstrTrait<U>, U: TempTrait> {
-	pub total: i32,
+	pub total: i32, // 用于创建新基本块，记录了已经创建过的基本块数量，total+1为下一个基本块的编号。注意：不等于cfg.blocks.len(),因为编号中间可能有基本块被删除了
 	pub spills: i32,
 	pub cfg: CFG<T, U>,
 	pub name: String,
@@ -32,5 +32,9 @@ impl<T: InstrTrait<U>, U: TempTrait> RrvmFunc<T, U> {
 		self.is_leaf()
 			&& (self.len() < MAX_INLINE_LENGTH
 				|| self.params.len() > INLINE_PARAMS_THRESHOLD)
+	}
+	pub fn new_basicblock(&mut self, weight: f64) -> BasicBlock<T, U> {
+		self.total += 1;
+		BasicBlock::new(self.total, weight)
 	}
 }

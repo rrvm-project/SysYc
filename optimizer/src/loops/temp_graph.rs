@@ -5,7 +5,24 @@ use std::collections::HashMap;
 use llvm::LlvmTemp;
 use rrvm::LlvmCFG;
 
-use super::{LoopOptimizer, OpType, TempGraph};
+use super::{loop_optimizer::LoopOptimizer, optype::OpType};
+
+pub struct TempGraph {
+	// 从自己指向自己的 use
+	pub temp_graph: HashMap<LlvmTemp, Vec<OpType>>,
+}
+
+impl TempGraph {
+	pub fn new() -> Self {
+		Self {
+			temp_graph: HashMap::new(),
+		}
+	}
+
+	pub fn add_edge(&mut self, temp: LlvmTemp, op: OpType) {
+		self.temp_graph.entry(temp).or_default().push(op);
+	}
+}
 
 impl LoopOptimizer {
 	pub fn build_graph(&mut self, cfg: &LlvmCFG) {
@@ -27,17 +44,5 @@ impl LoopOptimizer {
 				}
 			}
 		}
-	}
-}
-
-impl TempGraph {
-	pub fn new() -> Self {
-		Self {
-			temp_graph: HashMap::new(),
-		}
-	}
-
-	pub fn add_edge(&mut self, temp: LlvmTemp, op: OpType) {
-		self.temp_graph.entry(temp).or_default().push(op);
 	}
 }
