@@ -183,7 +183,7 @@ struct State {
 // todo 降常数复杂度（只对前面的若干个去 clone liveliness_map 和 indegs），问中端友友纯函数怎么判断，改纯函数的 InstrDag
 // 咱想想怎么设计：改动：
 // 1. 先不去 clone state，对于每个可以分配的 instruction 把 instr 先 push 再 pop 最后把 pop_front 得到的 State 再 push 回去
-// 2. 每一步的计算保留以下3个参数：total_punishment,state_idx,node_id,最后根据 total_punishment 排序并且把前 BFS_STATE_THRESHOLD 给 push 进去
+// 2. 每一步的计算保留以下4个参数：total_punishment,state_idx,node_id,my_reads 最后根据 total_punishment 排序并且把前 BFS_STATE_THRESHOLD 给 push 进去
 pub fn instr_schedule_by_dag(
 	dag: InstrDag,
 	liveliness_map: HashMap<RiscvTemp, Liveliness>,
@@ -205,7 +205,8 @@ pub fn instr_schedule_by_dag(
 	let depth = dag.nodes.len(); // bfs 深度已知，是所需要调度的指令总数
 	for _i in 0..depth {
 		let real_cnt = states.len();
-		for _j in 0..real_cnt {
+		let mut keeps = Vec::new();
+		for j in 0..real_cnt {
 			let mut state = states.pop_front().unwrap();
 			let allocatables: Vec<_> = state
 				.indegs
@@ -219,53 +220,138 @@ pub fn instr_schedule_by_dag(
 			// 	println!("{}", i);
 			// }
 			for i in allocatables.iter() {
-				let mut new_state = state.clone();
-				new_state.instrs.push(dag.nodes[*i].borrow().instr.clone());
+				//let mut new_state = state.clone();
+				state.instrs.push(dag.nodes[*i].borrow().instr.clone());
 				// get riscv reads and writes
 				let mut my_reads = Vec::new();
 				let mut my_writes = Vec::new();
 				if dag.nodes[*i].borrow().instr.is_call() {
 					//check state's call_id length
-					my_reads = dag.call_reads[new_state.call_ids.len()].clone();
-					my_writes =
-						if let Some(tmp) = dag.call_writes[new_state.call_ids.len()] {
-							vec![tmp]
-						} else {
-							Vec::new()
-						};
+					my_reads = dag.call_reads[state.call_ids.len()].clone();
+					my_writes = if let Some(tmp) = dag.call_writes[state.call_ids.len()] {
+						vec![tmp]
+					} else {
+						Vec::new()
+					};
 				} else {
 					my_reads = dag.nodes[*i].borrow().instr.get_riscv_read().clone();
 					my_writes = dag.nodes[*i].borrow().instr.get_riscv_write().clone();
 				}
-				new_state.score += punishment(
-					dag.clone(),
-					&new_state,
-					*i,
-					my_reads.clone(),
-					my_writes.clone(),
-				);
-				if dag.nodes[*i].borrow().instr.is_call() {
-					new_state.call_ids.push(*i);
+				let score = state.score
+					+ punishment(
+						dag.clone(),
+						&state,
+						*i,
+						my_reads.clone(),
+						my_writes.clone(),
+					);
+				keeps.push((j, *i, score));
+				state.instrs.pop();
+			}
+			states.push_back(state);
+		}
+		if keeps.len() > BFS_STATE_THRESHOLD {
+			keeps.sort_by(|a, b| a.2.cmp(&b.2));
+			keeps.truncate(BFS_STATE_THRESHOLD);
+		}
+		for i in 0..real_cnt {
+			// iterate the keeps
+			let mut cnts: Vec<_> =
+				keeps.iter().filter(|x| x.0 == i).map(|x| *x).collect();
+			if cnts.len() == 0 {
+				states.pop_front();
+			} else if cnts.len() == 1 {
+				let mut state = states.pop_front().unwrap();
+				state.instrs.push(dag.nodes[cnts[0].1].borrow().instr.clone());
+				if dag.nodes[cnts[0].1].borrow().instr.is_call() {
+					state.call_ids.push(cnts[0].1);
+				}
+				// calc my_reads
+				let mut my_reads = Vec::new();
+				if state.instrs.last().unwrap().is_call() {
+					my_reads = dag.call_reads[state.call_ids.len() - 1].clone();
+				} else {
+					my_reads =
+						dag.nodes[cnts[0].1].borrow().instr.get_riscv_read().clone();
 				}
 				// decl the use in new_state's liveliness_map
 				for i in my_reads.iter() {
-					new_state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
+					state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
 				}
-				new_state.indegs.remove(i);
-				for succ in dag.nodes[*i].borrow().succ.iter() {
-					let mut new_indeg = new_state.indegs.clone();
+				state.indegs.remove(&cnts[0].1);
+				for succ in dag.nodes[cnts[0].1].borrow().succ.iter() {
+					let mut new_indeg = state.indegs.clone();
 					new_indeg.insert(
 						succ.borrow().id,
 						new_indeg.get(&succ.borrow().id).unwrap() - 1,
 					);
-					new_state.indegs = new_indeg;
+					state.indegs = new_indeg;
 				}
-				states.push_back(new_state);
+				states.push_back(state);
+			} else {
+				let mut state = states.pop_front().unwrap();
+				for j in 0..cnts.len() - 1 {
+					let mut new_state = state.clone();
+					new_state.instrs.push(dag.nodes[cnts[j].1].borrow().instr.clone());
+					if dag.nodes[cnts[j].1].borrow().instr.is_call() {
+						new_state.call_ids.push(cnts[j].1);
+					}
+					// calc my_reads
+					let mut my_reads = Vec::new();
+					if new_state.instrs.last().unwrap().is_call() {
+						my_reads = dag.call_reads[new_state.call_ids.len() - 1].clone();
+					} else {
+						my_reads =
+							dag.nodes[cnts[j].1].borrow().instr.get_riscv_read().clone();
+					}
+					// decl the use in new_state's liveliness_map
+					for i in my_reads.iter() {
+						new_state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
+					}
+					new_state.indegs.remove(&cnts[j].1);
+					for succ in dag.nodes[cnts[j].1].borrow().succ.iter() {
+						let mut new_indeg = new_state.indegs.clone();
+						new_indeg.insert(
+							succ.borrow().id,
+							new_indeg.get(&succ.borrow().id).unwrap() - 1,
+						);
+						new_state.indegs = new_indeg;
+					}
+					states.push_back(new_state);
+				}
+				// 最后一次不 clone 了
+				state
+					.instrs
+					.push(dag.nodes[cnts[cnts.len() - 1].1].borrow().instr.clone());
+				if dag.nodes[cnts[cnts.len() - 1].1].borrow().instr.is_call() {
+					state.call_ids.push(cnts[cnts.len() - 1].1);
+				}
+				// calc my_reads
+				let mut my_reads = Vec::new();
+				if state.instrs.last().unwrap().is_call() {
+					my_reads = dag.call_reads[state.call_ids.len() - 1].clone();
+				} else {
+					my_reads = dag.nodes[cnts[cnts.len() - 1].1]
+						.borrow()
+						.instr
+						.get_riscv_read()
+						.clone();
+				}
+				// decl the use in new_state's liveliness_map
+				for i in my_reads.iter() {
+					state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
+				}
+				state.indegs.remove(&cnts[cnts.len() - 1].1);
+				for succ in dag.nodes[cnts[cnts.len() - 1].1].borrow().succ.iter() {
+					let mut new_indeg = state.indegs.clone();
+					new_indeg.insert(
+						succ.borrow().id,
+						new_indeg.get(&succ.borrow().id).unwrap() - 1,
+					);
+					state.indegs = new_indeg;
+				}
+				states.push_back(state);
 			}
-		}
-		if states.len() > BFS_STATE_THRESHOLD {
-			states.make_contiguous().sort_by(|a, b| a.score.cmp(&b.score));
-			states.truncate(BFS_STATE_THRESHOLD);
 		}
 	}
 	// for i in states.iter() {
