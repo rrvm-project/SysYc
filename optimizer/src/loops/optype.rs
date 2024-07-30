@@ -1,6 +1,21 @@
 use llvm::{ArithOp, Value};
 
-use super::OpType;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OpType {
+	Add(Value),
+	Fadd(Value),
+	Sub(Value),
+	Fsub(Value),
+	Mul(Value),
+	Fmul(Value),
+	Div(Value),
+	Fdiv(Value),
+	// 取模
+	Mod(Value),
+	Phi(Value),
+	// TODO：这里可能还可以扩展
+	Others(Value),
+}
 
 impl OpType {
 	pub fn from_arithop(op: Option<ArithOp>, value: Value) -> Self {

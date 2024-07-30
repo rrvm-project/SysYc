@@ -436,6 +436,9 @@ impl PhiInstr {
 			source,
 		}
 	}
+	pub fn get_incoming_value_for_block(&self, label: &Label) -> Option<Value> {
+		self.source.iter().find(|(_, l)| l == label).map(|(v, _)| v.clone())
+	}
 }
 
 impl Display for RetInstr {

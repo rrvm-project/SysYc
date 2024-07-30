@@ -15,6 +15,7 @@ pub struct LoopInfo {
 }
 
 impl LoopInfo {
+	#[allow(unused)]
 	pub fn new() -> LoopInfo {
 		Self {
 			indvars: HashMap::new(),
