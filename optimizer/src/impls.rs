@@ -1,6 +1,4 @@
-use crate::{
-	strength_reduce::StrengthReduce, useless_phis::RemoveUselessPhis, *,
-};
+use crate::{useless_phis::RemoveUselessPhis, *};
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
@@ -73,23 +71,6 @@ impl Optimizer2 {
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= GLobalValueNumber::new().apply(program)?;
-			flag |= RemoveUselessPhis::new().apply(program)?;
-			flag |= InlineFunction::new().apply(program)?;
-			flag |= SolveTailRecursion::new().apply(program)?;
-			if !flag {
-				break;
-			}
-		}
-
-		StrengthReduce::new().apply(program)?;
-
-		loop {
-			let mut flag = false;
-			flag |= RemoveDeadCode::new().apply(program)?;
-			flag |= RemoveUnreachCode::new().apply(program)?;
-			flag |= RemoveUselessCode::new().apply(program)?;
-			flag |= FoldConstants::new().apply(program)?;
-			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			flag |= InlineFunction::new().apply(program)?;
 			flag |= SolveTailRecursion::new().apply(program)?;
