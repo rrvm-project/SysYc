@@ -3,12 +3,14 @@ mod fold_constants;
 mod function_inline;
 mod fuyuki_vn;
 pub mod impls;
+mod localize_variable;
 mod pure_check;
 mod strength_reduce;
 mod tail_recursion;
 mod unreachable;
 mod useless_code;
 mod useless_phis;
+mod zero_init;
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
 

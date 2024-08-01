@@ -2,6 +2,7 @@ use std::{
 	cell::RefCell,
 	collections::{HashMap, HashSet},
 	fmt::Display,
+	hash::Hash,
 	rc::Rc,
 };
 
@@ -201,9 +202,23 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 	}
 }
 
-impl PartialEq for LlvmBasicBlock {
+// impl PartialEq for LlvmBasicBlock {
+// 	fn eq(&self, other: &Self) -> bool {
+// 		self.id == other.id
+// 	}
+// }
+
+impl<T: InstrTrait<U>, U: TempTrait> PartialEq for BasicBlock<T, U> {
 	fn eq(&self, other: &Self) -> bool {
 		self.id == other.id
+	}
+}
+
+impl<T: InstrTrait<U>, U: TempTrait> Eq for BasicBlock<T, U> {}
+
+impl<T: InstrTrait<U>, U: TempTrait> Hash for BasicBlock<T, U> {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.id.hash(state);
 	}
 }
 

@@ -14,6 +14,7 @@ impl RrvmOptimizer for PureCheck {
 		let mut work_list: VecDeque<String> = VecDeque::new();
 		let mut inverse_call_relation: HashMap<String, HashSet<String>> =
 			HashMap::new();
+		let mut call_relation: HashMap<String, HashSet<String>> = HashMap::new();
 
 		// program.funcs.iter_mut().map(|func| mark(func));
 		for func in program.funcs.iter_mut() {
@@ -27,6 +28,10 @@ impl RrvmOptimizer for PureCheck {
 									.entry(callee.clone())
 									.or_default()
 									.insert(func.name.clone());
+								call_relation
+									.entry(func.name.clone())
+									.or_default()
+									.insert(callee.clone());
 							}
 							v => {
 								work_list.push_front(func.name.clone());

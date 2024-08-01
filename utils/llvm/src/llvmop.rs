@@ -4,6 +4,7 @@ use std::{
 };
 
 use sysyc_derive::Fuyuki;
+use utils::{GlobalVar, ValueItem};
 
 use crate::{llvmvar::VarType, LlvmTemp};
 
@@ -12,6 +13,41 @@ pub enum Value {
 	Int(i32),
 	Float(f32),
 	Temp(LlvmTemp),
+}
+
+impl Value {
+	pub fn get_temp(self) -> Option<LlvmTemp> {
+		if let Value::Temp(t) = self {
+			Some(t)
+		} else {
+			None
+		}
+	}
+
+	pub fn get_temp_ref(&self) -> Option<&LlvmTemp> {
+		if let Value::Temp(t) = self {
+			Some(t)
+		} else {
+			None
+		}
+	}
+}
+
+pub fn from_globalvar(var: &GlobalVar) -> Option<Value> {
+	if var.is_array {
+		None
+	} else {
+		let word: u32 = match var.data[0] {
+			ValueItem::Word(i) => i,
+			ValueItem::Zero(_) => 0,
+		};
+
+		if var.is_float {
+			Value::Float(f32::from_bits(word)).into()
+		} else {
+			Value::Int(unsafe { std::mem::transmute(word) }).into()
+		}
+	}
 }
 
 impl Eq for Value {}
@@ -82,6 +118,25 @@ pub enum CompOp {
 	OGE, // ordered and greater or equal
 	OLT, // ordered and less than
 	OLE, // ordered and less or
+}
+
+impl CompOp {
+	pub fn reverse_lhs_rhs(self) -> CompOp {
+		match self {
+			CompOp::EQ => CompOp::EQ,
+			CompOp::NE => CompOp::NE,
+			CompOp::SGT => CompOp::SLT,
+			CompOp::SGE => CompOp::SLE,
+			CompOp::SLT => CompOp::SGT,
+			CompOp::SLE => CompOp::SGE,
+			CompOp::OEQ => CompOp::OEQ,
+			CompOp::ONE => CompOp::ONE,
+			CompOp::OGT => CompOp::OLT,
+			CompOp::OGE => CompOp::OLE,
+			CompOp::OLT => CompOp::OGT,
+			CompOp::OLE => CompOp::OGE,
+		}
+	}
 }
 
 impl ArithOp {

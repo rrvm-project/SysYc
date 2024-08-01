@@ -98,6 +98,7 @@ impl Visitor for IRGenerator {
 				node.ident.clone(),
 				data,
 				var_type.is_float(),
+				symbol.var_type.is_array(),
 			));
 			return Ok(());
 		}

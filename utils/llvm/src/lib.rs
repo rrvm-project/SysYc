@@ -9,6 +9,7 @@ pub use llvminstr::*;
 pub use llvmop::{Value, *};
 pub use llvmvar::*;
 pub use temp::{LlvmTemp, LlvmTempManager};
+pub use utils_llvm::mv_instr;
 
 pub enum LlvmInstrVariant<'a> {
 	ArithInstr(&'a ArithInstr),

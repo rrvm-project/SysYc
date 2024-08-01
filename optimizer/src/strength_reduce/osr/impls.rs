@@ -209,7 +209,7 @@ impl OSR {
 		let (_, bb_id, instr_id, _is_phi) =
 			*self.temp_to_instr.get(&scc_member).unwrap();
 		let op = cfg.blocks.get(bb_id).unwrap().borrow().instrs[instr_id]
-			.is_candidate_operator()
+			.get_candidate_operator()
 			.unwrap();
 		let result = self.reduce(cfg, op, iv.clone(), rc, mgr);
 		let (_, bb_id, instr_id, _is_phi) =
