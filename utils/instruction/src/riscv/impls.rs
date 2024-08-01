@@ -56,6 +56,9 @@ impl RiscvInstrTrait for RTriInstr {
 			_ => false,
 		}
 	}
+	fn is_fdiv(&self) -> bool {
+		matches!(self.op, RTriInstrOp::Fdiv)
+	}
 }
 
 impl RTriInstr {

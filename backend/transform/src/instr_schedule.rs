@@ -1,11 +1,13 @@
 use std::{
-	cmp::min,
+	cell::RefCell,
+	cmp::{max, min},
 	collections::{HashMap, VecDeque},
+	rc::Rc,
 };
 
 use crate::{
-	instrdag::{postprocess_call, InstrDag},
-	Liveliness,
+	instrdag::{postprocess_call, InstrDag, InstrNode},
+	Liveliness, RiscvInstr,
 };
 use instruction::{
 	riscv::{
@@ -15,21 +17,64 @@ use instruction::{
 	RiscvInstrSet,
 };
 use utils::{
-	SysycError, ADD_ALLOCATABLES, BFS_STATE_THRESHOLD, LIVE_THROUGH, NEAR_END,
-	REDUCE_LIVE, REDUCE_SUB, SUM_MIN_RATIO,
+	SysycError, ADD_ALLOCATABLES, BFS_STATE_THRESHOLD, HARDWARE_PIPELINE_PARAM,
+	LIVE_THROUGH, NEAR_END, REDUCE_LIVE, REDUCE_SUB, SOFTWARE_PIPELINE_PARAM,
+	SUM_MIN_RATIO,
 };
 
+type Node = Rc<RefCell<InstrNode>>;
+#[derive(Clone, PartialEq, Eq, Copy)]
+enum AluKind {
+	Mem,
+	Normal,
+	Branch,
+	Float,
+	MulDiv,
+}
+#[derive(Clone, Copy)]
+pub struct Alu {
+	kind: AluKind,
+	complete_cycle: usize,
+	is_fdiv: bool,
+}
+impl Alu {
+	pub fn new(kind: AluKind) -> Self {
+		Self {
+			kind,
+			complete_cycle: 0, // 开区间
+			is_fdiv: false,
+		}
+	}
+}
+fn get_alukind(instr: &RiscvInstr) -> AluKind {
+	let v = instr.get_rtn_array();
+	if v[0] != 0 {
+		AluKind::Mem
+	} else if v[1] != 0 {
+		AluKind::Branch
+	} else if v[2] != 0 {
+		AluKind::MulDiv
+	} else if v[3] != 0 {
+		AluKind::Float
+	} else {
+		AluKind::Normal
+	}
+}
 // 当前惩罚策略：在指令为 instrs 的情况下，在运行每一条指令期间活跃的最大寄存器数目
 // 接受参数：dag:初始图，instrs:当前的指令序列，基本块内 SSA
+// 实现硬件流水线的时候，要多返回一个 flight_time_increment
 fn punishment(
-	dag: InstrDag,
+	dag: &InstrDag,
 	state: &State,
 	instr_id: usize,
 	my_reads: Vec<RiscvTemp>,
 	my_writes: Vec<RiscvTemp>,
-) -> i32 {
+) -> (i32, usize, usize, Alu) {
 	let instr = state.instrs.last().unwrap();
 	let mut score = 0;
+	// 软件流水线的惩罚
+	score +=
+		(dag.nodes[instr_id].borrow().to_end as i32) * SOFTWARE_PIPELINE_PARAM;
 	for i in my_reads.iter() {
 		if state.liveliness_map.get(i).unwrap().use_num == 1
 			&& !state.liveliness_map.get(i).unwrap().is_liveout
@@ -165,12 +210,58 @@ fn punishment(
 		);
 	}
 	let mut succ_score = (succ_sum as i32) * SUM_MIN_RATIO;
+	// 算硬件流水线的惩罚
+	let mut flight_time_incre = 1;
+	let ready_time = state.flight_time + flight_time_incre;
+	let mut flight_idx = 0;
+	let mut flight_unit = Alu::new(AluKind::Normal);
+	let old_max = state.alus.iter().map(|x| x.complete_cycle).max().unwrap_or(0);
+	// 增量，认为第一条指令在时刻1发射
+	if get_alukind(instr) != AluKind::Normal {
+		for (idx, alu) in state.alus.iter().enumerate() {
+			if get_alukind(instr) == alu.kind {
+				if alu.complete_cycle > ready_time {
+					// wait
+					flight_time_incre = alu.complete_cycle - ready_time + 1;
+				}
+				flight_idx = idx;
+				flight_unit = Alu::new(alu.kind);
+				if instr.is_fdiv() {
+					flight_unit.is_fdiv = true;
+				}
+				flight_unit.complete_cycle = state.flight_time
+					+ flight_time_incre
+					+ instr.get_rtn_array()[4] as usize;
+				if instr.is_fdiv() && alu.is_fdiv {
+					flight_unit.complete_cycle += utils::FDIV_WAIT;
+				}
+				break;
+			}
+		}
+	} else {
+		// 从 alus[4],alus[5] 拿出 complete_time 更小的来考虑
+		flight_idx = (if state.alus[4].complete_cycle < state.alus[5].complete_cycle
+		{
+			4
+		} else {
+			5
+		});
+		flight_unit = Alu::new(state.alus[flight_idx].kind);
+		if state.alus[flight_idx].complete_cycle > ready_time {
+			flight_time_incre =
+				state.alus[flight_idx].complete_cycle - ready_time + 1;
+		}
+		flight_unit.complete_cycle =
+			state.flight_time + flight_time_incre + instr.get_rtn_array()[4] as usize;
+	}
+	let time_incre = max(flight_unit.complete_cycle, old_max) - old_max;
 	succ_score += succ_min as i32;
 	score = score * REDUCE_LIVE
 		+ alloc_score * ADD_ALLOCATABLES
 		+ end_live_score * NEAR_END
-		+ succ_score * REDUCE_SUB;
-	score
+		+ succ_score * REDUCE_SUB
+		+ time_incre as i32 * HARDWARE_PIPELINE_PARAM;
+	(score, flight_time_incre, flight_idx, flight_unit)
 }
 #[derive(Clone)]
 struct State {
@@ -179,8 +270,9 @@ struct State {
 	indegs: HashMap<usize, usize>, // 把节点的 id 映射到入度
 	liveliness_map: HashMap<RiscvTemp, Liveliness>,
 	call_ids: Vec<usize>,
+	alus: [Alu; 6],
+	flight_time: usize,
 }
-// todo 降常数复杂度（只对前面的若干个去 clone liveliness_map 和 indegs），问中端友友纯函数怎么判断，改纯函数的 InstrDag
 // 咱想想怎么设计：改动：
 // 1. 先不去 clone state，对于每个可以分配的 instruction 把 instr 先 push 再 pop 最后把 pop_front 得到的 State 再 push 回去
 // 2. 每一步的计算保留以下4个参数：total_punishment,state_idx,node_id,my_reads 最后根据 total_punishment 排序并且把前 BFS_STATE_THRESHOLD 给 push 进去
@@ -201,6 +293,15 @@ pub fn instr_schedule_by_dag(
 		indegs: indegs.clone(),
 		liveliness_map,
 		call_ids: Vec::new(),
+		alus: [
+			Alu::new(AluKind::Mem),
+			Alu::new(AluKind::Branch),
+			Alu::new(AluKind::MulDiv),
+			Alu::new(AluKind::Float),
+			Alu::new(AluKind::Normal),
+			Alu::new(AluKind::Normal),
+		],
+		flight_time: 0,
 	});
 	let depth = dag.nodes.len(); // bfs 深度已知，是所需要调度的指令总数
 	for _i in 0..depth {
@@ -237,15 +338,10 @@ pub fn instr_schedule_by_dag(
 					my_reads = dag.nodes[*i].borrow().instr.get_riscv_read().clone();
 					my_writes = dag.nodes[*i].borrow().instr.get_riscv_write().clone();
 				}
-				let score = state.score
-					+ punishment(
-						dag.clone(),
-						&state,
-						*i,
-						my_reads.clone(),
-						my_writes.clone(),
-					);
-				keeps.push((j, *i, score));
+				let (punish, flight_time_incre, flight_idx, flight_unit) =
+					punishment(&dag, &state, *i, my_reads.clone(), my_writes.clone());
+				let score = state.score + punish;
+				keeps.push((j, *i, score, flight_time_incre, flight_idx, flight_unit));
 				state.instrs.pop();
 			}
 			states.push_back(state);
@@ -287,6 +383,8 @@ pub fn instr_schedule_by_dag(
 					);
 					state.indegs = new_indeg;
 				}
+				state.flight_time += cnts[0].3;
+				state.alus[cnts[0].4] = cnts[0].5;
 				states.push_back(state);
 			} else {
 				let mut state = states.pop_front().unwrap();
@@ -317,6 +415,8 @@ pub fn instr_schedule_by_dag(
 						);
 						new_state.indegs = new_indeg;
 					}
+					new_state.flight_time += cnts[j].3;
+					new_state.alus[cnts[j].4] = cnts[j].5;
 					states.push_back(new_state);
 				}
 				// 最后一次不 clone 了
@@ -350,6 +450,8 @@ pub fn instr_schedule_by_dag(
 					);
 					state.indegs = new_indeg;
 				}
+				state.flight_time += cnts[cnts.len() - 1].3;
+				state.alus[cnts[cnts.len() - 1].4] = cnts[cnts.len() - 1].5;
 				states.push_back(state);
 			}
 		}

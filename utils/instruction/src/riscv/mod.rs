@@ -7,5 +7,4 @@ pub mod riscvop;
 pub mod utils;
 pub mod value;
 pub mod virt_mem;
-
 pub use riscvinstr::RiscvInstr;

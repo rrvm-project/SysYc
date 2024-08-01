@@ -179,6 +179,9 @@ pub trait RiscvInstrTrait:
 	fn is_branch(&self) -> bool {
 		false
 	}
+	fn is_fdiv(&self) -> bool {
+		false
+	}
 }
 
 impl UseTemp<Temp> for RiscvInstr {
@@ -254,6 +257,10 @@ impl RTN for IBinInstr {
 			IBinInstrOp::LW => [1, 0, 0, 0, 3],
 			IBinInstrOp::LWU => [1, 0, 0, 0, 3],
 			IBinInstrOp::Lui => [1, 0, 0, 0, 3],
+			IBinInstrOp::FSD => [0, 0, 0, 1, 4],
+			IBinInstrOp::FSW => [0, 0, 0, 1, 4],
+			IBinInstrOp::FLD => [0, 0, 0, 1, 2],
+			IBinInstrOp::FLW => [0, 0, 0, 1, 2],
 			_ => [1, 0, 0, 0, 1],
 		}
 	}
@@ -269,6 +276,8 @@ impl RTN for RBinInstr {
 		match self.op {
 			RBinInstrOp::Float2Int => [0, 0, 0, 1, 4],
 			RBinInstrOp::Int2Float => [0, 0, 0, 1, 2],
+			RBinInstrOp::FMv => [0, 0, 0, 1, 2],
+			RBinInstrOp::MvInt2Float => [0, 0, 0, 1, 2],
 			_ => [0, 0, 0, 0, 1],
 		}
 	}

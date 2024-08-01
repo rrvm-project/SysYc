@@ -1,5 +1,6 @@
 use std::{
 	cell::RefCell,
+	cmp::max,
 	collections::{HashMap, HashSet},
 	rc::Rc,
 };
@@ -22,6 +23,8 @@ pub struct InstrNode {
 	pub instr: RiscvInstr,
 	pub succ: Vec<Node>,
 	pub last_use: usize,
+	pub pred: Vec<Node>,
+	pub to_end: usize,
 }
 impl InstrNode {
 	pub fn new(instr: &RiscvInstr, id: usize) -> Self {
@@ -31,6 +34,8 @@ impl InstrNode {
 			instr: instr.clone(),
 			succ: Vec::new(),
 			last_use: 0,
+			pred: Vec::new(),
+			to_end: 0,
 		}
 	}
 }
@@ -154,7 +159,8 @@ impl InstrDag {
 	pub fn new(node: &RiscvNode) -> Result<Self, SysycError> {
 		let mut nodes: Vec<Node> = Vec::new();
 		let mut defs: HashMap<RiscvTemp, Rc<RefCell<InstrNode>>> = HashMap::new();
-		let mut uses = HashMap::new();
+		let mut uses: HashMap<RiscvTemp, Vec<Rc<RefCell<InstrNode>>>> =
+			HashMap::new();
 		let mut last_call: Option<Node> = None;
 		let mut last_loads: Vec<Node> = Vec::new();
 		let mut call_related = Vec::new();
@@ -243,7 +249,11 @@ impl InstrDag {
 					//  println!("in instr {} write extending..",node.borrow().id);
 					//  for i in uses.get(&instr_write).unwrap_or(&Vec::<Rc<RefCell<InstrNode>>>::new()).iter().map(|z| z.borrow().id).collect::<Vec<_>>() {
 					//  	println!("intr write extending to id: {}", i);
-					//  }
+					// }
+					// 同时 extend predecessors
+					for i in uses.get(&instr_write).unwrap_or(&Vec::new()).iter() {
+						i.borrow_mut().pred.push(node.clone());
+					}
 					uses.remove(&instr_write);
 				}
 			} else {
@@ -252,6 +262,9 @@ impl InstrDag {
 				if let Some(tmp) = tmp {
 					instr_node_succ
 						.extend(uses.get(&tmp).unwrap_or(&Vec::new()).iter().cloned());
+					uses.get(&tmp).unwrap_or(&Vec::new()).iter().for_each(|x| {
+						x.borrow_mut().pred.push(node.clone());
+					});
 					uses.remove(&tmp);
 				}
 			}
@@ -260,6 +273,7 @@ impl InstrDag {
 				for instr_read_temp in instr_read.iter() {
 					if let Some(def_instr) = defs.get(instr_read_temp) {
 						instr_node_succ.push(def_instr.clone());
+						def_instr.borrow_mut().pred.push(node.clone());
 						//	println!("in instr def extending {}->{}",node.borrow().id,def_instr.borrow().id);
 					}
 					uses.entry(*instr_read_temp).or_default().push(node.clone());
@@ -272,6 +286,7 @@ impl InstrDag {
 				for instr_read_temp in tmp.iter() {
 					if let Some(def_instr) = defs.get(instr_read_temp) {
 						instr_node_succ.push(def_instr.clone());
+						def_instr.borrow_mut().pred.push(node.clone());
 					}
 					uses.entry(*instr_read_temp).or_default().push(node.clone());
 					if !last_uses.contains_key(instr_read_temp) {
@@ -294,14 +309,19 @@ impl InstrDag {
 			if instr.is_call() {
 				// 先考虑一下那个最后一条 mov other reg a0
 				instr_node_succ.extend(last_loads.iter().cloned());
+				last_loads.iter().for_each(|x| {
+					x.borrow_mut().pred.push(node.clone());
+				});
 				//	println!("in is_call {} extending loads {:?}",node.borrow().id,last_loads.iter().map(|x| x.borrow().id).collect::<Vec<_>>());
 				last_loads.clear();
 				last_call = Some(node.clone());
-				if let Some(node) = li_ret.clone() {
-					instr_node_succ.push(node);
+				if let Some(ret_node) = li_ret.clone() {
+					instr_node_succ.push(ret_node.clone());
+					ret_node.borrow_mut().pred.push(node.clone());
 				}
 				for i in call_instrs.iter() {
 					instr_node_succ.push(i.clone());
+					i.borrow_mut().pred.push(node.clone());
 				}
 				call_instrs.push(node.clone());
 			// for i in nodes.iter() {
@@ -310,15 +330,20 @@ impl InstrDag {
 			} else if instr.is_load().unwrap_or(false) {
 				if let Some(last_call) = last_call.clone() {
 					//	println!("in is_load {} extending last_call {}",node.borrow().id,last_call.borrow().id);
-					instr_node_succ.push(last_call);
+					instr_node_succ.push(last_call.clone());
+					last_call.borrow_mut().pred.push(node.clone());
 				}
 				last_loads.push(node.clone());
 			} else if instr.is_store().unwrap_or(false) {
 				instr_node_succ.extend(last_loads.iter().cloned());
+				last_loads.iter().for_each(|x| {
+					x.borrow_mut().pred.push(node.clone());
+				});
 				last_loads.clear();
 				last_call = Some(node.clone());
 				for i in call_instrs.iter() {
 					instr_node_succ.push(i.clone());
+					i.borrow_mut().pred.push(node.clone());
 				}
 				call_instrs.push(node.clone());
 			}
@@ -350,6 +375,39 @@ impl InstrDag {
 			call_reads: ret_call_reads,
 			call_writes: ret_call_writes,
 		})
+	}
+	pub fn assign_nodes(&mut self) {
+		// 先备份一遍所有 node 的 indegs
+		let indegs =
+			self.nodes.iter().map(|x| x.borrow().in_deg).collect::<Vec<_>>();
+		// 开始遍历
+		let mut stack_ = Vec::new();
+		for i in self.nodes.iter() {
+			if i.borrow().succ.len() == 0 {
+				stack_.push(i.clone());
+				// get latency
+				let siz = i.borrow().instr.get_rtn_array()[4] as usize;
+				i.borrow_mut().to_end = siz;
+			}
+		}
+		while stack_.len() > 0 {
+			let node = stack_.pop().unwrap();
+			for i in node.borrow().pred.iter() {
+				let new_end = max(
+					i.borrow().to_end,
+					node.borrow().to_end + i.borrow().instr.get_rtn_array()[4] as usize,
+				);
+				i.borrow_mut().to_end = new_end;
+				i.borrow_mut().in_deg -= 1;
+				if i.borrow().in_deg == 0 {
+					stack_.push(i.clone());
+				}
+			}
+		}
+		// 对每个点恢复 in_deg
+		for (i, j) in self.nodes.iter().zip(indegs.iter()) {
+			i.borrow_mut().in_deg = *j;
+		}
 	}
 }
 impl fmt::Display for InstrDag {

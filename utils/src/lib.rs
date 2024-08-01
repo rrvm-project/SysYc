@@ -32,6 +32,7 @@ pub trait UseTemp<U> {
 	}
 }
 pub trait RTN {
+	// mem,br,mul/div,floating-point,sum 是这5项的意思
 	fn get_rtn_array(&self) -> [i32; 5] {
 		[0; 5]
 	}

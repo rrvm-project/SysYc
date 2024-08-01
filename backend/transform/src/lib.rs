@@ -1,6 +1,6 @@
 use std::{
 	cell::RefCell,
-	collections::{HashMap, HashSet},
+	collections::{BTreeMap, HashMap, HashSet},
 	io::{self, Write},
 	rc::Rc,
 };
@@ -31,7 +31,7 @@ pub fn get_functions(
 		// 	for j in i.borrow().instrs.iter() {
 		// 		println!("{}", j);
 		// 	}
-		// 	println!("block end");
+		// 	println!("------------block end-------------");
 		// 	// println!(
 		// 	// 	"jump instruction: {}",
 		// 	// 	i.borrow().jump_instr.as_ref().unwrap()
@@ -45,14 +45,15 @@ pub fn get_functions(
 			converted_func.2,
 			&mut program.temp_mgr,
 		)?;
-		program.funcs.push(func);
 		// println!("--------");
 		// for i in func.cfg.blocks.iter() {
 		// 	for j in i.borrow().instrs.iter() {
 		// 		println!("{}", j);
 		// 	}
+		// 	println!("------------block end-------------");
 		// }
 		// println!("--------");
+		program.funcs.push(func);
 	}
 	Ok(())
 }
@@ -197,7 +198,7 @@ fn transform_loop_block(
 	todo!();
 	// let r = [1, 1, 1, 1, 2]; // mem,br,mul/div,floating-point,sum
 	// 											 //按照RT 求出总的资源占用，再和 R 中各项相除求得最大值
-	// let mut rt = [0, 0, 0, 0, 0];
+	// let mut rt = [0, 0, 0, 0, 0]; // 资源预约表
 	// for instr in node.borrow().instrs.iter() {
 	// 	let rt_vec = to_rt_type(instr);
 	// 	for i in 0..5 {
@@ -206,7 +207,7 @@ fn transform_loop_block(
 	// }
 	// let mut t0 = 0;
 	// for i in 0..5 {
-	// 	t0 = t0.max((rt[i] + r[i] - 1) / r[i]);
+	// 	t0 = t0.max((rt[i] + r[i] - 1) / r[i]); // 龙书中算法 T0 范围 第一项
 	// }
 	// // 模数变量扩展
 	// // 找到本循环内 def 且 use 非 live_in 非 live_out 的变量
@@ -219,7 +220,7 @@ fn transform_loop_block(
 	// 	}
 	// }
 	// // 建立数据依赖图
-	// let mut dag = HashMap::new();
+	// let mut dag = HashMap::new(); // key 是边，value 是标号 (alpha,d)
 	// // 先加上非数组的边
 	// for (idx, instr) in node.borrow().instrs.iter().enumerate() {
 	// 	let read_tmps = instr.get_riscv_read();
@@ -256,12 +257,12 @@ fn transform_loop_block(
 	// // 对于数组中的某个元素，判断它在一个周期内的增量是否是常数
 	// let mut taint_map: HashMap<(i32, RiscvTemp), Vec<(i32, RiscvTemp)>> =
 	// 	HashMap::new();
-	// let mut store_map: HashMap<RiscvImm, usize> = HashMap::new();
+	// let mut store_map = Vec::new();
 	// // 判断 load 和 store 的 dependency
 	// // 先找到 store 的元素
 	// for (idx, instr) in node.borrow().instrs.iter().enumerate() {
 	// 	if instr.is_store().unwrap_or(false) {
-	// 		store_map.insert(instr.get_imm().unwrap(), idx);
+	// 		store_map.push((instr.get_imm().unwrap(), idx));
 	// 		if let Some(OffsetReg(offset, base)) = instr.get_imm() {
 	// 			let mut regs = HashSet::new();
 	// 			regs.insert(instr.get_riscv_read()[0]);
@@ -518,15 +519,20 @@ fn transform_loop_block(
 	// 				let mut init_dist = IncrementType::Int(**offset_read) + dist;
 	// 				for i in 0..DEPENDENCY_EXPLORE_DEPTH {
 	// 					if IncrementType::Int(*offset) == init_dist {
-	// 						dag
-	// 							.entry((
-	// 								store_map[&OffsetReg(*offset, *store_reg)] as i32,
-	// 								read_instr_cnt,
-	// 							))
-	// 							.and_modify(|e: &mut Vec<(i32, i32)>| e.push((i, 1)))
-	// 							.or_insert(vec![(i, 1)]);
+	// 						// find entry in store_map
+	// 						for entry in store_map.iter().rev() {
+	// 							if let OffsetReg(myoffset, mytmp) = entry.0 {
+	// 								if myoffset == *offset && mytmp == *store_reg {
+	// 									dag
+	// 										.entry((entry.1 as i32, read_instr_cnt))
+	// 										.and_modify(|e: &mut Vec<(i32, i32)>| e.push((i, 1)))
+	// 										.or_insert(vec![(i, 1)]);
+	// 									break;
+	// 								}
+	// 								init_dist = init_dist + read_incre.clone();
+	// 							}
+	// 						}
 	// 					}
-	// 					init_dist = init_dist + read_incre.clone();
 	// 				}
 	// 			}
 	// 			IncrementType::LongLong(i) => {
@@ -535,13 +541,18 @@ fn transform_loop_block(
 	// 				let mut init_dist = IncrementType::Int(**offset_read) + dist;
 	// 				for i in 0..DEPENDENCY_EXPLORE_DEPTH {
 	// 					if IncrementType::Int(*offset) == init_dist {
-	// 						dag
-	// 							.entry((
-	// 								store_map[&OffsetReg(*offset, *store_reg)] as i32,
-	// 								read_instr_cnt,
-	// 							))
-	// 							.and_modify(|e: &mut Vec<(i32, i32)>| e.push((i, 1)))
-	// 							.or_insert(vec![(i, 1)]);
+	// 						// find entry in store_map
+	// 						for entry in store_map.iter().rev() {
+	// 							if let OffsetReg(myoffset, mytmp) = entry.0 {
+	// 								if myoffset == *offset && mytmp == *store_reg {
+	// 									dag
+	// 										.entry((entry.1 as i32, read_instr_cnt))
+	// 										.and_modify(|e: &mut Vec<(i32, i32)>| e.push((i, 1)))
+	// 										.or_insert(vec![(i, 1)]);
+	// 									break;
+	// 								}
+	// 							}
+	// 						}
 	// 					}
 	// 					init_dist = init_dist + read_incre.clone();
 	// 				}
@@ -555,17 +566,15 @@ fn transform_loop_block(
 	// // iterate the loops in dag
 	// let _alpha_sum = 0;
 	// let _d_sum = 0;
+	// let max_val=0;
 	// // Iterate over the nodes in the DAG
 	// for (node, _) in dag.iter() {
 	// 	let mut visited = HashSet::new();
 	// 	let mut stack = vec![*node];
-
 	// 	// Perform depth-first search
 	// 	while let Some(current) = stack.pop() {
 	// 		if visited.contains(&current) {
-	// 			// Cycle detected, current node is part of a loop
-	// 			// Handle the loop as needed
-	// 			// ...
+	// 			if
 	// 		} else {
 	// 			visited.insert(current);
 
@@ -588,8 +597,9 @@ fn transform_basic_block_by_pipelining(
 	live_out: &HashSet<RiscvTemp>,
 	_mgr: &mut TempManager,
 ) -> Result<RiscvNode> {
-	let instr_dag = InstrDag::new(node)?;
+	let mut instr_dag = InstrDag::new(node)?;
 	let liveliness_map = get_liveliness_map(&instr_dag, live_in, live_out);
+	instr_dag.assign_nodes();
 	node.borrow_mut().instrs = instr_schedule_by_dag(instr_dag, liveliness_map)?;
 	Ok(node.clone())
 }
