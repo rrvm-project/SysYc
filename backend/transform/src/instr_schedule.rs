@@ -2,6 +2,7 @@ use std::{
 	cell::RefCell,
 	cmp::{max, min},
 	collections::{HashMap, VecDeque},
+	fmt::Display,
 	rc::Rc,
 };
 
@@ -11,6 +12,7 @@ use crate::{
 };
 use instruction::{
 	riscv::{
+		prelude::RiscvInstrTrait,
 		reg::RiscvReg::A0,
 		value::RiscvTemp::{self, PhysReg},
 	},
@@ -23,7 +25,7 @@ use utils::{
 };
 
 type Node = Rc<RefCell<InstrNode>>;
-#[derive(Clone, PartialEq, Eq, Copy)]
+#[derive(Clone, PartialEq, Eq, Copy, Debug)]
 enum AluKind {
 	Mem,
 	Normal,
@@ -31,14 +33,14 @@ enum AluKind {
 	Float,
 	MulDiv,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Alu {
 	kind: AluKind,
 	complete_cycle: usize,
 	is_fdiv: bool,
 }
 impl Alu {
-	pub fn new(kind: AluKind) -> Self {
+	fn new(kind: AluKind) -> Self {
 		Self {
 			kind,
 			complete_cycle: 0, // 开区间
@@ -48,6 +50,7 @@ impl Alu {
 }
 fn get_alukind(instr: &RiscvInstr) -> AluKind {
 	let v = instr.get_rtn_array();
+	// println!("get_alukind: {} {:?}",instr,v);
 	if v[0] != 0 {
 		AluKind::Mem
 	} else if v[1] != 0 {
@@ -255,12 +258,28 @@ fn punishment(
 			state.flight_time + flight_time_incre + instr.get_rtn_array()[4] as usize;
 	}
 	let time_incre = max(flight_unit.complete_cycle, old_max) - old_max;
+	// println!("------------");
+	// println!(" in punishment calculation:");
+	// for i in state.instrs.iter(){
+	// 	println!("{}",i);
+	// }
+	// println!("alu status:");
+	// for (idx,i) in state.alus.iter().enumerate(){
+	// 	if idx==flight_idx{
+	// 		println!("{:?}",flight_unit);
+	// 	}else{
+	// 		println!("{:?}",i);
+	// 	}
+	// }
+	// println!("time_incre: {} flight_time_incre: {} flight_idx: {}",time_incre,flight_time_incre,flight_idx);
+	// println!("------------------");
 	succ_score += succ_min as i32;
 	score = score * REDUCE_LIVE
 		+ alloc_score * ADD_ALLOCATABLES
 		+ end_live_score * NEAR_END
 		+ succ_score * REDUCE_SUB
 		+ time_incre as i32 * HARDWARE_PIPELINE_PARAM;
+	//println!("punishment: {} flight_time_incre: {} flight_idx: {} flight_unit: {:?}",score,flight_time_incre,flight_idx,flight_unit);
 	(score, flight_time_incre, flight_idx, flight_unit)
 }
 #[derive(Clone)]
@@ -273,6 +292,74 @@ struct State {
 	alus: [Alu; 6],
 	flight_time: usize,
 }
+impl Display for State {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "State: \n")?;
+		for i in self.instrs.iter() {
+			write!(f, "{}\n", i)?;
+		}
+		write!(f, "alus: \n")?;
+		for i in self.alus.iter() {
+			write!(f, "{:?} ", i)?;
+		}
+		write!(
+			f,
+			"score: {} flight_time: {}\n",
+			self.score, self.flight_time
+		)?;
+		Ok(())
+	}
+}
+pub fn get_punishment_by_instrs(instr: &Vec<Box<dyn RiscvInstrTrait>>) -> i32 {
+	// 算出原始的 score
+	//	按照上面的方法算硬件流水线
+	let mut alus = [
+		Alu::new(AluKind::Mem),
+		Alu::new(AluKind::Branch),
+		Alu::new(AluKind::MulDiv),
+		Alu::new(AluKind::Float),
+		Alu::new(AluKind::Normal),
+		Alu::new(AluKind::Normal),
+	];
+	let mut flight_time = 0;
+	for instr in instr.iter() {
+		let mut flight_time_incre = 1;
+		let ready_time = flight_time + flight_time_incre;
+		let old_max = alus.iter().map(|x| x.complete_cycle).max().unwrap_or(0);
+		if get_alukind(instr) != AluKind::Normal {
+			for (idx, alu) in alus.iter_mut().enumerate() {
+				if get_alukind(instr) == alu.kind {
+					if alu.complete_cycle > ready_time {
+						flight_time_incre = alu.complete_cycle - ready_time + 1;
+					}
+					if instr.is_fdiv() {
+						alu.is_fdiv = true;
+					}
+					alu.complete_cycle =
+						flight_time + flight_time_incre + instr.get_rtn_array()[4] as usize;
+					if instr.is_fdiv() && alu.is_fdiv {
+						alu.complete_cycle += utils::FDIV_WAIT;
+					}
+					break;
+				}
+			}
+		} else {
+			let flight_idx = (if alus[4].complete_cycle < alus[5].complete_cycle {
+				4
+			} else {
+				5
+			});
+			if alus[flight_idx].complete_cycle > ready_time {
+				flight_time_incre = alus[flight_idx].complete_cycle - ready_time + 1;
+			}
+			alus[flight_idx].complete_cycle =
+				flight_time + flight_time_incre + instr.get_rtn_array()[4] as usize;
+		}
+		flight_time += flight_time_incre;
+	}
+	let t = alus.iter().map(|x| x.complete_cycle).max().unwrap_or(0);
+	t as i32 * HARDWARE_PIPELINE_PARAM
+}
 // 咱想想怎么设计：改动：
 // 1. 先不去 clone state，对于每个可以分配的 instruction 把 instr 先 push 再 pop 最后把 pop_front 得到的 State 再 push 回去
 // 2. 每一步的计算保留以下4个参数：total_punishment,state_idx,node_id,my_reads 最后根据 total_punishment 排序并且把前 BFS_STATE_THRESHOLD 给 push 进去
@@ -281,6 +368,10 @@ pub fn instr_schedule_by_dag(
 	liveliness_map: HashMap<RiscvTemp, Liveliness>,
 ) -> Result<RiscvInstrSet, SysycError> {
 	// println!("{}",dag);
+	// 计算原始 punishment
+	let original_instrs: Vec<_> =
+		dag.nodes.iter().rev().map(|x| x.borrow().instr.clone()).collect();
+	let original_punishment = get_punishment_by_instrs(&original_instrs);
 	let mut states = VecDeque::new();
 	// calculate indegs
 	let mut indegs = HashMap::new();
@@ -346,8 +437,14 @@ pub fn instr_schedule_by_dag(
 			}
 			states.push_back(state);
 		}
+		// debug print keeps
 		if keeps.len() > BFS_STATE_THRESHOLD {
 			keeps.sort_by(|a, b| a.2.cmp(&b.2));
+			// println!("keeps: ");
+			// for entry in keeps.iter() {
+			// 	println!("{:?} {}", entry,dag.nodes[entry.1].borrow().instr);
+			// }
+			// println!("======= end keeps ======");
 			keeps.truncate(BFS_STATE_THRESHOLD);
 		}
 		for i in 0..real_cnt {
@@ -385,6 +482,7 @@ pub fn instr_schedule_by_dag(
 				}
 				state.flight_time += cnts[0].3;
 				state.alus[cnts[0].4] = cnts[0].5;
+				state.score = cnts[0].2;
 				states.push_back(state);
 			} else {
 				let mut state = states.pop_front().unwrap();
@@ -417,6 +515,7 @@ pub fn instr_schedule_by_dag(
 					}
 					new_state.flight_time += cnts[j].3;
 					new_state.alus[cnts[j].4] = cnts[j].5;
+					new_state.score = cnts[j].2;
 					states.push_back(new_state);
 				}
 				// 最后一次不 clone 了
@@ -452,6 +551,7 @@ pub fn instr_schedule_by_dag(
 				}
 				state.flight_time += cnts[cnts.len() - 1].3;
 				state.alus[cnts[cnts.len() - 1].4] = cnts[cnts.len() - 1].5;
+				state.score = cnts[cnts.len() - 1].2;
 				states.push_back(state);
 			}
 		}
@@ -462,11 +562,18 @@ pub fn instr_schedule_by_dag(
 	// 		println!("{}", j);
 	// 	}
 	// }
-	let final_state = states.pop_front().unwrap();
+	// state 排序
+	states.make_contiguous().sort_by(|a, b| a.score.cmp(&b.score));
+	let mut final_state = states.pop_front().unwrap();
 	// println!("final state instructions:");
 	// for i in final_state.instrs.iter() {
 	// 	println!("{}", i);
 	// }
+	if final_state.score >= original_punishment {
+		final_state.instrs = original_instrs;
+	} else {
+		//	println!("original punishment: {} final punishment: {}",original_punishment,final_state.score);
+	}
 	Ok(postprocess_call(
 		final_state.instrs,
 		&mut dag.call_related.clone(), // 是我call的顺序可能会调换，post_process 的时候和原本push进去的顺序不一致

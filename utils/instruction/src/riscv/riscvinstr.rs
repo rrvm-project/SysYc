@@ -253,7 +253,7 @@ impl RTN for IBinInstr {
 		match self.op {
 			IBinInstrOp::LD => [1, 0, 0, 0, 3],
 			IBinInstrOp::LA => [1, 0, 0, 0, 3],
-			IBinInstrOp::Li => [1, 0, 0, 0, 3],
+			IBinInstrOp::Li => [0, 0, 0, 0, 1],
 			IBinInstrOp::LW => [1, 0, 0, 0, 3],
 			IBinInstrOp::LWU => [1, 0, 0, 0, 3],
 			IBinInstrOp::Lui => [1, 0, 0, 0, 3],
