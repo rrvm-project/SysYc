@@ -179,9 +179,9 @@ impl InstrDag {
 			&mut call_write,
 			&mut call_reads,
 		);
-		ret_call_writes = call_write.clone();
-		ret_call_reads = call_reads.clone();
-		if processed_instrs.len() > 0 {
+		ret_call_writes.clone_from(&call_write);
+		ret_call_reads.clone_from(&call_reads);
+		if !processed_instrs.is_empty() {
 			let last_instr = processed_instrs.last().unwrap();
 			if last_instr.is_branch() {
 				last_branch = Some(last_instr.clone());
@@ -226,16 +226,15 @@ impl InstrDag {
 			// println!("instr read: {:?}",instr.get_riscv_read());
 			// println!("instr write: {:?}",instr.get_riscv_write());
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
-			if idx == 0 {
-				if instr.get_riscv_write().len() == 1
-					&& instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
-				{
-					li_ret = Some(node.clone());
-				}
+			if idx == 0
+				&& instr.get_riscv_write().len() == 1
+				&& instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
+			{
+				li_ret = Some(node.clone());
 			}
 			let mut instr_node_succ = Vec::new();
 			let instructions_write = instr.get_riscv_write().clone();
-			if instr.is_call() == false {
+			if !instr.is_call() {
 				for instr_write in instructions_write {
 					instr_node_succ.extend(
 						uses.get(&instr_write).unwrap_or(&Vec::new()).iter().cloned(),
@@ -248,7 +247,7 @@ impl InstrDag {
 				}
 			} else {
 				let tmp = call_write.pop().unwrap();
-				my_call_write = tmp.clone();
+				my_call_write = tmp;
 				if let Some(tmp) = tmp {
 					instr_node_succ
 						.extend(uses.get(&tmp).unwrap_or(&Vec::new()).iter().cloned());
@@ -256,7 +255,7 @@ impl InstrDag {
 				}
 			}
 			let instr_read = instr.get_riscv_read().clone();
-			if instr.is_call() == false {
+			if !instr.is_call() {
 				for instr_read_temp in instr_read.iter() {
 					if let Some(def_instr) = defs.get(instr_read_temp) {
 						instr_node_succ.push(def_instr.clone());
@@ -280,15 +279,13 @@ impl InstrDag {
 				}
 			}
 			// init defs
-			if instr.is_call() == false {
+			if !instr.is_call() {
 				let instructions_write = instr.get_riscv_write().clone();
 				for instr_write in instructions_write.iter() {
 					defs.insert(*instr_write, node.clone());
 				}
-			} else {
-				if let Some(tmp) = my_call_write {
-					defs.insert(tmp, node.clone());
-				}
+			} else if let Some(tmp) = my_call_write {
+				defs.insert(tmp, node.clone());
 			}
 			// 处理 load call store 指令的依赖关系
 			if instr.is_call() {

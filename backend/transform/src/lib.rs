@@ -1,7 +1,6 @@
 use std::{
 	cell::RefCell,
 	collections::{HashMap, HashSet},
-	io::{self, Write},
 	rc::Rc,
 };
 
@@ -9,11 +8,8 @@ use instr_schedule::instr_schedule_by_dag;
 use instrdag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
 use rrvm::prelude::*;
-use transformer::{to_riscv, to_rt_type};
-use utils::{
-	errors::Result, BLOCKSIZE_THRESHOLD, DEPENDENCY_EXPLORE_DEPTH,
-	SCHEDULE_THRESHOLD,
-};
+use transformer::to_riscv;
+use utils::{errors::Result, BLOCKSIZE_THRESHOLD, SCHEDULE_THRESHOLD};
 
 pub mod instr_schedule;
 pub mod instrdag;
@@ -121,6 +117,7 @@ pub fn instr_schedule_block(
 			.map(|v| vec![v])
 	}
 }
+#[allow(clippy::type_complexity)]
 pub fn convert_func(
 	func: LlvmFunc,
 	mgr: &mut TempManager,
@@ -187,9 +184,9 @@ pub fn convert_func(
 		live_outs,
 	))
 }
-
+#[allow(dead_code)]
 fn transform_loop_block(
-	node: &RiscvNode,
+	_node: &RiscvNode,
 	_mgr: &mut TempManager,
 	_n: usize, // 展开次数
 ) -> Result<Vec<RiscvNode>> {

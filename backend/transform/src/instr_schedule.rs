@@ -8,10 +8,7 @@ use crate::{
 	Liveliness,
 };
 use instruction::{
-	riscv::{
-		reg::RiscvReg::A0,
-		value::RiscvTemp::{self, PhysReg},
-	},
+	riscv::value::RiscvTemp::{self},
 	RiscvInstrSet,
 };
 use utils::{
@@ -28,7 +25,6 @@ fn punishment(
 	my_reads: Vec<RiscvTemp>,
 	my_writes: Vec<RiscvTemp>,
 ) -> i32 {
-	let instr = state.instrs.last().unwrap();
 	let mut score = 0;
 	for i in my_reads.iter() {
 		if state.liveliness_map.get(i).unwrap().use_num == 1
@@ -105,9 +101,9 @@ fn punishment(
 	for i in dag.nodes[instr_id].borrow().succ.iter() {
 		let mut my_succ_reads = Vec::new();
 		if i.borrow().instr.is_call() {
-			my_succ_reads = dag.call_reads[state.call_ids.len()].clone();
+			my_succ_reads.clone_from(&dag.call_reads[state.call_ids.len()]);
 		} else {
-			my_succ_reads = i.borrow().instr.get_riscv_read().clone();
+			my_succ_reads.clone_from(&i.borrow().instr.get_riscv_read());
 		}
 		succ_sum += my_succ_reads
 			.iter()
@@ -137,7 +133,7 @@ fn punishment(
 				Vec::new()
 			};
 		} else {
-			my_succ_writes = i.borrow().instr.get_riscv_write().clone();
+			my_succ_writes.clone_from(&i.borrow().instr.get_riscv_write());
 		}
 		succ_sum += my_succ_writes
 			.iter()
@@ -227,15 +223,15 @@ pub fn instr_schedule_by_dag(
 				let mut my_writes = Vec::new();
 				if dag.nodes[*i].borrow().instr.is_call() {
 					//check state's call_id length
-					my_reads = dag.call_reads[state.call_ids.len()].clone();
+					my_reads.clone_from(&dag.call_reads[state.call_ids.len()]);
 					my_writes = if let Some(tmp) = dag.call_writes[state.call_ids.len()] {
 						vec![tmp]
 					} else {
 						Vec::new()
 					};
 				} else {
-					my_reads = dag.nodes[*i].borrow().instr.get_riscv_read().clone();
-					my_writes = dag.nodes[*i].borrow().instr.get_riscv_write().clone();
+					my_reads.clone_from(&dag.nodes[*i].borrow().instr.get_riscv_read());
+					my_writes.clone_from(&dag.nodes[*i].borrow().instr.get_riscv_write());
 				}
 				let score = state.score
 					+ punishment(
@@ -256,9 +252,8 @@ pub fn instr_schedule_by_dag(
 		}
 		for i in 0..real_cnt {
 			// iterate the keeps
-			let mut cnts: Vec<_> =
-				keeps.iter().filter(|x| x.0 == i).map(|x| *x).collect();
-			if cnts.len() == 0 {
+			let cnts: Vec<_> = keeps.iter().filter(|x| x.0 == i).copied().collect();
+			if cnts.is_empty() {
 				states.pop_front();
 			} else if cnts.len() == 1 {
 				let mut state = states.pop_front().unwrap();
@@ -269,10 +264,10 @@ pub fn instr_schedule_by_dag(
 				// calc my_reads
 				let mut my_reads = Vec::new();
 				if state.instrs.last().unwrap().is_call() {
-					my_reads = dag.call_reads[state.call_ids.len() - 1].clone();
+					my_reads.clone_from(&dag.call_reads[state.call_ids.len() - 1]);
 				} else {
-					my_reads =
-						dag.nodes[cnts[0].1].borrow().instr.get_riscv_read().clone();
+					my_reads
+						.clone_from(&dag.nodes[cnts[0].1].borrow().instr.get_riscv_read());
 				}
 				// decl the use in new_state's liveliness_map
 				for i in my_reads.iter() {
@@ -290,26 +285,26 @@ pub fn instr_schedule_by_dag(
 				states.push_back(state);
 			} else {
 				let mut state = states.pop_front().unwrap();
-				for j in 0..cnts.len() - 1 {
+				for j in cnts.iter().take(cnts.len() - 1) {
 					let mut new_state = state.clone();
-					new_state.instrs.push(dag.nodes[cnts[j].1].borrow().instr.clone());
-					if dag.nodes[cnts[j].1].borrow().instr.is_call() {
-						new_state.call_ids.push(cnts[j].1);
+					new_state.instrs.push(dag.nodes[j.1].borrow().instr.clone());
+					if dag.nodes[j.1].borrow().instr.is_call() {
+						new_state.call_ids.push(j.1);
 					}
 					// calc my_reads
 					let mut my_reads = Vec::new();
 					if new_state.instrs.last().unwrap().is_call() {
-						my_reads = dag.call_reads[new_state.call_ids.len() - 1].clone();
+						my_reads.clone_from(&dag.call_reads[new_state.call_ids.len() - 1]);
 					} else {
-						my_reads =
-							dag.nodes[cnts[j].1].borrow().instr.get_riscv_read().clone();
+						my_reads
+							.clone_from(&dag.nodes[j.1].borrow().instr.get_riscv_read());
 					}
 					// decl the use in new_state's liveliness_map
 					for i in my_reads.iter() {
 						new_state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
 					}
-					new_state.indegs.remove(&cnts[j].1);
-					for succ in dag.nodes[cnts[j].1].borrow().succ.iter() {
+					new_state.indegs.remove(&j.1);
+					for succ in dag.nodes[j.1].borrow().succ.iter() {
 						let mut new_indeg = new_state.indegs.clone();
 						new_indeg.insert(
 							succ.borrow().id,
@@ -329,13 +324,11 @@ pub fn instr_schedule_by_dag(
 				// calc my_reads
 				let mut my_reads = Vec::new();
 				if state.instrs.last().unwrap().is_call() {
-					my_reads = dag.call_reads[state.call_ids.len() - 1].clone();
+					my_reads.clone_from(&dag.call_reads[state.call_ids.len() - 1]);
 				} else {
-					my_reads = dag.nodes[cnts[cnts.len() - 1].1]
-						.borrow()
-						.instr
-						.get_riscv_read()
-						.clone();
+					my_reads.clone_from(
+						&dag.nodes[cnts[cnts.len() - 1].1].borrow().instr.get_riscv_read(),
+					);
 				}
 				// decl the use in new_state's liveliness_map
 				for i in my_reads.iter() {
