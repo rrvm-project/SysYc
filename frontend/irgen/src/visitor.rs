@@ -76,6 +76,7 @@ impl Visitor for IRGenerator {
 			ret_type: var_type,
 			params,
 			external_resorce: HashSet::new(),
+			entrance: rrvm::func::Entrance::Unkonwn,
 		});
 		let _ = self.symbol_table.drop();
 		Ok(())
@@ -98,6 +99,7 @@ impl Visitor for IRGenerator {
 				node.ident.clone(),
 				data,
 				var_type.is_float(),
+				symbol.var_type.is_array(),
 			));
 			return Ok(());
 		}

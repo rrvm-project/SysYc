@@ -2,9 +2,11 @@ use std::{
 	cell::RefCell,
 	collections::{HashMap, HashSet},
 	fmt::Display,
+	hash::Hash,
 	rc::Rc,
 };
 
+use super::rrvm_loop::LoopPtr;
 use instruction::riscv::RiscvInstr;
 use llvm::{
 	JumpInstr, LlvmInstr, LlvmInstrTrait, LlvmTemp, PhiInstr, RetInstr, Value,
@@ -30,6 +32,8 @@ pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub phi_defs: HashSet<LlvmTemp>,
 	pub instrs: Vec<T>,
 	pub jump_instr: Option<T>,
+	// 该 block 属于哪个 loop
+	pub loop_: Option<LoopPtr>,
 }
 
 fn get_other_label<T: InstrTrait<U>, U: TempTrait>(
@@ -61,6 +65,7 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			phi_defs: HashSet::new(),
 			instrs: Vec::new(),
 			jump_instr: None,
+			loop_: None,
 		}
 	}
 	pub fn new_node(id: i32, weight: f64) -> Node<T, U> {
@@ -201,9 +206,23 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 	}
 }
 
-impl PartialEq for LlvmBasicBlock {
+// impl PartialEq for LlvmBasicBlock {
+// 	fn eq(&self, other: &Self) -> bool {
+// 		self.id == other.id
+// 	}
+// }
+
+impl<T: InstrTrait<U>, U: TempTrait> PartialEq for BasicBlock<T, U> {
 	fn eq(&self, other: &Self) -> bool {
 		self.id == other.id
+	}
+}
+
+impl<T: InstrTrait<U>, U: TempTrait> Eq for BasicBlock<T, U> {}
+
+impl<T: InstrTrait<U>, U: TempTrait> Hash for BasicBlock<T, U> {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.id.hash(state);
 	}
 }
 

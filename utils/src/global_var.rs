@@ -13,6 +13,7 @@ pub struct GlobalVar {
 	pub ident: String,
 	pub data: Vec<ValueItem>,
 	pub is_float: bool,
+	pub is_array: bool,
 }
 
 impl Display for ValueItem {
@@ -46,11 +47,13 @@ impl GlobalVar {
 		ident: impl Display,
 		data: Vec<ValueItem>,
 		is_float: bool,
+		is_array: bool,
 	) -> Self {
 		Self {
 			ident: ident.to_string(),
 			data,
 			is_float,
+			is_array,
 		}
 	}
 	pub fn size(&self) -> usize {
