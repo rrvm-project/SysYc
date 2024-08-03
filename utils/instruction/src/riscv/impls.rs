@@ -56,6 +56,13 @@ impl RiscvInstrTrait for RTriInstr {
 			_ => false,
 		}
 	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		match &self.op {
+			Slt => Some(Blt),
+			Sltu => Some(Bltu),
+			_ => None,
+		}
+	}
 }
 
 impl RTriInstr {
@@ -119,6 +126,13 @@ impl RiscvInstrTrait for ITriInstr {
 				_ => IncrementType::None,
 			},
 			_ => IncrementType::None,
+		}
+	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		match &self.op {
+			Slti => Some(Blt),
+			Sltiu => Some(Bltu),
+			_ => None,
 		}
 	}
 }
@@ -260,6 +274,13 @@ impl RiscvInstrTrait for RBinInstr {
 	}
 	fn useless(&self) -> bool {
 		self.is_move() && self.rd == self.rs1
+	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		match &self.op {
+			Seqz => Some(Bne),
+			Snez => Some(Beq),
+			_ => None,
+		}
 	}
 }
 

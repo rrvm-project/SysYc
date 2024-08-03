@@ -4,6 +4,7 @@ use std::{
 	rc::Rc,
 };
 
+use branch_combine::conditional_branch_combine;
 use instr_schedule::instr_schedule_by_dag;
 use instrdag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
@@ -11,30 +12,34 @@ use rrvm::prelude::*;
 use transformer::to_riscv;
 use utils::{errors::Result, BLOCKSIZE_THRESHOLD, SCHEDULE_THRESHOLD};
 
+pub mod branch_combine;
 pub mod instr_schedule;
 pub mod instrdag;
 pub mod remove_phi;
 pub mod transformer;
-
 pub fn get_functions(
 	program: &mut RiscvProgram,
 	funcs: Vec<LlvmFunc>,
 ) -> Result<()> {
 	for func in funcs {
-		let converted_func = convert_func(func, &mut program.temp_mgr)?;
+		let mut converted_func = convert_func(func, &mut program.temp_mgr)?;
 		// println!("--- before instr schedule: ---");
 		// for i in converted_func.0.cfg.blocks.iter() {
 		// 	for j in i.borrow().instrs.iter() {
 		// 		println!("{}", j);
 		// 	}
 		// 	println!("block end");
-		// 	// println!(
-		// 	// 	"jump instruction: {}",
-		// 	// 	i.borrow().jump_instr.as_ref().unwrap()
-		// 	// );
 		// }
 		// println!("---end---");
-		// io::stdout().flush().unwrap();
+		conditional_branch_combine(&mut converted_func.0, &converted_func.2);
+		// println!("--- after branch combine: ---");
+		// for i in converted_func.0.cfg.blocks.iter() {
+		// 	for j in i.borrow().instrs.iter() {
+		// 		println!("{}", j);
+		// 	}
+		// 	println!("block end");
+		// }
+		// println!("---end---");
 		let func = instr_schedule(
 			converted_func.0,
 			converted_func.1,

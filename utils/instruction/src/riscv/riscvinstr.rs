@@ -179,6 +179,9 @@ pub trait RiscvInstrTrait:
 	fn is_branch(&self) -> bool {
 		false
 	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		None
+	}
 }
 
 impl UseTemp<Temp> for RiscvInstr {
