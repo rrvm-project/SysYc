@@ -59,8 +59,14 @@ impl RiscvInstrTrait for RTriInstr {
 	fn get_variant(&self) -> RiscvInstrVariant {
 		RiscvInstrVariant::RTriInstr(self)
 	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		match &self.op {
+			Slt => Some(Blt),
+			Sltu => Some(Bltu),
+			_ => None,
+		}
+	}
 }
-
 impl RTriInstr {
 	pub fn new(
 		op: RTriInstrOp,
@@ -131,6 +137,13 @@ impl RiscvInstrTrait for ITriInstr {
 	}
 	fn get_variant(&self) -> RiscvInstrVariant {
 		RiscvInstrVariant::ITriInstr(self)
+	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		match &self.op {
+			Slti => Some(Blt),
+			Sltiu => Some(Bltu),
+			_ => None,
+		}
 	}
 }
 

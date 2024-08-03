@@ -1,6 +1,8 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use instr_dag::InstrDag;
+use branch_combine::conditional_branch_combine;
+use instr_schedule::instr_schedule_by_dag;
+use instrdag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
 
 use llvm::Value;
@@ -9,6 +11,7 @@ use transformer::to_riscv;
 use utils::{errors::Result, SysycError::RiscvGenError};
 
 pub mod instr_dag;
+pub mod branch_combine;
 pub mod instr_schedule;
 
 pub mod remove_phi;
@@ -20,8 +23,38 @@ pub fn get_functions(
 	funcs: Vec<LlvmFunc>,
 ) -> Result<()> {
 	for func in funcs {
-		let myfunc = convert_func(func, &mut program.temp_mgr)?;
-		program.funcs.push(myfunc);
+		let mut converted_func = convert_func(func, &mut program.temp_mgr)?;
+		// println!("--- before instr schedule: ---");
+		// for i in converted_func.0.cfg.blocks.iter() {
+		// 	for j in i.borrow().instrs.iter() {
+		// 		println!("{}", j);
+		// 	}
+		// 	println!("block end");
+		// }
+		// println!("---end---");
+		conditional_branch_combine(&mut converted_func.0, &converted_func.2);
+		// println!("--- after branch combine: ---");
+		// for i in converted_func.0.cfg.blocks.iter() {
+		// 	for j in i.borrow().instrs.iter() {
+		// 		println!("{}", j);
+		// 	}
+		// 	println!("block end");
+		// }
+		// println!("---end---");
+		let func = instr_schedule(
+			converted_func.0,
+			converted_func.1,
+			converted_func.2,
+			&mut program.temp_mgr,
+		)?;
+		program.funcs.push(func);
+		// println!("--------");
+		// for i in func.cfg.blocks.iter() {
+		// 	for j in i.borrow().instrs.iter() {
+		// 		println!("{}", j);
+		// 	}
+		// }
+		// println!("--------");
 	}
 	Ok(())
 }
