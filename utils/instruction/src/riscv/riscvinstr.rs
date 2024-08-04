@@ -1,6 +1,10 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{
+	collections::HashMap,
+	fmt::Display,
+	ops::{Add, Sub},
+};
 use sysyc_derive::UseTemp;
-use utils::{mapper::LabelMapper, InstrTrait, Label, UseTemp};
+use utils::{mapper::LabelMapper, InstrTrait, Label, UseTemp, RTN};
 
 use crate::temp::Temp;
 
@@ -26,8 +30,86 @@ impl Clone for RiscvInstr {
 		self.clone_box()
 	}
 }
-
-pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
+#[derive(Clone)]
+pub enum IncrementType {
+	Int(i32),
+	LongLong(i64),
+	None,
+}
+impl Add for IncrementType {
+	type Output = Self;
+	fn add(self, other: Self) -> Self {
+		match (self, other) {
+			(IncrementType::Int(a), IncrementType::Int(b)) => {
+				IncrementType::Int(a + b)
+			}
+			(IncrementType::LongLong(a), IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(a + b)
+			}
+			(IncrementType::Int(a), IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(a as i64 + b)
+			}
+			(IncrementType::LongLong(a), IncrementType::Int(b)) => {
+				IncrementType::LongLong(a + b as i64)
+			}
+			(IncrementType::Int(a), IncrementType::None) => IncrementType::Int(a),
+			(IncrementType::LongLong(a), IncrementType::None) => {
+				IncrementType::LongLong(a)
+			}
+			(IncrementType::None, IncrementType::Int(b)) => IncrementType::Int(b),
+			(IncrementType::None, IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(b)
+			}
+			(IncrementType::None, IncrementType::None) => IncrementType::None,
+		}
+	}
+}
+impl Sub for IncrementType {
+	type Output = Self;
+	fn sub(self, other: Self) -> Self {
+		match (self, other) {
+			(IncrementType::Int(a), IncrementType::Int(b)) => {
+				IncrementType::Int(a - b)
+			}
+			(IncrementType::LongLong(a), IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(a - b)
+			}
+			(IncrementType::Int(a), IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(a as i64 - b)
+			}
+			(IncrementType::LongLong(a), IncrementType::Int(b)) => {
+				IncrementType::LongLong(a - b as i64)
+			}
+			(IncrementType::Int(a), IncrementType::None) => IncrementType::Int(a),
+			(IncrementType::LongLong(a), IncrementType::None) => {
+				IncrementType::LongLong(a)
+			}
+			(IncrementType::None, IncrementType::Int(b)) => IncrementType::Int(-b),
+			(IncrementType::None, IncrementType::LongLong(b)) => {
+				IncrementType::LongLong(-b)
+			}
+			(IncrementType::None, IncrementType::None) => IncrementType::None,
+		}
+	}
+}
+impl PartialEq for IncrementType {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(IncrementType::Int(a), IncrementType::Int(b)) => *a == *b,
+			(IncrementType::LongLong(a), IncrementType::LongLong(b)) => *a == *b,
+			(IncrementType::Int(a), IncrementType::LongLong(b)) => *a as i64 == *b,
+			(IncrementType::LongLong(a), IncrementType::Int(b)) => *a == *b as i64,
+			(IncrementType::Int(a), IncrementType::None) => *a == 0,
+			(IncrementType::LongLong(a), IncrementType::None) => *a == 0,
+			(IncrementType::None, IncrementType::Int(b)) => *b == 0,
+			(IncrementType::None, IncrementType::LongLong(b)) => *b == 0,
+			(IncrementType::None, IncrementType::None) => true,
+		}
+	}
+}
+pub trait RiscvInstrTrait:
+	Display + UseTemp<Temp> + CloneRiscvInstr + RTN
+{
 	fn map_src_temp(&mut self, _map: &HashMap<Temp, RiscvTemp>) {}
 	fn map_dst_temp(&mut self, _map: &HashMap<Temp, RiscvTemp>) {}
 	fn map_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
@@ -57,6 +139,9 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 	fn get_write_label(&self) -> Option<Label> {
 		None
 	}
+	fn get_imm(&self) -> Option<RiscvImm> {
+		None
+	}
 	fn is_move(&self) -> bool {
 		false
 	}
@@ -65,6 +150,12 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 	}
 	fn is_call(&self) -> bool {
 		false
+	}
+	fn is_load(&self) -> Option<bool> {
+		None
+	}
+	fn is_store(&self) -> Option<bool> {
+		None
 	}
 	fn map_label(&mut self, _map: &mut LabelMapper) {}
 	fn useless(&self) -> bool {
@@ -75,6 +166,21 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 	}
 	fn get_temp_type(&self) -> llvm::VarType {
 		unreachable!()
+	}
+	fn get_increment(&self) -> IncrementType {
+		IncrementType::None
+	}
+	fn is_save(&self) -> bool {
+		false
+	}
+	fn is_restore(&self) -> bool {
+		false
+	}
+	fn is_branch(&self) -> bool {
+		false
+	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		None
 	}
 }
 
@@ -92,7 +198,11 @@ impl InstrTrait<Temp> for RiscvInstr {
 		self.as_ref().is_call()
 	}
 }
-
+impl RTN for RiscvInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		self.as_ref().get_rtn_array()
+	}
+}
 #[derive(UseTemp, Clone)]
 pub struct RTriInstr {
 	pub op: RTriInstrOp,
@@ -100,7 +210,26 @@ pub struct RTriInstr {
 	pub rs1: RiscvTemp,
 	pub rs2: RiscvTemp,
 }
-
+impl RTN for RTriInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		match self.op {
+			RTriInstrOp::Mul => [0, 0, 1, 0, 3],
+			RTriInstrOp::Mulw => [0, 0, 1, 0, 3],
+			RTriInstrOp::Div => [0, 0, 1, 0, 12],
+			RTriInstrOp::Divw => [0, 0, 1, 0, 12],
+			RTriInstrOp::Rem => [0, 0, 1, 0, 12],
+			RTriInstrOp::Remw => [0, 0, 1, 0, 12],
+			RTriInstrOp::Fadd => [0, 0, 0, 1, 5],
+			RTriInstrOp::Fsub => [0, 0, 0, 1, 5],
+			RTriInstrOp::Fmul => [0, 0, 0, 1, 5],
+			RTriInstrOp::Fdiv => [0, 0, 0, 1, 27],
+			RTriInstrOp::Feq => [0, 0, 0, 1, 4],
+			RTriInstrOp::Flt => [0, 0, 0, 1, 4],
+			RTriInstrOp::Fle => [0, 0, 0, 1, 4],
+			_ => [0, 0, 0, 0, 1],
+		}
+	}
+}
 #[derive(UseTemp, Clone)]
 pub struct ITriInstr {
 	pub op: ITriInstrOp,
@@ -108,26 +237,54 @@ pub struct ITriInstr {
 	pub rs1: RiscvTemp,
 	pub rs2: RiscvImm,
 }
-
+impl RTN for ITriInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		[0, 0, 0, 0, 1]
+	}
+}
 #[derive(UseTemp, Clone)]
 pub struct IBinInstr {
 	pub op: IBinInstrOp,
 	pub rd: RiscvTemp,
 	pub rs1: RiscvImm,
 }
-
+impl RTN for IBinInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		match self.op {
+			IBinInstrOp::LD => [1, 0, 0, 0, 3],
+			IBinInstrOp::LA => [1, 0, 0, 0, 3],
+			IBinInstrOp::Li => [1, 0, 0, 0, 3],
+			IBinInstrOp::LW => [1, 0, 0, 0, 3],
+			IBinInstrOp::LWU => [1, 0, 0, 0, 3],
+			IBinInstrOp::Lui => [1, 0, 0, 0, 3],
+			_ => [1, 0, 0, 0, 1],
+		}
+	}
+}
 #[derive(UseTemp, Clone)]
 pub struct RBinInstr {
 	pub op: RBinInstrOp,
 	pub rd: RiscvTemp,
 	pub rs1: RiscvTemp,
 }
-
+impl RTN for RBinInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		match self.op {
+			RBinInstrOp::Float2Int => [0, 0, 0, 1, 4],
+			RBinInstrOp::Int2Float => [0, 0, 0, 1, 2],
+			_ => [0, 0, 0, 0, 1],
+		}
+	}
+}
 #[derive(UseTemp, Clone)]
 pub struct LabelInstr {
 	pub label: Label,
 }
-
+impl RTN for LabelInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		[0, 0, 0, 0, 0]
+	}
+}
 #[derive(UseTemp, Clone)]
 pub struct BranInstr {
 	pub op: BranInstrOp,
@@ -135,21 +292,38 @@ pub struct BranInstr {
 	pub rs2: RiscvTemp,
 	pub to: RiscvImm,
 }
-
+impl RTN for BranInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		[0, 1, 0, 0, 1]
+	}
+}
 #[derive(UseTemp, Clone)]
 pub struct NoArgInstr {
 	pub op: NoArgInstrOp,
 }
-
+impl RTN for NoArgInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		[0, 1, 0, 0, 1]
+	}
+}
 #[derive(UseTemp, Clone)]
 pub struct CallInstr {
 	pub func_label: Label,
 	pub params: Vec<RiscvTemp>,
 }
-
+impl RTN for CallInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		[0, 1, 0, 0, 1]
+	}
+}
 #[derive(UseTemp, Clone)]
 pub struct TemporayInstr {
 	pub op: TemporayInstrOp,
 	pub var_type: llvm::VarType,
 	pub lives: Vec<RiscvReg>,
+}
+impl RTN for TemporayInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		[0, 0, 0, 0, 1]
+	}
 }

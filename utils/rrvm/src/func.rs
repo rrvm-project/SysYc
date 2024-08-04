@@ -6,6 +6,13 @@ use utils::{
 };
 
 use crate::cfg::CFG;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Entrance {
+	Unkonwn,
+	Never,
+	Single,
+	Multi,
+}
 
 pub struct RrvmFunc<T: InstrTrait<U>, U: TempTrait> {
 	pub total: i32,
@@ -15,6 +22,7 @@ pub struct RrvmFunc<T: InstrTrait<U>, U: TempTrait> {
 	pub ret_type: VarType,
 	pub params: Vec<Value>,
 	pub external_resorce: HashSet<ExternalResource>,
+	pub entrance: Entrance,
 }
 
 impl<T: InstrTrait<U>, U: TempTrait> RrvmFunc<T, U> {

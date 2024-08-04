@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::PureCheck;
 use crate::RrvmOptimizer;
-use rrvm::program::LlvmProgram;
+use rrvm::{func::Entrance, program::LlvmProgram};
 use utils::errors::Result;
 
 impl RrvmOptimizer for PureCheck {
@@ -14,6 +14,7 @@ impl RrvmOptimizer for PureCheck {
 		let mut work_list: VecDeque<String> = VecDeque::new();
 		let mut inverse_call_relation: HashMap<String, HashSet<String>> =
 			HashMap::new();
+		let mut call_relation: HashMap<String, HashSet<String>> = HashMap::new();
 
 		// program.funcs.iter_mut().map(|func| mark(func));
 		for func in program.funcs.iter_mut() {
@@ -27,6 +28,10 @@ impl RrvmOptimizer for PureCheck {
 									.entry(callee.clone())
 									.or_default()
 									.insert(func.name.clone());
+								call_relation
+									.entry(func.name.clone())
+									.or_default()
+									.insert(callee.clone());
 							}
 							v => {
 								work_list.push_front(func.name.clone());
@@ -37,6 +42,88 @@ impl RrvmOptimizer for PureCheck {
 				}
 			}
 		}
+
+		let mut begin: HashMap<String, usize> = HashMap::new();
+		let mut end: HashMap<String, usize> = HashMap::new();
+
+		let mut timer: usize = 0;
+		let mut in_loop: HashSet<String> = HashSet::new();
+
+		fn dfs(
+			name: &String,
+			timer: &mut usize,
+			begin: &mut HashMap<String, usize>,
+			end: &mut HashMap<String, usize>,
+			call_relation: &HashMap<String, HashSet<String>>,
+			result: &mut HashSet<String>,
+		) -> Option<usize> {
+			*timer += 1;
+			begin.insert(name.clone(), *timer);
+			let self_begin = *timer;
+
+			let mut earliest: Option<usize> = None;
+
+			let update = |old: Option<usize>, new: Option<usize>| match (old, new) {
+				(None, _) => new,
+				(Some(_), None) => old,
+				(Some(u), Some(v)) => Some(u.min(v)),
+			};
+
+			for callee in
+				call_relation.get(name).iter().flat_map(|callees| callees.iter())
+			{
+				match (begin.get(callee), end.get(callee)) {
+					(None, None) => {
+						//tree edge
+						update(
+							earliest,
+							dfs(callee, timer, begin, end, call_relation, result),
+						);
+					}
+					(None, _) => unreachable!(),
+					(Some(u), None) => {
+						//back edge, (also self loop)
+						earliest = update(earliest, Some(*u));
+					}
+					(Some(_), Some(_)) => {
+						// forward or side
+					}
+				}
+			}
+
+			if let Some(u) = earliest {
+				if u <= self_begin {
+					result.insert(name.clone());
+				}
+			}
+
+			*timer += 1;
+			end.insert(name.clone(), *timer);
+			earliest
+		}
+
+		dfs(
+			&"main".to_string(),
+			&mut timer,
+			&mut begin,
+			&mut end,
+			&call_relation,
+			&mut in_loop,
+		);
+
+		for func in program.funcs.iter_mut() {
+			let name = &func.name;
+			func.entrance = match (begin.contains_key(name), in_loop.contains(name)) {
+				(true, true) => Entrance::Multi,
+				(true, false) => Entrance::Single,
+				(false, _) => Entrance::Never,
+			};
+		}
+
+		// for func in program.funcs.iter_mut(){
+		// 	let name = &func.name;
+		// 	dbg!((name, func.entrance));
+		// }
 
 		let mut not_pure = HashSet::new();
 		while let Some(funcname) = work_list.pop_back() {
@@ -76,6 +163,10 @@ impl RrvmOptimizer for PureCheck {
 				}
 			}
 		}
+
+		// program.funcs.retain(|func|{
+		// 	func.entrance != Entrance::Never
+		// });
 
 		Ok(false)
 	}

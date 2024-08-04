@@ -5,6 +5,7 @@ pub mod func;
 pub mod impls;
 pub mod prelude;
 pub mod program;
+pub mod rrvm_loop;
 
 use basicblock::Node;
 use cfg::CFG;

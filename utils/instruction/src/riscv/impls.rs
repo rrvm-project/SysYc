@@ -56,6 +56,13 @@ impl RiscvInstrTrait for RTriInstr {
 			_ => false,
 		}
 	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		match &self.op {
+			Slt => Some(Blt),
+			Sltu => Some(Bltu),
+			_ => None,
+		}
+	}
 }
 
 impl RTriInstr {
@@ -109,6 +116,23 @@ impl RiscvInstrTrait for ITriInstr {
 			(Xori, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
 			(Ori, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
 			_ => false,
+		}
+	}
+	fn get_increment(&self) -> IncrementType {
+		match self.op {
+			Addi | Addiw => match self.rs2 {
+				RiscvImm::Int(v) => IncrementType::Int(v),
+				RiscvImm::LongLong(v) => IncrementType::LongLong(v),
+				_ => IncrementType::None,
+			},
+			_ => IncrementType::None,
+		}
+	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		match &self.op {
+			Slti => Some(Blt),
+			Sltiu => Some(Bltu),
+			_ => None,
 		}
 	}
 }
@@ -178,6 +202,21 @@ impl RiscvInstrTrait for IBinInstr {
 			map_imm_label(&mut self.rs1, map);
 		}
 	}
+	fn get_imm(&self) -> Option<RiscvImm> {
+		Some(self.rs1.clone())
+	}
+	fn is_load(&self) -> Option<bool> {
+		match self.op {
+			Li | Lui | LD | LW | LWU | LA | FLD | FLW => Some(true),
+			SB | SH | SW | SD | FSD | FSW => Some(false),
+		}
+	}
+	fn is_store(&self) -> Option<bool> {
+		match self.op {
+			Li | Lui | LD | LW | LWU | LA | FLD | FLW => Some(false),
+			SB | SH | SW | SD | FSD | FSW => Some(true),
+		}
+	}
 }
 
 impl IBinInstr {
@@ -236,6 +275,13 @@ impl RiscvInstrTrait for RBinInstr {
 	fn useless(&self) -> bool {
 		self.is_move() && self.rd == self.rs1
 	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		match &self.op {
+			Seqz => Some(Bne),
+			Snez => Some(Beq),
+			_ => None,
+		}
+	}
 }
 
 impl RBinInstr {
@@ -271,6 +317,9 @@ impl RiscvInstrTrait for BranInstr {
 			RiscvImm::Label(label) => Some(label.clone()),
 			_ => unreachable!(),
 		}
+	}
+	fn is_branch(&self) -> bool {
+		true
 	}
 }
 
@@ -359,6 +408,12 @@ impl RiscvInstrTrait for TemporayInstr {
 	}
 	fn get_temp_type(&self) -> llvm::VarType {
 		self.var_type
+	}
+	fn is_save(&self) -> bool {
+		matches!(self.op, TemporayInstrOp::Save)
+	}
+	fn is_restore(&self) -> bool {
+		matches!(self.op, TemporayInstrOp::Restore)
 	}
 }
 
