@@ -56,6 +56,9 @@ impl RiscvInstrTrait for RTriInstr {
 			_ => false,
 		}
 	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::RTriInstr(self)
+	}
 }
 
 impl RTriInstr {
@@ -110,6 +113,9 @@ impl RiscvInstrTrait for ITriInstr {
 			(Ori, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
 			_ => false,
 		}
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::ITriInstr(self)
 	}
 }
 
@@ -178,6 +184,9 @@ impl RiscvInstrTrait for IBinInstr {
 			map_imm_label(&mut self.rs1, map);
 		}
 	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::IBinInstr(self)
+	}
 }
 
 impl IBinInstr {
@@ -198,6 +207,9 @@ impl RiscvInstrTrait for LabelInstr {
 	}
 	fn get_write_label(&self) -> Option<Label> {
 		Some(self.label.clone())
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::LabelInstr(self)
 	}
 }
 
@@ -236,6 +248,16 @@ impl RiscvInstrTrait for RBinInstr {
 	fn useless(&self) -> bool {
 		self.is_move() && self.rd == self.rs1
 	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		match &self.op {
+			Seqz => Some(Bne),
+			Snez => Some(Beq),
+			_ => None,
+		}
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::RBinInstr(self)
+	}
 }
 
 impl RBinInstr {
@@ -272,6 +294,12 @@ impl RiscvInstrTrait for BranInstr {
 			_ => unreachable!(),
 		}
 	}
+	fn is_branch(&self) -> bool {
+		true
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::BranInstr(self)
+	}
 }
 
 impl BranInstr {
@@ -304,6 +332,9 @@ impl RiscvInstrTrait for NoArgInstr {
 	fn is_ret(&self) -> bool {
 		true
 	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::NoArgInstr(self)
+	}
 }
 
 impl NoArgInstr {
@@ -327,6 +358,9 @@ impl RiscvInstrTrait for CallInstr {
 	}
 	fn is_call(&self) -> bool {
 		true
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::CallInstr(self)
 	}
 }
 
@@ -359,6 +393,15 @@ impl RiscvInstrTrait for TemporayInstr {
 	}
 	fn get_temp_type(&self) -> llvm::VarType {
 		self.var_type
+	}
+	fn is_save(&self) -> bool {
+		matches!(self.op, TemporayInstrOp::Save)
+	}
+	fn is_restore(&self) -> bool {
+		matches!(self.op, TemporayInstrOp::Restore)
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::TemporayInstr(self)
 	}
 }
 

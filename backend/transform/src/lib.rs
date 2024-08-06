@@ -20,7 +20,42 @@ pub fn get_functions(
 	funcs: Vec<LlvmFunc>,
 ) -> Result<()> {
 	for func in funcs {
+<<<<<<< HEAD
 		program.funcs.push(convert_func(func, &mut program.temp_mgr)?);
+=======
+		let mut converted_func = convert_func(func, &mut program.temp_mgr)?;
+		// println!("--- before instr schedule: ---");
+		// for i in converted_func.0.cfg.blocks.iter() {
+		// 	for j in i.borrow().instrs.iter() {
+		// 		println!("{}", j);
+		// 	}
+		// 	println!("block end");
+		// }
+		// println!("---end---");
+		conditional_branch_combine(&mut converted_func.0, &converted_func.2);
+		// println!("--- after branch combine: ---");
+		// for i in converted_func.0.cfg.blocks.iter() {
+		// 	for j in i.borrow().instrs.iter() {
+		// 		println!("{}", j);
+		// 	}
+		// 	println!("block end");
+		// }
+		// println!("---end---");
+		let func = instr_schedule(
+			converted_func.0,
+			converted_func.1,
+			converted_func.2,
+			&mut program.temp_mgr,
+		)?;
+		println!("--------");
+		for i in func.cfg.blocks.iter() {
+			for j in i.borrow().instrs.iter() {
+				println!("{}", j);
+			}
+		}
+		println!("--------");
+		program.funcs.push(func);
+>>>>>>> 3472848 (feat: build on riscvVariant)
 	}
 	Ok(())
 }
