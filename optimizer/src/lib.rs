@@ -18,6 +18,7 @@ mod useless_phis;
 use metadata::MetaData;
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
+mod arith;
 
 pub trait RrvmOptimizer {
 	fn new() -> Self;

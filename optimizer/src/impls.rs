@@ -1,6 +1,10 @@
 use crate::{useless_phis::RemoveUselessPhis, *};
 use alloc_hoisting::AllocHoisting;
+<<<<<<< HEAD
 use calc_coef::CalcCoef;
+=======
+use arith::ArithSimplify;
+>>>>>>> 26a0dbc (feat: self-simplify compute graph)
 use code_hoisting::CodeHoisting;
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
@@ -42,6 +46,7 @@ impl Optimizer1 {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
+			flag |= ArithSimplify::new().apply(program, &mut metadata)?;
 			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
@@ -69,6 +74,7 @@ impl Optimizer2 {
 			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
+			flag |= ArithSimplify::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= CalcCoef::new().apply(program, &mut metadata)?;
@@ -87,10 +93,12 @@ impl Optimizer2 {
 
 		loop {
 			let mut flag = false;
+
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
 			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
+			flag |= ArithSimplify::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
@@ -119,6 +127,7 @@ impl Optimizer2 {
 			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
+			flag |= ArithSimplify::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
@@ -127,6 +136,7 @@ impl Optimizer2 {
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
+
 			if !flag {
 				break;
 			}
