@@ -4,6 +4,7 @@ mod function_inline;
 mod fuyuki_vn;
 pub mod impls;
 mod pure_check;
+mod simplify_compare;
 mod strength_reduce;
 mod tail_recursion;
 mod unreachable;
