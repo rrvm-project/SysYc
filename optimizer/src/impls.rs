@@ -1,4 +1,8 @@
-use crate::{useless_phis::RemoveUselessPhis, *};
+
+use crate::{
+	strength_reduce::StrengthReduce, useless_phis::RemoveUselessPhis, *,
+};
+use arith::ArithSimplify;
 use alloc_hoisting::AllocHoisting;
 use code_hoisting::CodeHoisting;
 use dead_code::RemoveDeadCode;
@@ -85,6 +89,7 @@ impl Optimizer2 {
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
+			flag |= ArithSimplify::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
