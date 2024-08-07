@@ -9,8 +9,36 @@ jobs:
     - name: get test repo
       uses: actions/checkout@v4
       with:
-        repository: ${{ vars.TEST_CLIENT_REPO }}
         token: ${{ secrets.TEST_TOKEN }}
+        submodules: 'recursive'
 
-    - name: send test request
-      run: cargo run -- -a ${{ secrets.BACKEND_ADDRESS }} -p 12345 -b ${{ github.ref_name }} -c ${{ github.sha }}
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11.5'
+    
+    - name: Set up Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+
+    - name: Build python dependencies
+      run: pip install requests
+
+    - name: Build compiler
+      run: cargo build --workspace --release
+
+    - name: Run functional test
+      working-directory: ./project-eval
+      run: python test_on_remote.py -t ./testcases/functional -b -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
+
+    - name: Run hidden functional test
+      working-directory: ./project-eval
+      run: python test_on_remote.py -t ./testcases/h_functional -b -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
+      continue-on-error: true
+      
+    - name: Run performance test
+      working-directory: ./project-eval
+      run: python test_on_remote.py -t ./testcases/performance -b -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
+
+    - name: Run fhidden performance test
+      working-directory: ./project-eval
+      run: python test_on_remote.py -t ./testcases/h_performance -b -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
