@@ -23,7 +23,12 @@ pub fn spill(
 					if nodes.contains(&temp) {
 						let addr = mem_mgr.get_mem(temp.into());
 						let new_temp = mgr.new_raw_temp(&temp, false, temp.var_type);
-						let load_instr = IBinInstr::new(LD, new_temp.into(), addr.into());
+						let load_instr = match temp.var_type {
+							VarType::Int => IBinInstr::new(LD, new_temp.into(), addr.into()),
+							VarType::Float => {
+								IBinInstr::new(FLD, new_temp.into(), addr.into())
+							}
+						};
 						new_instrs.push(load_instr);
 						new_map.insert(temp, new_temp);
 						instr
@@ -41,7 +46,10 @@ pub fn spill(
 								.map_dst_temp(&[(temp, new_temp.into())].into_iter().collect());
 							temp = new_temp;
 						}
-						let store_instr = IBinInstr::new(SD, temp.into(), addr.into());
+						let store_instr = match temp.var_type {
+							VarType::Int => IBinInstr::new(SD, temp.into(), addr.into()),
+							VarType::Float => IBinInstr::new(FSD, temp.into(), addr.into()),
+						};
 						new_instrs.push(store_instr);
 					}
 				}

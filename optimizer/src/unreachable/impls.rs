@@ -14,7 +14,7 @@ impl RrvmOptimizer for RemoveUnreachCode {
 		program: &mut LlvmProgram,
 		_metadata: &mut MetaData,
 	) -> Result<bool> {
-		Ok(program.funcs.iter_mut().fold(false, |last, func| {
+		let flag = program.funcs.iter_mut().fold(false, |last, func| {
 			let size = func.cfg.size();
 			let mut visited = HashSet::new();
 			let cfg = &mut func.cfg;
@@ -39,6 +39,19 @@ impl RrvmOptimizer for RemoveUnreachCode {
 				block.borrow_mut().prev.retain(|v| visited.contains(&v.borrow().id));
 			}
 			last || size != cfg.blocks.len()
-		}))
+		});
+		let mut used_func = HashSet::new();
+		used_func.insert("main".into());
+		for func in program.funcs.iter() {
+			for block in func.cfg.blocks.iter() {
+				for instr in block.borrow().instrs.iter() {
+					if instr.is_call() {
+						used_func.insert(instr.get_label().name);
+					}
+				}
+			}
+		}
+		program.funcs.retain(|func| used_func.contains(&func.name));
+		Ok(flag)
 	}
 }

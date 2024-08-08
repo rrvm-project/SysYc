@@ -24,11 +24,7 @@ impl Hash for Value {
 				i.hash(state);
 			}
 			Value::Float(f) => {
-				let mut value = *f;
-				if value.is_nan() || value.is_infinite() {
-					value = 1926.0817f32;
-				}
-				value.to_bits().hash(state);
+				f.to_bits().hash(state);
 			}
 			Value::Temp(t) => {
 				t.hash(state);

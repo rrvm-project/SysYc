@@ -3,6 +3,7 @@ mod fold_constants;
 mod function_inline;
 mod global_value_numbering;
 pub mod impls;
+mod mem2reg;
 mod metadata;
 mod number;
 mod strength_reduce;
