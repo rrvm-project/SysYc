@@ -147,13 +147,13 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn get_virt_mem_write(&self) -> Option<VirtAddr> {
 		match self.op {
-			SB | SH | SW | SD => self.rs1.to_virt_mem(),
+			SB | SH | SW | SD | FSW | FSD => self.rs1.to_virt_mem(),
 			_ => None,
 		}
 	}
 	fn get_virt_mem_read(&self) -> Option<VirtAddr> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA => self.rs1.to_virt_mem(),
+			Li | Lui | LD | LW | LWU | LA | FLW | FLD => self.rs1.to_virt_mem(),
 			_ => None,
 		}
 	}

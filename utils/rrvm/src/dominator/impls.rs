@@ -24,4 +24,7 @@ impl DomTree {
 	pub fn get_children(&mut self, id: i32) -> &Vec<LlvmNode> {
 		self.dom_direct.entry(id).or_default()
 	}
+	pub fn get_df(&mut self, id: i32) -> &Vec<LlvmNode> {
+		self.df.entry(id).or_default()
+	}
 }

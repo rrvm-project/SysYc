@@ -86,7 +86,7 @@ impl NodeInfo {
 		if let Some(x) = number.same_value() {
 			Some(match var_type {
 				VarType::I32 => (x as i32).into(),
-				VarType::F32 => (x as f32).into(),
+				VarType::F32 => (f32::from_bits(x)).into(),
 				_ => unreachable!(),
 			})
 		} else {
@@ -146,15 +146,18 @@ pub fn work(
 				(And, _, _) => calc(&lhs, &rhs, |x, y| x & y),
 				(Or, _, _) => calc(&lhs, &rhs, |x, y| x | y),
 				(Xor, _, _) => calc(&lhs, &rhs, |x, y| x ^ y),
-				(Fadd, _, _) => calc(&lhs, &rhs, |x, y| {
-					(f32::from_bits(x) + f32::from_bits(y)).to_bits()
-				}),
-				(Fsub, _, _) => calc(&lhs, &rhs, |x, y| {
-					(f32::from_bits(x) - f32::from_bits(y)).to_bits()
-				}),
-				(Fmul, _, _) => calc(&lhs, &rhs, |x, y| {
-					(f32::from_bits(x) * f32::from_bits(y)).to_bits()
-				}),
+				(Fadd, Some(x), Some(y)) => {
+					Number::from((f32::from_bits(x) + f32::from_bits(y)).to_bits())
+				}
+				(Fsub, Some(x), Some(y)) => {
+					Number::from((f32::from_bits(x) - f32::from_bits(y)).to_bits())
+				}
+				(Fmul, Some(x), Some(y)) => {
+					Number::from((f32::from_bits(x) * f32::from_bits(y)).to_bits())
+				}
+				(Fdiv, Some(x), Some(y)) => {
+					Number::from((f32::from_bits(x) / f32::from_bits(y)).to_bits())
+				}
 				(op, _, _) => info.map_exp(op, lhs, rhs, rng),
 			};
 			(info.num2value(&number, instr.var_type), number)

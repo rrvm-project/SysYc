@@ -1,8 +1,7 @@
-[submodule "project-eval"]
-	path = project-eval
-	url = git@github.com:rrvm-project/project-eval.git
-	branch = main
 [submodule "sysyc_tester_client"]
 	path = sysyc_tester_client
 	url = git@github.com:rrvm-project/sysyc_tester_client.git
 	branch = main
+[submodule "project-eval"]
+	path = project-eval
+	url = https://github.com/rrvm-project/project-eval.git
