@@ -1,6 +1,7 @@
 use crate::{useless_phis::RemoveUselessPhis, *};
 use alloc_hoisting::AllocHoisting;
 use code_hoisting::CodeHoisting;
+use calc_coef::CalcCoef;
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
@@ -68,6 +69,7 @@ impl Optimizer2 {
 			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
+			flag |= CalcCoef::new().apply(program,&mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
@@ -106,6 +108,10 @@ impl Optimizer2 {
 		}
 
 		program.analysis();
+		println!("program: {}", program);
+		for i in program.funcs.iter() {
+			println!("func_params: {:?}", i.params);
+		}
 		Ok(())
 	}
 }
