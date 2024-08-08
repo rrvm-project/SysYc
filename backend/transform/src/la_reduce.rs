@@ -20,7 +20,7 @@ pub fn la_reduce_func(
 		la_reduce_block(block, &liveouts[idx], mgr, &func.name);
 	}
 }
-pub fn is_ld_store(instr: &Box<dyn RiscvInstrTrait>) -> bool {
+pub fn is_ld_store(instr: &dyn RiscvInstrTrait) -> bool {
 	if let RiscvInstrVariant::IBinInstr(ibin) = instr.get_variant() {
 		if let IBinInstrOp::LD
 		| IBinInstrOp::LW
@@ -61,7 +61,7 @@ pub fn la_reduce_block(
 		let v = instr.get_riscv_read();
 		// check if the instruction reads from la_instrs
 		for reg in v.iter() {
-			if la_instrs.contains_key(reg) && !is_ld_store(instr) {
+			if la_instrs.contains_key(reg) && !is_ld_store(instr.as_ref()) {
 				la_instrs.remove(reg);
 			}
 		}
@@ -81,7 +81,7 @@ pub fn la_reduce_block(
 				// check if the offset is zero and the base register is in la_instrs's keys
 				if let RiscvImm::OffsetReg(offset, basereg) = &ibin.rs1 {
 					if !(offset.is_zero()) && la_instrs.contains_key(&basereg) {
-						la_instrs.remove(&basereg);
+						la_instrs.remove(basereg);
 					}
 				}
 			}
@@ -94,8 +94,8 @@ pub fn la_reduce_block(
 			{
 				// check if the offset is zero and the base register is in la_instrs's keys
 				if let RiscvImm::OffsetReg(offset, basereg) = &ibin.rs1 {
-					if !(offset.is_zero()) && la_instrs.contains_key(&basereg) {
-						la_instrs.remove(&basereg);
+					if !(offset.is_zero()) && la_instrs.contains_key(basereg) {
+						la_instrs.remove(basereg);
 					}
 				}
 			}
@@ -110,13 +110,13 @@ pub fn la_reduce_block(
 	block.borrow_mut().instrs = instrs
 		.into_iter()
 		.enumerate()
-		.flat_map(|(idx, instr)| {
+		.flat_map(|(_idx, instr)| {
 			if let RiscvInstrVariant::IBinInstr(ibin) = instr.get_variant() {
 				if let IBinInstrOp::LA = ibin.op {
 					if la_instrs.contains_key(&ibin.rd) {
 						if let RiscvImm::Label(label) = &ibin.rs1 {
 							let pcrel_label_instr = PCRelLabelInstr::new(
-								mgr.get_new_label(func_name.to_string(), ibin.rd.clone()),
+								mgr.get_new_label(func_name.to_string(), ibin.rd),
 							);
 							let auipc_instr = IBinInstr::new(
 								IBinInstrOp::Auipc,
@@ -145,7 +145,7 @@ pub fn la_reduce_block(
 								RiscvNumber::Lo(utils::Label {
 									name: mgr.find_label(func_name, basereg).unwrap().to_string(),
 								}),
-								basereg.clone(),
+								*basereg,
 							);
 							let new_instr = IBinInstr::new(ibin.op, ibin.rd, new_offset);
 							return vec![new_instr];

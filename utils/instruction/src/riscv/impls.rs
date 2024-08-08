@@ -159,7 +159,10 @@ impl RiscvInstrTrait for IBinInstr {
 		}
 	}
 	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
-		if matches!(self.op, SB | Li | Lui | LD | LW | LWU | LA | FLW | FLD) {
+		if matches!(
+			self.op,
+			SB | Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc
+		) {
 			map_temp(&mut self.rd, map);
 		}
 	}
@@ -174,7 +177,7 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn get_virt_mem_read(&self) -> Option<VirtAddr> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA | FLW | FLD => self.rs1.to_virt_mem(),
+			Li | Lui | LD | LW | LWU | LA | FLW | FLD |Auipc => self.rs1.to_virt_mem(),
 			_ => None,
 		}
 	}

@@ -22,7 +22,7 @@ pub fn get_functions(
 ) -> Result<()> {
 	let mut pcrel_mgr = PCRelMgr::new();
 	for func in funcs {
-		let (mut myfunc, liveins, liveouts) =
+		let (mut myfunc, _liveins, liveouts) =
 			convert_func(func, &mut program.temp_mgr)?;
 		// println!("func instrs:");
 		// for block in myfunc.cfg.blocks.iter(){
