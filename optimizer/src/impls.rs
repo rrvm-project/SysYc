@@ -1,4 +1,5 @@
 use crate::{useless_phis::RemoveUselessPhis, *};
+use calc_coef::CalcCoef;
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
@@ -40,7 +41,7 @@ impl Optimizer1 {
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= PureCheck::new().apply(program)?;
-			// // flag |= FuyukiLocalValueNumber::new().apply(program)?;
+			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= GLobalValueNumber::new().apply(program)?;
 			flag |= RemoveUselessPhis::new().apply(program)?;
 			if !flag {
@@ -68,6 +69,7 @@ impl Optimizer2 {
 			flag |= RemoveUnreachCode::new().apply(program)?;
 			flag |= RemoveUselessCode::new().apply(program)?;
 			flag |= PureCheck::new().apply(program)?;
+			flag |= CalcCoef::new().apply(program)?;
 			flag |= FoldConstants::new().apply(program)?;
 			flag |= FuyukiLocalValueNumber::new().apply(program)?;
 			flag |= GLobalValueNumber::new().apply(program)?;
@@ -79,6 +81,10 @@ impl Optimizer2 {
 			}
 		}
 		program.analysis();
+		println!("program: {}", program);
+		for i in program.funcs.iter() {
+			println!("func_params: {:?}", i.params);
+		}
 		Ok(())
 	}
 }
