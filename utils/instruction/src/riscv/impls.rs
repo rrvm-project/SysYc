@@ -108,9 +108,24 @@ impl RiscvInstrTrait for ITriInstr {
 	}
 	fn useless(&self) -> bool {
 		match (&self.op, &self.rd, &self.rs1, &self.rs2) {
-			(Addi, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
-			(Xori, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
-			(Ori, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
+			(
+				Addi,
+				PhysReg(x),
+				PhysReg(y),
+				RiscvImm::RiscvNumber(RiscvNumber::Int(0)),
+			) if x == y => true,
+			(
+				Xori,
+				PhysReg(x),
+				PhysReg(y),
+				RiscvImm::RiscvNumber(RiscvNumber::Int(0)),
+			) if x == y => true,
+			(
+				Ori,
+				PhysReg(x),
+				PhysReg(y),
+				RiscvImm::RiscvNumber(RiscvNumber::Int(0)),
+			) if x == y => true,
 			_ => false,
 		}
 	}
@@ -165,14 +180,14 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA | FLW | FLD => vec![self.rd],
+			Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc => vec![self.rd],
 			SB | SH | SW | SD | FSW | FSD => vec![],
 		}
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		[
 			match self.op {
-				Li | Lui | LD | LW | LWU | LA | FLW | FLD => vec![],
+				Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc => vec![],
 				SB | SH | SW | SD | FSW | FSD => vec![self.rd],
 			},
 			unwarp_imms(vec![&self.rs1]),
@@ -412,5 +427,20 @@ impl TemporayInstr {
 			var_type,
 			lives: Vec::new(),
 		})
+	}
+}
+impl RiscvInstrTrait for PCRelLabelInstr {
+	fn get_variant(&self) -> RiscvInstrVariant {
+		return RiscvInstrVariant::PCRelLabelInstr(self);
+	}
+}
+impl Display for PCRelLabelInstr {
+	fn fmt(&self, f: &mut Formatter) -> Result {
+		write!(f, "{}: ", self.label)
+	}
+}
+impl PCRelLabelInstr {
+	pub fn new(label: String) -> RiscvInstr {
+		Box::new(Self { label })
 	}
 }

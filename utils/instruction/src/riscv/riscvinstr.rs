@@ -18,6 +18,7 @@ pub enum RiscvInstrVariant<'a> {
 	NoArgInstr(&'a NoArgInstr),
 	CallInstr(&'a CallInstr),
 	TemporayInstr(&'a TemporayInstr),
+	PCRelLabelInstr(&'a PCRelLabelInstr),
 }
 pub trait CloneRiscvInstr {
 	fn clone_box(&self) -> Box<dyn RiscvInstrTrait>;
@@ -175,4 +176,8 @@ pub struct TemporayInstr {
 	pub op: TemporayInstrOp,
 	pub var_type: llvm::VarType,
 	pub lives: Vec<RiscvReg>,
+}
+#[derive(UseTemp, Clone)]
+pub struct PCRelLabelInstr {
+	pub label: String,
 }
