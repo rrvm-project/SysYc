@@ -5,9 +5,8 @@ use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
 use global_value_numbering::GlobalValueNumbering;
-use mem2reg::Mem2Reg;
-use strength_reduce::StrengthReduce;
 use loops::HandleLoops;
+use mem2reg::Mem2Reg;
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
@@ -79,7 +78,7 @@ impl Optimizer2 {
 			}
 		}
 
-		HandleLoops::new().apply(program)?;
+		HandleLoops::new().apply(program, &mut metadata)?;
 
 		loop {
 			let mut flag = false;

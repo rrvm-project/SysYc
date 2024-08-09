@@ -56,7 +56,7 @@ impl NodeInfo {
 		match value {
 			Value::Int(v) => Number::from(*v as u32),
 			Value::Float(v) => Number::from(v.to_bits()),
-			Value::Temp(v) => self.num_mapper.get(v).cloned().unwrap(),
+			Value::Temp(v) => self.num_mapper.get(v).cloned().expect(&v.name),
 		}
 	}
 	pub fn map_exp(
