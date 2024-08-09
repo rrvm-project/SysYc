@@ -46,7 +46,6 @@ impl RrvmOptimizer for RemoveDeadCode {
 						u.borrow_mut().succ.append(&mut v.borrow_mut().succ);
 						let instr = v.borrow_mut().jump_instr.take();
 						u.borrow_mut().set_jump(instr);
-						u.borrow_mut().kill_size += v.borrow().kill_size;
 					} else {
 						break;
 					}

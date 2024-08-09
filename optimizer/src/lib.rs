@@ -1,3 +1,4 @@
+mod alloc_hoisting;
 mod dead_code;
 mod fold_constants;
 mod function_inline;

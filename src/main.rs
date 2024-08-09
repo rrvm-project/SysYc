@@ -37,8 +37,8 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 	Typer::default().transform(&mut program)?;
 	let mut program = IRGenerator::new().to_rrvm(program)?;
 	match level {
-		0 => Optimizer0::new().apply(&mut program)?,
-		1 => Optimizer1::new().apply(&mut program)?,
+		0 => Optimizer1::new().apply(&mut program)?,
+		1 => Optimizer2::new().apply(&mut program)?,
 		2 => Optimizer2::new().apply(&mut program)?,
 		_ => {
 			warning(format!(

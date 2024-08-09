@@ -18,7 +18,6 @@ pub type LlvmBasicBlock = BasicBlock<LlvmInstr, llvm::LlvmTemp>;
 pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub id: i32,
 	pub weight: f64,
-	pub kill_size: i32,
 	pub prev: Vec<Node<T, U>>,
 	pub succ: Vec<Node<T, U>>,
 	pub defs: HashSet<U>,
@@ -27,7 +26,6 @@ pub struct BasicBlock<T: InstrTrait<U>, U: TempTrait> {
 	pub live_in: HashSet<U>,
 	pub live_out: HashSet<U>,
 	pub phi_instrs: Vec<PhiInstr>,
-	pub phi_defs: HashSet<LlvmTemp>,
 	pub instrs: Vec<T>,
 	pub jump_instr: Option<T>,
 }
@@ -49,7 +47,6 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 		BasicBlock {
 			id,
 			weight,
-			kill_size: 0,
 			prev: Vec::new(),
 			succ: Vec::new(),
 			defs: HashSet::new(),
@@ -58,7 +55,6 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			live_in: HashSet::new(),
 			live_out: HashSet::new(),
 			phi_instrs: Vec::new(),
-			phi_defs: HashSet::new(),
 			instrs: Vec::new(),
 			jump_instr: None,
 		}
@@ -140,13 +136,6 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 			}
 		}
 	}
-	pub fn update_phi_def(&mut self) {
-		for instr in self.phi_instrs.iter() {
-			if let Some(temp) = instr.get_write() {
-				self.phi_defs.insert(temp.clone());
-			}
-		}
-	}
 
 	pub fn clear_data_flow(&mut self) {
 		self.uses.clear();
@@ -213,7 +202,6 @@ impl Clone for LlvmBasicBlock {
 			phi_instrs: self.phi_instrs.clone(),
 			instrs: self.instrs.to_vec(),
 			jump_instr: self.jump_instr.as_ref().cloned(),
-			kill_size: self.kill_size,
 			..Self::new(self.id, self.weight)
 		}
 	}
