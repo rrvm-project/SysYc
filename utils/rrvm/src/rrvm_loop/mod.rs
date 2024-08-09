@@ -75,7 +75,6 @@ impl Loop {
 			println!("Multiple preheaders or Illiagal preheader");
 			return None;
 		}
-		println!("Found a preheader {}", pred.borrow().label());
 		Some(pred)
 	}
 	/// getLoopPredecessor - If the given loop's header has exactly one unique
@@ -94,10 +93,6 @@ impl Loop {
 				pred = Some(pred_.clone());
 			}
 		}
-		println!(
-			"Found a predecessor {}",
-			pred.as_ref().unwrap().borrow().label()
-		);
 		pred
 	}
 	/// getLoopLatch - If there is a single latch block for this loop, return it.

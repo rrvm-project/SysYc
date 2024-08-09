@@ -4,11 +4,10 @@ use std::{
 	rc::Rc,
 };
 
-use llvm::{LlvmInstrTrait, LlvmTemp, LlvmTempManager, PhiInstr, Value};
+use llvm::{LlvmInstrTrait, LlvmTemp, PhiInstr, Value};
 use rrvm::{
 	cfg::{force_link_llvmnode, unlink_node},
 	dominator::{compute_dominator, compute_dominator_frontier},
-	program::LlvmFunc,
 	rrvm_loop::LoopPtr,
 	LlvmNode,
 };
@@ -16,131 +15,126 @@ use utils::Label;
 
 use super::loop_optimizer::LoopOptimizer;
 
-/// This method introduces at least one new basic block into the function and
-/// moves some of the predecessors of BB to be predecessors of the new block.
-/// The new predecessors are indicated by the Preds array. Returns new basic block to which predecessors
-/// from Preds are now pointing.
-pub fn split_block_predecessors(
-	bb: LlvmNode,
-	preds: Vec<LlvmNode>,
-	func: &mut LlvmFunc,
-	temp_mgr: &mut LlvmTempManager,
-	has_loop_exit: bool,
-) -> Option<LlvmNode> {
-	assert!(!preds.is_empty());
+impl<'a> LoopOptimizer<'a> {
+	/// This method introduces at least one new basic block into the function and
+	/// moves some of the predecessors of BB to be predecessors of the new block.
+	/// The new predecessors are indicated by the Preds array. Returns new basic block to which predecessors
+	/// from Preds are now pointing.
+	pub fn split_block_predecessors(
+		&mut self,
+		bb: LlvmNode,
+		preds: Vec<LlvmNode>,
+		has_loop_exit: bool,
+	) -> LlvmNode {
+		assert!(!preds.is_empty());
 
-	let new_bb = Rc::new(RefCell::new(func.new_basicblock(0.0)));
+		let new_bb = Rc::new(RefCell::new(self.func.new_basicblock(0.0)));
 
-	// Move the edges from Preds to point to NewBB instead of BB.
-	for pred in preds.iter() {
-		unlink_node(pred, &bb);
-		force_link_llvmnode(pred, &new_bb);
+		// Move the edges from Preds to point to NewBB instead of BB.
+		for pred in preds.iter() {
+			unlink_node(pred, &bb);
+			force_link_llvmnode(pred, &new_bb);
+		}
+
+		self.update_phi_nodes(bb.clone(), new_bb.clone(), preds, has_loop_exit);
+
+		force_link_llvmnode(&new_bb, &bb);
+
+		let target_pos =
+			self.func.cfg.blocks.iter().position(|v| *v == bb).unwrap();
+		self.func.cfg.blocks.insert(target_pos, new_bb.clone());
+
+		new_bb
 	}
-
-	update_phi_nodes(bb.clone(), new_bb.clone(), preds, has_loop_exit, temp_mgr);
-
-	force_link_llvmnode(&new_bb, &bb);
-
-	let target_pos = func.cfg.blocks.iter().position(|v| *v == bb).unwrap();
-	func.cfg.blocks.insert(target_pos, new_bb.clone());
-
-	Some(new_bb)
-}
-
-pub fn update_phi_nodes(
-	bb: LlvmNode,
-	new_bb: LlvmNode,
-	preds: Vec<LlvmNode>,
-	has_loop_exit: bool, // new_bb 是否是某循环的 exit
-	temp_mgr: &mut LlvmTempManager,
-) {
-	// Create a new PHI node in NewBB for each PHI node in OrigBB.
-	for phi in bb.borrow_mut().phi_instrs.iter_mut() {
-		// Check to see if all of the values coming in are the same.  If so, we
-		// don't need to create a new PHI node, unless it's needed for LCSSA.
-		// MAYBETODO：似乎可以改成 iter().fold() 的形式？？
-		let mut in_var = None;
-		if !has_loop_exit {
-			for pred in preds.iter() {
-				if in_var.is_none() {
-					in_var = phi.get_incoming_value_for_block(&pred.borrow().label());
-				} else if in_var
-					!= phi.get_incoming_value_for_block(&pred.borrow().label())
-				{
-					in_var = None;
-					break;
+	pub fn update_phi_nodes(
+		&mut self,
+		bb: LlvmNode,
+		new_bb: LlvmNode,
+		preds: Vec<LlvmNode>,
+		has_loop_exit: bool, // new_bb 是否是某循环的 exit
+	) {
+		// Create a new PHI node in NewBB for each PHI node in OrigBB.
+		for phi in bb.borrow_mut().phi_instrs.iter_mut() {
+			// Check to see if all of the values coming in are the same.  If so, we
+			// don't need to create a new PHI node, unless it's needed for LCSSA.
+			// MAYBETODO：似乎可以改成 iter().fold() 的形式？？
+			let mut in_var = None;
+			if !has_loop_exit {
+				for pred in preds.iter() {
+					if in_var.is_none() {
+						in_var = phi.get_incoming_value_for_block(&pred.borrow().label());
+					} else if in_var
+						!= phi.get_incoming_value_for_block(&pred.borrow().label())
+					{
+						in_var = None;
+						break;
+					}
 				}
 			}
-		}
-		if let Some(v) = in_var {
-			// If all incoming values for the new PHI would be the same, just don't
-			// make a new PHI.  Instead, just remove the incoming values from the old
+			if let Some(v) = in_var {
+				// If all incoming values for the new PHI would be the same, just don't
+				// make a new PHI.  Instead, just remove the incoming values from the old
+				// PHI.
+				phi
+					.source
+					.retain(|(_, l)| !preds.iter().any(|b| b.borrow().label() == *l));
+				phi.source.push((v, new_bb.borrow().label()));
+				self.temp_graph.temp_to_instr.get_mut(&phi.target).unwrap().instr =
+					Box::new(phi.clone());
+				continue;
+			}
+			// If the values coming into the block are not the same, we need a new
 			// PHI.
+			let new_target = self.temp_mgr.new_temp(phi.var_type, false);
+			let new_source = phi
+				.source
+				.iter()
+				.filter(|(_, l)| preds.iter().any(|b| b.borrow().label() == *l))
+				.cloned()
+				.collect::<Vec<(Value, Label)>>();
 			phi
 				.source
 				.retain(|(_, l)| !preds.iter().any(|b| b.borrow().label() == *l));
-			phi.source.push((v, new_bb.borrow().label()));
-			continue;
+			phi
+				.source
+				.push((Value::Temp(new_target.clone()), new_bb.borrow().label()));
+			self.temp_graph.temp_to_instr.get_mut(&phi.target).unwrap().instr =
+				Box::new(phi.clone());
+
+			let new_phi = PhiInstr::new(new_target.clone(), new_source);
+			self.temp_graph.add_temp(new_target.clone(), Box::new(new_phi.clone()));
+			new_bb.borrow_mut().phi_instrs.push(new_phi);
+			self.def_map.insert(new_target, new_bb.clone());
 		}
-		// If the values coming into the block are not the same, we need a new
-		// PHI.
-		let new_target = temp_mgr.new_temp(phi.var_type, false);
-		let new_source = phi
-			.source
-			.iter()
-			.filter(|(_, l)| preds.iter().any(|b| b.borrow().label() == *l))
-			.cloned()
-			.collect::<Vec<(Value, Label)>>();
-		phi.source.retain(|(_, l)| !preds.iter().any(|b| b.borrow().label() == *l));
-		phi.source.push((Value::Temp(new_target.clone()), new_bb.borrow().label()));
-
-		let new_phi = PhiInstr::new(new_target, new_source);
-		new_bb.borrow_mut().phi_instrs.push(new_phi);
 	}
-}
-
-impl LoopOptimizer {
 	/// InsertPreheaderForLoop - Once we discover that a loop doesn't have a
 	/// preheader, this method is called to insert one.
-	fn insert_preheader_for_loop(
-		&mut self,
-		loop_: LoopPtr,
-		func: &mut LlvmFunc,
-		temp_mgr: &mut LlvmTempManager,
-	) -> Option<LlvmNode> {
+	fn insert_preheader_for_loop(&mut self, loop_: LoopPtr) -> LlvmNode {
 		let header_rc = loop_.borrow().header.clone();
 		let mut outside_blocks = Vec::new();
 		let loop_blocks =
-			loop_.borrow().blocks_without_subloops(&func.cfg, &self.loop_map);
+			loop_.borrow().blocks_without_subloops(&self.func.cfg, &self.loop_map);
 		for prev in header_rc.clone().borrow().prev.iter() {
 			if !loop_blocks.contains(prev) {
 				outside_blocks.push(prev.clone());
 			}
 		}
-		if outside_blocks.is_empty() {
-			return None;
+		assert!(!outside_blocks.is_empty());
+		let new_bb =
+			self.split_block_predecessors(header_rc, outside_blocks, false);
+		println!(
+			"LoopSimplify: inserted preheader block {}",
+			new_bb.borrow().label()
+		);
+		if let Some(o) = loop_.borrow().outer.clone() {
+			self.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
 		}
-		split_block_predecessors(header_rc, outside_blocks, func, temp_mgr, false)
-			.map(|v| {
-				println!(
-					"LoopSimplify: inserted preheader block {}",
-					v.borrow().label()
-				);
-				if let Some(o) = loop_.borrow().outer.clone() {
-					self.loop_map.insert(v.borrow().id, o.upgrade().unwrap());
-				}
-				v
-			})
+		new_bb
 	}
-	fn form_dedicated_exit_blocks(
-		&mut self,
-		loop_: LoopPtr,
-		func: &mut LlvmFunc,
-		temp_mgr: &mut LlvmTempManager,
-	) -> bool {
+	fn form_dedicated_exit_blocks(&mut self, loop_: LoopPtr) -> bool {
 		let mut flag = false;
 		let loop_blocks =
-			loop_.borrow().blocks_without_subloops(&func.cfg, &self.loop_map);
+			loop_.borrow().blocks_without_subloops(&self.func.cfg, &self.loop_map);
 
 		let mut rewrite_exit = |exit: LlvmNode| {
 			let mut is_dedicated_exit = true;
@@ -155,29 +149,25 @@ impl LoopOptimizer {
 			assert!(!in_loop_prev.is_empty());
 
 			if is_dedicated_exit {
-				println!("Already dedicated exit {}", exit.borrow().label());
 				return;
 			}
 
-			flag |=
-				split_block_predecessors(exit, in_loop_prev, func, temp_mgr, true)
-					.is_some_and(|v| {
-						println!(
-							"LoopSimplify: inserted dedicated exit block {}",
-							v.borrow().label()
-						);
-						if let Some(o) = loop_.borrow().outer.clone() {
-							self.loop_map.insert(v.borrow().id, o.upgrade().unwrap());
-						}
-						true
-					});
+			let new_bb = self.split_block_predecessors(exit, in_loop_prev, true);
+			println!(
+				"LoopSimplify: inserted dedicated exit block {}",
+				new_bb.borrow().label()
+			);
+			if let Some(o) = loop_.borrow().outer.clone() {
+				self.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
+			}
+
+			flag = true;
 		};
 
 		let mut visited = HashSet::new();
 		for bb in loop_blocks.iter() {
 			for succ in bb.borrow().succ.iter() {
 				if !loop_blocks.contains(succ) && visited.insert(succ.borrow().id) {
-					// println!("Rewriting exit {:?}", succ.borrow().label());
 					rewrite_exit(succ.clone());
 				}
 			}
@@ -187,8 +177,6 @@ impl LoopOptimizer {
 	fn insert_unique_backedge_block(
 		&mut self,
 		loop_: LoopPtr,
-		func: &mut LlvmFunc,
-		temp_mgr: &mut LlvmTempManager,
 		preheader: LlvmNode,
 	) -> Option<LlvmNode> {
 		let mut backedge_blocks = Vec::new();
@@ -202,31 +190,26 @@ impl LoopOptimizer {
 			return None;
 		}
 
-		split_block_predecessors(header, backedge_blocks, func, temp_mgr, false)
-			.map(|v| {
-				println!(
-					"LoopSimplify: inserted unique backedge block {}",
-					v.borrow().label()
-				);
-				self.loop_map.insert(v.borrow().id, loop_.clone());
-				v
-			})
+		let new_bb = self.split_block_predecessors(header, backedge_blocks, false);
+		println!(
+			"LoopSimplify: inserted unique backedge block {}",
+			new_bb.borrow().label()
+		);
+		self.loop_map.insert(new_bb.borrow().id, loop_.clone());
+		Some(new_bb)
 	}
-	fn simplify_one_loop(
-		&mut self,
-		loop_: LoopPtr,
-		func: &mut LlvmFunc,
-		temp_mgr: &mut LlvmTempManager,
-	) -> bool {
+	fn simplify_one_loop(&mut self, loop_: LoopPtr) -> bool {
 		let mut flag = false;
 		// Check to see that no blocks (other than the header) in this loop have
 		// predecessors that are not in the loop.  This is not valid for natural
 		// loops, but can occur if the blocks are unreachable.
 		// 子循环的前驱不可能在本循环外，所以这里可以不遍历子循环的 block
 		let blocks_without_subloops =
-			loop_.borrow().blocks_without_subloops(&func.cfg, &self.loop_map);
-		for bb in
-			loop_.borrow().blocks_without_subloops(&func.cfg, &self.loop_map).iter()
+			loop_.borrow().blocks_without_subloops(&self.func.cfg, &self.loop_map);
+		for bb in loop_
+			.borrow()
+			.blocks_without_subloops(&self.func.cfg, &self.loop_map)
+			.iter()
 		{
 			if bb.borrow().id == loop_.borrow().header.borrow().id {
 				continue;
@@ -243,27 +226,22 @@ impl LoopOptimizer {
 		let preheader = loop_
 			.borrow()
 			.get_loop_preheader(&blocks_without_subloops)
-			.or_else(|| {
-				self.insert_preheader_for_loop(loop_.clone(), func, temp_mgr).map(|v| {
-					flag = true;
-					v
-				})
+			.unwrap_or_else(|| {
+				flag = true;
+				self.insert_preheader_for_loop(loop_.clone())
 			});
 
 		// Next, check to make sure that all exit nodes of the loop only have
 		// predecessors that are inside of the loop.  This check guarantees that the
 		// loop preheader/header will dominate the exit blocks.  If the exit block has
 		// predecessors from outside of the loop, split the edge now.
-		flag |= self.form_dedicated_exit_blocks(loop_.clone(), func, temp_mgr);
+		flag |= self.form_dedicated_exit_blocks(loop_.clone());
 
 		// If the header has more than two predecessors at this point (from the
 		// preheader and from multiple backedges), we must adjust the loop.
 		// We do not have nested loops sharing one header, so insert a new block that all backedges target, then make it jump to the loop header.
-		if let Some(p) = preheader {
-			flag |= self
-				.insert_unique_backedge_block(loop_.clone(), func, temp_mgr, p)
-				.is_some();
-		}
+		flag |=
+			self.insert_unique_backedge_block(loop_.clone(), preheader).is_some();
 		// If this loop has multiple exits and the exits all go to the same
 		// block, attempt to merge the exits. This helps several passes, such
 		// as LoopRotation, which do not support loops with multiple exits.
@@ -303,12 +281,7 @@ impl LoopOptimizer {
 	}
 
 	// 按 dfs 序逐个 loop 处理
-	pub fn simplify_loop(
-		&mut self,
-		root_loop_node: LoopPtr,
-		func: &mut LlvmFunc,
-		temp_mgr: &mut LlvmTempManager,
-	) -> bool {
+	pub fn simplify_loop(&mut self, root_loop_node: LoopPtr) -> bool {
 		let mut flag = false;
 		let mut dfs_vec = Vec::new();
 		fn dfs(node: LoopPtr, dfs_vec: &mut Vec<LoopPtr>) {
@@ -321,14 +294,14 @@ impl LoopOptimizer {
 		// 移去 root_node
 		dfs_vec.pop();
 		for loop_node in dfs_vec.iter() {
-			flag |= self.simplify_one_loop(loop_node.clone(), func, temp_mgr);
+			flag |= self.simplify_one_loop(loop_node.clone());
 		}
 
 		let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 		let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 		let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
 		compute_dominator(
-			&func.cfg,
+			&self.func.cfg,
 			false,
 			&mut dominates,
 			&mut dominates_directly,
@@ -337,7 +310,7 @@ impl LoopOptimizer {
 
 		let mut dominator_frontier: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 		compute_dominator_frontier(
-			&func.cfg,
+			&self.func.cfg,
 			false,
 			&dominates_directly,
 			&dominator,
@@ -356,7 +329,7 @@ impl LoopOptimizer {
 		if !replace_map.is_empty() {
 			println!("LoopSimplify: Mapping with {:?}", replace_map);
 			flag = true;
-			for bb in func.cfg.blocks.iter() {
+			for bb in self.func.cfg.blocks.iter() {
 				for phi in bb.borrow_mut().phi_instrs.iter_mut() {
 					phi.map_temp(&replace_map);
 				}
