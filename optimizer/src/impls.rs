@@ -1,4 +1,5 @@
 use crate::{useless_phis::RemoveUselessPhis, *};
+use alloc_hoisting::AllocHoisting;
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
@@ -38,7 +39,8 @@ impl Optimizer1 {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
-			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
+			flag |= InlineFunction::new().apply(program, &mut metadata)?;
+			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
 			if !flag {
@@ -67,6 +69,7 @@ impl Optimizer2 {
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
 			flag |= InlineFunction::new().apply(program, &mut metadata)?;
+			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
 			if !flag {
 				break;
@@ -85,6 +88,7 @@ impl Optimizer2 {
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
 			flag |= InlineFunction::new().apply(program, &mut metadata)?;
+			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
 			if !flag {
 				break;

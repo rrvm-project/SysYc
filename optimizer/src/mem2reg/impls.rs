@@ -18,7 +18,7 @@ use rrvm::{
 	program::{LlvmFunc, LlvmProgram},
 	LlvmNode,
 };
-use utils::{errors::Result, Label};
+use utils::{errors::Result, Label, MEM_TO_REG_LIMIT};
 
 struct Solver<'a> {
 	dom_tree: DomTree,
@@ -451,13 +451,6 @@ impl<'a> Solver<'a> {
 					state_out,
 				};
 				if &new_state != self.use_states.get(&block.id).unwrap() {
-					// 	"update {} load_in: {} load_out: {} store_in: {} store_out: {}",
-					// 	block.id,
-					// 	new_state.state_in.loads.len(),
-					// 	new_state.state_out.loads.len(),
-					// 	new_state.state_in.stores.len(),
-					// 	new_state.state_out.stores.len()
-					// );
 					changed = true;
 					self.use_states.insert(block.id, new_state);
 				}
@@ -467,14 +460,6 @@ impl<'a> Solver<'a> {
 			}
 		}
 	}
-	// loads 的含义是后续可能会读的位置
-	// stores 的含义是后续必然被写的位置
-	// 当进行读的时候，加入 loads
-	// 当进行写的时候，从 loads 中移除相等项，并加入 stores
-	// 什么时候 store 操作可以被删？
-	// loads 的所有位置与其无交
-	// 或者 stores 中存在相等项
-	// 对于 call 而言，会插入一堆 loads。
 	pub fn solve_store_instr(&mut self, func: &LlvmFunc) {
 		self.calc_use_state(func);
 		for block in func.cfg.blocks.iter() {
@@ -539,6 +524,9 @@ impl RrvmOptimizer for Mem2Reg {
 		) -> bool {
 			let mut solver = Solver::new(func, func_data, mgr);
 			solver.calc_addr(func.cfg.get_entry(), HashMap::new());
+			if solver.addrs.is_empty() || solver.addrs.len() > MEM_TO_REG_LIMIT {
+				return false;
+			}
 			solver.calc_defs(func);
 			solver.calc_phi();
 			solver.solve_load_instr(func);

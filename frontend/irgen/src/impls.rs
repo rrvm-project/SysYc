@@ -31,7 +31,6 @@ impl IRGenerator {
 			weights: Vec::new(),
 			is_global: false,
 			init_state: None,
-			alloc_size: Vec::new(),
 		}
 	}
 	pub fn to_rrvm(mut self, mut program: Program) -> Result<LlvmProgram> {

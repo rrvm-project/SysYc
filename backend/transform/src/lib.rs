@@ -3,9 +3,10 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use instr_dag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
 
+use llvm::Value;
 use rrvm::prelude::*;
 use transformer::to_riscv;
-use utils::errors::Result;
+use utils::{errors::Result, SysycError::RiscvGenError};
 
 pub mod instr_dag;
 pub mod instr_schedule;
@@ -41,13 +42,26 @@ pub fn convert_func(
 		}
 	}
 
+	let mut kill_size = 0;
+	for block in func.cfg.blocks.iter() {
+		for instr in block.borrow().instrs.iter() {
+			if let Some((_, length)) = instr.get_alloc() {
+				if let Value::Int(length) = length {
+					kill_size += length;
+				} else {
+					return Err(RiscvGenError("Invalid alloc length".to_string()));
+				}
+			}
+		}
+	}
+	kill_size = (kill_size + 15) & -16;
+
 	for block in func.cfg.blocks {
-		let kill_size = (block.borrow().kill_size + 15) & -16;
 		let id = block.borrow().id;
 		edge.extend(block.borrow().succ.iter().map(|v| (id, v.borrow().id)));
 		let node = transform_basicblock(&block, mgr)?;
 		table.insert(id, node.clone());
-		if kill_size != 0 {
+		if kill_size != 0 && block.borrow().jump_instr.as_ref().unwrap().is_ret() {
 			let instr = if is_lower(kill_size) {
 				ITriInstr::new(Addi, SP.into(), SP.into(), kill_size.into())
 			} else {
@@ -82,7 +96,6 @@ fn _transform_basicblock_by_dag(
 ) -> Result<RiscvNode> {
 	let instr_dag = InstrDag::new(&node.borrow().instrs, mgr)?;
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
-	block.kill_size = node.borrow().kill_size;
 	block.instrs = instr_schedule(instr_dag)?;
 	Ok(Rc::new(RefCell::new(block)))
 }
@@ -94,7 +107,6 @@ fn transform_basicblock(
 	let instrs: Result<Vec<_>, _> =
 		node.borrow().instrs.iter().map(|v| to_riscv(v, mgr)).collect();
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
-	block.kill_size = node.borrow().kill_size;
 	block.instrs = instrs?.into_iter().flatten().collect();
 	Ok(Rc::new(RefCell::new(block)))
 }

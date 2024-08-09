@@ -95,7 +95,6 @@ fn inline(
 							new_node.instrs.push(convert_target!(instr));
 						}
 						new_node.jump_instr = node.jump_instr.as_ref().cloned();
-						new_node.kill_size = node.kill_size;
 						new_nodes.push(new_node);
 					}
 
@@ -154,7 +153,6 @@ fn inline(
 		for v in block.succ.iter() {
 			edges.push((last.id, v.borrow().id))
 		}
-		last.kill_size = block.kill_size;
 		last.jump_instr = block.jump_instr.as_ref().cloned();
 		phi_map.insert(block.label(), last.label());
 		let (id, node) = wrap(last);
