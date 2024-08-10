@@ -1,7 +1,4 @@
-use std::{
-	collections::{HashMap, HashSet},
-	mem,
-};
+use std::{collections::HashSet, mem};
 
 use instruction::riscv::{
 	prelude::{IBinInstr, PCRelLabelInstr, RiscvInstrVariant},
@@ -22,8 +19,12 @@ pub fn la_reduce(program: &mut RiscvProgram) {
 }
 pub fn la_reduce_func(func: &mut RiscvFunc, mgr: &mut PCRelMgr) {
 	let tmps = filter_0_offset(func);
+	let la_writes = find_la_writes(func, &tmps);
+	if la_writes.is_empty() {
+		return;
+	}
 	for block in func.cfg.blocks.iter() {
-		la_reduce_block(block, &tmps, mgr, &func.name);
+		la_reduce_block(block, mgr, &func.name, &la_writes);
 	}
 }
 pub fn filter_0_offset(func: &RiscvFunc) -> HashSet<RiscvTemp> {
@@ -51,26 +52,30 @@ pub fn filter_0_offset(func: &RiscvFunc) -> HashSet<RiscvTemp> {
 	}
 	res
 }
-pub fn la_reduce_block(
-	block: &RiscvNode,
+pub fn find_la_writes(
+	func: &RiscvFunc,
 	liveouts: &HashSet<RiscvTemp>,
-	mgr: &mut PCRelMgr,
-	func_name: &str,
-) {
-	// check la instruction and whether the reg has been read
-	let mut la_instrs = HashMap::new();
-	for (idx, i) in block.borrow().instrs.iter().enumerate() {
-		let instr = i.get_variant();
-		if let RiscvInstrVariant::IBinInstr(ibin_instr) = instr {
-			if ibin_instr.op == IBinInstrOp::LA && !liveouts.contains(&ibin_instr.rd)
-			{
-				la_instrs.insert(ibin_instr.rd, idx);
+) -> HashSet<RiscvTemp> {
+	let mut res = HashSet::new();
+	for i in func.cfg.blocks.iter() {
+		for instr in i.borrow().instrs.iter() {
+			if let RiscvInstrVariant::IBinInstr(ibin) = instr.get_variant() {
+				if let LA = ibin.op {
+					if !liveouts.contains(&ibin.rd) {
+						res.insert(ibin.rd);
+					}
+				}
 			}
 		}
 	}
-	if la_instrs.is_empty() {
-		return;
-	}
+	res
+}
+pub fn la_reduce_block(
+	block: &RiscvNode,
+	mgr: &mut PCRelMgr,
+	func_name: &str,
+	la_writes: &HashSet<RiscvTemp>,
+) {
 	// third iteration: transform the la instruction to a lui instruction and replace all the sw and lw's imms
 	let instrs = mem::take(&mut block.borrow_mut().instrs);
 	block.borrow_mut().instrs = instrs
@@ -79,7 +84,7 @@ pub fn la_reduce_block(
 		.flat_map(|(_idx, instr)| {
 			if let RiscvInstrVariant::IBinInstr(ibin) = instr.get_variant() {
 				if let IBinInstrOp::LA = ibin.op {
-					if la_instrs.contains_key(&ibin.rd) {
+					if la_writes.contains(&ibin.rd) {
 						if let RiscvImm::Label(label) = &ibin.rs1 {
 							let pcrel_label_instr = PCRelLabelInstr::new(
 								mgr.get_new_label(func_name.to_string(), ibin.rd),
@@ -106,7 +111,7 @@ pub fn la_reduce_block(
 				| IBinInstrOp::SW = ibin.op
 				{
 					if let RiscvImm::OffsetReg(_offset, basereg) = &ibin.rs1 {
-						if la_instrs.contains_key(basereg) {
+						if la_writes.contains(basereg) {
 							let new_offset = RiscvImm::OffsetReg(
 								RiscvNumber::Lo(utils::Label {
 									name: mgr.find_label(func_name, basereg).unwrap().to_string(),

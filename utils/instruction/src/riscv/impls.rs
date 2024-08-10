@@ -177,7 +177,9 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn get_virt_mem_read(&self) -> Option<VirtAddr> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA | FLW | FLD |Auipc => self.rs1.to_virt_mem(),
+			Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc => {
+				self.rs1.to_virt_mem()
+			}
 			_ => None,
 		}
 	}
