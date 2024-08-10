@@ -18,7 +18,7 @@ pub fn la_reduce(program: &mut RiscvProgram) {
 	}
 }
 pub fn la_reduce_func(func: &mut RiscvFunc, mgr: &mut PCRelMgr) {
-	let tmps = filter_0_offset(func);
+	let tmps = filter_zero_offset(func);
 	let la_writes = find_la_writes(func, &tmps);
 	if la_writes.is_empty() {
 		return;
@@ -27,23 +27,13 @@ pub fn la_reduce_func(func: &mut RiscvFunc, mgr: &mut PCRelMgr) {
 		la_reduce_block(block, mgr, &func.name, &la_writes);
 	}
 }
-pub fn filter_0_offset(func: &RiscvFunc) -> HashSet<RiscvTemp> {
+pub fn filter_zero_offset(func: &RiscvFunc) -> HashSet<RiscvTemp> {
 	let mut res = HashSet::new();
 	for i in func.cfg.blocks.iter() {
 		for instr in i.borrow().instrs.iter() {
 			if let RiscvInstrVariant::IBinInstr(ibin) = instr.get_variant() {
-				if let LD | LW | LWU | FLD | FLW | FSD | FSW | SB | SD | SH | SW =
-					ibin.op
-				{
-					if let RiscvImm::OffsetReg(offset, basereg) = &ibin.rs1 {
-						if !offset.is_zero() {
-							res.insert(*basereg);
-						}
-					} else {
-						unreachable!();
-					}
-				} else {
-					res.extend(instr.get_riscv_read());
+				if let RiscvImm::OffsetReg(RiscvNumber::Int(0), basereg) = &ibin.rs1 {
+					res.insert(*basereg);
 				}
 			} else {
 				res.extend(instr.get_riscv_read());
@@ -60,10 +50,8 @@ pub fn find_la_writes(
 	for i in func.cfg.blocks.iter() {
 		for instr in i.borrow().instrs.iter() {
 			if let RiscvInstrVariant::IBinInstr(ibin) = instr.get_variant() {
-				if let LA = ibin.op {
-					if !liveouts.contains(&ibin.rd) {
-						res.insert(ibin.rd);
-					}
+				if LA == ibin.op && !liveouts.contains(&ibin.rd) {
+					res.insert(ibin.rd);
 				}
 			}
 		}
@@ -83,32 +71,22 @@ pub fn la_reduce_block(
 		.enumerate()
 		.flat_map(|(_idx, instr)| {
 			if let RiscvInstrVariant::IBinInstr(ibin) = instr.get_variant() {
-				if let IBinInstrOp::LA = ibin.op {
-					if la_writes.contains(&ibin.rd) {
-						if let RiscvImm::Label(label) = &ibin.rs1 {
-							let pcrel_label_instr = PCRelLabelInstr::new(
-								mgr.get_new_label(func_name.to_string(), ibin.rd),
-							);
-							let auipc_instr = IBinInstr::new(
-								IBinInstrOp::Auipc,
-								ibin.rd,
-								RiscvImm::RiscvNumber(RiscvNumber::Hi(label.clone())),
-							);
-							return vec![pcrel_label_instr, auipc_instr];
-						}
+				if LA == ibin.op && la_writes.contains(&ibin.rd) {
+					if let RiscvImm::Label(label) = &ibin.rs1 {
+						let pcrel_label_instr = PCRelLabelInstr::new(
+							mgr.get_new_label(func_name.to_string(), ibin.rd),
+						);
+						let auipc_instr = IBinInstr::new(
+							IBinInstrOp::Auipc,
+							ibin.rd,
+							RiscvImm::RiscvNumber(RiscvNumber::Hi(label.clone())),
+						);
+						return vec![pcrel_label_instr, auipc_instr];
 					}
 				}
-				if let IBinInstrOp::LD
-				| IBinInstrOp::LW
-				| IBinInstrOp::LWU
-				| IBinInstrOp::FLD
-				| IBinInstrOp::FLW
-				| IBinInstrOp::FSD
-				| IBinInstrOp::FSW
-				| IBinInstrOp::SB
-				| IBinInstrOp::SD
-				| IBinInstrOp::SH
-				| IBinInstrOp::SW = ibin.op
+
+				if let LD | LW | LWU | FLD | FLW | FSD | FSW | SB | SD | SH | SW =
+					ibin.op
 				{
 					if let RiscvImm::OffsetReg(_offset, basereg) = &ibin.rs1 {
 						if la_writes.contains(basereg) {

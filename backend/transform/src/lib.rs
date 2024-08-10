@@ -19,16 +19,8 @@ pub fn get_functions(
 	program: &mut RiscvProgram,
 	funcs: Vec<LlvmFunc>,
 ) -> Result<()> {
-	//let mut pcrel_mgr = PCRelMgr::new();
 	for func in funcs {
 		let myfunc = convert_func(func, &mut program.temp_mgr)?;
-		// println!("func instrs:");
-		// for block in myfunc.cfg.blocks.iter(){
-		// 	for instr in block.borrow().instrs.iter(){
-		// 		println!("{}",instr);
-		// 	}
-		// }
-		//la_reduce_func(&mut myfunc, &mut pcrel_mgr);
 		program.funcs.push(myfunc);
 	}
 	Ok(())
