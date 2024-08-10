@@ -59,7 +59,7 @@ impl RiscvInstrTrait for RTriInstr {
 	fn get_variant(&self) -> RiscvInstrVariant {
 		RiscvInstrVariant::RTriInstr(self)
 	}
-	fn map_br_op(&self) -> Option<BranInstrOp> {
+	fn get_cmp_op(&self) -> Option<BranInstrOp> {
 		match &self.op {
 			Slt => Some(Blt),
 			Sltu => Some(Bltu),
@@ -138,7 +138,7 @@ impl RiscvInstrTrait for ITriInstr {
 	fn get_variant(&self) -> RiscvInstrVariant {
 		RiscvInstrVariant::ITriInstr(self)
 	}
-	fn map_br_op(&self) -> Option<BranInstrOp> {
+	fn get_cmp_op(&self) -> Option<BranInstrOp> {
 		match &self.op {
 			Slti => Some(Blt),
 			Sltiu => Some(Bltu),
@@ -281,7 +281,7 @@ impl RiscvInstrTrait for RBinInstr {
 	fn useless(&self) -> bool {
 		self.is_move() && self.rd == self.rs1
 	}
-	fn map_br_op(&self) -> Option<BranInstrOp> {
+	fn get_cmp_op(&self) -> Option<BranInstrOp> {
 		match &self.op {
 			Seqz => Some(Bne),
 			Snez => Some(Beq),

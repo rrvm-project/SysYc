@@ -97,7 +97,7 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 	fn is_branch(&self) -> bool {
 		false
 	}
-	fn map_br_op(&self) -> Option<BranInstrOp> {
+	fn get_cmp_op(&self) -> Option<BranInstrOp> {
 		None
 	}
 	fn get_variant(&self) -> RiscvInstrVariant;
