@@ -4,14 +4,13 @@ use instr_dag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
 
 use llvm::Value;
-use la_reduce::la_reduce_func;
 use rrvm::prelude::*;
 use transformer::to_riscv;
 use utils::{errors::Result, SysycError::RiscvGenError};
 
 pub mod instr_dag;
 pub mod instr_schedule;
-pub mod la_reduce;
+
 pub mod remove_phi;
 pub mod transformer;
 use crate::instr_schedule::instr_schedule;
@@ -20,17 +19,16 @@ pub fn get_functions(
 	program: &mut RiscvProgram,
 	funcs: Vec<LlvmFunc>,
 ) -> Result<()> {
-	let mut pcrel_mgr = PCRelMgr::new();
+	//let mut pcrel_mgr = PCRelMgr::new();
 	for func in funcs {
-		let (mut myfunc, _liveins, liveouts) =
-			convert_func(func, &mut program.temp_mgr)?;
+		let myfunc = convert_func(func, &mut program.temp_mgr)?;
 		// println!("func instrs:");
 		// for block in myfunc.cfg.blocks.iter(){
 		// 	for instr in block.borrow().instrs.iter(){
 		// 		println!("{}",instr);
 		// 	}
 		// }
-		la_reduce_func(&mut myfunc, liveouts, &mut pcrel_mgr);
+		//la_reduce_func(&mut myfunc, &mut pcrel_mgr);
 		program.funcs.push(myfunc);
 	}
 	Ok(())
@@ -40,13 +38,12 @@ pub fn get_functions(
 pub fn convert_func(
 	func: LlvmFunc,
 	mgr: &mut TempManager,
-) -> Result<(RiscvFunc, Vec<HashSet<RiscvTemp>>, Vec<HashSet<RiscvTemp>>)> {
+) -> Result<RiscvFunc> {
 	let mut nodes = Vec::new();
 	let mut edge = Vec::new();
 	let mut table = HashMap::new();
 	let mut alloc_table = HashMap::new();
-	let mut live_ins = Vec::new();
-	let mut live_outs = Vec::new();
+
 	func.cfg.blocks.iter().for_each(remove_phi::remove_phi);
 	// debug print
 	for block in func.cfg.blocks.iter() {
@@ -71,14 +68,6 @@ pub fn convert_func(
 	}
 	kill_size = (kill_size + 15) & -16;
 
-	for block in func.cfg.blocks.iter() {
-		let live_in: HashSet<_> =
-			block.borrow().live_in.iter().map(|v| mgr.get(v)).collect();
-		let live_out: HashSet<_> =
-			block.borrow().live_out.iter().map(|v| mgr.get(v)).collect();
-		live_ins.push(live_in);
-		live_outs.push(live_out);
-	}
 	for block in func.cfg.blocks {
 		let id = block.borrow().id;
 		edge.extend(block.borrow().succ.iter().map(|v| (id, v.borrow().id)));
@@ -102,19 +91,14 @@ pub fn convert_func(
 	for (u, v) in edge {
 		force_link_node(table.get(&u).unwrap(), table.get(&v).unwrap())
 	}
-	Ok((
-		RiscvFunc {
-			total: mgr.total,
-			spills: 0,
-			cfg: RiscvCFG { blocks: nodes },
-			name: func.name,
-			params: func.params,
-			ret_type: func.ret_type,
-			external_resorce: HashSet::new(),
-		},
-		live_ins,
-		live_outs,
-	))
+	Ok(RiscvFunc {
+		total: mgr.total,
+		spills: 0,
+		cfg: RiscvCFG { blocks: nodes },
+		name: func.name,
+		params: func.params,
+		ret_type: func.ret_type,
+	})
 }
 fn _transform_basicblock_by_dag(
 	node: &LlvmNode,

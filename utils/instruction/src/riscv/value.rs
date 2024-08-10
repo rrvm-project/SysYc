@@ -36,7 +36,7 @@ impl From<RiscvReg> for RiscvTemp {
 		RiscvTemp::PhysReg(x)
 	}
 }
-// todo %hi(sym) 这种既可以当 RiscvImm 也可以当 offset
+
 #[derive(Clone)]
 pub enum RiscvImm {
 	RiscvNumber(RiscvNumber),

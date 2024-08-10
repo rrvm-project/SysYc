@@ -1,0 +1,9 @@
+[package]
+name = "pre_optimizer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+utils = { path = "../../utils" }
+rrvm = { path = "../../utils/rrvm" }
+instruction = { path = "../../utils/instruction" }

@@ -25,7 +25,8 @@ members = [
   "backend/transform",
   "backend/register",
   "backend/emission",
-  "backend/optimizer",
+  "backend/post_optimizer",
+  "backend/pre_optimizer",
 ]
 
 [dependencies]
@@ -41,11 +42,12 @@ typer = { path = "frontend/typer" }
 irgen = { path = "frontend/irgen" }
 
 optimizer = { path = "optimizer" }
+pre_optimizer = { path="backend/pre_optimizer" }
 
 transform = { path = "backend/transform" }
 register = { path = "backend/register" }
 emission = { path = "backend/emission" }
-backend_optimizer = { path = "backend/optimizer" }
+post_optimizer = { path = "backend/post_optimizer" }
 
 clap = { version = "4.4.7", features = ["derive"] }
 anyhow = "1.0.75"
