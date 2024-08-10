@@ -515,12 +515,12 @@ impl Visitor for IRGenerator {
 	}
 
 	fn visit_while(&mut self, node: &mut While) -> Result<()> {
-		self.enter_loop();
 		let mut counter = Counter::new();
 		node.cond.accept(&mut counter)?;
 		node.body.accept(&mut counter)?;
 		let (mut init, init_diff, need_phi) = self.copy_symbols(counter.symbols);
 
+		self.enter_loop();
 		node.cond.accept(self)?;
 		let (cond, cond_val, cond_addr) = self.stack.pop().unwrap();
 		let cond_val = self.solve(cond_val, cond_addr, &cond);
