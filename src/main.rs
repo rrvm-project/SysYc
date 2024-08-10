@@ -2,12 +2,6 @@ mod cli;
 mod config;
 mod printer;
 
-use std::{
-	fs::{self, File},
-	io,
-	io::Write,
-};
-
 use crate::{config::PARSER_INDENT, printer::trans_indent};
 use anyhow::Result;
 use ast::tree::Program;
@@ -19,8 +13,15 @@ use irgen::IRGenerator;
 use namer::visitor::Namer;
 use optimizer::*;
 use parser::parser::parse;
+use post_optimizer::post_backend_optimize;
+use pre_optimizer::prereg_backend_optimize;
 use register::solve_register;
 use rrvm::program::*;
+use std::{
+	fs::{self, File},
+	io,
+	io::Write,
+};
 use transform::get_functions;
 use typer::visitor::Typer;
 use utils::{fatal_error, map_sys_err, warning};
@@ -51,13 +52,12 @@ fn step_llvm(mut program: Program, level: i32) -> Result<LlvmProgram> {
 }
 
 fn step_riscv(program: LlvmProgram, level: i32) -> Result<RiscvProgram> {
-	use backend_optimizer::backend_optimize;
-
 	let mut riscv_program = RiscvProgram::new(TempManager::default());
 	riscv_program.global_vars = program.global_vars;
 	get_functions(&mut riscv_program, program.funcs)?;
+	prereg_backend_optimize(&mut riscv_program, level);
 	solve_register(&mut riscv_program);
-	backend_optimize(&mut riscv_program, level);
+	post_backend_optimize(&mut riscv_program, level);
 	Ok(riscv_program)
 }
 

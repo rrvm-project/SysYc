@@ -10,9 +10,9 @@ use utils::{errors::Result, SysycError::RiscvGenError};
 
 pub mod instr_dag;
 pub mod instr_schedule;
+
 pub mod remove_phi;
 pub mod transformer;
-
 use crate::instr_schedule::instr_schedule;
 
 pub fn get_functions(
@@ -20,11 +20,13 @@ pub fn get_functions(
 	funcs: Vec<LlvmFunc>,
 ) -> Result<()> {
 	for func in funcs {
-		program.funcs.push(convert_func(func, &mut program.temp_mgr)?);
+		let myfunc = convert_func(func, &mut program.temp_mgr)?;
+		program.funcs.push(myfunc);
 	}
 	Ok(())
 }
 
+#[allow(clippy::type_complexity)]
 pub fn convert_func(
 	func: LlvmFunc,
 	mgr: &mut TempManager,
@@ -33,7 +35,9 @@ pub fn convert_func(
 	let mut edge = Vec::new();
 	let mut table = HashMap::new();
 	let mut alloc_table = HashMap::new();
+
 	func.cfg.blocks.iter().for_each(remove_phi::remove_phi);
+	// debug print
 	for block in func.cfg.blocks.iter() {
 		for instr in block.borrow().instrs.iter() {
 			if let Some((temp, length)) = instr.get_alloc() {
@@ -79,7 +83,6 @@ pub fn convert_func(
 	for (u, v) in edge {
 		force_link_node(table.get(&u).unwrap(), table.get(&v).unwrap())
 	}
-
 	Ok(RiscvFunc {
 		total: mgr.total,
 		spills: 0,
@@ -89,7 +92,6 @@ pub fn convert_func(
 		ret_type: func.ret_type,
 	})
 }
-
 fn _transform_basicblock_by_dag(
 	node: &LlvmNode,
 	mgr: &mut TempManager,

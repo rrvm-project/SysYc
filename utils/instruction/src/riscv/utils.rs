@@ -70,3 +70,28 @@ pub fn map_imm_label(val: &mut RiscvImm, map: &mut LabelMapper) {
 pub fn get_offset(index: usize) -> RiscvImm {
 	(index as i32 * 8, RiscvReg::SP.into()).into()
 }
+#[derive(Default)]
+pub struct PCRelMgr {
+	pub cnt: usize,
+	pub mapper: HashMap<(String, RiscvTemp), String>, // mapping function name and write temp to label
+}
+
+impl PCRelMgr {
+	pub fn get_new_label(
+		&mut self,
+		func_name: String,
+		temp: RiscvTemp,
+	) -> String {
+		let label = format!("PCRel_{}_{}", func_name, self.cnt);
+		self.cnt += 1;
+		self.mapper.insert((func_name, temp), label.clone());
+		label
+	}
+	pub fn find_label(
+		&self,
+		func_name: &str,
+		temp: &RiscvTemp,
+	) -> Option<&String> {
+		self.mapper.get(&(func_name.to_string(), *temp))
+	}
+}

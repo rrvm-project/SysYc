@@ -39,14 +39,33 @@ impl From<RiscvReg> for RiscvTemp {
 
 #[derive(Clone)]
 pub enum RiscvImm {
-	Int(i32),
+	RiscvNumber(RiscvNumber),
 	Float(f32),
 	LongLong(i64),
 	VirtMem(VirtAddr),
 	Label(utils::Label),
-	OffsetReg(i32, RiscvTemp),
+	OffsetReg(RiscvNumber, RiscvTemp),
 }
-
+#[derive(Clone)]
+pub enum RiscvNumber {
+	Lo(utils::Label),
+	Hi(utils::Label),
+	Int(i32),
+}
+impl Display for RiscvNumber {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::Lo(v) => write!(f, "%pcrel_lo({})", v),
+			Self::Hi(v) => write!(f, "%pcrel_hi({})", v),
+			Self::Int(v) => write!(f, "{}", v),
+		}
+	}
+}
+impl RiscvNumber {
+	pub fn is_zero(&self) -> bool {
+		matches!(self, RiscvNumber::Int(0))
+	}
+}
 impl Display for RiscvTemp {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
@@ -59,7 +78,7 @@ impl Display for RiscvTemp {
 impl Display for RiscvImm {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::Int(v) => write!(f, "{}", v),
+			Self::RiscvNumber(v) => write!(f, "{}", v),
 			Self::Float(v) => write!(f, "{}", v),
 			Self::Label(v) => write!(f, "{}", v),
 			Self::LongLong(v) => write!(f, "{}", v),
@@ -71,13 +90,13 @@ impl Display for RiscvImm {
 
 impl From<i32> for RiscvImm {
 	fn from(x: i32) -> Self {
-		RiscvImm::Int(x)
+		RiscvImm::RiscvNumber(RiscvNumber::Int(x))
 	}
 }
 
 impl From<&i32> for RiscvImm {
 	fn from(x: &i32) -> Self {
-		RiscvImm::Int(*x)
+		RiscvImm::RiscvNumber(RiscvNumber::Int(*x))
 	}
 }
 
@@ -107,7 +126,7 @@ impl From<utils::Label> for RiscvImm {
 
 impl From<(i32, RiscvTemp)> for RiscvImm {
 	fn from(x: (i32, RiscvTemp)) -> Self {
-		RiscvImm::OffsetReg(x.0, x.1)
+		RiscvImm::OffsetReg(RiscvNumber::Int(x.0), x.1)
 	}
 }
 
@@ -134,7 +153,7 @@ impl RiscvTemp {
 
 impl RiscvImm {
 	pub fn is_zero(&self) -> bool {
-		matches!(self, Int(0))
+		matches!(self, RiscvImm::RiscvNumber(RiscvNumber::Int(0)))
 	}
 	pub fn to_virt_mem(&self) -> Option<VirtAddr> {
 		if let RiscvImm::VirtMem(v) = self {

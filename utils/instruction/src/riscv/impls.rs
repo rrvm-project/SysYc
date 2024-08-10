@@ -56,6 +56,9 @@ impl RiscvInstrTrait for RTriInstr {
 			_ => false,
 		}
 	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::RTriInstr(self)
+	}
 }
 
 impl RTriInstr {
@@ -105,11 +108,29 @@ impl RiscvInstrTrait for ITriInstr {
 	}
 	fn useless(&self) -> bool {
 		match (&self.op, &self.rd, &self.rs1, &self.rs2) {
-			(Addi, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
-			(Xori, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
-			(Ori, PhysReg(x), PhysReg(y), Int(0)) if x == y => true,
+			(
+				Addi,
+				PhysReg(x),
+				PhysReg(y),
+				RiscvImm::RiscvNumber(RiscvNumber::Int(0)),
+			) if x == y => true,
+			(
+				Xori,
+				PhysReg(x),
+				PhysReg(y),
+				RiscvImm::RiscvNumber(RiscvNumber::Int(0)),
+			) if x == y => true,
+			(
+				Ori,
+				PhysReg(x),
+				PhysReg(y),
+				RiscvImm::RiscvNumber(RiscvNumber::Int(0)),
+			) if x == y => true,
 			_ => false,
 		}
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::ITriInstr(self)
 	}
 }
 
@@ -138,7 +159,10 @@ impl RiscvInstrTrait for IBinInstr {
 		}
 	}
 	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
-		if matches!(self.op, SB | Li | Lui | LD | LW | LWU | LA | FLW | FLD) {
+		if matches!(
+			self.op,
+			SB | Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc
+		) {
 			map_temp(&mut self.rd, map);
 		}
 	}
@@ -153,20 +177,22 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn get_virt_mem_read(&self) -> Option<VirtAddr> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA | FLW | FLD => self.rs1.to_virt_mem(),
+			Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc => {
+				self.rs1.to_virt_mem()
+			}
 			_ => None,
 		}
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA | FLW | FLD => vec![self.rd],
+			Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc => vec![self.rd],
 			SB | SH | SW | SD | FSW | FSD => vec![],
 		}
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		[
 			match self.op {
-				Li | Lui | LD | LW | LWU | LA | FLW | FLD => vec![],
+				Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc => vec![],
 				SB | SH | SW | SD | FSW | FSD => vec![self.rd],
 			},
 			unwarp_imms(vec![&self.rs1]),
@@ -177,6 +203,9 @@ impl RiscvInstrTrait for IBinInstr {
 		if self.op != LA {
 			map_imm_label(&mut self.rs1, map);
 		}
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::IBinInstr(self)
 	}
 }
 
@@ -198,6 +227,9 @@ impl RiscvInstrTrait for LabelInstr {
 	}
 	fn get_write_label(&self) -> Option<Label> {
 		Some(self.label.clone())
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::LabelInstr(self)
 	}
 }
 
@@ -236,6 +268,16 @@ impl RiscvInstrTrait for RBinInstr {
 	fn useless(&self) -> bool {
 		self.is_move() && self.rd == self.rs1
 	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		match &self.op {
+			Seqz => Some(Bne),
+			Snez => Some(Beq),
+			_ => None,
+		}
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::RBinInstr(self)
+	}
 }
 
 impl RBinInstr {
@@ -272,6 +314,12 @@ impl RiscvInstrTrait for BranInstr {
 			_ => unreachable!(),
 		}
 	}
+	fn is_branch(&self) -> bool {
+		true
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::BranInstr(self)
+	}
 }
 
 impl BranInstr {
@@ -304,6 +352,9 @@ impl RiscvInstrTrait for NoArgInstr {
 	fn is_ret(&self) -> bool {
 		true
 	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::NoArgInstr(self)
+	}
 }
 
 impl NoArgInstr {
@@ -327,6 +378,9 @@ impl RiscvInstrTrait for CallInstr {
 	}
 	fn is_call(&self) -> bool {
 		true
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::CallInstr(self)
 	}
 }
 
@@ -360,6 +414,15 @@ impl RiscvInstrTrait for TemporayInstr {
 	fn get_temp_type(&self) -> llvm::VarType {
 		self.var_type
 	}
+	fn is_save(&self) -> bool {
+		matches!(self.op, TemporayInstrOp::Save)
+	}
+	fn is_restore(&self) -> bool {
+		matches!(self.op, TemporayInstrOp::Restore)
+	}
+	fn get_variant(&self) -> RiscvInstrVariant {
+		RiscvInstrVariant::TemporayInstr(self)
+	}
 }
 
 impl TemporayInstr {
@@ -369,5 +432,20 @@ impl TemporayInstr {
 			var_type,
 			lives: Vec::new(),
 		})
+	}
+}
+impl RiscvInstrTrait for PCRelLabelInstr {
+	fn get_variant(&self) -> RiscvInstrVariant {
+		return RiscvInstrVariant::PCRelLabelInstr(self);
+	}
+}
+impl Display for PCRelLabelInstr {
+	fn fmt(&self, f: &mut Formatter) -> Result {
+		write!(f, "{}: ", self.label)
+	}
+}
+impl PCRelLabelInstr {
+	pub fn new(label: String) -> RiscvInstr {
+		Box::new(Self { label })
 	}
 }

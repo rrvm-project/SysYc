@@ -83,7 +83,8 @@ pub enum IBinInstrOp {
 	SW,
 	SD,
 	LA,
-	// flaot
+	Auipc,
+	// float
 	FLW,
 	FSW,
 	FLD,

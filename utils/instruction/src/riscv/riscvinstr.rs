@@ -8,6 +8,18 @@ use super::{reg::RiscvReg, riscvop::*, value::*, virt_mem::VirtAddr};
 
 pub type RiscvInstr = Box<dyn RiscvInstrTrait>;
 
+pub enum RiscvInstrVariant<'a> {
+	RTriInstr(&'a RTriInstr),
+	ITriInstr(&'a ITriInstr),
+	IBinInstr(&'a IBinInstr),
+	RBinInstr(&'a RBinInstr),
+	LabelInstr(&'a LabelInstr),
+	BranInstr(&'a BranInstr),
+	NoArgInstr(&'a NoArgInstr),
+	CallInstr(&'a CallInstr),
+	TemporayInstr(&'a TemporayInstr),
+	PCRelLabelInstr(&'a PCRelLabelInstr),
+}
 pub trait CloneRiscvInstr {
 	fn clone_box(&self) -> Box<dyn RiscvInstrTrait>;
 }
@@ -76,6 +88,19 @@ pub trait RiscvInstrTrait: Display + UseTemp<Temp> + CloneRiscvInstr {
 	fn get_temp_type(&self) -> llvm::VarType {
 		unreachable!()
 	}
+	fn is_save(&self) -> bool {
+		false
+	}
+	fn is_restore(&self) -> bool {
+		false
+	}
+	fn is_branch(&self) -> bool {
+		false
+	}
+	fn map_br_op(&self) -> Option<BranInstrOp> {
+		None
+	}
+	fn get_variant(&self) -> RiscvInstrVariant;
 }
 
 impl UseTemp<Temp> for RiscvInstr {
@@ -115,7 +140,6 @@ pub struct IBinInstr {
 	pub rd: RiscvTemp,
 	pub rs1: RiscvImm,
 }
-
 #[derive(UseTemp, Clone)]
 pub struct RBinInstr {
 	pub op: RBinInstrOp,
@@ -152,4 +176,8 @@ pub struct TemporayInstr {
 	pub op: TemporayInstrOp,
 	pub var_type: llvm::VarType,
 	pub lives: Vec<RiscvReg>,
+}
+#[derive(UseTemp, Clone)]
+pub struct PCRelLabelInstr {
+	pub label: String,
 }
