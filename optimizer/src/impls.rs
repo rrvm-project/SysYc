@@ -1,5 +1,6 @@
 use crate::{useless_phis::RemoveUselessPhis, *};
 use alloc_hoisting::AllocHoisting;
+use code_hoisting::CodeHoisting;
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
@@ -70,6 +71,7 @@ impl Optimizer2 {
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
 			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
+			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
 			if !flag {
 				break;
@@ -89,6 +91,7 @@ impl Optimizer2 {
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
 			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
+			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
 			if !flag {
 				break;

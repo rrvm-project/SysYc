@@ -11,7 +11,7 @@ use crate::{
 	number::Number,
 	RrvmOptimizer,
 };
-use llvm::{LlvmTemp, LlvmTempManager, Value, VarType};
+use llvm::{LlvmInstrVariant::*, LlvmTemp, LlvmTempManager, Value, VarType};
 use rand::{rngs::StdRng, SeedableRng};
 use rrvm::{
 	dominator::DomTree,
@@ -35,6 +35,7 @@ struct Solver<'a> {
 	array_states: HashMap<i32, ArrayState>,
 	use_states: HashMap<i32, UseStateItem>,
 	global_base: HashSet<Number>,
+	stack: Vec<(LlvmNode, HashSet<Number>)>,
 }
 
 impl<'a> Solver<'a> {
@@ -64,6 +65,7 @@ impl<'a> Solver<'a> {
 			addr2temp: HashMap::new(),
 			instance_phi: HashMap::new(),
 			use_states: HashMap::new(),
+			stack: Vec::new(),
 			mgr,
 			global_base,
 			addr_mapper,
@@ -79,6 +81,9 @@ impl<'a> Solver<'a> {
 	fn get_val_addr(&self, value: &Value) -> Addr {
 		value.unwrap_temp().map(|temp| self.get_addr(&temp)).unwrap()
 	}
+	fn addr_anticipate(&self, id: i32, addr: &Addr) -> bool {
+		self.addr2temp.get(&id).map(|v| v.contains_key(addr)).unwrap_or(false)
+	}
 
 	// part1: get all address that used in function
 	pub fn calc_addr(
@@ -86,7 +91,6 @@ impl<'a> Solver<'a> {
 		node: LlvmNode,
 		mut addr2temp: HashMap<Addr, Value>,
 	) {
-		use llvm::LlvmInstrVariant::*;
 		for instr in node.borrow().phi_instrs.iter() {
 			if instr.var_type.is_ptr() {
 				let number = self.func_data.get_number(&instr.target).unwrap();
@@ -156,7 +160,6 @@ impl<'a> Solver<'a> {
 			for addr in self.addrs.iter() {
 				info.insert(addr.clone());
 			}
-			use llvm::LlvmInstrVariant::*;
 			for instr in block.instrs.iter() {
 				match instr.get_variant() {
 					StoreInstr(instr) => {
@@ -230,7 +233,6 @@ impl<'a> Solver<'a> {
 		}
 	}
 	fn map_load_instr(&mut self, node: &LlvmNode, array_state: &mut ArrayState) {
-		use llvm::LlvmInstrVariant::*;
 		let prev_ids: Vec<_> =
 			node.borrow().prev.iter().map(|v| v.borrow().id).collect();
 		let mut block = node.borrow_mut();
@@ -238,9 +240,8 @@ impl<'a> Solver<'a> {
 		let mut phi_info = ArrayInfo::default();
 		for addr in self.phi.get(&block.id).unwrap_or(&HashSet::new()).iter() {
 			array_state.remove(addr);
-			if prev_ids.iter().all(|id| {
-				self.addr2temp.get(id).map(|v| v.contains_key(addr)).unwrap_or(false)
-			}) && !prev_ids.is_empty()
+			if prev_ids.iter().all(|id| self.addr_anticipate(*id, addr))
+				&& !prev_ids.is_empty()
 			{
 				array_state.insert_item(addr.clone(), block.id);
 			}
@@ -411,14 +412,14 @@ impl<'a> Solver<'a> {
 				};
 				for instr in block.instrs.iter().rev() {
 					match instr.get_variant() {
-						llvm::LlvmInstrVariant::LoadInstr(instr) => {
+						LoadInstr(instr) => {
 							if !instr.addr.unwrap_temp().unwrap().is_global {
 								let addr = self.get_val_addr(&instr.addr);
 								stores.retain(|v| v.base != addr.base);
 								loads.insert(addr);
 							}
 						}
-						llvm::LlvmInstrVariant::StoreInstr(instr) => {
+						StoreInstr(instr) => {
 							let addr = self.get_val_addr(&instr.addr);
 							if !stores.contains(&addr)
 								&& loads.iter().any(|v| addr.base == v.base)
@@ -427,7 +428,7 @@ impl<'a> Solver<'a> {
 								stores.insert(addr);
 							}
 						}
-						llvm::LlvmInstrVariant::CallInstr(instr) => {
+						CallInstr(instr) => {
 							for (var_type, param) in instr.params.iter() {
 								if var_type.is_ptr() {
 									let addr = self.get_val_addr(param);
@@ -467,7 +468,7 @@ impl<'a> Solver<'a> {
 			let mut state = self.use_states.remove(&block.id).unwrap().state_out;
 			block.instrs.reverse();
 			block.instrs.retain(|instr| match instr.get_variant() {
-				llvm::LlvmInstrVariant::LoadInstr(instr) => {
+				LoadInstr(instr) => {
 					if !instr.addr.unwrap_temp().unwrap().is_global {
 						let addr = self.get_val_addr(&instr.addr);
 						state.stores.retain(|v| v.base != addr.base);
@@ -475,7 +476,7 @@ impl<'a> Solver<'a> {
 					}
 					true
 				}
-				llvm::LlvmInstrVariant::StoreInstr(instr) => {
+				StoreInstr(instr) => {
 					let addr = self.get_val_addr(&instr.addr);
 					!state.stores.contains(&addr)
 						&& state.loads.iter().any(|v| addr.base == v.base)
@@ -485,7 +486,7 @@ impl<'a> Solver<'a> {
 							true
 						}
 				}
-				llvm::LlvmInstrVariant::CallInstr(instr) => {
+				CallInstr(instr) => {
 					for (var_type, param) in instr.params.iter() {
 						if var_type.is_ptr() {
 							let addr = self.get_val_addr(param);
@@ -504,6 +505,80 @@ impl<'a> Solver<'a> {
 			});
 			block.instrs.reverse();
 		}
+	}
+
+	// optional part 1: hoist load instruction
+	fn load_hoisting(&mut self, node: &LlvmNode) -> HashSet<Number> {
+		let mut block = node.borrow_mut();
+		let init_weight = block.weight;
+		let mut store_base = HashSet::new();
+		for addr in self.phi.get(&block.id).unwrap_or(&HashSet::new()).iter() {
+			store_base.insert(addr.base.clone());
+		}
+		block.instrs.retain(|instr| match instr.get_variant() {
+			LoadInstr(instr) => {
+				if instr.addr.unwrap_temp().unwrap().is_global {
+					true
+				} else {
+					let addr = self.get_val_addr(&instr.addr);
+					store_base.contains(&addr.base) || {
+						// eprintln!("试试刀吧！{}", instr);
+						let mut best_weight = init_weight * 0.99;
+						let mut best_node = None;
+						for (node, store_base) in self.stack.iter().rev() {
+							if !self.addr_anticipate(node.borrow().id, &addr) {
+								break;
+							}
+							let weight = node.borrow().weight;
+							if weight < best_weight {
+								// eprintln!("上上");
+								best_weight = weight;
+								best_node = Some(node);
+							}
+							if store_base.contains(&addr.base) {
+								break;
+							}
+						}
+						if let Some(best_node) = best_node {
+							// eprintln!("进入！");
+							best_node.borrow_mut().instrs.push(Box::new(instr.clone()));
+							false
+						} else {
+							// eprintln!("怎么想都进不去吧！");
+							true
+						}
+					}
+				}
+			}
+			StoreInstr(instr) => {
+				let addr = self.get_val_addr(&instr.addr);
+				store_base.insert(addr.base);
+				true
+			}
+			CallInstr(instr) => {
+				for (var_type, param) in instr.params.iter() {
+					if var_type.is_ptr() {
+						let addr = self.get_val_addr(param);
+						store_base.insert(addr.base);
+					}
+				}
+				for base in self.global_base.clone() {
+					store_base.insert(base);
+				}
+				true
+			}
+			_ => true,
+		});
+		store_base
+	}
+	fn solve_load_hoisting(&mut self, node: LlvmNode) {
+		let children = self.dom_tree.get_children(node.borrow().id).clone();
+		let store_base = self.load_hoisting(&node);
+		self.stack.push((node.clone(), store_base));
+		for v in children {
+			self.solve_load_hoisting(v);
+		}
+		self.stack.pop();
 	}
 }
 
@@ -532,6 +607,7 @@ impl RrvmOptimizer for Mem2Reg {
 			solver.solve_load_instr(func);
 			solver.solve_phi_instr(func);
 			solver.solve_store_instr(func);
+			solver.solve_load_hoisting(func.cfg.get_entry());
 			false
 		}
 

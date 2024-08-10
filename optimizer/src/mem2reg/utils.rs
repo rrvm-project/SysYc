@@ -29,14 +29,6 @@ impl ArrayInfo {
 		let entry = self.pos.entry(addr.base).or_default();
 		entry.entry(addr.offset.get_base()).or_default().insert(addr.offset);
 	}
-	// pub fn contains(&mut self, addr: &Addr) -> bool {
-	// 	self
-	// 		.pos
-	// 		.get(&addr.base)
-	// 		.and_then(|v| v.get(&addr.offset.get_base()))
-	// 		.map(|v| v.contains(&addr.offset))
-	// 		.unwrap_or(false)
-	// }
 	pub fn solve_conflict(&mut self, addr: &Addr) -> Vec<Addr> {
 		let entry = self.pos.entry(addr.base.clone()).or_default();
 		let base = addr.offset.get_base();

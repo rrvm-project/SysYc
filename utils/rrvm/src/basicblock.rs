@@ -272,20 +272,21 @@ impl<T: InstrTrait<U>, U: TempTrait> Display for BasicBlock<T, U> {
 		write!(
 			f,
 			"  {}:
+    weight: {}
     prev: {:?} succ: {:?}
     uses: {:?}
     defs: {:?}
     livein: {:?}
     liveout: {:?}
-    kill_size: {}\n{}",
+    \n{}",
 			self.label(),
+			self.weight,
 			prev,
 			succ,
 			uses,
 			defs,
 			live_in,
 			live_out,
-			self.kill_size,
 			instrs
 		)
 	}
