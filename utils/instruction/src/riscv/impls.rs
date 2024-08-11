@@ -66,6 +66,9 @@ impl RiscvInstrTrait for RTriInstr {
 			_ => None,
 		}
 	}
+	fn is_fdiv(&self) -> bool {
+		matches!(self.op, RTriInstrOp::Fdiv)
+	}
 }
 impl RTriInstr {
 	pub fn new(
@@ -145,6 +148,16 @@ impl RiscvInstrTrait for ITriInstr {
 			_ => None,
 		}
 	}
+	fn get_increment(&self) -> IncrementType {
+		match self.op {
+			Addi | Addiw => match self.rs2 {
+				RiscvImm::Int(v) => IncrementType::Int(v),
+				RiscvImm::LongLong(v) => IncrementType::LongLong(v),
+				_ => IncrementType::None,
+			},
+			_ => IncrementType::None,
+		}
+	}
 }
 
 impl ITriInstr {
@@ -214,6 +227,21 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn get_variant(&self) -> RiscvInstrVariant {
 		RiscvInstrVariant::IBinInstr(self)
+	}
+	fn get_imm(&self) -> Option<RiscvImm> {
+		Some(self.rs1.clone())
+	}
+	fn is_load(&self) -> Option<bool> {
+		match self.op {
+			Li | Lui | LD | LW | LWU | LA | FLD | FLW => Some(true),
+			SB | SH | SW | SD | FSD | FSW => Some(false),
+		}
+	}
+	fn is_store(&self) -> Option<bool> {
+		match self.op {
+			Li | Lui | LD | LW | LWU | LA | FLD | FLW => Some(false),
+			SB | SH | SW | SD | FSD | FSW => Some(true),
+		}
 	}
 }
 
