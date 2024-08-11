@@ -111,6 +111,22 @@ impl Loop {
 		}
 		latch
 	}
+	/// get the only exit of the loop if it exists
+	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
+	pub fn get_single_exit(&self, blocks: &[LlvmNode], loop_map: &HashMap<i32, LoopPtr>) -> Option<LlvmNode> {
+		let mut exit = None;
+		for block in blocks.iter() {
+			for succ in block.borrow().succ.iter() {
+				let succ_loop = loop_map.get(&succ.borrow().id);
+				if succ_loop.is_some_and(|l| !self.is_super_loop_of(l)) {
+					if exit.replace(succ.clone()).is_some() {
+						return None;
+					}
+				}
+			}
+		}
+		exit
+	}
 	fn no_inner(&self) -> bool {
 		self.subloops.is_empty()
 	}

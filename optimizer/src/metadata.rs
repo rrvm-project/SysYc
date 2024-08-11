@@ -1,12 +1,18 @@
 use std::collections::HashMap;
 
 use llvm::{LlvmTemp, Value};
+use rrvm::rrvm_loop::LoopPtr;
 
-use crate::number::Number;
+use crate::{loopinfo::LoopInfo, number::Number};
 
 #[derive(Default)]
 pub struct FuncData {
 	pub num_mapper: HashMap<LlvmTemp, Number>,
+	// basicblock id to loop
+	pub loop_map: HashMap<i32, LoopPtr>,
+	// loop id to loopinfo
+	// 仅能确定循环次数的 loop 才有 LoopInfo
+	pub loop_infos: HashMap<u32, LoopInfo>,
 }
 
 impl FuncData {

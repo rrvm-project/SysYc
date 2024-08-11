@@ -8,7 +8,7 @@ impl<'a> IndVarSolver<'a> {
 			for inst in block.borrow().instrs.iter() {
 				if let Some(t) = inst.get_write() {
 					if self.loop_invariant.contains(&t) {
-						eprintln!("moving invariant: {}", t);
+						// eprintln!("moving invariant: {}", t);
 						self.preheader.borrow_mut().instrs.push(inst.clone());
 						*self.def_map.get_mut(&t).unwrap() = self.preheader.clone();
 						self.flag = true;

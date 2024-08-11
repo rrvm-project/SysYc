@@ -29,6 +29,7 @@ impl RrvmOptimizer for HandleLoops {
 			let mut flag: bool = false;
 			let mut loop_map = HashMap::new();
 			let root_loop = func.cfg.loop_analysis(&mut loop_map);
+			funcdata.loop_map = loop_map.clone();
 			let mut opter = LoopOptimizer::new(func, funcdata, temp_mgr);
 			opter.loop_map = loop_map;
 			// print_all_loops(root_loop.clone());

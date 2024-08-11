@@ -101,7 +101,6 @@ impl<'a> LoopOptimizer<'a> {
 			&mut self.temp_graph,
 			&mut self.loop_map,
 			&mut self.def_map,
-			self.funcdata,
 		);
 		let phi_defs: Vec<LlvmTemp> = loop_
 			.borrow()
@@ -116,7 +115,9 @@ impl<'a> LoopOptimizer<'a> {
 		}
 		solver.classify_variant();
 		solver.move_invariant();
-
+		if let Some(info) = solver.get_loop_info() {
+			self.funcdata.loop_infos.insert(loop_.borrow().id, info.clone());
+		}
 		solver.flag
 	}
 }

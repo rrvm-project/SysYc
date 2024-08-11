@@ -1,4 +1,4 @@
-use crate::loops::indvar::IndVar;
+use crate::indvar::IndVar;
 
 use super::IndVarSolver;
 
