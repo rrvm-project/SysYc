@@ -1,20 +1,17 @@
 use std::{
-	cell::RefCell,
 	cmp::{max, min},
 	collections::{HashMap, VecDeque},
 	fmt::Display,
-	rc::Rc,
 };
 
 use crate::{
-	instrdag::{postprocess_call, InstrDag, InstrNode},
+	instrdag::{postprocess_call, InstrDag},
 	Liveliness, RiscvInstr,
 };
 use instruction::{
 	riscv::{
 		prelude::RiscvInstrTrait,
-		reg::RiscvReg::A0,
-		value::RiscvTemp::{self, PhysReg},
+		value::RiscvTemp::{self},
 	},
 	RiscvInstrSet,
 };
@@ -24,7 +21,6 @@ use utils::{
 	SUM_MIN_RATIO,
 };
 
-type Node = Rc<RefCell<InstrNode>>;
 #[derive(Clone, PartialEq, Eq, Copy, Debug)]
 enum AluKind {
 	Mem,
@@ -151,12 +147,12 @@ fn punishment(
 	let mut succ_sum = 0;
 	let mut succ_min = 0;
 	for i in dag.nodes[instr_id].borrow().succ.iter() {
-		let mut my_succ_reads = Vec::new();
+		let my_succ_reads={
 		if i.borrow().instr.is_call() {
-			my_succ_reads = dag.call_reads[state.call_ids.len()].clone();
+			dag.call_reads[state.call_ids.len()].clone()
 		} else {
-			my_succ_reads = i.borrow().instr.get_riscv_read().clone();
-		}
+			i.borrow().instr.get_riscv_read().clone()
+		}};
 		succ_sum += my_succ_reads
 			.iter()
 			.map(|x| {
@@ -176,17 +172,17 @@ fn punishment(
 			succ_min,
 		);
 		// 对 write 寄存器的情况考虑如上
-		let mut my_succ_writes = Vec::new();
+		let my_succ_writes = {
 		if i.borrow().instr.is_call() {
-			my_succ_writes = if let Some(tmp) = dag.call_writes[state.call_ids.len()]
+			if let Some(tmp) = dag.call_writes[state.call_ids.len()]
 			{
 				vec![tmp]
 			} else {
 				Vec::new()
-			};
+			}
 		} else {
-			my_succ_writes = i.borrow().instr.get_riscv_write().clone();
-		}
+			 i.borrow().instr.get_riscv_write().clone()
+		}};
 		succ_sum += my_succ_writes
 			.iter()
 			.map(|x| {
@@ -243,12 +239,12 @@ fn punishment(
 		}
 	} else {
 		// 从 alus[4],alus[5] 拿出 complete_time 更小的来考虑
-		flight_idx = (if state.alus[4].complete_cycle < state.alus[5].complete_cycle
+		flight_idx = if state.alus[4].complete_cycle < state.alus[5].complete_cycle
 		{
 			4
 		} else {
 			5
-		});
+		};
 		flight_unit = Alu::new(state.alus[flight_idx].kind);
 		if state.alus[flight_idx].complete_cycle > ready_time {
 			flight_time_incre =
@@ -258,28 +254,14 @@ fn punishment(
 			state.flight_time + flight_time_incre + instr.get_rtn_array()[4] as usize;
 	}
 	let time_incre = max(flight_unit.complete_cycle, old_max) - old_max;
-	// println!("------------");
-	// println!(" in punishment calculation:");
-	// for i in state.instrs.iter(){
-	// 	println!("{}",i);
-	// }
-	// println!("alu status:");
-	// for (idx,i) in state.alus.iter().enumerate(){
-	// 	if idx==flight_idx{
-	// 		println!("{:?}",flight_unit);
-	// 	}else{
-	// 		println!("{:?}",i);
-	// 	}
-	// }
-	// println!("time_incre: {} flight_time_incre: {} flight_idx: {}",time_incre,flight_time_incre,flight_idx);
-	// println!("------------------");
+
 	succ_score += succ_min as i32;
 	score = score * REDUCE_LIVE
 		+ alloc_score * ADD_ALLOCATABLES
 		+ end_live_score * NEAR_END
 		+ succ_score * REDUCE_SUB
 		+ time_incre as i32 * HARDWARE_PIPELINE_PARAM;
-	//println!("punishment: {} flight_time_incre: {} flight_idx: {} flight_unit: {:?}",score,flight_time_incre,flight_idx,flight_unit);
+
 	(score, flight_time_incre, flight_idx, flight_unit)
 }
 #[derive(Clone)]
@@ -325,9 +307,8 @@ pub fn get_punishment_by_instrs(instr: &Vec<Box<dyn RiscvInstrTrait>>) -> i32 {
 	for instr in instr.iter() {
 		let mut flight_time_incre = 1;
 		let ready_time = flight_time + flight_time_incre;
-		let old_max = alus.iter().map(|x| x.complete_cycle).max().unwrap_or(0);
 		if get_alukind(instr) != AluKind::Normal {
-			for (idx, alu) in alus.iter_mut().enumerate() {
+			for alu in alus.iter_mut() {
 				if get_alukind(instr) == alu.kind {
 					if alu.complete_cycle > ready_time {
 						flight_time_incre = alu.complete_cycle - ready_time + 1;
@@ -344,11 +325,11 @@ pub fn get_punishment_by_instrs(instr: &Vec<Box<dyn RiscvInstrTrait>>) -> i32 {
 				}
 			}
 		} else {
-			let flight_idx = (if alus[4].complete_cycle < alus[5].complete_cycle {
+			let flight_idx = if alus[4].complete_cycle < alus[5].complete_cycle {
 				4
 			} else {
 				5
-			});
+			};
 			if alus[flight_idx].complete_cycle > ready_time {
 				flight_time_incre = alus[flight_idx].complete_cycle - ready_time + 1;
 			}
@@ -360,14 +341,12 @@ pub fn get_punishment_by_instrs(instr: &Vec<Box<dyn RiscvInstrTrait>>) -> i32 {
 	let t = alus.iter().map(|x| x.complete_cycle).max().unwrap_or(0);
 	t as i32 * HARDWARE_PIPELINE_PARAM
 }
-// 咱想想怎么设计：改动：
 // 1. 先不去 clone state，对于每个可以分配的 instruction 把 instr 先 push 再 pop 最后把 pop_front 得到的 State 再 push 回去
 // 2. 每一步的计算保留以下4个参数：total_punishment,state_idx,node_id,my_reads 最后根据 total_punishment 排序并且把前 BFS_STATE_THRESHOLD 给 push 进去
 pub fn instr_schedule_by_dag(
 	dag: InstrDag,
 	liveliness_map: HashMap<RiscvTemp, Liveliness>,
 ) -> Result<RiscvInstrSet, SysycError> {
-	// println!("{}",dag);
 	// 计算原始 punishment
 	let original_instrs: Vec<_> =
 		dag.nodes.iter().rev().map(|x| x.borrow().instr.clone()).collect();
@@ -406,17 +385,11 @@ pub fn instr_schedule_by_dag(
 				.filter(|(_k, v)| **v == 0)
 				.map(|(k, _)| *k)
 				.collect();
-			// println!("allocatables: {:?} _i: {:?} _j: {:?} ", allocatables,_i,_j);
-			// println!("state instrs:");
-			// for i in state.instrs.iter() {
-			// 	println!("{}", i);
-			// }
 			for i in allocatables.iter() {
-				//let mut new_state = state.clone();
 				state.instrs.push(dag.nodes[*i].borrow().instr.clone());
 				// get riscv reads and writes
-				let mut my_reads = Vec::new();
-				let mut my_writes = Vec::new();
+				let my_reads;
+				let my_writes;
 				if dag.nodes[*i].borrow().instr.is_call() {
 					//check state's call_id length
 					my_reads = dag.call_reads[state.call_ids.len()].clone();
@@ -437,19 +410,13 @@ pub fn instr_schedule_by_dag(
 			}
 			states.push_back(state);
 		}
-		// debug print keeps
 		if keeps.len() > BFS_STATE_THRESHOLD {
 			keeps.sort_by(|a, b| a.2.cmp(&b.2));
-			// println!("keeps: ");
-			// for entry in keeps.iter() {
-			// 	println!("{:?} {}", entry,dag.nodes[entry.1].borrow().instr);
-			// }
-			// println!("======= end keeps ======");
 			keeps.truncate(BFS_STATE_THRESHOLD);
 		}
 		for i in 0..real_cnt {
 			// iterate the keeps
-			let mut cnts: Vec<_> =
+			let cnts: Vec<_> =
 				keeps.iter().filter(|x| x.0 == i).map(|x| *x).collect();
 			if cnts.len() == 0 {
 				states.pop_front();
@@ -460,13 +427,12 @@ pub fn instr_schedule_by_dag(
 					state.call_ids.push(cnts[0].1);
 				}
 				// calc my_reads
-				let mut my_reads = Vec::new();
+				let my_reads = {
 				if state.instrs.last().unwrap().is_call() {
-					my_reads = dag.call_reads[state.call_ids.len() - 1].clone();
+					dag.call_reads[state.call_ids.len() - 1].clone()
 				} else {
-					my_reads =
-						dag.nodes[cnts[0].1].borrow().instr.get_riscv_read().clone();
-				}
+					dag.nodes[cnts[0].1].borrow().instr.get_riscv_read().clone()
+				}};
 				// decl the use in new_state's liveliness_map
 				for i in my_reads.iter() {
 					state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
@@ -493,13 +459,12 @@ pub fn instr_schedule_by_dag(
 						new_state.call_ids.push(cnts[j].1);
 					}
 					// calc my_reads
-					let mut my_reads = Vec::new();
+					let my_reads = {
 					if new_state.instrs.last().unwrap().is_call() {
-						my_reads = dag.call_reads[new_state.call_ids.len() - 1].clone();
+						dag.call_reads[new_state.call_ids.len() - 1].clone()
 					} else {
-						my_reads =
-							dag.nodes[cnts[j].1].borrow().instr.get_riscv_read().clone();
-					}
+						dag.nodes[cnts[j].1].borrow().instr.get_riscv_read().clone()
+					}};
 					// decl the use in new_state's liveliness_map
 					for i in my_reads.iter() {
 						new_state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
@@ -526,16 +491,16 @@ pub fn instr_schedule_by_dag(
 					state.call_ids.push(cnts[cnts.len() - 1].1);
 				}
 				// calc my_reads
-				let mut my_reads = Vec::new();
+				let my_reads={
 				if state.instrs.last().unwrap().is_call() {
-					my_reads = dag.call_reads[state.call_ids.len() - 1].clone();
+					dag.call_reads[state.call_ids.len() - 1].clone()
 				} else {
-					my_reads = dag.nodes[cnts[cnts.len() - 1].1]
+					dag.nodes[cnts[cnts.len() - 1].1]
 						.borrow()
 						.instr
 						.get_riscv_read()
-						.clone();
-				}
+						.clone()
+				}};
 				// decl the use in new_state's liveliness_map
 				for i in my_reads.iter() {
 					state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
@@ -556,23 +521,11 @@ pub fn instr_schedule_by_dag(
 			}
 		}
 	}
-	// for i in states.iter() {
-	// 	println!("final state instructions:");
-	// 	for j in i.instrs.iter() {
-	// 		println!("{}", j);
-	// 	}
-	// }
 	// state 排序
 	states.make_contiguous().sort_by(|a, b| a.score.cmp(&b.score));
 	let mut final_state = states.pop_front().unwrap();
-	// println!("final state instructions:");
-	// for i in final_state.instrs.iter() {
-	// 	println!("{}", i);
-	// }
 	if final_state.score >= original_punishment {
 		final_state.instrs = original_instrs;
-	} else {
-		//	println!("original punishment: {} final punishment: {}",original_punishment,final_state.score);
 	}
 	Ok(postprocess_call(
 		final_state.instrs,

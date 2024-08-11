@@ -73,7 +73,6 @@ fn preprocess_call(
 			if i.get_riscv_read().len() == 1 {
 				if let RiscvTemp::PhysReg(A0) = i.get_riscv_read()[0] {
 					my_call_related.push(i.clone());
-					//call_write.push(Some(i.get_riscv_write()[0]));
 					push_this = true;
 					continue;
 				} else {
@@ -147,14 +146,9 @@ pub fn postprocess_call(
 	if let Some(instr) = branch_related {
 		my_instrs.push(instr);
 	}
-	// debug print
-	// println!("postprocess call instrs:");
-	// for i in my_instrs.iter() {
-	// 	println!("{}", i);
-	// }
-	// println!("---------------postprocess call instrs end---------------------");
 	my_instrs
 }
+
 impl InstrDag {
 	pub fn new(node: &RiscvNode) -> Result<Self, SysycError> {
 		let mut nodes: Vec<Node> = Vec::new();
@@ -172,21 +166,15 @@ impl InstrDag {
 		let mut call_related_map = HashMap::new();
 		let mut call_instrs: Vec<Rc<RefCell<InstrNode>>> = Vec::new();
 		let mut my_call_write = None;
-		let mut ret_call_writes = Vec::new();
-		let mut ret_call_reads = Vec::new();
 		// preprocessing call related: 把 call 前后的 从 save 到 restore 的若干条指令保存在 call_related 里面,然后加入到 is_filtered_idx 之后遍历instrs 的时候遇到就直接continue
-		// println!("original instrs :");
-		// for i in node.borrow().instrs.iter() {
-		// 	println!("{}", i);
-		// }
 		let mut processed_instrs = preprocess_call(
 			node,
 			&mut call_related,
 			&mut call_write,
 			&mut call_reads,
 		);
-		ret_call_writes = call_write.clone();
-		ret_call_reads = call_reads.clone();
+		let ret_call_writes = call_write.clone();
+		let ret_call_reads = call_reads.clone();
 		if processed_instrs.len() > 0 {
 			let last_instr = processed_instrs.last().unwrap();
 			if last_instr.is_branch() {
@@ -194,23 +182,6 @@ impl InstrDag {
 				let _ = processed_instrs.pop();
 			}
 		}
-		// println!("call read temps: {:?}", call_reads);
-		// println!("call related instructions:");
-		// for i in call_related.iter() {
-		// 	for j in i.iter() {
-		// 		println!("{}", j);
-		// 	}println!("----");
-		// }
-		// for i in call_related.iter(){
-		// 	for j in i.iter(){
-		// 		if j.is_call(){
-		// 			println!("get riscv read: {:?}",j.get_riscv_read());
-		// 			println!("get riscv write: {:?}",j.get_riscv_write());
-		// 			println!("call write: {:?}",call_write);
-		// 			println!("-----------");
-		// 		}
-		// 	}
-		// }
 		// 传参 call 回去 param read 会需要记录
 		for i in call_related.iter() {
 			let mut riscv_writes = HashSet::new();
@@ -219,18 +190,8 @@ impl InstrDag {
 				riscv_writes.extend(j.get_riscv_write().iter().cloned());
 				riscv_reads.extend(j.get_riscv_read().iter().cloned());
 			}
-			// println!("for total call related instructions: riscvreads {:?}",riscv_reads);
-			// println!("for total call related instructions: riscvwrites {:?}",riscv_writes);
-			// println!("------------");
 		}
-		// println!("processed_instrs len: {}",processed_instrs.len());
-		// for i in processed_instrs.iter() {
-		// 	println!("{}",i);
-		// }
 		for (idx, instr) in processed_instrs.iter().rev().enumerate() {
-			// println!("instr id:{} {}",instr, idx);
-			// println!("instr read: {:?}",instr.get_riscv_read());
-			// println!("instr write: {:?}",instr.get_riscv_write());
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
 			if idx == 0 {
 				if instr.get_riscv_write().len() == 1
@@ -246,10 +207,6 @@ impl InstrDag {
 					instr_node_succ.extend(
 						uses.get(&instr_write).unwrap_or(&Vec::new()).iter().cloned(),
 					);
-					//  println!("in instr {} write extending..",node.borrow().id);
-					//  for i in uses.get(&instr_write).unwrap_or(&Vec::<Rc<RefCell<InstrNode>>>::new()).iter().map(|z| z.borrow().id).collect::<Vec<_>>() {
-					//  	println!("intr write extending to id: {}", i);
-					// }
 					// 同时 extend predecessors
 					for i in uses.get(&instr_write).unwrap_or(&Vec::new()).iter() {
 						i.borrow_mut().pred.push(node.clone());
@@ -324,12 +281,9 @@ impl InstrDag {
 					i.borrow_mut().pred.push(node.clone());
 				}
 				call_instrs.push(node.clone());
-			// for i in nodes.iter() {
-			// 	instr_node_succ.push(i.clone());
-			// }
+
 			} else if instr.is_load().unwrap_or(false) {
 				if let Some(last_call) = last_call.clone() {
-					//	println!("in is_load {} extending last_call {}",node.borrow().id,last_call.borrow().id);
 					instr_node_succ.push(last_call.clone());
 					last_call.borrow_mut().pred.push(node.clone());
 				}
@@ -351,9 +305,6 @@ impl InstrDag {
 			nodes.push(node);
 		}
 		for node in nodes.iter() {
-			//  println!("node id: {}", node.borrow().id);
-			//  println!("node successors: {:?}", node.borrow().succ.iter().map(|s| s.borrow().id).collect::<Vec<usize>>());
-			//  println!("---------");
 			for succ in node.borrow().succ.iter() {
 				succ.borrow_mut().in_deg += 1;
 			}
