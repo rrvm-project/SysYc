@@ -1,0 +1,85 @@
+  .file "./project-eval/testcases/performance/recursive_call_3.sy"
+  .option nopic
+  .attribute unaligned_access, 0
+  .attribute stack_align, 16
+  .text
+  .text
+  .global main
+  .align 1
+  .type func_calc_coef, @function
+func_calc_coef:
+    addi sp, sp, -16
+    sd s1, 0(sp)
+    sd ra, 8(sp)
+    mv s1, a0
+    li a0, 0
+    blt a1, a0, L_1
+    addiw a1, a1, -1
+    mv a0, s1
+    call func_calc_coef
+    flw fa3, 0(s1)
+    li a0, 4
+    add a1, s1, a0
+    flw fa2, 0(a1)
+    li a0, 1065353216
+    addi a0, a0, 0
+    fmv.w.x fa1, a0
+    fadd.s fa0, fa1, fa3
+    fmul.s fa1, fa3, fa0
+    fmul.s fa3, fa3, fa2
+    fadd.s fa3, fa2, fa3
+    fsub.s fa1, fa0, fa1
+    fsub.s fa2, fa2, fa3
+    fsw fa1, 0(s1)
+    fsw fa2, 0(a1)
+    j L_2
+  L_1:
+    li a1, 4
+    add a0, s1, a1
+    fmv.w.x fa0, x0
+    fsw fa0, 0(a0)
+    fsw fa0, 0(s1)
+  L_2:
+    ld s1, 0(sp)
+    ld ra, 8(sp)
+    addi sp, sp, 16
+    ret
+  .size func_calc_coef, .-func_calc_coef
+  .align 1
+  .type main, @function
+main:
+    addi sp, sp, -16
+    sd ra, 0(sp)
+    sd s1, 8(sp)
+    call getint
+    mv a1, a0
+    addi sp, sp, -16
+    mv s1, sp
+    mv a0, s1
+    call func_calc_coef
+    flw fa1, 0(s1)
+    li a1, 1065361408
+    addi a0, a1, 197
+    fmv.w.x fa2, a0
+    fmul.s fa1, fa1, fa2
+    li a1, 4
+    add a1, s1, a1
+    flw fa0, 0(a1)
+    fadd.s fa0, fa1, fa0
+    fsub.s fa1, fa0, fa2
+    fmv.w.x fa2, x0
+    feq.s s1, fa1, fa2
+    bne s1, x0, L_3
+    j L_4
+  L_3:
+    li a0, 112
+    call putch
+  L_4:
+    addi sp, sp, 16
+    mv a0, x0
+    ld ra, 0(sp)
+    ld s1, 8(sp)
+    addi sp, sp, 16
+    ret
+  .size main, .-main
+  .ident "SYSYC: (made by RRVM) 1.0.0"

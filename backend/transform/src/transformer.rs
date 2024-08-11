@@ -1,4 +1,8 @@
-use instruction::{riscv::convert::*, temp::TempManager, RiscvInstrSet};
+use instruction::{
+	riscv::{convert::*, RiscvInstr},
+	temp::TempManager,
+	RiscvInstrSet,
+};
 use llvm::{LlvmInstr, LlvmInstrVariant};
 
 use utils::errors::Result;
@@ -22,4 +26,7 @@ pub fn to_riscv(
 		LlvmInstrVariant::CallInstr(v) => riscv_call(v, mgr),
 	}?;
 	Ok(riscv_instr)
+}
+pub fn to_rt_type(instr: &RiscvInstr) -> [i32; 5] {
+	instr.get_rtn_array()
 }
