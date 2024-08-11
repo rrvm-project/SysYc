@@ -3,12 +3,13 @@ mod llvminstr;
 mod llvmop;
 mod llvmvar;
 mod temp;
-mod utils_llvm;
+mod utils;
 
 pub use llvminstr::*;
 pub use llvmop::{Value, *};
 pub use llvmvar::*;
 pub use temp::{LlvmTemp, LlvmTempManager};
+pub use utils::compute_two_value;
 
 pub enum LlvmInstrVariant<'a> {
 	ArithInstr(&'a ArithInstr),

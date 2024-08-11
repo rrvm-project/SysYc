@@ -6,7 +6,7 @@ pub struct IndVar {
 	pub base: Value,
 	pub scale: Value,
 	pub step: Value,
-	pub is_zfp: Option<Value>,
+	pub zfp: Option<Value>,
 }
 
 impl IndVar {
@@ -16,7 +16,7 @@ impl IndVar {
 			base,
 			scale: Value::Int(1),
 			step: Value::Int(0),
-			is_zfp: None,
+			zfp: None,
 		}
 	}
 	pub fn new(
@@ -30,7 +30,7 @@ impl IndVar {
 			base,
 			scale,
 			step,
-			is_zfp: zfp,
+			zfp,
 		}
 	}
 }

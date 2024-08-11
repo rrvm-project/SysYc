@@ -14,8 +14,6 @@ mod tail_recursion;
 mod unreachable;
 mod useless_code;
 mod useless_phis;
-mod indvar;
-mod loopinfo;
 use metadata::MetaData;
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
