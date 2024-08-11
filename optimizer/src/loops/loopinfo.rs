@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use llvm::{CompOp, LlvmTemp, Value};
 use rrvm::LlvmNode;
 
-use crate::indvar::IndVar;
+use super::indvar::IndVar;
 
 // 	entry:
 // 	  br label %B1
@@ -21,9 +21,9 @@ use crate::indvar::IndVar;
 #[derive(Clone)]
 pub struct LoopInfo {
 	pub indvars: HashMap<LlvmTemp, IndVar>,
-	pub branch_temp: LlvmTemp, // %3
-	pub comp_op: CompOp, // slt
-	pub end: Value, // 100
+	pub branch_temp: LlvmTemp,    // %3
+	pub comp_op: CompOp,          // slt
+	pub end: Value,               // 100
 	pub loop_cond_temp: LlvmTemp, // %1
 	pub loop_cnt: Value, // 循环次数，如果是一个 temp, 则计算这个 temp 的语句会被插入 preheader
 	pub header: LlvmNode,
@@ -31,6 +31,7 @@ pub struct LoopInfo {
 	pub single_exit: LlvmNode,
 }
 
+#[allow(unused)]
 impl LoopInfo {
 	pub fn get_start(&self) -> Value {
 		self.indvars[&self.loop_cond_temp].base.clone()

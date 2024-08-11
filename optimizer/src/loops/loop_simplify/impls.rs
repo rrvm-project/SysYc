@@ -13,9 +13,77 @@ use rrvm::{
 };
 use utils::Label;
 
-use super::loop_optimizer::LoopOptimizer;
+use crate::loops::loop_optimizer::LoopOptimizer;
 
-impl<'a> LoopOptimizer<'a> {
+use super::LoopSimplify;
+
+impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
+	pub fn new(opter: &'b mut LoopOptimizer<'a>) -> Self {
+		Self { opter }
+	}
+	// 按 dfs 序逐个 loop 处理
+	pub fn apply(mut self) -> bool {
+		let mut flag = false;
+		let mut dfs_vec = Vec::new();
+		fn dfs(node: LoopPtr, dfs_vec: &mut Vec<LoopPtr>) {
+			for subloop in node.borrow().subloops.iter() {
+				dfs(subloop.clone(), dfs_vec);
+			}
+			dfs_vec.push(node);
+		}
+		dfs(self.opter.root_loop.clone(), &mut dfs_vec);
+		// 移去 root_node
+		dfs_vec.pop();
+		for loop_node in dfs_vec.iter() {
+			flag |= self.simplify_one_loop(loop_node.clone());
+		}
+
+		let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
+		let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
+		let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
+		compute_dominator(
+			&self.opter.func.cfg,
+			false,
+			&mut dominates,
+			&mut dominates_directly,
+			&mut dominator,
+		);
+
+		let mut dominator_frontier: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
+		compute_dominator_frontier(
+			&self.opter.func.cfg,
+			false,
+			&dominates_directly,
+			&dominator,
+			&mut dominator_frontier,
+		);
+		let mut replace_map = HashMap::new();
+		for loop_ in dfs_vec.iter() {
+			// Scan over the PHI nodes in the loop header.  Since they now have only two
+			// incoming values (the loop is canonicalized), we may have simplified the PHI
+			// down to 'X = phi [X, Y]', which should be replaced with 'Y'.
+			//
+			// 若把这一步放到 simplify_one_loop 中做，则需要在 simplify_one_loop 内反复计算支配信息，因为 simplify_one_loop 会改变支配树
+			// 而这一步本身不修改支配信息，故拿出来单独做一遍
+			self.simplify_header_phis(loop_.clone(), &mut replace_map);
+		}
+		if !replace_map.is_empty() {
+			println!("LoopSimplify: Mapping with {:?}", replace_map);
+			flag = true;
+			for bb in self.opter.func.cfg.blocks.iter() {
+				for phi in bb.borrow_mut().phi_instrs.iter_mut() {
+					phi.map_temp(&replace_map);
+				}
+				for inst in bb.borrow_mut().instrs.iter_mut() {
+					inst.map_temp(&replace_map);
+				}
+				for jump in bb.borrow_mut().jump_instr.iter_mut() {
+					jump.map_temp(&replace_map);
+				}
+			}
+		}
+		flag
+	}
 	/// This method introduces at least one new basic block into the function and
 	/// moves some of the predecessors of BB to be predecessors of the new block.
 	/// The new predecessors are indicated by the Preds array. Returns new basic block to which predecessors
@@ -28,7 +96,7 @@ impl<'a> LoopOptimizer<'a> {
 	) -> LlvmNode {
 		assert!(!preds.is_empty());
 
-		let new_bb = Rc::new(RefCell::new(self.func.new_basicblock(0.0)));
+		let new_bb = Rc::new(RefCell::new(self.opter.func.new_basicblock(0.0)));
 
 		// Move the edges from Preds to point to NewBB instead of BB.
 		for pred in preds.iter() {
@@ -41,8 +109,8 @@ impl<'a> LoopOptimizer<'a> {
 		force_link_llvmnode(&new_bb, &bb);
 
 		let target_pos =
-			self.func.cfg.blocks.iter().position(|v| *v == bb).unwrap();
-		self.func.cfg.blocks.insert(target_pos, new_bb.clone());
+			self.opter.func.cfg.blocks.iter().position(|v| *v == bb).unwrap();
+		self.opter.func.cfg.blocks.insert(target_pos, new_bb.clone());
 
 		new_bb
 	}
@@ -79,13 +147,18 @@ impl<'a> LoopOptimizer<'a> {
 					.source
 					.retain(|(_, l)| !preds.iter().any(|b| b.borrow().label() == *l));
 				phi.source.push((v, new_bb.borrow().label()));
-				self.temp_graph.temp_to_instr.get_mut(&phi.target).unwrap().instr =
-					Box::new(phi.clone());
+				self
+					.opter
+					.temp_graph
+					.temp_to_instr
+					.get_mut(&phi.target)
+					.unwrap()
+					.instr = Box::new(phi.clone());
 				continue;
 			}
 			// If the values coming into the block are not the same, we need a new
 			// PHI.
-			let new_target = self.temp_mgr.new_temp(phi.var_type, false);
+			let new_target = self.opter.temp_mgr.new_temp(phi.var_type, false);
 			let new_source = phi
 				.source
 				.iter()
@@ -98,13 +171,16 @@ impl<'a> LoopOptimizer<'a> {
 			phi
 				.source
 				.push((Value::Temp(new_target.clone()), new_bb.borrow().label()));
-			self.temp_graph.temp_to_instr.get_mut(&phi.target).unwrap().instr =
+			self.opter.temp_graph.temp_to_instr.get_mut(&phi.target).unwrap().instr =
 				Box::new(phi.clone());
 
 			let new_phi = PhiInstr::new(new_target.clone(), new_source);
-			self.temp_graph.add_temp(new_target.clone(), Box::new(new_phi.clone()));
+			self
+				.opter
+				.temp_graph
+				.add_temp(new_target.clone(), Box::new(new_phi.clone()));
 			new_bb.borrow_mut().phi_instrs.push(new_phi);
-			self.def_map.insert(new_target, new_bb.clone());
+			self.opter.def_map.insert(new_target, new_bb.clone());
 		}
 	}
 	/// InsertPreheaderForLoop - Once we discover that a loop doesn't have a
@@ -112,8 +188,9 @@ impl<'a> LoopOptimizer<'a> {
 	fn insert_preheader_for_loop(&mut self, loop_: LoopPtr) -> LlvmNode {
 		let header_rc = loop_.borrow().header.clone();
 		let mut outside_blocks = Vec::new();
-		let loop_blocks =
-			loop_.borrow().blocks_without_subloops(&self.func.cfg, &self.loop_map);
+		let loop_blocks = loop_
+			.borrow()
+			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
 		for prev in header_rc.clone().borrow().prev.iter() {
 			if !loop_blocks.contains(prev) {
 				outside_blocks.push(prev.clone());
@@ -127,14 +204,15 @@ impl<'a> LoopOptimizer<'a> {
 			new_bb.borrow().label()
 		);
 		if let Some(o) = loop_.borrow().outer.clone() {
-			self.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
+			self.opter.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
 		}
 		new_bb
 	}
 	fn form_dedicated_exit_blocks(&mut self, loop_: LoopPtr) -> bool {
 		let mut flag = false;
-		let loop_blocks =
-			loop_.borrow().blocks_without_subloops(&self.func.cfg, &self.loop_map);
+		let loop_blocks = loop_
+			.borrow()
+			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
 
 		let mut rewrite_exit = |exit: LlvmNode| {
 			let mut is_dedicated_exit = true;
@@ -158,7 +236,7 @@ impl<'a> LoopOptimizer<'a> {
 				new_bb.borrow().label()
 			);
 			if let Some(o) = loop_.borrow().outer.clone() {
-				self.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
+				self.opter.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
 			}
 
 			flag = true;
@@ -195,7 +273,7 @@ impl<'a> LoopOptimizer<'a> {
 			"LoopSimplify: inserted unique backedge block {}",
 			new_bb.borrow().label()
 		);
-		self.loop_map.insert(new_bb.borrow().id, loop_.clone());
+		self.opter.loop_map.insert(new_bb.borrow().id, loop_.clone());
 		Some(new_bb)
 	}
 	fn simplify_one_loop(&mut self, loop_: LoopPtr) -> bool {
@@ -204,11 +282,12 @@ impl<'a> LoopOptimizer<'a> {
 		// predecessors that are not in the loop.  This is not valid for natural
 		// loops, but can occur if the blocks are unreachable.
 		// 子循环的前驱不可能在本循环外，所以这里可以不遍历子循环的 block
-		let blocks_without_subloops =
-			loop_.borrow().blocks_without_subloops(&self.func.cfg, &self.loop_map);
+		let blocks_without_subloops = loop_
+			.borrow()
+			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
 		for bb in loop_
 			.borrow()
-			.blocks_without_subloops(&self.func.cfg, &self.loop_map)
+			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map)
 			.iter()
 		{
 			if bb.borrow().id == loop_.borrow().header.borrow().id {
@@ -216,7 +295,7 @@ impl<'a> LoopOptimizer<'a> {
 			}
 			// 循环内基本块的前驱不可能在子循环内，否则要么该块属于子循环，要么该块是子循环除 header 以外的入口，而我们的循环都是单一入口的
 			for pred in bb.borrow().prev.iter() {
-				let l = self.loop_map.get(&pred.borrow().id);
+				let l = self.opter.loop_map.get(&pred.borrow().id);
 				if !l.is_some_and(|l| loop_.borrow().is_super_loop_of(l)) {
 					panic!("LoopSimplify: Loop contains a block with a predecessor that is not in the loop!");
 				}
@@ -278,69 +357,5 @@ impl<'a> LoopOptimizer<'a> {
 				loop_.borrow_mut().header.borrow_mut().phi_instrs.remove(phi_idx);
 			}
 		}
-	}
-
-	// 按 dfs 序逐个 loop 处理
-	pub fn simplify_loop(&mut self, root_loop_node: LoopPtr) -> bool {
-		let mut flag = false;
-		let mut dfs_vec = Vec::new();
-		fn dfs(node: LoopPtr, dfs_vec: &mut Vec<LoopPtr>) {
-			for subloop in node.borrow().subloops.iter() {
-				dfs(subloop.clone(), dfs_vec);
-			}
-			dfs_vec.push(node);
-		}
-		dfs(root_loop_node, &mut dfs_vec);
-		// 移去 root_node
-		dfs_vec.pop();
-		for loop_node in dfs_vec.iter() {
-			flag |= self.simplify_one_loop(loop_node.clone());
-		}
-
-		let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-		let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-		let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
-		compute_dominator(
-			&self.func.cfg,
-			false,
-			&mut dominates,
-			&mut dominates_directly,
-			&mut dominator,
-		);
-
-		let mut dominator_frontier: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-		compute_dominator_frontier(
-			&self.func.cfg,
-			false,
-			&dominates_directly,
-			&dominator,
-			&mut dominator_frontier,
-		);
-		let mut replace_map = HashMap::new();
-		for loop_ in dfs_vec.iter() {
-			// Scan over the PHI nodes in the loop header.  Since they now have only two
-			// incoming values (the loop is canonicalized), we may have simplified the PHI
-			// down to 'X = phi [X, Y]', which should be replaced with 'Y'.
-			//
-			// 若把这一步放到 simplify_one_loop 中做，则需要在 simplify_one_loop 内反复计算支配信息，因为 simplify_one_loop 会改变支配树
-			// 而这一步本身不修改支配信息，故拿出来单独做一遍
-			self.simplify_header_phis(loop_.clone(), &mut replace_map);
-		}
-		if !replace_map.is_empty() {
-			println!("LoopSimplify: Mapping with {:?}", replace_map);
-			flag = true;
-			for bb in self.func.cfg.blocks.iter() {
-				for phi in bb.borrow_mut().phi_instrs.iter_mut() {
-					phi.map_temp(&replace_map);
-				}
-				for inst in bb.borrow_mut().instrs.iter_mut() {
-					inst.map_temp(&replace_map);
-				}
-				for jump in bb.borrow_mut().jump_instr.iter_mut() {
-					jump.map_temp(&replace_map);
-				}
-			}
-		}
-		flag
 	}
 }

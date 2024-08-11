@@ -5,7 +5,8 @@ use super::super::{dominator::compute_dominator, LlvmCFG, LlvmNode};
 use super::{Loop, LoopPtr};
 
 impl LlvmCFG {
-	pub fn loop_analysis(&self, loop_map: &mut HashMap<i32, LoopPtr>) -> LoopPtr {
+	pub fn loop_analysis(&self) -> (LoopPtr, HashMap<i32, LoopPtr>) {
+		let mut loop_map = HashMap::new();
 		let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 		let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 		let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
@@ -19,7 +20,12 @@ impl LlvmCFG {
 		// 创造 loop tree 的根节点，也就是代表整个控制流的那个，只执行一次的 loop
 		let root_loop = Rc::new(RefCell::new(Loop::new(self.get_entry())));
 
-		loop_dfs(self.get_entry(), loop_map, &dominates, &dominates_directly);
+		loop_dfs(
+			self.get_entry(),
+			&mut loop_map,
+			&dominates,
+			&dominates_directly,
+		);
 
 		for bb in self.blocks.iter() {
 			if let Some(l) = loop_map.get(&bb.borrow().id).cloned() {
@@ -50,7 +56,7 @@ impl LlvmCFG {
 
 		dfs_loop_tree(&mut dfs_clock, &root_loop, 0);
 
-		root_loop
+		(root_loop, loop_map)
 	}
 }
 

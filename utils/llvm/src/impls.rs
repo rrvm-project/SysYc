@@ -7,7 +7,7 @@ use utils::{Label, UseTemp};
 use std::collections::HashMap;
 
 use crate::{
-	llvminstr::*, llvmop::*, utils_llvm::*, LlvmInstrVariant, LlvmTemp, VarType,
+	llvminstr::*, llvmop::*, utils::*, LlvmInstrVariant, LlvmTemp, VarType,
 };
 
 impl<T: Into<Value> + Clone> From<&T> for Value {

@@ -1,21 +1,23 @@
 // 包含外推和化简
 
-use super::IndVarSolver;
+use super::OneLoopSolver;
 
-impl<'a> IndVarSolver<'a> {
+impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 	// 确定每个变量是不是循环变量，如果是，确定每个循环变量有没有用
 	pub fn classify_variant(&mut self) {
-		let blocks =
-			self.cur_loop.borrow().blocks_without_subloops(self.cfg, self.loop_map);
+		let blocks = self
+			.cur_loop
+			.borrow()
+			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
 		for block in blocks {
 			for inst in block.borrow().phi_instrs.iter() {
-				if !self.visited.contains(&inst.target) {
+				if !self.tarjan_var.visited.contains(&inst.target) {
 					self.run(inst.target.clone());
 				}
 			}
 			for inst in block.borrow().instrs.iter() {
 				if let Some(t) = inst.get_write() {
-					if !self.visited.contains(&t) {
+					if !self.tarjan_var.visited.contains(&t) {
 						self.run(t);
 					}
 				}

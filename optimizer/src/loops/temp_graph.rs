@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use llvm::{ArithOp, LlvmInstr, LlvmInstrVariant, LlvmTemp, Value};
+use rrvm::program::LlvmFunc;
 
 use super::loop_optimizer::LoopOptimizer;
 
@@ -17,6 +18,7 @@ pub struct TempGraph {
 	// pub temp_graph: HashMap<LlvmTemp, HashSet<Value>>,
 }
 
+#[allow(unused)]
 impl TempGraph {
 	pub fn new() -> Self {
 		Self {
@@ -78,17 +80,19 @@ impl TempGraph {
 }
 
 impl<'a> LoopOptimizer<'a> {
-	pub fn build_graph(&mut self) {
-		for bb in self.func.cfg.blocks.iter() {
+	pub fn build_graph(func: &LlvmFunc) -> TempGraph {
+		let mut temp_graph = TempGraph::new();
+		for bb in func.cfg.blocks.iter() {
 			for inst in bb.borrow().phi_instrs.iter() {
 				let target = inst.target.clone();
-				self.temp_graph.add_temp(target, Box::new(inst.clone()));
+				temp_graph.add_temp(target, Box::new(inst.clone()));
 			}
 			for inst in bb.borrow().instrs.iter() {
 				if let Some(target) = inst.get_write() {
-					self.temp_graph.add_temp(target, inst.clone());
+					temp_graph.add_temp(target, inst.clone());
 				}
 			}
 		}
+		temp_graph
 	}
 }
