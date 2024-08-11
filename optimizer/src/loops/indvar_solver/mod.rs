@@ -4,14 +4,15 @@ mod helper_functions;
 mod impls;
 mod indvar_optimize;
 mod move_invariant;
+mod get_loop_info;
 use std::collections::{HashMap, HashSet};
 
 use llvm::{LlvmInstr, LlvmTemp, LlvmTempManager};
 use rrvm::{rrvm_loop::LoopPtr, LlvmCFG, LlvmNode};
 
-use crate::metadata::FuncData;
+use crate::indvar::IndVar;
 
-use super::{indvar::IndVar, temp_graph::TempGraph};
+use super::temp_graph::TempGraph;
 
 #[allow(clippy::upper_case_acronyms)]
 #[allow(unused)]
@@ -44,6 +45,5 @@ pub struct IndVarSolver<'a> {
 	mgr: &'a mut LlvmTempManager,
 	loop_map: &'a mut HashMap<i32, LoopPtr>,
 	def_map: &'a mut HashMap<LlvmTemp, LlvmNode>,
-	funcdata: &'a mut FuncData,
 	cfg: &'a LlvmCFG,
 }

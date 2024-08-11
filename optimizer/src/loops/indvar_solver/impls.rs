@@ -5,8 +5,8 @@ use llvm::{ArithOp, LlvmTemp, LlvmTempManager, Value};
 use rrvm::{rrvm_loop::LoopPtr, LlvmCFG, LlvmNode};
 
 use crate::{
-	loops::{chain_node::ChainNode, indvar::IndVar, temp_graph::TempGraph},
-	metadata::FuncData,
+	loops::{chain_node::ChainNode, temp_graph::TempGraph},
+	indvar::IndVar, 
 };
 
 use super::IndVarSolver;
@@ -22,7 +22,6 @@ impl<'a> IndVarSolver<'a> {
 		temp_graph: &'a mut TempGraph,
 		loop_map: &'a mut HashMap<i32, LoopPtr>,
 		def_map: &'a mut HashMap<LlvmTemp, LlvmNode>,
-		funcdata: &'a mut FuncData,
 	) -> Self {
 		Self {
 			dfsnum: HashMap::new(),
@@ -46,7 +45,6 @@ impl<'a> IndVarSolver<'a> {
 			mgr,
 			loop_map,
 			def_map,
-			funcdata,
 			cfg,
 		}
 	}

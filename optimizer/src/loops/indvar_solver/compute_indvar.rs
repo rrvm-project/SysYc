@@ -1,6 +1,6 @@
 use llvm::{ArithInstr, ArithOp, Value, VarType};
 
-use crate::loops::indvar::IndVar;
+use crate::indvar::IndVar;
 
 use super::IndVarSolver;
 
@@ -85,12 +85,13 @@ impl<'a> IndVarSolver<'a> {
 						ArithOp::Add => i1 + i2,
 						ArithOp::Mul => i1 * i2,
 						ArithOp::Sub => i1 - i2,
+						ArithOp::Div => i1 / i2,
 						_ => unreachable!(),
 					};
 					Value::Int(i)
 				}
 				Value::Temp(t2) => match (i1, op) {
-					(0, ArithOp::Add | ArithOp::Sub) | (1, ArithOp::Mul) => v2,
+					(0, ArithOp::Add | ArithOp::Sub) | (1, ArithOp::Mul | ArithOp::Div) => v2,
 					(0, ArithOp::Mul) => Value::Int(0),
 					_ => {
 						let target = self.mgr.new_temp(VarType::I32, false);
@@ -111,7 +112,7 @@ impl<'a> IndVarSolver<'a> {
 			},
 			Value::Temp(t1) => match v2 {
 				Value::Int(i2) => match (i2, op) {
-					(0, ArithOp::Add | ArithOp::Sub) | (1, ArithOp::Mul) => v1,
+					(0, ArithOp::Add | ArithOp::Sub) | (1, ArithOp::Mul | ArithOp::Div) => v1,
 					(0, ArithOp::Mul) => v2,
 					_ => {
 						let target = self.mgr.new_temp(VarType::I32, false);
