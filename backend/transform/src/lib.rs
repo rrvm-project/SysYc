@@ -20,13 +20,11 @@ pub fn get_functions(
 	funcs: Vec<LlvmFunc>,
 ) -> Result<()> {
 	for func in funcs {
-		let myfunc = convert_func(func, &mut program.temp_mgr)?;
-		program.funcs.push(myfunc);
+		program.funcs.push(convert_func(func, &mut program.temp_mgr)?);
 	}
 	Ok(())
 }
 
-#[allow(clippy::type_complexity)]
 pub fn convert_func(
 	func: LlvmFunc,
 	mgr: &mut TempManager,
