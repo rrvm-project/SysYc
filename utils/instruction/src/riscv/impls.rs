@@ -148,16 +148,6 @@ impl RiscvInstrTrait for ITriInstr {
 			_ => None,
 		}
 	}
-	fn get_increment(&self) -> IncrementType {
-		match self.op {
-			Addi | Addiw => match self.rs2 {
-				RiscvImm::Int(v) => IncrementType::Int(v),
-				RiscvImm::LongLong(v) => IncrementType::LongLong(v),
-				_ => IncrementType::None,
-			},
-			_ => IncrementType::None,
-		}
-	}
 }
 
 impl ITriInstr {
@@ -233,13 +223,13 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn is_load(&self) -> Option<bool> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA | FLD | FLW => Some(true),
+			Li | Lui | LD | LW | LWU | LA | FLD | FLW | Auipc => Some(true),
 			SB | SH | SW | SD | FSD | FSW => Some(false),
 		}
 	}
 	fn is_store(&self) -> Option<bool> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA | FLD | FLW => Some(false),
+			Li | Lui | LD | LW | LWU | LA | FLD | FLW | Auipc => Some(false),
 			SB | SH | SW | SD | FSD | FSW => Some(true),
 		}
 	}

@@ -1,6 +1,6 @@
 use std::{
 	cell::RefCell,
-	collections::{BTreeMap, HashMap, HashSet},
+	collections::{HashMap, HashSet},
 	io::{self, Write},
 	rc::Rc,
 };
@@ -10,11 +10,11 @@ use instrdag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
 
 use llvm::Value;
-use utils::{SysycError::RiscvGenError};
+use utils::SysycError::RiscvGenError;
 use rrvm::prelude::*;
-use transformer::{to_riscv, to_rt_type};
+use transformer::to_riscv;
 use utils::{
-	errors::Result, BLOCKSIZE_THRESHOLD, DEPENDENCY_EXPLORE_DEPTH,
+	errors::Result,
 	SCHEDULE_THRESHOLD,
 };
 
@@ -30,7 +30,7 @@ pub fn get_functions(
 	for func in funcs {
 		let converted_func = convert_func(func, &mut program.temp_mgr)?;
 		println!("--- before instr schedule: ---");
-		for i in converted_func.0.cfg.blocks.iter() {
+		for i in converted_func.cfg.blocks.iter() {
 			for j in i.borrow().instrs.iter() {
 				println!("{}", j);
 			}
@@ -43,9 +43,7 @@ pub fn get_functions(
 		println!("---end---");
 		io::stdout().flush().unwrap();
 		let func = instr_schedule(
-			converted_func.0,
-			converted_func.1,
-			converted_func.2,
+			converted_func,
 			&mut program.temp_mgr,
 		)?;
 		println!("--------");
@@ -63,12 +61,12 @@ pub fn get_functions(
 
 pub fn instr_schedule(
 	func: RiscvFunc,
-	live_ins: Vec<HashSet<RiscvTemp>>,
-	live_outs: Vec<HashSet<RiscvTemp>>,
 	mgr: &mut TempManager,
 ) -> Result<RiscvFunc> {
 	func.cfg.clear_data_flow();
 	func.cfg.analysis();
+	let live_ins=[];
+	let live_outs=[];
 	let mut new_blocks = Vec::new();
 	for (idx, node) in func.cfg.blocks.iter().enumerate() {
 		let nodes =
@@ -93,39 +91,13 @@ pub fn instr_schedule_block(
 	if riscv_node.borrow().instrs.len() >= SCHEDULE_THRESHOLD {
 		return Ok(vec![riscv_node.clone()]);
 	}
-	let prev = riscv_node
-		.borrow()
-		.prev
-		.iter()
-		.map(|v| v.borrow().id)
-		.collect::<HashSet<_>>();
-	let succ = riscv_node
-		.borrow()
-		.succ
-		.iter()
-		.map(|v| v.borrow().id)
-		.collect::<HashSet<_>>();
-	// 判断 prev 和 succ 是否有交集
-	if prev.intersection(&succ).count() > 0
-		&& riscv_node.borrow().instrs.len() <= BLOCKSIZE_THRESHOLD
-	{
-		// filter call (instrs 中不能有 call 指令)
-		if riscv_node.borrow().instrs.iter().any(|instr| instr.is_call()) {
-			transform_basic_block_by_pipelining(riscv_node, live_ins, live_outs, mgr)
+	transform_basic_block_by_pipelining(riscv_node, live_ins, live_outs, mgr)
 				.map(|v| vec![v])
-		} else {
-			transform_basic_block_by_pipelining(riscv_node, live_ins, live_outs, mgr)
-				.map(|v| vec![v])
-		}
-	} else {
-		transform_basic_block_by_pipelining(riscv_node, live_ins, live_outs, mgr)
-			.map(|v| vec![v])
-	}
 }
 pub fn convert_func(
 	func: LlvmFunc,
 	mgr: &mut TempManager,
-) -> Result<(RiscvFunc, Vec<HashSet<RiscvTemp>>, Vec<HashSet<RiscvTemp>>)> {
+) -> Result<RiscvFunc> {
 	let mut nodes = Vec::new();
 	let mut edge = Vec::new();
 	let mut table = HashMap::new();
@@ -176,7 +148,7 @@ pub fn convert_func(
 	for (u, v) in edge {
 		force_link_node(table.get(&u).unwrap(), table.get(&v).unwrap())
 	}
-	Ok((
+	Ok(
 		RiscvFunc {
 			total: mgr.total,
 			spills: 0,
@@ -184,10 +156,8 @@ pub fn convert_func(
 			name: func.name,
 			params: func.params,
 			ret_type: func.ret_type,
-		},
-		live_ins,
-		live_outs,
-	))
+		}
+		)
 }
 
 fn transform_basic_block_by_pipelining(

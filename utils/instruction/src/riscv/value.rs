@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::temp::{Temp, VarType};
 
 use super::{reg::RiscvReg, virt_mem::VirtAddr};
-use utils::math::is_pow2;
+use utils::{math::is_pow2, TempTrait};
 pub use RiscvImm::*;
 pub use RiscvTemp::*;
 
@@ -26,7 +26,7 @@ pub enum RiscvTemp {
 	VirtReg(Temp),
 	PhysReg(RiscvReg),
 }
-
+impl TempTrait for RiscvTemp {}
 impl From<Temp> for RiscvTemp {
 	fn from(x: Temp) -> Self {
 		RiscvTemp::VirtReg(x)

@@ -179,9 +179,6 @@ pub trait RiscvInstrTrait:
 	fn get_temp_type(&self) -> llvm::VarType {
 		unreachable!()
 	}
-	fn get_increment(&self) -> IncrementType {
-		IncrementType::None
-	}
 	fn is_save(&self) -> bool {
 		false
 	}
@@ -357,4 +354,9 @@ impl RTN for TemporayInstr {
 #[derive(UseTemp, Clone)]
 pub struct PCRelLabelInstr {
 	pub label: String,
+}
+impl RTN for PCRelLabelInstr {
+	fn get_rtn_array(&self) -> [i32; 5] {
+		[0, 0, 0, 0, 0]
+	}
 }
