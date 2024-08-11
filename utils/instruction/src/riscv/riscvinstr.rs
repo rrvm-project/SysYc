@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{
+	collections::HashMap,
+	fmt::Display,
+	ops::{Add, Sub},
+};
 use sysyc_derive::UseTemp;
 use utils::{mapper::LabelMapper, InstrTrait, Label, UseTemp, RTN};
 
@@ -38,7 +42,6 @@ impl Clone for RiscvInstr {
 		self.clone_box()
 	}
 }
-
 pub trait RiscvInstrTrait:
 	Display + UseTemp<Temp> + CloneRiscvInstr + RTN
 {
