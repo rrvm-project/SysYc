@@ -106,6 +106,8 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 		let reads = self.opter.temp_graph.get_use_values(&header);
 		assert!(reads.len() == 2);
 		let (variant, phi_base) = self.get_variant_and_step(&reads[0], &reads[1], &header).expect("header of a scc must have a operand of indvar and a operand of a invariant");
+		assert!(phi_base.len() == 1);
+		let phi_base = phi_base[0].clone();
 		let mut indvar_chain: Vec<ChainNode> = vec![];
 
 		let mut chain_runner = variant;
@@ -115,12 +117,16 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 			if let Some((variant, step)) =
 				self.get_variant_and_step(&reads[0], &reads[1], &header)
 			{
+				if step.len() != 1 {
+					return;
+				}
 				assert!(self.header_map[&variant] == header);
 				indvar_chain.push(ChainNode::new(
 					chain_runner,
 					ArithOp::Rem,
 					step.clone(),
 				));
+				let step = step[0].clone();
 				chain_runner = variant.clone();
 				is_zfp = Some(step);
 			} else {
@@ -165,110 +171,87 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 		if is_zfp.is_some() {
 			end -= 1;
 		}
-		let mut step = Value::Int(0);
+		let mut step = vec![Value::Int(0)];
 		let mut scale = Value::Int(1);
 		let mut base = phi_base.clone();
 		let mut instr;
 		let mut indvar_bases = vec![];
-		for indvar in indvar_chain[..end].iter() {
-			match indvar.op {
-				ArithOp::Add => {
-					(step, instr) = compute_two_value(
-						step,
-						indvar.operand.clone(),
-						ArithOp::Add,
-						self.opter.temp_mgr,
-					);
-					instr.map(|i| {
-						self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
-					});
-					(base, instr) = compute_two_value(
-						base,
-						indvar.operand.clone(),
-						ArithOp::Add,
-						self.opter.temp_mgr,
-					);
-					instr.map(|i| {
-						self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
-					});
-					indvar_bases.push(base.clone());
-				}
-				ArithOp::Sub => {
-					(step, instr) = compute_two_value(
-						step,
-						indvar.operand.clone(),
-						ArithOp::Sub,
-						self.opter.temp_mgr,
-					);
-					instr.map(|i| {
-						self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
-					});
-					(base, instr) = compute_two_value(
-						base,
-						indvar.operand.clone(),
-						ArithOp::Sub,
-						self.opter.temp_mgr,
-					);
-					instr.map(|i| {
-						self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
-					});
-					indvar_bases.push(base.clone());
+		for chain_node in indvar_chain[..end].iter() {
+			match chain_node.op {
+				ArithOp::Add | ArithOp::Sub => {
+					// 有 + - 时保证 scale 是 1
+					if scale == Value::Int(1) {
+						step = self.compute_two_vec_values(
+							&step,
+							&chain_node.operand,
+							chain_node.op,
+						);
+						for o in chain_node.operand.iter() {
+							(base, instr) = compute_two_value(
+								base,
+								o.clone(),
+								ArithOp::Add,
+								self.opter.temp_mgr,
+							);
+							instr.map(|i| {
+								self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+							});
+						}
+						indvar_bases.push(base.clone());
+					} else {
+						return;
+					}
 				}
 				ArithOp::Mul => {
-					(scale, instr) = compute_two_value(
-						scale,
-						indvar.operand.clone(),
-						ArithOp::Mul,
-						self.opter.temp_mgr,
-					);
-					instr.map(|i| {
-						self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
-					});
-					(base, instr) = compute_two_value(
-						base,
-						indvar.operand.clone(),
-						ArithOp::Mul,
-						self.opter.temp_mgr,
-					);
-					instr.map(|i| {
-						self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
-					});
-					(step, instr) = compute_two_value(
-						step,
-						indvar.operand.clone(),
-						ArithOp::Mul,
-						self.opter.temp_mgr,
-					);
-					instr.map(|i| {
-						self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
-					});
-					indvar_bases.push(base.clone());
+					// 有 * 时保证 step 是 1 阶归纳变量
+					if step.len() == 1 && chain_node.operand.len() == 1 {
+						(scale, instr) = compute_two_value(
+							scale,
+							chain_node.operand[0].clone(),
+							ArithOp::Mul,
+							self.opter.temp_mgr,
+						);
+						instr.map(|i| {
+							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+						});
+						(base, instr) = compute_two_value(
+							base,
+							chain_node.operand[0].clone(),
+							ArithOp::Mul,
+							self.opter.temp_mgr,
+						);
+						instr.map(|i| {
+							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+						});
+						(step[0], instr) = compute_two_value(
+							step[0].clone(),
+							chain_node.operand[0].clone(),
+							ArithOp::Mul,
+							self.opter.temp_mgr,
+						);
+						instr.map(|i| {
+							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+						});
+						indvar_bases.push(base.clone());
+					}
 				}
 				_ => unreachable!(),
 			}
 		}
+		let iv = IndVar::new(phi_base, scale.clone(), step.clone(), is_zfp.clone());
 		#[cfg(feature = "debug")]
-		eprintln!(
-			"OneLoopSolver: found a indvar {} with base: {}, scale: {}, step: {}",
-			header, phi_base, scale, step
-		);
-		self.indvars.insert(
-			header.clone(),
-			IndVar::new(phi_base, scale.clone(), step.clone(), is_zfp.clone()),
-		);
+		eprintln!("OneLoopSolver: found a indvar {} {}", header, iv);
+		self.indvars.insert(header.clone(), iv);
 		for (indvar, indvar_base) in indvar_chain.iter().zip(indvar_bases) {
-			#[cfg(feature = "debug")]
+			let iv =
+				IndVar::new(indvar_base, scale.clone(), step.clone(), is_zfp.clone());
+			// #[cfg(feature = "debug")]
 			eprintln!(
-				"OneLoopSolver: found a indvar {} with base: {}, scale: {}, step: {}",
+				"OneLoopSolver: found a indvar {} {}",
 				indvar.temp.clone(),
-				indvar_base.clone(),
-				scale,
-				step
+				iv
 			);
-			self.indvars.insert(
-				indvar.temp.clone(),
-				IndVar::new(indvar_base, scale.clone(), step.clone(), is_zfp.clone()),
-			);
+			self.indvars.insert(indvar.temp.clone(), iv);
 		}
 	}
 }

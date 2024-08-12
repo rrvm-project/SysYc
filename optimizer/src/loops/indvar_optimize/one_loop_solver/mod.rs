@@ -5,6 +5,7 @@ mod helper_functions;
 mod impls;
 mod indvar_optimize;
 mod tarjan_var;
+mod utils;
 use std::collections::{HashMap, HashSet};
 
 use llvm::{LlvmInstr, LlvmTemp};

@@ -118,11 +118,10 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 	pub fn update_phi_nodes(
 		&mut self,
 		bb: LlvmNode,
-		new_bb_: LlvmNode,
+		new_bb: LlvmNode,
 		preds: Vec<LlvmNode>,
 		has_loop_exit: bool, // new_bb 是否是某循环的 exit
 	) {
-		let mut new_bb = new_bb_.borrow_mut();
 		// Create a new PHI node in NewBB for each PHI node in OrigBB.
 		for phi in bb.borrow_mut().phi_instrs.iter_mut() {
 			// Check to see if all of the values coming in are the same.  If so, we
@@ -147,7 +146,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 				phi
 					.source
 					.retain(|(_, l)| !preds.iter().any(|b| b.borrow().label() == *l));
-				phi.source.push((v, new_bb.label()));
+				phi.source.push((v, new_bb.borrow().label()));
 				self
 					.opter
 					.temp_graph
@@ -169,7 +168,9 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			phi
 				.source
 				.retain(|(_, l)| !preds.iter().any(|b| b.borrow().label() == *l));
-			phi.source.push((Value::Temp(new_target.clone()), new_bb.label()));
+			phi
+				.source
+				.push((Value::Temp(new_target.clone()), new_bb.borrow().label()));
 			self.opter.temp_graph.temp_to_instr.get_mut(&phi.target).unwrap().instr =
 				Box::new(phi.clone());
 
@@ -178,8 +179,8 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 				.opter
 				.temp_graph
 				.add_temp(new_target.clone(), Box::new(new_phi.clone()));
-			new_bb.phi_instrs.push(new_phi);
-			self.opter.def_map.insert(new_target, new_bb_.clone());
+			new_bb.borrow_mut().phi_instrs.push(new_phi);
+			self.opter.def_map.insert(new_target, new_bb.clone());
 		}
 	}
 	/// InsertPreheaderForLoop - Once we discover that a loop doesn't have a
@@ -281,28 +282,25 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 		// predecessors that are not in the loop.  This is not valid for natural
 		// loops, but can occur if the blocks are unreachable.
 		// 子循环的前驱不可能在本循环外，所以这里可以不遍历子循环的 block
-		let loop_brw = loop_.borrow();
-		let header = loop_brw.header.borrow();
-		let blocks_without_subloops = loop_brw
+		let blocks_without_subloops = loop_
+			.borrow()
 			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
-		for bb in loop_brw
-			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map)
-			.iter()
-		{
+		for bb in blocks_without_subloops.iter() {
 			let bb = bb.borrow();
-			if bb.id == header.id {
+			if bb.id == loop_.borrow().header.borrow().id {
 				continue;
 			}
 			// 循环内基本块的前驱不可能在子循环内，否则要么该块属于子循环，要么该块是子循环除 header 以外的入口，而我们的循环都是单一入口的
 			for pred in bb.prev.iter() {
 				let l = self.opter.loop_map.get(&pred.borrow().id);
-				if !l.is_some_and(|l| loop_brw.is_super_loop_of(l)) {
+				if !l.is_some_and(|l| loop_.borrow().is_super_loop_of(l)) {
 					panic!("LoopSimplify: Loop contains a block with a predecessor that is not in the loop!");
 				}
 			}
 		}
 		// Does the loop already have a preheader?  If not, insert one.
-		let preheader = loop_brw
+		let preheader = loop_
+			.borrow()
 			.get_loop_preheader(&blocks_without_subloops)
 			.unwrap_or_else(|| {
 				flag = true;

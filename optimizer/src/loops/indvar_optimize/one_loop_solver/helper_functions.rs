@@ -15,7 +15,10 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 						if let Some(output_iv) = self.compute_two_indvar(iv1, iv2, inst.op)
 						{
 							#[cfg(feature = "debug")]
-							eprintln!("OneLoopSolver: computed indvar: {} base: {}, scale: {}, step: {}", temp, output_iv.base, output_iv.scale, output_iv.step);
+							eprintln!(
+								"OneLoopSolver: computed indvar: {} {}",
+								temp, output_iv
+							);
 							self.indvars.insert(temp.clone(), output_iv);
 						}
 					}
@@ -28,7 +31,10 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 							self.compute_two_indvar(iv1, iv2, ArithOp::Add)
 						{
 							#[cfg(feature = "debug")]
-							eprintln!("OneLoopSolver: computed indvar: {} base: {}, scale: {}, step: {}", temp, output_iv.base, output_iv.scale, output_iv.step);
+							eprintln!(
+								"OneLoopSolver: computed indvar: {} {}",
+								temp, output_iv
+							);
 							self.indvars.insert(temp.clone(), output_iv);
 						}
 					}
@@ -51,19 +57,29 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 		unreachable!()
 	}
 	pub fn get_variant_and_step(
-		&self,
+		&mut self,
 		member1: &Value,
 		member2: &Value,
 		header: &LlvmTemp,
-	) -> Option<(LlvmTemp, Value)> {
-		let get_variant_and_step_inner =
-			|m1: &Value, m2: &Value| -> Option<(LlvmTemp, Value)> {
+	) -> Option<(LlvmTemp, Vec<Value>)> {
+		let mut get_variant_and_step_inner =
+			|m1: &Value, m2: &Value| -> Option<(LlvmTemp, Vec<Value>)> {
 				if let Some(t) = m1.unwrap_temp() {
-					if self.header_map.get(&t).is_some_and(|t| t == header)
-						&& self.is_loop_invariant(m2)
-					{
-						// TODO: 暂时不允许 step 是归纳变量，也就是暂时先不考虑高阶归纳变量
-						return Some((t, m2.clone()));
+					if self.header_map.get(&t).is_some_and(|t| t == header) {
+						if self.is_loop_invariant(m2) {
+							return Some((t, vec![m2.clone()]));
+						} else {
+							let m2_temp = m2.unwrap_temp().unwrap();
+							if !self.tarjan_var.visited.contains(&m2_temp) {
+								// 还没有被 tarjan 找过 scc 的话，现在找
+								self.tarjan(m2_temp.clone());
+							}
+							if let Some(iv) = self.indvars.get(&m2_temp) {
+								let mut step = vec![iv.base.clone()];
+								step.extend(iv.step.clone());
+								return Some((t, step));
+							}
+						}
 					}
 				}
 				None
