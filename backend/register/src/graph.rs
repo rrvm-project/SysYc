@@ -105,7 +105,6 @@ where
 		}
 	}
 
-	#[allow(clippy::map_entry)]
 	pub fn coloring(&mut self) -> HashSet<T> {
 		let mut nodes: Vec<_> =
 			self.get_nodes().iter().map(|v| (*v, self.get_priority(v))).collect();
@@ -118,9 +117,11 @@ where
 					.into_iter()
 					.filter_map(|u| self.colors.get(&u).copied())
 					.collect();
-				if !self.colors.contains_key(&node) {
+				if let std::collections::hash_map::Entry::Vacant(e) =
+					self.colors.entry(node)
+				{
 					if let Some(reg) = self.allocator.find_available(&used) {
-						self.colors.insert(node, reg);
+						e.insert(reg);
 					} else {
 						return Some(node);
 					}

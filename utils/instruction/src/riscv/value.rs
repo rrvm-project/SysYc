@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::temp::Temp;
+use crate::temp::{Temp, VarType};
 
 use super::{reg::RiscvReg, virt_mem::VirtAddr};
 use utils::math::is_pow2;
@@ -10,8 +10,10 @@ pub use RiscvTemp::*;
 const RISCV_IMM_MAX: i32 = 2047;
 const RISCV_IMM_MIN: i32 = -2048;
 
-pub fn is_lower(x: i32) -> bool {
-	RISCV_IMM_MIN < x && x < RISCV_IMM_MAX
+pub fn is_lower<T: std::cmp::Ord + From<i32>>(value: T) -> bool {
+	let low = T::from(RISCV_IMM_MIN);
+	let high = T::from(RISCV_IMM_MAX);
+	value >= low && value <= high
 }
 
 pub fn can_optimized_mul(x: i32) -> bool {
@@ -37,16 +39,15 @@ impl From<RiscvReg> for RiscvTemp {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub enum RiscvImm {
 	RiscvNumber(RiscvNumber),
-	Float(f32),
 	LongLong(i64),
 	VirtMem(VirtAddr),
 	Label(utils::Label),
 	OffsetReg(RiscvNumber, RiscvTemp),
 }
-#[derive(Clone)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub enum RiscvNumber {
 	Lo(utils::Label),
 	Hi(utils::Label),
@@ -79,7 +80,6 @@ impl Display for RiscvImm {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::RiscvNumber(v) => write!(f, "{}", v),
-			Self::Float(v) => write!(f, "{}", v),
 			Self::Label(v) => write!(f, "{}", v),
 			Self::LongLong(v) => write!(f, "{}", v),
 			Self::VirtMem(v) => write!(f, "VirtMem[{}]", v.id),
@@ -103,18 +103,6 @@ impl From<&i32> for RiscvImm {
 impl From<i64> for RiscvImm {
 	fn from(x: i64) -> Self {
 		RiscvImm::LongLong(x)
-	}
-}
-
-impl From<f32> for RiscvImm {
-	fn from(x: f32) -> Self {
-		RiscvImm::Float(x)
-	}
-}
-
-impl From<&f32> for RiscvImm {
-	fn from(x: &f32) -> Self {
-		RiscvImm::Float(*x)
 	}
 }
 
@@ -147,6 +135,12 @@ impl RiscvTemp {
 		match self {
 			VirtReg(_) => None,
 			PhysReg(v) => Some(*v),
+		}
+	}
+	pub fn get_type(&self) -> VarType {
+		match self {
+			VirtReg(v) => v.var_type,
+			PhysReg(v) => v.get_type(),
 		}
 	}
 }

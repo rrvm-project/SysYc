@@ -74,7 +74,6 @@ pub enum RTriInstrOp {
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum IBinInstrOp {
 	Li,
-	Lui,
 	LD,
 	LW,
 	LWU,

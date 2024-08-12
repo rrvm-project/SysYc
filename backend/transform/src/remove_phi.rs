@@ -39,9 +39,9 @@ pub fn remove_phi(u: &LlvmNode) {
 			let var_type = value.get_type();
 			v.borrow_mut().push(ArithInstr::new(
 				target.clone(),
-				var_type.default_value(),
-				var_type.move_op(),
 				value.clone(),
+				var_type.move_op(),
+				var_type.default_value(),
 				var_type,
 			));
 			if let Value::Temp(target) = value {

@@ -24,7 +24,18 @@ pub fn load_imm(
 		return RiscvTemp::PhysReg(X0); // 代价不同、最小化代价
 	}
 	let rd = mgr.new_temp(VarType::Int);
-	instrs.push(IBinInstr::new(Li, rd, num.into()));
+	if is_lower(num) {
+		instrs.push(IBinInstr::new(Li, rd, num.into()));
+	} else {
+		let (high, low) = if (num & 0x800) != 0 {
+			((num >> 12) + 1, num & 0xFFF | (-1 << 12))
+		} else {
+			(num >> 12, num & 0xFFF)
+		};
+		let new_temp = mgr.new_temp(VarType::Int);
+		instrs.push(IBinInstr::new(Li, new_temp, (high << 12).into()));
+		instrs.push(ITriInstr::new(Addi, rd, new_temp, low.into()));
+	}
 	rd
 }
 
@@ -61,6 +72,10 @@ fn solve_mul(
 ) -> bool {
 	if num == 0 {
 		instrs.push(RTriInstr::new(Add, rd, X0.into(), X0.into()));
+		return true;
+	}
+	if num == 1 {
+		instrs.push(RBinInstr::new(Mv, rd, lhs));
 		return true;
 	}
 	let offset = num.trailing_zeros() as i32;
@@ -105,11 +120,12 @@ fn solve_div(
 		let l = ((num - 1).ilog2() + 1) as i32;
 		let m = (2147483649i64 << l) / num as i64;
 		let temp = load_imm(m, instrs, mgr);
+		let new_temp = mgr.new_temp(VarType::Int);
 		instrs.push(RTriInstr::new(Mul, rd, temp, lhs));
-		instrs.push(ITriInstr::new(Srliw, temp, lhs, 31.into()));
-		instrs.push(RTriInstr::new(Sub, rd, rd, temp));
+		instrs.push(ITriInstr::new(Srliw, new_temp, lhs, 31.into()));
+		instrs.push(RTriInstr::new(Sub, rd, rd, new_temp));
 		instrs.push(ITriInstr::new(Srai, rd, rd, (l + 31).into()));
-		instrs.push(RTriInstr::new(Addw, rd, rd, temp));
+		instrs.push(RTriInstr::new(Addw, rd, rd, new_temp));
 	}
 }
 
@@ -155,6 +171,9 @@ fn get_arith(
 ) -> Result<()> {
 	let lhs = into_reg(lhs, instrs, mgr);
 	match (op, end_num(rhs), rhs) {
+		(ArithOp::Add | ArithOp::AddD | ArithOp::Sub, Some(0), _) => {
+			instrs.push(RBinInstr::new(Mv, rd, lhs));
+		}
 		(ArithOp::Sub, _, _) if lhs.is_zero() => {
 			let rhs = into_reg(rhs, instrs, mgr);
 			instrs.push(RBinInstr::new(Negw, rd, rhs));
@@ -348,15 +367,13 @@ pub fn riscv_ret(
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
 	if let Some(val) = &instr.value {
-		if let Some(num) = end_num(val) {
-			instrs.push(IBinInstr::new(Li, A0.into(), num.into()));
+		let tmp = into_reg(val, &mut instrs, mgr);
+		if val.get_type() == llvm::VarType::F32 {
+			let rd = mgr.new_pre_color_temp(Fa0);
+			instrs.push(RBinInstr::new(FMv, rd, tmp));
 		} else {
-			let tmp = into_reg(val, &mut instrs, mgr);
-			if val.get_type() == llvm::VarType::F32 {
-				instrs.push(RBinInstr::new(FMv, Fa0.into(), tmp));
-			} else {
-				instrs.push(RBinInstr::new(Mv, A0.into(), tmp));
-			}
+			let rd = mgr.new_pre_color_temp(A0);
+			instrs.push(RBinInstr::new(Mv, rd, tmp));
 		}
 	}
 	instrs.push(NoArgInstr::new(Ret));
@@ -375,12 +392,12 @@ pub fn riscv_alloc(
 		}
 		let target = mgr.get(&instr.target);
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-num).into()));
-		instrs.push(RTriInstr::new(Add, target, X0.into(), SP.into()));
+		instrs.push(RBinInstr::new(Mv, target, SP.into()));
 	} else {
 		let target = mgr.get(&instr.target);
 		let num = into_reg(size, &mut instrs, mgr);
 		instrs.push(RTriInstr::new(Sub, SP.into(), SP.into(), num));
-		instrs.push(RTriInstr::new(Add, target, X0.into(), SP.into()));
+		instrs.push(RBinInstr::new(Mv, target, SP.into()));
 	}
 	Ok(instrs)
 }
@@ -439,31 +456,35 @@ pub fn riscv_call(
 	mgr: &mut TempManager,
 ) -> Result<RiscvInstrSet> {
 	let mut instrs: RiscvInstrSet = Vec::new();
-	instrs.push(TemporayInstr::new(Save, instr.var_type));
 	let (regs, stack) = alloc_params_register(
 		instr.params.iter().map(|(_, v)| v.clone()).collect(),
 	);
+	let regs: Vec<_> = regs
+		.into_iter()
+		.map(|(k, v)| (into_reg(&k, &mut instrs, mgr), v))
+		.collect();
+	let stack: Vec<_> =
+		stack.into_iter().map(|v| into_reg(&v, &mut instrs, mgr)).collect();
+	instrs.push(TemporayInstr::new(Save, instr.var_type));
 	let size = align16(stack.len() as i32 * 8);
 	if size > 0 {
 		instrs.push(ITriInstr::new(Addi, SP.into(), SP.into(), (-size).into()));
 	}
 	for (index, val) in stack.into_iter().enumerate() {
-		let value = into_reg(&val, &mut instrs, mgr);
-		let op = match val.get_type().into() {
+		let op = match val.get_type() {
 			VarType::Int => SD,
 			VarType::Float => FSW,
 		};
-		instrs.push(IBinInstr::new(op, value, get_offset(index)));
+		instrs.push(IBinInstr::new(op, val, get_offset(index)));
 	}
 
 	let mut params = Vec::new();
 	for (val, reg) in regs {
 		let rd = mgr.new_pre_color_temp(reg);
 		params.push(rd);
-		let temp = into_reg(&val, &mut instrs, mgr);
-		match val.get_type().into() {
-			VarType::Int => instrs.push(RBinInstr::new(Mv, rd, temp)),
-			VarType::Float => instrs.push(RBinInstr::new(FMv, rd, temp)),
+		match val.get_type() {
+			VarType::Int => instrs.push(RBinInstr::new(Mv, rd, val)),
+			VarType::Float => instrs.push(RBinInstr::new(FMv, rd, val)),
 		}
 	}
 
