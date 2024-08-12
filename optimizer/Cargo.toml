@@ -11,3 +11,6 @@ rand = "0.8.5"
 utils = { path = "../utils" }
 rrvm = { path = "../utils/rrvm" }
 llvm = { path = "../utils/llvm" }
+
+[features]
+debug = []
