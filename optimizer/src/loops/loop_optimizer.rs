@@ -50,10 +50,11 @@ impl<'a: 'b, 'b> LoopOptimizer<'a> {
 	fn build_def_map(func: &LlvmFunc) -> HashMap<LlvmTemp, LlvmNode> {
 		let mut def_map = HashMap::new();
 		for bb in func.cfg.blocks.iter() {
-			for inst in bb.borrow().phi_instrs.iter() {
+			let bb_ = bb.borrow();
+			for inst in bb_.phi_instrs.iter() {
 				def_map.insert(inst.target.clone(), bb.clone());
 			}
-			for inst in bb.borrow().instrs.iter() {
+			for inst in bb_.instrs.iter() {
 				if let Some(target) = inst.get_write() {
 					def_map.insert(target.clone(), bb.clone());
 				}

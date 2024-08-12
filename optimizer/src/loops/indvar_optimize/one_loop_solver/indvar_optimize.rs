@@ -10,12 +10,13 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 			.borrow()
 			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
 		for block in blocks {
-			for inst in block.borrow().phi_instrs.iter() {
+			let block = block.borrow();
+			for inst in block.phi_instrs.iter() {
 				if !self.tarjan_var.visited.contains(&inst.target) {
 					self.run(inst.target.clone());
 				}
 			}
-			for inst in block.borrow().instrs.iter() {
+			for inst in block.instrs.iter() {
 				if let Some(t) = inst.get_write() {
 					if !self.tarjan_var.visited.contains(&t) {
 						self.run(t);

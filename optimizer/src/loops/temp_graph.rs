@@ -83,11 +83,12 @@ impl<'a> LoopOptimizer<'a> {
 	pub fn build_graph(func: &LlvmFunc) -> TempGraph {
 		let mut temp_graph = TempGraph::new();
 		for bb in func.cfg.blocks.iter() {
-			for inst in bb.borrow().phi_instrs.iter() {
+			let bb_ = bb.borrow();
+			for inst in bb_.phi_instrs.iter() {
 				let target = inst.target.clone();
 				temp_graph.add_temp(target, Box::new(inst.clone()));
 			}
-			for inst in bb.borrow().instrs.iter() {
+			for inst in bb_.instrs.iter() {
 				if let Some(target) = inst.get_write() {
 					temp_graph.add_temp(target, inst.clone());
 				}

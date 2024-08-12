@@ -247,6 +247,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 				_ => unreachable!(),
 			}
 		}
+		#[cfg(feature = "debug")]
 		eprintln!(
 			"OneLoopSolver: found a indvar {} with base: {}, scale: {}, step: {}",
 			header, phi_base, scale, step
@@ -256,6 +257,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 			IndVar::new(phi_base, scale.clone(), step.clone(), is_zfp.clone()),
 		);
 		for (indvar, indvar_base) in indvar_chain.iter().zip(indvar_bases) {
+			#[cfg(feature = "debug")]
 			eprintln!(
 				"OneLoopSolver: found a indvar {} with base: {}, scale: {}, step: {}",
 				indvar.temp.clone(),

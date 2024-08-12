@@ -71,13 +71,14 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			println!("LoopSimplify: Mapping with {:?}", replace_map);
 			flag = true;
 			for bb in self.opter.func.cfg.blocks.iter() {
-				for phi in bb.borrow_mut().phi_instrs.iter_mut() {
+				let mut bb = bb.borrow_mut();
+				for phi in bb.phi_instrs.iter_mut() {
 					phi.map_temp(&replace_map);
 				}
-				for inst in bb.borrow_mut().instrs.iter_mut() {
+				for inst in bb.instrs.iter_mut() {
 					inst.map_temp(&replace_map);
 				}
-				for jump in bb.borrow_mut().jump_instr.iter_mut() {
+				for jump in bb.jump_instr.iter_mut() {
 					jump.map_temp(&replace_map);
 				}
 			}
@@ -117,10 +118,11 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 	pub fn update_phi_nodes(
 		&mut self,
 		bb: LlvmNode,
-		new_bb: LlvmNode,
+		new_bb_: LlvmNode,
 		preds: Vec<LlvmNode>,
 		has_loop_exit: bool, // new_bb 是否是某循环的 exit
 	) {
+		let mut new_bb = new_bb_.borrow_mut();
 		// Create a new PHI node in NewBB for each PHI node in OrigBB.
 		for phi in bb.borrow_mut().phi_instrs.iter_mut() {
 			// Check to see if all of the values coming in are the same.  If so, we
@@ -129,11 +131,10 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			let mut in_var = None;
 			if !has_loop_exit {
 				for pred in preds.iter() {
+					let pred = pred.borrow();
 					if in_var.is_none() {
-						in_var = phi.get_incoming_value_for_block(&pred.borrow().label());
-					} else if in_var
-						!= phi.get_incoming_value_for_block(&pred.borrow().label())
-					{
+						in_var = phi.get_incoming_value_for_block(&pred.label());
+					} else if in_var != phi.get_incoming_value_for_block(&pred.label()) {
 						in_var = None;
 						break;
 					}
@@ -146,7 +147,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 				phi
 					.source
 					.retain(|(_, l)| !preds.iter().any(|b| b.borrow().label() == *l));
-				phi.source.push((v, new_bb.borrow().label()));
+				phi.source.push((v, new_bb.label()));
 				self
 					.opter
 					.temp_graph
@@ -168,9 +169,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			phi
 				.source
 				.retain(|(_, l)| !preds.iter().any(|b| b.borrow().label() == *l));
-			phi
-				.source
-				.push((Value::Temp(new_target.clone()), new_bb.borrow().label()));
+			phi.source.push((Value::Temp(new_target.clone()), new_bb.label()));
 			self.opter.temp_graph.temp_to_instr.get_mut(&phi.target).unwrap().instr =
 				Box::new(phi.clone());
 
@@ -179,17 +178,17 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 				.opter
 				.temp_graph
 				.add_temp(new_target.clone(), Box::new(new_phi.clone()));
-			new_bb.borrow_mut().phi_instrs.push(new_phi);
-			self.opter.def_map.insert(new_target, new_bb.clone());
+			new_bb.phi_instrs.push(new_phi);
+			self.opter.def_map.insert(new_target, new_bb_.clone());
 		}
 	}
 	/// InsertPreheaderForLoop - Once we discover that a loop doesn't have a
 	/// preheader, this method is called to insert one.
 	fn insert_preheader_for_loop(&mut self, loop_: LoopPtr) -> LlvmNode {
-		let header_rc = loop_.borrow().header.clone();
+		let loop_brw = loop_.borrow();
+		let header_rc = loop_brw.header.clone();
 		let mut outside_blocks = Vec::new();
-		let loop_blocks = loop_
-			.borrow()
+		let loop_blocks = loop_brw
 			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
 		for prev in header_rc.clone().borrow().prev.iter() {
 			if !loop_blocks.contains(prev) {
@@ -203,7 +202,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			"LoopSimplify: inserted preheader block {}",
 			new_bb.borrow().label()
 		);
-		if let Some(o) = loop_.borrow().outer.clone() {
+		if let Some(o) = loop_brw.outer.clone() {
 			self.opter.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
 		}
 		new_bb
@@ -282,28 +281,28 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 		// predecessors that are not in the loop.  This is not valid for natural
 		// loops, but can occur if the blocks are unreachable.
 		// 子循环的前驱不可能在本循环外，所以这里可以不遍历子循环的 block
-		let blocks_without_subloops = loop_
-			.borrow()
+		let loop_brw = loop_.borrow();
+		let header = loop_brw.header.borrow();
+		let blocks_without_subloops = loop_brw
 			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
-		for bb in loop_
-			.borrow()
+		for bb in loop_brw
 			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map)
 			.iter()
 		{
-			if bb.borrow().id == loop_.borrow().header.borrow().id {
+			let bb = bb.borrow();
+			if bb.id == header.id {
 				continue;
 			}
 			// 循环内基本块的前驱不可能在子循环内，否则要么该块属于子循环，要么该块是子循环除 header 以外的入口，而我们的循环都是单一入口的
-			for pred in bb.borrow().prev.iter() {
+			for pred in bb.prev.iter() {
 				let l = self.opter.loop_map.get(&pred.borrow().id);
-				if !l.is_some_and(|l| loop_.borrow().is_super_loop_of(l)) {
+				if !l.is_some_and(|l| loop_brw.is_super_loop_of(l)) {
 					panic!("LoopSimplify: Loop contains a block with a predecessor that is not in the loop!");
 				}
 			}
 		}
 		// Does the loop already have a preheader?  If not, insert one.
-		let preheader = loop_
-			.borrow()
+		let preheader = loop_brw
 			.get_loop_preheader(&blocks_without_subloops)
 			.unwrap_or_else(|| {
 				flag = true;
@@ -339,22 +338,22 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 		loop_: LoopPtr,
 		replace_map: &mut HashMap<LlvmTemp, Value>,
 	) {
+		let loop_ = loop_.borrow_mut();
+		let mut header = loop_.header.borrow_mut();
 		// 逆向遍历，下标遍历，一边遍历一边删除
-		for phi_idx in (0..loop_.borrow().header.borrow().phi_instrs.len()).rev() {
-			let target =
-				loop_.borrow().header.borrow().phi_instrs[phi_idx].target.clone();
-			let source =
-				loop_.borrow().header.borrow().phi_instrs[phi_idx].source.clone();
+		for phi_idx in (0..header.phi_instrs.len()).rev() {
+			let target = header.phi_instrs[phi_idx].target.clone();
+			let source = header.phi_instrs[phi_idx].source.clone();
 			if source.len() != 2 {
 				println!("LoopSimplify: Failed to insert preheader or unique backage");
 				break;
 			}
 			if source[0].0.unwrap_temp().is_some_and(|t| t == target) {
 				replace_map.insert(target, source[1].0.clone());
-				loop_.borrow_mut().header.borrow_mut().phi_instrs.remove(phi_idx);
+				header.phi_instrs.remove(phi_idx);
 			} else if source[1].0.unwrap_temp().is_some_and(|t| t == target) {
 				replace_map.insert(target, source[0].0.clone());
-				loop_.borrow_mut().header.borrow_mut().phi_instrs.remove(phi_idx);
+				header.phi_instrs.remove(phi_idx);
 			}
 		}
 	}
