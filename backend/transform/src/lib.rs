@@ -35,7 +35,6 @@ pub fn convert_func(
 	let mut alloc_table = HashMap::new();
 
 	func.cfg.blocks.iter().for_each(remove_phi::remove_phi);
-	// debug print
 	for block in func.cfg.blocks.iter() {
 		for instr in block.borrow().instrs.iter() {
 			if let Some((temp, length)) = instr.get_alloc() {

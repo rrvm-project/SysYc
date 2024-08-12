@@ -172,10 +172,7 @@ impl RiscvInstrTrait for IBinInstr {
 		}
 	}
 	fn map_dst_temp(&mut self, map: &HashMap<Temp, RiscvTemp>) {
-		if matches!(
-			self.op,
-			SB | Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc
-		) {
+		if matches!(self.op, SB | Li | LD | LW | LWU | LA | FLW | FLD | Auipc) {
 			map_temp(&mut self.rd, map);
 		}
 	}
@@ -190,22 +187,20 @@ impl RiscvInstrTrait for IBinInstr {
 	}
 	fn get_virt_mem_read(&self) -> Option<VirtAddr> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc => {
-				self.rs1.to_virt_mem()
-			}
+			Li | LD | LW | LWU | LA | FLW | FLD | Auipc => self.rs1.to_virt_mem(),
 			_ => None,
 		}
 	}
 	fn get_riscv_write(&self) -> Vec<RiscvTemp> {
 		match self.op {
-			Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc => vec![self.rd],
+			Li | LD | LW | LWU | LA | FLW | FLD | Auipc => vec![self.rd],
 			SB | SH | SW | SD | FSW | FSD => vec![],
 		}
 	}
 	fn get_riscv_read(&self) -> Vec<RiscvTemp> {
 		[
 			match self.op {
-				Li | Lui | LD | LW | LWU | LA | FLW | FLD | Auipc => vec![],
+				Li | LD | LW | LWU | LA | FLW | FLD | Auipc => vec![],
 				SB | SH | SW | SD | FSW | FSD => vec![self.rd],
 			},
 			unwarp_imms(vec![&self.rs1]),
@@ -279,10 +274,7 @@ impl RiscvInstrTrait for RBinInstr {
 		vec![self.rd]
 	}
 	fn useless(&self) -> bool {
-		self.is_move() && {
-			eprintln!("{} {} {}", self.rd, self.rs1, self.op);
-			self.rd == self.rs1
-		}
+		self.is_move() && self.rd == self.rs1
 	}
 	fn get_cmp_op(&self) -> Option<BranInstrOp> {
 		match &self.op {
