@@ -169,6 +169,9 @@ fn get_arith(
 				instrs.push(RBinInstr::new(Negw, rd, rd));
 			}
 		}
+		(ArithOp::Fadd, _, Value::Float(0.0)) => {
+			instrs.push(RBinInstr::new(FMv, rd, lhs));
+		}
 		(ArithOp::Div, _, Value::Int(num)) => match num {
 			0 => return Err(SemanticError("divided by zero".to_string())),
 			1 => instrs.push(RBinInstr::new(Mv, rd, lhs)),

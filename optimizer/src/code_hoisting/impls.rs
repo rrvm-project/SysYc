@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use llvm::{LlvmInstrVariant::*, LlvmTemp};
 use rrvm::{
-	dominator::DomTree,
+	dominator::LlvmDomTree,
 	program::{LlvmFunc, LlvmProgram},
 	LlvmNode,
 };
@@ -29,14 +29,14 @@ impl NodeInfo {
 }
 
 struct Solver {
-	dom_tree: DomTree,
+	dom_tree: LlvmDomTree,
 	stack: Vec<NodeInfo>,
 }
 
 impl Solver {
 	pub fn new(func: &LlvmFunc) -> Self {
 		Self {
-			dom_tree: DomTree::new(&func.cfg, false),
+			dom_tree: LlvmDomTree::new(&func.cfg, false),
 			stack: Vec::new(),
 		}
 	}

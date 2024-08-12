@@ -1,9 +1,22 @@
-use crate::{LlvmCFG, LlvmNode};
+use utils::{InstrTrait, TempTrait};
+
+use crate::cfg::{Node, CFG};
 
 use super::{compute_dominator, compute_dominator_frontier, DomTree};
 
-impl DomTree {
-	pub fn new(cfg: &LlvmCFG, reverse: bool) -> Self {
+impl<T: InstrTrait<U>, U: TempTrait> Default for DomTree<T, U> {
+	fn default() -> Self {
+		Self {
+			dominates: Default::default(),
+			dominator: Default::default(),
+			dom_direct: Default::default(),
+			df: Default::default(),
+		}
+	}
+}
+
+impl<T: InstrTrait<U>, U: TempTrait> DomTree<T, U> {
+	pub fn new(cfg: &CFG<T, U>, reverse: bool) -> Self {
 		let mut dom_tree = Self::default();
 		compute_dominator(
 			cfg,
@@ -21,10 +34,10 @@ impl DomTree {
 		);
 		dom_tree
 	}
-	pub fn get_children(&mut self, id: i32) -> &Vec<LlvmNode> {
+	pub fn get_children(&mut self, id: i32) -> &Vec<Node<T, U>> {
 		self.dom_direct.entry(id).or_default()
 	}
-	pub fn get_df(&mut self, id: i32) -> &Vec<LlvmNode> {
+	pub fn get_df(&mut self, id: i32) -> &Vec<Node<T, U>> {
 		self.df.entry(id).or_default()
 	}
 }

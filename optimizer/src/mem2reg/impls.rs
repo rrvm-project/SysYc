@@ -14,14 +14,14 @@ use crate::{
 use llvm::{LlvmInstrVariant::*, LlvmTemp, LlvmTempManager, Value, VarType};
 use rand::{rngs::StdRng, SeedableRng};
 use rrvm::{
-	dominator::DomTree,
+	dominator::LlvmDomTree,
 	program::{LlvmFunc, LlvmProgram},
 	LlvmNode,
 };
 use utils::{errors::Result, Label, MEM_TO_REG_LIMIT};
 
 struct Solver<'a> {
-	dom_tree: DomTree,
+	dom_tree: LlvmDomTree,
 	rng: StdRng,
 	func_data: &'a mut FuncData,
 	mgr: &'a mut LlvmTempManager,
@@ -55,7 +55,7 @@ impl<'a> Solver<'a> {
 			}
 		}
 		Self {
-			dom_tree: DomTree::new(&func.cfg, false),
+			dom_tree: LlvmDomTree::new(&func.cfg, false),
 			rng: StdRng::from_entropy(),
 			base_addrs: HashMap::new(),
 			addr_info: HashMap::new(),
@@ -522,7 +522,6 @@ impl<'a> Solver<'a> {
 				} else {
 					let addr = self.get_val_addr(&instr.addr);
 					store_base.contains(&addr.base) || {
-						// eprintln!("试试刀吧！{}", instr);
 						let mut best_weight = init_weight * 0.99;
 						let mut best_node = None;
 						for (node, store_base) in self.stack.iter().rev() {
@@ -531,7 +530,6 @@ impl<'a> Solver<'a> {
 							}
 							let weight = node.borrow().weight;
 							if weight < best_weight {
-								// eprintln!("上上");
 								best_weight = weight;
 								best_node = Some(node);
 							}
@@ -540,11 +538,9 @@ impl<'a> Solver<'a> {
 							}
 						}
 						if let Some(best_node) = best_node {
-							// eprintln!("进入！");
 							best_node.borrow_mut().instrs.push(Box::new(instr.clone()));
 							false
 						} else {
-							// eprintln!("怎么想都进不去吧！");
 							true
 						}
 					}

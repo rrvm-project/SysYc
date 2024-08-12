@@ -1,14 +1,17 @@
 // Ref: https://blog.csdn.net/Dong_HFUT/article/details/121510224
 
-use crate::{LlvmCFG, LlvmNode};
 use std::collections::HashMap;
 
-pub fn compute_dominator_frontier(
-	cfg: &LlvmCFG,
+use utils::{InstrTrait, TempTrait};
+
+use crate::cfg::{Node, CFG};
+
+pub fn compute_dominator_frontier<T: InstrTrait<U>, U: TempTrait>(
+	cfg: &CFG<T, U>,
 	reverse: bool,
-	dominates: &HashMap<i32, Vec<LlvmNode>>,
-	dominator: &HashMap<i32, LlvmNode>,
-	dominator_frontier: &mut HashMap<i32, Vec<LlvmNode>>,
+	dominates: &HashMap<i32, Vec<Node<T, U>>>,
+	dominator: &HashMap<i32, Node<T, U>>,
+	dominator_frontier: &mut HashMap<i32, Vec<Node<T, U>>>,
 ) {
 	for bb in cfg.blocks.iter() {
 		if reverse {

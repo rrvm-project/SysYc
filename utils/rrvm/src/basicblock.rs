@@ -190,7 +190,7 @@ impl BasicBlock<RiscvInstr, instruction::Temp> {
 	}
 }
 
-impl PartialEq for LlvmBasicBlock {
+impl<T: InstrTrait<U>, U: TempTrait> PartialEq for BasicBlock<T, U> {
 	fn eq(&self, other: &Self) -> bool {
 		self.id == other.id
 	}
