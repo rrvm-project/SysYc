@@ -55,6 +55,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 													end_value.clone(),
 													new_op,
 												);
+												#[cfg(feature = "debug")]
 												eprintln!("get loop info: Found a loop to optimize with cond_temp: {} start: {}, step: {}, end: {}, op: {}, cnt: {}", t.clone(), iv.base.clone(), iv.step.clone(), end_value.clone(), new_op, loop_cnt.clone());
 												let info = LoopInfo {
 													indvars: self.indvars.clone(),

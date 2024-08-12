@@ -14,18 +14,19 @@ impl<'a: 'b, 'b> IndvarOptimize<'a, 'b> {
 	}
 	fn dfs(&mut self, loop_: LoopPtr) -> bool {
 		let mut flag = false;
+
 		// prevent BorrowMutError
 		let subloops = loop_.borrow().subloops.clone();
 		for l in subloops.into_iter() {
 			flag |= self.dfs(l);
 		}
+		let loop_brw = loop_.borrow();
 		// 不 visit root_loop
-		if loop_.borrow().outer.is_none() {
+		if loop_brw.outer.is_none() {
 			return flag;
 		}
-		if let Some(preheader) = loop_.borrow().get_loop_preheader(
-			&loop_
-				.borrow()
+		if let Some(preheader) = loop_brw.get_loop_preheader(
+			&loop_brw
 				.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map),
 		) {
 			flag |= self.visit_loop(loop_.clone(), preheader);
@@ -35,14 +36,10 @@ impl<'a: 'b, 'b> IndvarOptimize<'a, 'b> {
 	// TODO: 识别变量的 use-def 环; 识别循环不变量; 识别归纳变量; 归纳变量外推
 	fn visit_loop(&mut self, loop_: LoopPtr, preheader: LlvmNode) -> bool {
 		let mut solver = OneLoopSolver::new(self.opter, loop_.clone(), preheader);
-		let phi_defs: Vec<LlvmTemp> = loop_
-			.borrow()
-			.header
-			.borrow()
-			.phi_instrs
-			.iter()
-			.map(|i| i.target.clone())
-			.collect();
+		let loop_brw = loop_.borrow();
+		let header = loop_brw.header.borrow();
+		let phi_defs: Vec<LlvmTemp> =
+			header.phi_instrs.iter().map(|i| i.target.clone()).collect();
 		for use_ in phi_defs.iter() {
 			solver.run(use_.clone());
 		}

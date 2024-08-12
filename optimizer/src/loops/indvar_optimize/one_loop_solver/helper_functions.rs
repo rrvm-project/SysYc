@@ -14,6 +14,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 					if let Some(iv2) = self.is_indvar(&inst.rhs) {
 						if let Some(output_iv) = self.compute_two_indvar(iv1, iv2, inst.op)
 						{
+							#[cfg(feature = "debug")]
 							eprintln!("OneLoopSolver: computed indvar: {} base: {}, scale: {}, step: {}", temp, output_iv.base, output_iv.scale, output_iv.step);
 							self.indvars.insert(temp.clone(), output_iv);
 						}
@@ -26,6 +27,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 						if let Some(output_iv) =
 							self.compute_two_indvar(iv1, iv2, ArithOp::Add)
 						{
+							#[cfg(feature = "debug")]
 							eprintln!("OneLoopSolver: computed indvar: {} base: {}, scale: {}, step: {}", temp, output_iv.base, output_iv.scale, output_iv.step);
 							self.indvars.insert(temp.clone(), output_iv);
 						}
