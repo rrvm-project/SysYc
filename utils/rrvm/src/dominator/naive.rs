@@ -7,21 +7,24 @@ use std::{
 	rc::Rc,
 };
 
-use crate::{basicblock::BasicBlock, LlvmCFG, LlvmNode};
+use utils::{InstrTrait, TempTrait};
+
+use crate::{
+	basicblock::BasicBlock,
+	cfg::{Node, CFG},
+};
 
 // 如果要计算反向支配树，计算dominates时可能需要创建一个假的出口节点，但计算dominator和dominates_directly时会将这个假的出口节点排除在外，这会导致部分节点没有dominator
-pub fn compute_dominator(
-	cfg: &LlvmCFG,
+pub fn compute_dominator<T: InstrTrait<U>, U: TempTrait>(
+	cfg: &CFG<T, U>,
 	reverse: bool,
-	dominates: &mut HashMap<i32, Vec<LlvmNode>>,
-	dominates_directly: &mut HashMap<i32, Vec<LlvmNode>>,
-	dominator: &mut HashMap<i32, LlvmNode>,
+	dominates: &mut HashMap<i32, Vec<Node<T, U>>>,
+	dominates_directly: &mut HashMap<i32, Vec<Node<T, U>>>,
+	dominator: &mut HashMap<i32, Node<T, U>>,
 ) {
 	let mut block_has_ret = Vec::new();
 	for bb in cfg.blocks.iter() {
-		if bb.borrow().jump_instr.is_some()
-			&& bb.borrow().jump_instr.as_ref().unwrap().is_ret()
-		{
+		if bb.borrow().succ.is_empty() {
 			block_has_ret.push(bb.clone());
 		}
 	}

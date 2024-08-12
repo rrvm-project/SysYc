@@ -279,7 +279,10 @@ impl RiscvInstrTrait for RBinInstr {
 		vec![self.rd]
 	}
 	fn useless(&self) -> bool {
-		self.is_move() && self.rd == self.rs1
+		self.is_move() && {
+			eprintln!("{} {} {}", self.rd, self.rs1, self.op);
+			self.rd == self.rs1
+		}
 	}
 	fn get_cmp_op(&self) -> Option<BranInstrOp> {
 		match &self.op {

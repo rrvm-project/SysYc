@@ -1,7 +1,7 @@
 use llvm::{CloneLlvmInstr, PhiInstr};
 use rand::{rngs::StdRng, SeedableRng};
 use rrvm::{
-	dominator::DomTree,
+	dominator::LlvmDomTree,
 	program::{LlvmFunc, LlvmProgram},
 	LlvmNode,
 };
@@ -19,7 +19,7 @@ use super::{
 };
 
 struct Solver<'a> {
-	dom_tree: DomTree,
+	dom_tree: LlvmDomTree,
 	rng: StdRng,
 	stack: Vec<NodeInfo>,
 	func_data: &'a mut FuncData,
@@ -36,7 +36,7 @@ impl<'a> Solver<'a> {
 		}
 		let stack = vec![info];
 		Self {
-			dom_tree: DomTree::new(&func.cfg, false),
+			dom_tree: LlvmDomTree::new(&func.cfg, false),
 			rng,
 			stack,
 			func_data,
