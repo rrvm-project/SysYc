@@ -6,8 +6,9 @@ use instruction::{
 	Temp,
 };
 use rrvm::program::RiscvFunc;
+use utils::CONSTANT_SPILL_WEIGHT_RATIO;
 
-use crate::{graph::InterferenceGraph, spill::spill};
+use crate::{graph::InterferenceGraph, solver::ConstInfo, spill::spill};
 
 pub struct RegAllocator<'a> {
 	var_type: VarType,
@@ -35,6 +36,7 @@ impl<'a> RegAllocator<'a> {
 		&mut self,
 		func: &mut RiscvFunc,
 		mapper: &mut HashMap<Temp, RiscvTemp>,
+		constants: &HashMap<Temp, ConstInfo>,
 	) {
 		let map = loop {
 			let mut graph = InterferenceGraph::new(Box::new(self.allocable_regs));
@@ -82,13 +84,21 @@ impl<'a> RegAllocator<'a> {
 				}
 			}
 
+			for (k, v) in graph.weights.iter_mut() {
+				if let Some(info) = constants.get(k) {
+					*v /= CONSTANT_SPILL_WEIGHT_RATIO;
+					if info.to_float {
+						*v *= 2.0;
+					}
+				}
+			}
 			graph.eliminate_move();
 			graph.coalescing();
 			let nodes = graph.coloring();
 			if nodes.is_empty() {
 				break graph.get_map();
 			} else {
-				spill(func, &nodes, self.mgr, self.mem_mgr);
+				spill(func, &nodes, self.mgr, self.mem_mgr, constants);
 				for block in func.cfg.blocks.iter() {
 					let block = &mut block.borrow_mut();
 					block.live_out.retain(|v| !nodes.contains(v));

@@ -11,7 +11,9 @@ use instruction::{
 };
 use rrvm::{
 	cfg::{force_link_node, BasicBlock},
+	dominator::RiscvDomTree,
 	program::RiscvFunc,
+	RiscvNode,
 };
 use utils::{math::align16, to_label};
 
@@ -19,11 +21,23 @@ use crate::{
 	allocator::RegAllocator, graph::InterferenceGraph, utils::MemAllocator,
 };
 
+pub struct ConstInfo {
+	pub value: i32,
+	pub to_float: bool,
+}
+
+impl ConstInfo {
+	fn new(value: i32, to_float: bool) -> Self {
+		Self { value, to_float }
+	}
+}
+
 pub struct RegisterSolver<'a> {
 	extra_size: i32,
 	mgr: &'a mut TempManager,
 	mem_mgr: VirtMemManager,
 	temp_mapper: HashMap<Temp, RiscvTemp>,
+	constants: HashMap<Temp, ConstInfo>,
 }
 
 fn load_reg(reg: RiscvReg, index: usize) -> RiscvInstr {
@@ -47,6 +61,7 @@ impl<'a> RegisterSolver<'a> {
 			extra_size: 0,
 			mem_mgr: VirtMemManager::default(),
 			temp_mapper: HashMap::new(),
+			constants: HashMap::new(),
 		}
 	}
 
@@ -76,6 +91,45 @@ impl<'a> RegisterSolver<'a> {
 		func.cfg.blocks.first().unwrap().borrow_mut().instrs.splice(0..0, prelude);
 	}
 
+	fn dfs(&mut self, node: RiscvNode, dom_tree: &mut RiscvDomTree) {
+		let block = &node.borrow();
+		use RiscvInstrVariant::*;
+		for instr in block.instrs.iter() {
+			match instr.get_variant() {
+				IBinInstr(instr) if instr.op == Li => {
+					if let (VirtReg(rd), Some(v)) = (instr.rd, instr.rs1.get_i32()) {
+						self.constants.insert(rd, ConstInfo::new(v, false));
+					}
+				}
+				ITriInstr(instr) if instr.op == Addi => {
+					if let (VirtReg(rd), VirtReg(rs1)) = (instr.rd, instr.rs1) {
+						if let Some(v) = instr.rs2.get_i32() {
+							if let Some(info) = self.constants.get(&rs1) {
+								self
+									.constants
+									.insert(rd, ConstInfo::new(info.value + v, false));
+							}
+						}
+					}
+				}
+				RBinInstr(instr) if instr.op == FMv => {
+					if let (VirtReg(rd), VirtReg(rs1)) = (instr.rd, instr.rs1) {
+						if let Some(info) = self.constants.get(&rs1) {
+							self.constants.insert(rd, ConstInfo::new(info.value, true));
+						}
+					}
+				}
+				_ => {}
+			}
+		}
+		let children = dom_tree.get_children(block.id).clone();
+		children.into_iter().for_each(|v| self.dfs(v, dom_tree));
+	}
+	pub fn calc_constants(&mut self, func: &mut RiscvFunc) {
+		let mut dom_tree = RiscvDomTree::new(&func.cfg, false);
+		self.dfs(func.cfg.get_entry(), &mut dom_tree);
+	}
+
 	#[allow(clippy::assigning_clones)]
 	pub fn init_data_flow(&mut self, func: &mut RiscvFunc) {
 		func.cfg.clear_data_flow();
@@ -93,8 +147,11 @@ impl<'a> RegisterSolver<'a> {
 			VarType::Int => ALLOCABLE_REGS,
 			VarType::Float => FP_ALLOCABLE_REGS,
 		};
-		RegAllocator::new(self.mgr, &mut self.mem_mgr, var_type, regs)
-			.alloc(func, &mut self.temp_mapper);
+		RegAllocator::new(self.mgr, &mut self.mem_mgr, var_type, regs).alloc(
+			func,
+			&mut self.temp_mapper,
+			&self.constants,
+		);
 	}
 
 	pub fn memory_alloc(&mut self, func: &mut RiscvFunc) {
