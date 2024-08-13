@@ -278,8 +278,8 @@ impl RiscvInstrTrait for RBinInstr {
 	}
 	fn get_cmp_op(&self) -> Option<BranInstrOp> {
 		match &self.op {
-			Seqz => Some(Bne),
-			Snez => Some(Beq),
+			Seqz => Some(Beq),
+			Snez => Some(Bne),
 			_ => None,
 		}
 	}

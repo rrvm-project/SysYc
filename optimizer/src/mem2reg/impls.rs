@@ -466,6 +466,8 @@ impl<'a> Solver<'a> {
 		for block in func.cfg.blocks.iter() {
 			let block = &mut block.borrow_mut();
 			let mut state = self.use_states.remove(&block.id).unwrap().state_out;
+			// TODO： 考虑跨越基本块的 store 冗余。
+			state.stores.clear();
 			block.instrs.reverse();
 			block.instrs.retain(|instr| match instr.get_variant() {
 				LoadInstr(instr) => {
