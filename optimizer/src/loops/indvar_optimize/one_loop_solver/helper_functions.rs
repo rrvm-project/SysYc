@@ -3,11 +3,12 @@ use crate::loops::indvar::IndVar;
 use super::OneLoopSolver;
 
 use llvm::{ArithOp, LlvmInstrVariant, LlvmTemp, Value};
-impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
+impl<'a> OneLoopSolver<'a> {
 	// 判断单成员的 scc 是否是循环变量
 	pub fn classify_single_member_scc(&mut self, temp: &LlvmTemp) {
 		// 看看它是不是归纳变量的计算结果
-		let instr = self.opter.temp_graph.temp_to_instr[temp].instr.get_variant();
+		let instr =
+			self.loopdata.temp_graph.temp_to_instr[temp].instr.get_variant();
 		match instr {
 			LlvmInstrVariant::ArithInstr(inst) => {
 				if let Some(iv1) = self.is_indvar(&inst.lhs) {
@@ -47,8 +48,8 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 	// 找到 scc 中在 header 中的 phi 语句
 	pub fn find_header_for_scc(&mut self, scc: &Vec<LlvmTemp>) -> LlvmTemp {
 		for temp in scc {
-			if self.opter.temp_graph.is_phi(temp)
-				&& self.opter.def_map[temp].borrow().id
+			if self.loopdata.temp_graph.is_phi(temp)
+				&& self.loopdata.def_map[temp].borrow().id
 					== self.cur_loop.borrow().header.borrow().id
 			{
 				return temp.clone();
@@ -89,9 +90,9 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 			.or_else(|| get_variant_and_step_inner(member2, member1))
 	}
 	pub fn is_temp_in_current_loop(&self, temp: &LlvmTemp) -> bool {
-		self.opter.def_map.get(temp).map_or(false, |bb| {
+		self.loopdata.def_map.get(temp).map_or(false, |bb| {
 			self
-				.opter
+				.loopdata
 				.loop_map
 				.get(&bb.borrow().id)
 				.map_or(false, |l| l.borrow().id == self.cur_loop.borrow().id)
@@ -106,11 +107,11 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 	// 只要定义所在的循环不是本循环的子循环即可
 	pub fn is_loop_invariant(&self, value: &Value) -> bool {
 		match value {
-			Value::Temp(temp) => self.opter.def_map.get(temp).map_or(true, |bb| {
+			Value::Temp(temp) => self.loopdata.def_map.get(temp).map_or(true, |bb| {
 				!self
 					.cur_loop
 					.borrow()
-					.is_super_loop_of(&self.opter.loop_map[&bb.borrow().id])
+					.is_super_loop_of(&self.loopdata.loop_map[&bb.borrow().id])
 			}),
 			Value::Int(_) => true,
 			Value::Float(_) => true,

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use llvm::{ArithOp, LlvmInstr, LlvmInstrVariant, LlvmTemp, Value};
 use rrvm::program::LlvmFunc;
 
-use super::loop_optimizer::LoopOptimizer;
+use super::loop_data::LoopData;
 
 pub struct Node {
 	pub instr: LlvmInstr,
@@ -79,7 +79,7 @@ impl TempGraph {
 	}
 }
 
-impl<'a> LoopOptimizer<'a> {
+impl LoopData {
 	pub fn build_graph(func: &LlvmFunc) -> TempGraph {
 		let mut temp_graph = TempGraph::new();
 		for bb in func.cfg.blocks.iter() {

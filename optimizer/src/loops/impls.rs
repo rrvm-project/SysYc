@@ -1,41 +1,74 @@
-use llvm::LlvmTempManager;
-use rrvm::program::{LlvmFunc, LlvmProgram};
-use utils::errors::Result;
+use std::collections::HashMap;
 
 use crate::{
-	loops::loop_optimizer::LoopOptimizer,
+	loops::{
+		indvar_optimize::IndvarOptimize, loop_data::LoopData,
+		loop_simplify::LoopSimplify,
+	},
 	metadata::{FuncData, MetaData},
-	RrvmOptimizer,
 };
+use llvm::LlvmTempManager;
+use rrvm::program::{LlvmFunc, LlvmProgram};
+use utils::Result;
 
 use super::HandleLoops;
 
-impl RrvmOptimizer for HandleLoops {
-	fn new() -> Self {
-		Self {}
+impl HandleLoops {
+	pub fn new(program: &mut LlvmProgram) -> Self {
+		let mut loopdatas = HashMap::new();
+		fn solve(func: &mut LlvmFunc, loopdatas: &mut HashMap<String, LoopData>) {
+			let loopdata = LoopData::new(func);
+			loopdatas.insert(func.name.clone(), loopdata);
+		}
+
+		program.funcs.iter_mut().for_each(|func| solve(func, &mut loopdatas));
+		Self { loopdatas }
 	}
-	fn apply(
-		self,
+	pub fn loop_simplify(
+		&mut self,
 		program: &mut LlvmProgram,
 		metadata: &mut MetaData,
 	) -> Result<bool> {
 		fn solve(
 			func: &mut LlvmFunc,
+			loop_data: &mut LoopData,
+			func_data: &mut FuncData,
 			temp_mgr: &mut LlvmTempManager,
-			funcdata: &mut FuncData,
 		) -> bool {
-			let mut flag: bool = false;
-			let mut opter = LoopOptimizer::new(func, funcdata, temp_mgr);
-			flag |= opter.loop_simplify().apply();
-			flag |= opter.indvar_optimze().apply();
-			flag
+			let opter = LoopSimplify::new(func, loop_data, func_data, temp_mgr);
+			opter.apply()
 		}
 
 		Ok(program.funcs.iter_mut().fold(false, |last, func| {
 			solve(
 				func,
-				&mut program.temp_mgr,
+				self.loopdatas.get_mut(&func.name).unwrap(),
 				metadata.get_func_data(&func.name),
+				&mut program.temp_mgr,
+			) || last
+		}))
+	}
+	pub fn indvar_optimize(
+		&mut self,
+		program: &mut LlvmProgram,
+		metadata: &mut MetaData,
+	) -> Result<bool> {
+		fn solve(
+			func: &mut LlvmFunc,
+			loop_data: &mut LoopData,
+			func_data: &mut FuncData,
+			temp_mgr: &mut LlvmTempManager,
+		) -> bool {
+			let opter = IndvarOptimize::new(func, loop_data, func_data, temp_mgr);
+			opter.apply()
+		}
+
+		Ok(program.funcs.iter_mut().fold(false, |last, func| {
+			solve(
+				func,
+				self.loopdatas.get_mut(&func.name).unwrap(),
+				metadata.get_func_data(&func.name),
+				&mut program.temp_mgr,
 			) || last
 		}))
 	}

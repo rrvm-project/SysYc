@@ -8,16 +8,22 @@ mod tarjan_var;
 mod utils;
 use std::collections::{HashMap, HashSet};
 
-use llvm::{LlvmInstr, LlvmTemp};
-use rrvm::{rrvm_loop::LoopPtr, LlvmNode};
+use llvm::{LlvmInstr, LlvmTemp, LlvmTempManager};
+use rrvm::{program::LlvmFunc, rrvm_loop::LoopPtr, LlvmNode};
 use tarjan_var::TarjanVar;
 
-use crate::loops::{indvar::IndVar, loop_optimizer::LoopOptimizer};
+use crate::{
+	loops::{indvar::IndVar, loop_data::LoopData},
+	metadata::FuncData,
+};
 
 #[allow(unused)]
 // 认为循环内定义的变量都是循环变量，所有不变量已经被全部提出去了
-pub struct OneLoopSolver<'a: 'b, 'b> {
-	pub opter: &'b mut LoopOptimizer<'a>,
+pub struct OneLoopSolver<'a> {
+	pub loopdata: &'a mut LoopData,
+	pub funcdata: &'a mut FuncData,
+	pub temp_mgr: &'a mut LlvmTempManager,
+	pub func: &'a mut LlvmFunc,
 	// tarjan 算法的变量
 	tarjan_var: TarjanVar,
 	cur_loop: LoopPtr,

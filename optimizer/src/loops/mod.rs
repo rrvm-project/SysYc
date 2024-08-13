@@ -1,10 +1,16 @@
+use std::collections::HashMap;
+
+use loop_data::LoopData;
+
 mod chain_node;
 mod impls;
 mod indvar;
 mod indvar_optimize;
-mod loop_optimizer;
+mod loop_data;
 mod loop_simplify;
 mod loopinfo;
 mod temp_graph;
 
-pub struct HandleLoops {}
+pub struct HandleLoops {
+	loopdatas: HashMap<String, LoopData>,
+}
