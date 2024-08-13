@@ -116,6 +116,9 @@ impl InstrTrait<Temp> for RiscvInstr {
 	fn is_call(&self) -> bool {
 		self.as_ref().is_call()
 	}
+	fn is_branch(&self) -> bool {
+		self.as_ref().is_branch()
+	}
 }
 
 #[derive(UseTemp, Clone)]

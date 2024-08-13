@@ -72,7 +72,12 @@ impl<T: InstrTrait<U>, U: TempTrait> BasicBlock<T, U> {
 		self.succ.clear();
 	}
 	pub fn push(&mut self, instr: T) {
-		self.instrs.push(instr);
+		match self.instrs.last() {
+			Some(last_instr) if last_instr.is_branch() => {
+				self.instrs.insert(self.instrs.len() - 1, instr);
+			}
+			_ => self.instrs.push(instr),
+		}
 	}
 	pub fn push_phi(&mut self, instr: PhiInstr) {
 		self.phi_instrs.push(instr);

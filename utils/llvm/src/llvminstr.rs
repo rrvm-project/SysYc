@@ -100,6 +100,9 @@ impl InstrTrait<LlvmTemp> for LlvmInstr {
 	fn is_call(&self) -> bool {
 		self.as_ref().is_call()
 	}
+	fn is_branch(&self) -> bool {
+		self.as_ref().is_jump_cond() || self.as_ref().is_direct_jump()
+	}
 }
 
 #[derive(Clone)]

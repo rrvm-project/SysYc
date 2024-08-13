@@ -32,6 +32,7 @@ pub trait UseTemp<U> {
 
 pub trait InstrTrait<U>: Display + UseTemp<U> {
 	fn is_call(&self) -> bool;
+	fn is_branch(&self) -> bool;
 }
 pub trait TempTrait: Display + Hash + Eq + Clone {}
 
