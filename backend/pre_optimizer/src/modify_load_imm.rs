@@ -51,20 +51,20 @@ impl Solver {
 						IBinInstr(instr) if instr.op == Li => {
 							!instr.rd.is_virtual() || {
 								constants.insert(instr.rd);
-								best_node.borrow_mut().instrs.push(instr.clone_box());
+								best_node.borrow_mut().push(instr.clone_box());
 								false
 							}
 						}
 						ITriInstr(instr) if instr.op == Addi => {
 							!instr.rd.is_virtual() || !constants.contains(&instr.rs1) || {
 								constants.insert(instr.rd);
-								best_node.borrow_mut().instrs.push(instr.clone_box());
+								best_node.borrow_mut().push(instr.clone_box());
 								false
 							}
 						}
 						RBinInstr(instr) if instr.op == MvInt2Float => {
 							!instr.rd.is_virtual() || {
-								best_node.borrow_mut().instrs.push(instr.clone_box());
+								best_node.borrow_mut().push(instr.clone_box());
 								false
 							}
 						}
