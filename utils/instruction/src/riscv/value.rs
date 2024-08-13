@@ -156,4 +156,10 @@ impl RiscvImm {
 			None
 		}
 	}
+	pub fn get_i32(&self) -> Option<i32> {
+		match self {
+			RiscvImm::RiscvNumber(RiscvNumber::Int(v)) => Some(*v),
+			_ => None,
+		}
+	}
 }

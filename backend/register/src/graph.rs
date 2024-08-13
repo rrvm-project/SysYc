@@ -11,7 +11,7 @@ use crate::utils::{priority, FindAvailable};
 pub struct InterferenceGraph<T: Hash + Eq + Copy, U> {
 	allocator: Box<dyn FindAvailable<U>>,
 	uf: UnionFind<T>,
-	weights: HashMap<T, f64>,
+	pub weights: HashMap<T, f64>,
 	colors: HashMap<T, U>,
 	edges: HashMap<T, HashSet<T>>,
 	merge_benefit: HashMap<(T, T), f64>, // HACK: benefit varies while coalescing ?
