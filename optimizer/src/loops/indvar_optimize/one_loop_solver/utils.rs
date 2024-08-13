@@ -2,7 +2,7 @@ use llvm::{compute_two_value, ArithOp, Value};
 
 use super::OneLoopSolver;
 
-impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
+impl<'a> OneLoopSolver<'a> {
 	pub fn compute_two_vec_values(
 		&mut self,
 		step1: &[Value],
@@ -20,7 +20,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 					step1[i].clone(),
 					step2[i].clone(),
 					op,
-					self.opter.temp_mgr,
+					self.temp_mgr,
 				);
 				instr.map(|i| {
 					self.new_invariant_instr.insert(i.target.clone(), Box::new(i))

@@ -4,7 +4,7 @@ use crate::loops::loopinfo::LoopInfo;
 
 use super::OneLoopSolver;
 
-impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
+impl<'a> OneLoopSolver<'a> {
 	// 如果不能确定循环总次数，则返回 None
 	pub fn get_loop_info(&mut self) -> Option<LoopInfo> {
 		let header = self.cur_loop.borrow().header.clone();
@@ -13,8 +13,8 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 			&self
 				.cur_loop
 				.borrow()
-				.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map),
-			&self.opter.loop_map,
+				.blocks_without_subloops(&self.func.cfg, &self.loopdata.loop_map),
+			&self.loopdata.loop_map,
 		) {
 			Some(bb) => bb,
 			_ => return None,
@@ -33,7 +33,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 					}
 					let branch_temp = jump_instr.get_read().first().cloned().unwrap();
 					let def_branch_temp =
-						self.opter.temp_graph.temp_to_instr[&branch_temp].instr.clone();
+						self.loopdata.temp_graph.temp_to_instr[&branch_temp].instr.clone();
 					match def_branch_temp.get_variant() {
 						LlvmInstrVariant::CompInstr(inst) => {
 							if matches!(

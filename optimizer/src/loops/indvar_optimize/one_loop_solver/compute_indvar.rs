@@ -4,7 +4,7 @@ use crate::loops::indvar::IndVar;
 
 use super::OneLoopSolver;
 
-impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
+impl<'a> OneLoopSolver<'a> {
 	pub fn compute_two_indvar(
 		&mut self,
 		v1: IndVar,
@@ -28,7 +28,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 						v1.base.clone(),
 						v2.base.clone(),
 						op,
-						self.opter.temp_mgr,
+						self.temp_mgr,
 					);
 					instr.map(|i| {
 						self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
@@ -48,7 +48,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 							v2.base,
 							const_value.clone(),
 							op,
-							self.opter.temp_mgr,
+							self.temp_mgr,
 						);
 						instr.map(|i| {
 							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))

@@ -1,23 +1,30 @@
 // 寻找归纳变量的算法
 use std::collections::{HashMap, HashSet};
 
-use llvm::{compute_two_value, ArithOp, LlvmTemp, Value};
-use rrvm::{rrvm_loop::LoopPtr, LlvmNode};
+use llvm::{compute_two_value, ArithOp, LlvmTemp, LlvmTempManager, Value};
+use rrvm::{program::LlvmFunc, rrvm_loop::LoopPtr, LlvmNode};
 
-use crate::loops::{
-	chain_node::ChainNode, indvar::IndVar, loop_optimizer::LoopOptimizer,
+use crate::{
+	loops::{chain_node::ChainNode, indvar::IndVar, loop_data::LoopData},
+	metadata::FuncData,
 };
 
 use super::{tarjan_var::TarjanVar, OneLoopSolver};
 
-impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
+impl<'a> OneLoopSolver<'a> {
 	pub fn new(
-		opter: &'b mut LoopOptimizer<'a>,
+		func: &'a mut LlvmFunc,
+		loopdata: &'a mut LoopData,
+		funcdata: &'a mut FuncData,
+		temp_mgr: &'a mut LlvmTempManager,
 		cur_loop: LoopPtr,
 		preheader: LlvmNode,
 	) -> Self {
 		Self {
-			opter,
+			func,
+			loopdata,
+			funcdata,
+			temp_mgr,
 			tarjan_var: TarjanVar::new(),
 			header_map: HashMap::new(),
 			cur_loop,
@@ -37,7 +44,8 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 		self.tarjan_var.low.insert(temp.clone(), self.tarjan_var.next_dfsnum);
 		self.tarjan_var.next_dfsnum += 1;
 		self.stack_push(temp.clone());
-		let mut reads: Vec<LlvmTemp> = self.opter.temp_graph.get_use_temps(&temp);
+		let mut reads: Vec<LlvmTemp> =
+			self.loopdata.temp_graph.get_use_temps(&temp);
 		// 只保留在当前循环中的变量
 		reads.retain(|t| self.is_temp_in_current_loop(t));
 
@@ -103,7 +111,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 	}
 	pub fn classify_induction_variables(&mut self, header: LlvmTemp) {
 		let mut is_zfp = None;
-		let reads = self.opter.temp_graph.get_use_values(&header);
+		let reads = self.loopdata.temp_graph.get_use_values(&header);
 		assert!(reads.len() == 2);
 		let (variant, phi_base) = self.get_variant_and_step(&reads[0], &reads[1], &header).expect("header of a scc must have a operand of indvar and a operand of a invariant");
 		assert!(phi_base.len() == 1);
@@ -112,8 +120,8 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 
 		let mut chain_runner = variant;
 		// 允许最后一个操作是 mod. 由于我这里是逆向访问 chain, 所以需要检查第一个被访问的操作是不是 mod
-		if self.opter.temp_graph.is_mod(&chain_runner) {
-			let reads = self.opter.temp_graph.get_use_values(&chain_runner);
+		if self.loopdata.temp_graph.is_mod(&chain_runner) {
+			let reads = self.loopdata.temp_graph.get_use_values(&chain_runner);
 			if let Some((variant, step)) =
 				self.get_variant_and_step(&reads[0], &reads[1], &header)
 			{
@@ -134,12 +142,12 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 			}
 		}
 		while chain_runner != header {
-			let reads = self.opter.temp_graph.get_use_values(&chain_runner);
+			let reads = self.loopdata.temp_graph.get_use_values(&chain_runner);
 			// For it to be on a chain, it must have at least one read
 			assert!(!reads.is_empty());
 			// TODO: 目前只允许 chain 中的操作是整数加法，减法，乘法
 			if let Some(chain_op) =
-				self.opter.temp_graph.is_candidate_operator(&chain_runner)
+				self.loopdata.temp_graph.is_candidate_operator(&chain_runner)
 			{
 				if let Some((variant, step)) =
 					self.get_variant_and_step(&reads[0], &reads[1], &header)
@@ -187,12 +195,8 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 							chain_node.op,
 						);
 						for o in chain_node.operand.iter() {
-							(base, instr) = compute_two_value(
-								base,
-								o.clone(),
-								ArithOp::Add,
-								self.opter.temp_mgr,
-							);
+							(base, instr) =
+								compute_two_value(base, o.clone(), ArithOp::Add, self.temp_mgr);
 							instr.map(|i| {
 								self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
 							});
@@ -209,7 +213,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 							scale,
 							chain_node.operand[0].clone(),
 							ArithOp::Mul,
-							self.opter.temp_mgr,
+							self.temp_mgr,
 						);
 						instr.map(|i| {
 							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
@@ -218,7 +222,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 							base,
 							chain_node.operand[0].clone(),
 							ArithOp::Mul,
-							self.opter.temp_mgr,
+							self.temp_mgr,
 						);
 						instr.map(|i| {
 							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
@@ -227,7 +231,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 							step[0].clone(),
 							chain_node.operand[0].clone(),
 							ArithOp::Mul,
-							self.opter.temp_mgr,
+							self.temp_mgr,
 						);
 						instr.map(|i| {
 							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
@@ -245,7 +249,7 @@ impl<'a: 'b, 'b> OneLoopSolver<'a, 'b> {
 		for (indvar, indvar_base) in indvar_chain.iter().zip(indvar_bases) {
 			let iv =
 				IndVar::new(indvar_base, scale.clone(), step.clone(), is_zfp.clone());
-			// #[cfg(feature = "debug")]
+			#[cfg(feature = "debug")]
 			eprintln!(
 				"OneLoopSolver: found a indvar {} {}",
 				indvar.temp.clone(),

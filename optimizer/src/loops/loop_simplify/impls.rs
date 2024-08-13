@@ -4,22 +4,33 @@ use std::{
 	rc::Rc,
 };
 
-use llvm::{LlvmInstrTrait, LlvmTemp, PhiInstr, Value};
+use llvm::{LlvmInstrTrait, LlvmTemp, LlvmTempManager, PhiInstr, Value};
 use rrvm::{
 	cfg::{force_link_llvmnode, unlink_node},
 	dominator::{compute_dominator, compute_dominator_frontier},
+	program::LlvmFunc,
 	rrvm_loop::LoopPtr,
 	LlvmNode,
 };
 use utils::Label;
 
-use crate::loops::loop_optimizer::LoopOptimizer;
+use crate::{loops::loop_data::LoopData, metadata::FuncData};
 
 use super::LoopSimplify;
 
-impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
-	pub fn new(opter: &'b mut LoopOptimizer<'a>) -> Self {
-		Self { opter }
+impl<'a> LoopSimplify<'a> {
+	pub fn new(
+		func: &'a mut LlvmFunc,
+		loopdata: &'a mut LoopData,
+		funcdata: &'a mut FuncData,
+		temp_mgr: &'a mut LlvmTempManager,
+	) -> Self {
+		Self {
+			func,
+			loopdata,
+			funcdata,
+			temp_mgr,
+		}
 	}
 	// 按 dfs 序逐个 loop 处理
 	pub fn apply(mut self) -> bool {
@@ -31,7 +42,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			}
 			dfs_vec.push(node);
 		}
-		dfs(self.opter.root_loop.clone(), &mut dfs_vec);
+		dfs(self.loopdata.root_loop.clone(), &mut dfs_vec);
 		// 移去 root_node
 		dfs_vec.pop();
 		for loop_node in dfs_vec.iter() {
@@ -42,7 +53,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 		let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 		let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
 		compute_dominator(
-			&self.opter.func.cfg,
+			&self.func.cfg,
 			false,
 			&mut dominates,
 			&mut dominates_directly,
@@ -51,7 +62,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 
 		let mut dominator_frontier: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
 		compute_dominator_frontier(
-			&self.opter.func.cfg,
+			&self.func.cfg,
 			false,
 			&dominates_directly,
 			&dominator,
@@ -68,9 +79,10 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			self.simplify_header_phis(loop_.clone(), &mut replace_map);
 		}
 		if !replace_map.is_empty() {
-			println!("LoopSimplify: Mapping with {:?}", replace_map);
+			#[cfg(feature = "debug")]
+			eprintln!("LoopSimplify: Mapping with {:?}", replace_map);
 			flag = true;
-			for bb in self.opter.func.cfg.blocks.iter() {
+			for bb in self.func.cfg.blocks.iter() {
 				let mut bb = bb.borrow_mut();
 				for phi in bb.phi_instrs.iter_mut() {
 					phi.map_temp(&replace_map);
@@ -97,7 +109,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 	) -> LlvmNode {
 		assert!(!preds.is_empty());
 
-		let new_bb = Rc::new(RefCell::new(self.opter.func.new_basicblock(0.0)));
+		let new_bb = Rc::new(RefCell::new(self.func.new_basicblock(0.0)));
 
 		// Move the edges from Preds to point to NewBB instead of BB.
 		for pred in preds.iter() {
@@ -110,8 +122,8 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 		force_link_llvmnode(&new_bb, &bb);
 
 		let target_pos =
-			self.opter.func.cfg.blocks.iter().position(|v| *v == bb).unwrap();
-		self.opter.func.cfg.blocks.insert(target_pos, new_bb.clone());
+			self.func.cfg.blocks.iter().position(|v| *v == bb).unwrap();
+		self.func.cfg.blocks.insert(target_pos, new_bb.clone());
 
 		new_bb
 	}
@@ -148,7 +160,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 					.retain(|(_, l)| !preds.iter().any(|b| b.borrow().label() == *l));
 				phi.source.push((v, new_bb.borrow().label()));
 				self
-					.opter
+					.loopdata
 					.temp_graph
 					.temp_to_instr
 					.get_mut(&phi.target)
@@ -158,7 +170,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			}
 			// If the values coming into the block are not the same, we need a new
 			// PHI.
-			let new_target = self.opter.temp_mgr.new_temp(phi.var_type, false);
+			let new_target = self.temp_mgr.new_temp(phi.var_type, false);
 			let new_source = phi
 				.source
 				.iter()
@@ -171,16 +183,21 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			phi
 				.source
 				.push((Value::Temp(new_target.clone()), new_bb.borrow().label()));
-			self.opter.temp_graph.temp_to_instr.get_mut(&phi.target).unwrap().instr =
-				Box::new(phi.clone());
+			self
+				.loopdata
+				.temp_graph
+				.temp_to_instr
+				.get_mut(&phi.target)
+				.unwrap()
+				.instr = Box::new(phi.clone());
 
 			let new_phi = PhiInstr::new(new_target.clone(), new_source);
 			self
-				.opter
+				.loopdata
 				.temp_graph
 				.add_temp(new_target.clone(), Box::new(new_phi.clone()));
 			new_bb.borrow_mut().phi_instrs.push(new_phi);
-			self.opter.def_map.insert(new_target, new_bb.clone());
+			self.loopdata.def_map.insert(new_target, new_bb.clone());
 		}
 	}
 	/// InsertPreheaderForLoop - Once we discover that a loop doesn't have a
@@ -189,8 +206,8 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 		let loop_brw = loop_.borrow();
 		let header_rc = loop_brw.header.clone();
 		let mut outside_blocks = Vec::new();
-		let loop_blocks = loop_brw
-			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
+		let loop_blocks =
+			loop_brw.blocks_without_subloops(&self.func.cfg, &self.loopdata.loop_map);
 		for prev in header_rc.clone().borrow().prev.iter() {
 			if !loop_blocks.contains(prev) {
 				outside_blocks.push(prev.clone());
@@ -199,12 +216,13 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 		assert!(!outside_blocks.is_empty());
 		let new_bb =
 			self.split_block_predecessors(header_rc, outside_blocks, false);
+		#[cfg(feature = "debug")]
 		println!(
 			"LoopSimplify: inserted preheader block {}",
 			new_bb.borrow().label()
 		);
 		if let Some(o) = loop_brw.outer.clone() {
-			self.opter.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
+			self.loopdata.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
 		}
 		new_bb
 	}
@@ -212,7 +230,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 		let mut flag = false;
 		let loop_blocks = loop_
 			.borrow()
-			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
+			.blocks_without_subloops(&self.func.cfg, &self.loopdata.loop_map);
 
 		let mut rewrite_exit = |exit: LlvmNode| {
 			let mut is_dedicated_exit = true;
@@ -231,12 +249,13 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			}
 
 			let new_bb = self.split_block_predecessors(exit, in_loop_prev, true);
+			#[cfg(feature = "debug")]
 			println!(
 				"LoopSimplify: inserted dedicated exit block {}",
 				new_bb.borrow().label()
 			);
 			if let Some(o) = loop_.borrow().outer.clone() {
-				self.opter.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
+				self.loopdata.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
 			}
 
 			flag = true;
@@ -269,11 +288,12 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 		}
 
 		let new_bb = self.split_block_predecessors(header, backedge_blocks, false);
+		#[cfg(feature = "debug")]
 		println!(
 			"LoopSimplify: inserted unique backedge block {}",
 			new_bb.borrow().label()
 		);
-		self.opter.loop_map.insert(new_bb.borrow().id, loop_.clone());
+		self.loopdata.loop_map.insert(new_bb.borrow().id, loop_.clone());
 		Some(new_bb)
 	}
 	fn simplify_one_loop(&mut self, loop_: LoopPtr) -> bool {
@@ -284,7 +304,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 		// 子循环的前驱不可能在本循环外，所以这里可以不遍历子循环的 block
 		let blocks_without_subloops = loop_
 			.borrow()
-			.blocks_without_subloops(&self.opter.func.cfg, &self.opter.loop_map);
+			.blocks_without_subloops(&self.func.cfg, &self.loopdata.loop_map);
 		for bb in blocks_without_subloops.iter() {
 			let bb = bb.borrow();
 			if bb.id == loop_.borrow().header.borrow().id {
@@ -292,7 +312,7 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			}
 			// 循环内基本块的前驱不可能在子循环内，否则要么该块属于子循环，要么该块是子循环除 header 以外的入口，而我们的循环都是单一入口的
 			for pred in bb.prev.iter() {
-				let l = self.opter.loop_map.get(&pred.borrow().id);
+				let l = self.loopdata.loop_map.get(&pred.borrow().id);
 				if !l.is_some_and(|l| loop_.borrow().is_super_loop_of(l)) {
 					panic!("LoopSimplify: Loop contains a block with a predecessor that is not in the loop!");
 				}
@@ -343,7 +363,8 @@ impl<'a: 'b, 'b> LoopSimplify<'a, 'b> {
 			let target = header.phi_instrs[phi_idx].target.clone();
 			let source = header.phi_instrs[phi_idx].source.clone();
 			if source.len() != 2 {
-				println!("LoopSimplify: Failed to insert preheader or unique backage");
+				#[cfg(feature = "debug")]
+				println!("LoopSimplify: source.len() != 2, Failed to insert preheader or unique backage");
 				break;
 			}
 			if source[0].0.unwrap_temp().is_some_and(|t| t == target) {
