@@ -1,17 +1,44 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use llvm::{LlvmTemp, Value};
 
 use crate::number::Number;
 
+/// Identifier of global variable (as long to func params)
+pub type VarIdent = (String, usize);
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct VarData {
+	pub to_load: bool,
+	pub to_store: bool,
+}
+
+#[derive(Default, Clone)]
+pub struct UsageInfo {
+	pub may_loads: HashSet<String>,
+	pub may_stores: HashSet<String>,
+}
+
+impl UsageInfo {
+	pub fn clear(&mut self) {
+		self.may_loads.clear();
+		self.may_stores.clear();
+	}
+}
+
 #[derive(Default)]
 pub struct FuncData {
 	pub num_mapper: HashMap<LlvmTemp, Number>,
+	pub has_side_effect: bool,
+	pub usage_info: UsageInfo,
 }
 
 impl FuncData {
 	pub fn clear_num_mapper(&mut self) {
 		self.num_mapper.clear();
+	}
+	pub fn clear_usage_info(&mut self) {
+		self.usage_info.clear();
 	}
 	pub fn set_number(&mut self, temp: LlvmTemp, number: Number) {
 		self.num_mapper.insert(temp, number);
@@ -26,20 +53,51 @@ impl FuncData {
 			Value::Temp(temp) => self.get_number(temp).cloned(),
 		}
 	}
+	pub fn may_load(&self, global_var: &str) -> bool {
+		self.usage_info.may_loads.contains(global_var)
+	}
+	pub fn may_store(&self, global_var: &str) -> bool {
+		self.usage_info.may_stores.contains(global_var)
+	}
+	pub fn set_may_load(&mut self, global_var: &str) {
+		self.usage_info.may_loads.insert(global_var.to_string());
+	}
+	pub fn set_may_store(&mut self, global_var: &str) {
+		self.usage_info.may_stores.insert(global_var.to_string());
+	}
 }
 
 #[derive(Default)]
 pub struct MetaData {
 	pub func_data: HashMap<String, FuncData>,
+	pub var_data: HashMap<VarIdent, VarData>,
 }
 
 impl MetaData {
 	pub fn new() -> Self {
 		Self {
 			func_data: HashMap::new(),
+			var_data: HashMap::new(),
 		}
 	}
 	pub fn get_func_data(&mut self, func_name: &str) -> &mut FuncData {
 		self.func_data.entry(func_name.to_string()).or_default()
+	}
+	pub fn get_var_data(&mut self, var_ident: &VarIdent) -> &mut VarData {
+		self.var_data.entry(var_ident.clone()).or_default()
+	}
+	pub fn may_load(&mut self, func_name: &str, global_var: &str) -> bool {
+		self
+			.func_data
+			.get(func_name)
+			.map(|data| data.may_load(global_var))
+			.unwrap_or(false)
+	}
+	pub fn may_store(&mut self, func_name: &str, global_var: &str) -> bool {
+		self
+			.func_data
+			.get(func_name)
+			.map(|data| data.may_store(global_var))
+			.unwrap_or(false)
 	}
 }

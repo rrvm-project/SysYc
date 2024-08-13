@@ -1,20 +1,8 @@
 use llvm::*;
-use rand::{rngs::StdRng, SeedableRng};
-use std::{
-	collections::{hash_map::DefaultHasher, HashMap},
-	hash::{Hash, Hasher},
-};
+use rand::rngs::StdRng;
+use std::collections::HashMap;
 
-use crate::number::Number;
-
-// use this function to solve global variable
-pub fn str2num(input: &str) -> Number {
-	let mut hasher = DefaultHasher::new();
-	input.hash(&mut hasher);
-	let hash_value = hasher.finish();
-	let mut rng = StdRng::seed_from_u64(hash_value);
-	Number::new(&mut rng)
-}
+use crate::number::{str2num, Number};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HashItem {

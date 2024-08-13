@@ -3,6 +3,7 @@ mod code_hoisting;
 mod dead_code;
 mod fold_constants;
 mod function_inline;
+mod global_analysis;
 mod global_value_numbering;
 pub mod impls;
 mod loops;

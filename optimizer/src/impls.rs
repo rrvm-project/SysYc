@@ -4,6 +4,7 @@ use code_hoisting::CodeHoisting;
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
 use function_inline::InlineFunction;
+use global_analysis::GlobalAnalysis;
 use global_value_numbering::GlobalValueNumbering;
 use loops::HandleLoops;
 use mem2reg::Mem2Reg;
@@ -62,6 +63,7 @@ impl Optimizer2 {
 
 		loop {
 			let mut flag = false;
+			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
@@ -69,10 +71,10 @@ impl Optimizer2 {
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
-			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
+			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			if !flag {
 				break;
 			}
@@ -84,6 +86,7 @@ impl Optimizer2 {
 
 		loop {
 			let mut flag = false;
+			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
@@ -91,10 +94,10 @@ impl Optimizer2 {
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
-			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
+			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			if !flag {
 				break;
 			}
