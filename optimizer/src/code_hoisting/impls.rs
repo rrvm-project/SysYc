@@ -50,6 +50,9 @@ impl Solver {
 				.map(|v| v.anti_temps.clone())
 				.unwrap_or_default(),
 		};
+		for instr in node.borrow().phi_instrs.iter() {
+			info.insert(instr.target.clone());
+		}
 		for instr in node.borrow().instrs.iter() {
 			if let Some(target) = instr.get_write() {
 				info.insert(target);
