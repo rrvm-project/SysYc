@@ -1,6 +1,9 @@
-use std::ops::Add;
+use std::{
+	hash::{DefaultHasher, Hash, Hasher},
+	ops::Add,
+};
 
-use rand::{rngs::StdRng, Rng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use utils::GVN_EVAL_NUMBER;
 
 #[derive(PartialEq, Eq, Debug, Hash, Clone)]
@@ -80,4 +83,13 @@ impl<T: AsRef<Number>> Add<T> for &Number {
 	fn add(self, rhs: T) -> Self::Output {
 		Number::add(self, rhs.as_ref())
 	}
+}
+
+// use this function to solve global variable
+pub fn str2num(input: &str) -> Number {
+	let mut hasher = DefaultHasher::new();
+	input.hash(&mut hasher);
+	let hash_value = hasher.finish();
+	let mut rng = StdRng::seed_from_u64(hash_value);
+	Number::new(&mut rng)
 }
