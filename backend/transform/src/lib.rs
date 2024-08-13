@@ -1,25 +1,12 @@
-use std::{
-	cell::RefCell,
-	collections::{HashMap, HashSet},
-	io::{self, Write},
-	rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use instr_schedule::instr_schedule_by_dag;
-use instrdag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
 
 use llvm::Value;
-use utils::SysycError::RiscvGenError;
 use rrvm::prelude::*;
 use transformer::to_riscv;
-use utils::{
-	errors::Result,
-	SCHEDULE_THRESHOLD,
-};
+use utils::{errors::Result, SysycError::RiscvGenError};
 
-pub mod instr_schedule;
-pub mod instrdag;
 pub mod remove_phi;
 pub mod transformer;
 
@@ -28,72 +15,11 @@ pub fn get_functions(
 	funcs: Vec<LlvmFunc>,
 ) -> Result<()> {
 	for func in funcs {
-		let converted_func = convert_func(func, &mut program.temp_mgr)?;
-		println!("--- before instr schedule: ---");
-		for i in converted_func.cfg.blocks.iter() {
-			for j in i.borrow().instrs.iter() {
-				println!("{}", j);
-			}
-			println!("------------block end-------------");
-			// println!(
-			// 	"jump instruction: {}",
-			// 	i.borrow().jump_instr.as_ref().unwrap()
-			// );
-		}
-		println!("---end---");
-		io::stdout().flush().unwrap();
-		let func = instr_schedule(
-			converted_func,
-			&mut program.temp_mgr,
-		)?;
-		println!("--------");
-		for i in func.cfg.blocks.iter() {
-			for j in i.borrow().instrs.iter() {
-				println!("{}", j);
-			}
-			println!("------------block end-------------");
-		}
-		println!("--------");
-		program.funcs.push(func);
+		program.funcs.push(convert_func(func, &mut program.temp_mgr)?);
 	}
 	Ok(())
 }
 
-pub fn instr_schedule(
-	func: RiscvFunc,
-	mgr: &mut TempManager,
-) -> Result<RiscvFunc> {
-	func.cfg.clear_data_flow();
-	func.cfg.analysis();
-	let live_ins=[];
-	let live_outs=[];
-	let mut new_blocks = Vec::new();
-	for (idx, node) in func.cfg.blocks.iter().enumerate() {
-		let nodes =
-			instr_schedule_block(node, &live_ins[idx], &live_outs[idx], mgr)?;
-		new_blocks.extend(nodes);
-	}
-	Ok(RiscvFunc {
-		total: mgr.total,
-		spills: 0,
-		cfg: RiscvCFG { blocks: new_blocks },
-		name: func.name,
-		params: func.params,
-		ret_type: func.ret_type,
-	})
-}
-pub fn instr_schedule_block(
-	riscv_node: &RiscvNode,
-	live_ins: &HashSet<RiscvTemp>,
-	live_outs: &HashSet<RiscvTemp>,
-	mgr: &mut TempManager,
-) -> Result<Vec<RiscvNode>> {
-	if riscv_node.borrow().instrs.len() >= SCHEDULE_THRESHOLD {
-		return Ok(vec![riscv_node.clone()]);
-	}
-	transform_basic_block_by_pipelining(riscv_node, live_ins, live_outs, mgr)
-				.map(|v| vec![v])
-}
 pub fn convert_func(
 	func: LlvmFunc,
 	mgr: &mut TempManager,
@@ -148,112 +74,16 @@ pub fn convert_func(
 	for (u, v) in edge {
 		force_link_node(table.get(&u).unwrap(), table.get(&v).unwrap())
 	}
-	Ok(
-		RiscvFunc {
-			total: mgr.total,
-			spills: 0,
-			cfg: RiscvCFG { blocks: nodes },
-			name: func.name,
-			params: func.params,
-			ret_type: func.ret_type,
-		}
-		)
+	Ok(RiscvFunc {
+		total: mgr.total,
+		spills: 0,
+		cfg: RiscvCFG { blocks: nodes },
+		name: func.name,
+		params: func.params,
+		ret_type: func.ret_type,
+	})
 }
 
-fn transform_basic_block_by_pipelining(
-	node: &RiscvNode,
-	live_in: &HashSet<RiscvTemp>,
-	live_out: &HashSet<RiscvTemp>,
-	_mgr: &mut TempManager,
-) -> Result<RiscvNode> {
-	let mut instr_dag = InstrDag::new(node)?;
-	let liveliness_map = get_liveliness_map(&instr_dag, live_in, live_out);
-	instr_dag.assign_nodes();
-	node.borrow_mut().instrs = instr_schedule_by_dag(instr_dag, liveliness_map)?;
-	Ok(node.clone())
-}
-#[derive(Clone, Debug)]
-pub struct Liveliness {
-	is_livein: bool,
-	is_liveout: bool,
-	use_num: usize,
-}
-fn get_liveliness_map(
-	node: &InstrDag,
-	live_in: &HashSet<RiscvTemp>,
-	live_out: &HashSet<RiscvTemp>,
-) -> HashMap<RiscvTemp, Liveliness> {
-	let mut map = HashMap::new();
-	let mut call_reads = node.call_reads.clone();
-	call_reads.reverse();
-	let mut call_writes = node.call_writes.clone();
-	call_writes.reverse();
-	// 它这里要求是正序遍历，所以遍历次序是和 node 的顺序反的，需要 iter.rev(),同样，call_reads,call_writes 也要reverse再pop
-	for instrnode in node.nodes.iter().rev() {
-		let instr = &instrnode.borrow().instr;
-		if !instr.is_call() {
-			for tmp in instr.get_riscv_read().iter() {
-				map
-					.entry(*tmp)
-					.or_insert(Liveliness {
-						is_livein: false,
-						is_liveout: false,
-						use_num: 0,
-					})
-					.use_num += 1;
-			}
-			for tmp in instr.get_riscv_write().iter() {
-				map.entry(*tmp).or_insert(Liveliness {
-					is_livein: false,
-					is_liveout: false,
-					use_num: 0,
-				});
-			}
-		} else {
-			let call_read = call_reads.pop().unwrap();
-			for tmp in call_read.iter() {
-				map
-					.entry(*tmp)
-					.or_insert(Liveliness {
-						is_livein: false,
-						is_liveout: false,
-						use_num: 0,
-					})
-					.use_num += 1;
-			}
-			let call_write = call_writes.pop().unwrap();
-			for tmp in call_write.iter() {
-				map.entry(*tmp).or_insert(Liveliness {
-					is_livein: false,
-					is_liveout: false,
-					use_num: 0,
-				});
-			}
-		}
-	}
-	// do live_in
-	for tmp in live_in.iter() {
-		map
-			.entry(*tmp)
-			.or_insert(Liveliness {
-				is_livein: true,
-				is_liveout: false,
-				use_num: 0,
-			})
-			.is_livein = true;
-	}
-	for tmp in live_out.iter() {
-		map
-			.entry(*tmp)
-			.or_insert(Liveliness {
-				is_livein: false,
-				is_liveout: true,
-				use_num: 0,
-			})
-			.is_liveout = true;
-	}
-	map
-}
 fn transform_basicblock(
 	node: &LlvmNode,
 	mgr: &mut TempManager,

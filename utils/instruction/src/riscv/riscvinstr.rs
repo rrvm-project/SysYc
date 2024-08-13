@@ -272,7 +272,6 @@ impl RTN for IBinInstr {
 			IBinInstrOp::Li => [0, 0, 0, 0, 1],
 			IBinInstrOp::LW => [1, 0, 0, 0, 3],
 			IBinInstrOp::LWU => [1, 0, 0, 0, 3],
-			IBinInstrOp::Lui => [1, 0, 0, 0, 3],
 			IBinInstrOp::FSD => [0, 0, 0, 1, 4],
 			IBinInstrOp::FSW => [0, 0, 0, 1, 4],
 			IBinInstrOp::FLD => [0, 0, 0, 1, 2],

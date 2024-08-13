@@ -4,13 +4,14 @@ use std::{
 	fmt::Display,
 };
 
-use crate::{
+use crate::instruction_scheduling::{
 	instrdag::{postprocess_call, InstrDag},
-	Liveliness, RiscvInstr,
+	Liveliness,
 };
 use instruction::{
 	riscv::{
 		prelude::RiscvInstrTrait,
+		riscvinstr::RiscvInstr,
 		value::RiscvTemp::{self},
 	},
 	RiscvInstrSet,
@@ -46,7 +47,6 @@ impl Alu {
 }
 fn get_alukind(instr: &RiscvInstr) -> AluKind {
 	let v = instr.get_rtn_array();
-	// println!("get_alukind: {} {:?}",instr,v);
 	if v[0] != 0 {
 		AluKind::Mem
 	} else if v[1] != 0 {
@@ -147,12 +147,13 @@ fn punishment(
 	let mut succ_sum = 0;
 	let mut succ_min = 0;
 	for i in dag.nodes[instr_id].borrow().succ.iter() {
-		let my_succ_reads={
-		if i.borrow().instr.is_call() {
-			dag.call_reads[state.call_ids.len()].clone()
-		} else {
-			i.borrow().instr.get_riscv_read().clone()
-		}};
+		let my_succ_reads = {
+			if i.borrow().instr.is_call() {
+				dag.call_reads[state.call_ids.len()].clone()
+			} else {
+				i.borrow().instr.get_riscv_read().clone()
+			}
+		};
 		succ_sum += my_succ_reads
 			.iter()
 			.map(|x| {
@@ -173,16 +174,16 @@ fn punishment(
 		);
 		// 对 write 寄存器的情况考虑如上
 		let my_succ_writes = {
-		if i.borrow().instr.is_call() {
-			if let Some(tmp) = dag.call_writes[state.call_ids.len()]
-			{
-				vec![tmp]
+			if i.borrow().instr.is_call() {
+				if let Some(tmp) = dag.call_writes[state.call_ids.len()] {
+					vec![tmp]
+				} else {
+					Vec::new()
+				}
 			} else {
-				Vec::new()
+				i.borrow().instr.get_riscv_write().clone()
 			}
-		} else {
-			 i.borrow().instr.get_riscv_write().clone()
-		}};
+		};
 		succ_sum += my_succ_writes
 			.iter()
 			.map(|x| {
@@ -276,23 +277,19 @@ struct State {
 }
 impl Display for State {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "State: \n")?;
+		writeln!(f, "State: ")?;
 		for i in self.instrs.iter() {
-			write!(f, "{}\n", i)?;
+			writeln!(f, "{}", i)?;
 		}
-		write!(f, "alus: \n")?;
+		writeln!(f, "alus: ")?;
 		for i in self.alus.iter() {
 			write!(f, "{:?} ", i)?;
 		}
-		write!(
-			f,
-			"score: {} flight_time: {}\n",
-			self.score, self.flight_time
-		)?;
+		writeln!(f, "score: {} flight_time: {}", self.score, self.flight_time)?;
 		Ok(())
 	}
 }
-pub fn get_punishment_by_instrs(instr: &Vec<Box<dyn RiscvInstrTrait>>) -> i32 {
+pub fn get_punishment_by_instrs(instr: &[Box<dyn RiscvInstrTrait>]) -> i32 {
 	// 算出原始的 score
 	//	按照上面的方法算硬件流水线
 	let mut alus = [
@@ -416,29 +413,37 @@ pub fn instr_schedule_by_dag(
 		}
 		for i in 0..real_cnt {
 			// iterate the keeps
-			let cnts: Vec<_> =
-				keeps.iter().filter(|x| x.0 == i).map(|x| *x).collect();
-			if cnts.len() == 0 {
+			let cnts: Vec<_> = keeps.iter().filter(|x| x.0 == i).copied().collect();
+			if cnts.is_empty() {
 				states.pop_front();
 			} else if cnts.len() == 1 {
 				let mut state = states.pop_front().unwrap();
-				state.instrs.push(dag.nodes[cnts[0].1].borrow().instr.clone());
-				if dag.nodes[cnts[0].1].borrow().instr.is_call() {
-					state.call_ids.push(cnts[0].1);
+				let (
+					_state_idx,
+					instr_idx,
+					score,
+					flight_time_incre,
+					flight_idx,
+					flight_unit,
+				) = cnts[0];
+				state.instrs.push(dag.nodes[instr_idx].borrow().instr.clone());
+				if dag.nodes[instr_idx].borrow().instr.is_call() {
+					state.call_ids.push(instr_idx);
 				}
 				// calc my_reads
 				let my_reads = {
-				if state.instrs.last().unwrap().is_call() {
-					dag.call_reads[state.call_ids.len() - 1].clone()
-				} else {
-					dag.nodes[cnts[0].1].borrow().instr.get_riscv_read().clone()
-				}};
+					if state.instrs.last().unwrap().is_call() {
+						dag.call_reads[state.call_ids.len() - 1].clone()
+					} else {
+						dag.nodes[instr_idx].borrow().instr.get_riscv_read().clone()
+					}
+				};
 				// decl the use in new_state's liveliness_map
 				for i in my_reads.iter() {
 					state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
 				}
-				state.indegs.remove(&cnts[0].1);
-				for succ in dag.nodes[cnts[0].1].borrow().succ.iter() {
+				state.indegs.remove(&instr_idx);
+				for succ in dag.nodes[instr_idx].borrow().succ.iter() {
 					let mut new_indeg = state.indegs.clone();
 					new_indeg.insert(
 						succ.borrow().id,
@@ -446,31 +451,40 @@ pub fn instr_schedule_by_dag(
 					);
 					state.indegs = new_indeg;
 				}
-				state.flight_time += cnts[0].3;
-				state.alus[cnts[0].4] = cnts[0].5;
-				state.score = cnts[0].2;
+				state.flight_time += flight_time_incre;
+				state.alus[flight_idx] = flight_unit;
+				state.score = score;
 				states.push_back(state);
 			} else {
 				let mut state = states.pop_front().unwrap();
-				for j in 0..cnts.len() - 1 {
+				for tuple in cnts.iter().take(cnts.len() - 1) {
 					let mut new_state = state.clone();
-					new_state.instrs.push(dag.nodes[cnts[j].1].borrow().instr.clone());
-					if dag.nodes[cnts[j].1].borrow().instr.is_call() {
-						new_state.call_ids.push(cnts[j].1);
+					let (
+						_state_idx,
+						instr_idx,
+						score,
+						flight_time_incre,
+						flight_idx,
+						flight_unit,
+					) = tuple;
+					new_state.instrs.push(dag.nodes[*instr_idx].borrow().instr.clone());
+					if dag.nodes[*instr_idx].borrow().instr.is_call() {
+						new_state.call_ids.push(*instr_idx);
 					}
 					// calc my_reads
 					let my_reads = {
-					if new_state.instrs.last().unwrap().is_call() {
-						dag.call_reads[new_state.call_ids.len() - 1].clone()
-					} else {
-						dag.nodes[cnts[j].1].borrow().instr.get_riscv_read().clone()
-					}};
+						if new_state.instrs.last().unwrap().is_call() {
+							dag.call_reads[new_state.call_ids.len() - 1].clone()
+						} else {
+							dag.nodes[*instr_idx].borrow().instr.get_riscv_read().clone()
+						}
+					};
 					// decl the use in new_state's liveliness_map
 					for i in my_reads.iter() {
 						new_state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
 					}
-					new_state.indegs.remove(&cnts[j].1);
-					for succ in dag.nodes[cnts[j].1].borrow().succ.iter() {
+					new_state.indegs.remove(instr_idx);
+					for succ in dag.nodes[*instr_idx].borrow().succ.iter() {
 						let mut new_indeg = new_state.indegs.clone();
 						new_indeg.insert(
 							succ.borrow().id,
@@ -478,35 +492,38 @@ pub fn instr_schedule_by_dag(
 						);
 						new_state.indegs = new_indeg;
 					}
-					new_state.flight_time += cnts[j].3;
-					new_state.alus[cnts[j].4] = cnts[j].5;
-					new_state.score = cnts[j].2;
+					new_state.flight_time += flight_time_incre;
+					new_state.alus[*flight_idx] = *flight_unit;
+					new_state.score = *score;
 					states.push_back(new_state);
 				}
 				// 最后一次不 clone 了
-				state
-					.instrs
-					.push(dag.nodes[cnts[cnts.len() - 1].1].borrow().instr.clone());
-				if dag.nodes[cnts[cnts.len() - 1].1].borrow().instr.is_call() {
-					state.call_ids.push(cnts[cnts.len() - 1].1);
+				let (
+					_state_idx,
+					instr_idx,
+					score,
+					flight_time_incre,
+					flight_idx,
+					flight_unit,
+				) = cnts.last().unwrap();
+				state.instrs.push(dag.nodes[*instr_idx].borrow().instr.clone());
+				if dag.nodes[*instr_idx].borrow().instr.is_call() {
+					state.call_ids.push(*instr_idx);
 				}
 				// calc my_reads
-				let my_reads={
-				if state.instrs.last().unwrap().is_call() {
-					dag.call_reads[state.call_ids.len() - 1].clone()
-				} else {
-					dag.nodes[cnts[cnts.len() - 1].1]
-						.borrow()
-						.instr
-						.get_riscv_read()
-						.clone()
-				}};
+				let my_reads = {
+					if state.instrs.last().unwrap().is_call() {
+						dag.call_reads.last().unwrap().clone()
+					} else {
+						dag.nodes[*instr_idx].borrow().instr.get_riscv_read().clone()
+					}
+				};
 				// decl the use in new_state's liveliness_map
 				for i in my_reads.iter() {
 					state.liveliness_map.get_mut(i).unwrap().use_num -= 1;
 				}
-				state.indegs.remove(&cnts[cnts.len() - 1].1);
-				for succ in dag.nodes[cnts[cnts.len() - 1].1].borrow().succ.iter() {
+				state.indegs.remove(instr_idx);
+				for succ in dag.nodes[*instr_idx].borrow().succ.iter() {
 					let mut new_indeg = state.indegs.clone();
 					new_indeg.insert(
 						succ.borrow().id,
@@ -514,9 +531,9 @@ pub fn instr_schedule_by_dag(
 					);
 					state.indegs = new_indeg;
 				}
-				state.flight_time += cnts[cnts.len() - 1].3;
-				state.alus[cnts[cnts.len() - 1].4] = cnts[cnts.len() - 1].5;
-				state.score = cnts[cnts.len() - 1].2;
+				state.flight_time += flight_time_incre;
+				state.alus[*flight_idx] = *flight_unit;
+				state.score = *score;
 				states.push_back(state);
 			}
 		}

@@ -175,7 +175,7 @@ impl InstrDag {
 		);
 		let ret_call_writes = call_write.clone();
 		let ret_call_reads = call_reads.clone();
-		if processed_instrs.len() > 0 {
+		if !processed_instrs.is_empty() {
 			let last_instr = processed_instrs.last().unwrap();
 			if last_instr.is_branch() {
 				last_branch = Some(last_instr.clone());
@@ -193,16 +193,24 @@ impl InstrDag {
 		}
 		for (idx, instr) in processed_instrs.iter().rev().enumerate() {
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
-			if idx == 0 {
-				if instr.get_riscv_write().len() == 1
-					&& instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
-				{
-					li_ret = Some(node.clone());
-				}
+			if idx == 0
+				&& instr.get_riscv_write().len() == 1
+				&& (instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
+					|| if let RiscvTemp::VirtReg(t) = &instr.get_riscv_write()[0] {
+						if let Some(pre) = t.pre_color {
+							pre == A0
+						} else {
+							false
+						}
+					} else {
+						false
+					}) {
+				li_ret = Some(node.clone());
 			}
+
 			let mut instr_node_succ = Vec::new();
 			let instructions_write = instr.get_riscv_write().clone();
-			if instr.is_call() == false {
+			if !instr.is_call() {
 				for instr_write in instructions_write {
 					instr_node_succ.extend(
 						uses.get(&instr_write).unwrap_or(&Vec::new()).iter().cloned(),
@@ -215,7 +223,7 @@ impl InstrDag {
 				}
 			} else {
 				let tmp = call_write.pop().unwrap();
-				my_call_write = tmp.clone();
+				my_call_write.clone_from(&tmp);
 				if let Some(tmp) = tmp {
 					instr_node_succ
 						.extend(uses.get(&tmp).unwrap_or(&Vec::new()).iter().cloned());
@@ -226,7 +234,7 @@ impl InstrDag {
 				}
 			}
 			let instr_read = instr.get_riscv_read().clone();
-			if instr.is_call() == false {
+			if !instr.is_call() {
 				for instr_read_temp in instr_read.iter() {
 					if let Some(def_instr) = defs.get(instr_read_temp) {
 						instr_node_succ.push(def_instr.clone());
@@ -252,16 +260,15 @@ impl InstrDag {
 				}
 			}
 			// init defs
-			if instr.is_call() == false {
+			if !instr.is_call() {
 				let instructions_write = instr.get_riscv_write().clone();
 				for instr_write in instructions_write.iter() {
 					defs.insert(*instr_write, node.clone());
 				}
-			} else {
-				if let Some(tmp) = my_call_write {
-					defs.insert(tmp, node.clone());
-				}
+			} else if let Some(tmp) = my_call_write {
+				defs.insert(tmp, node.clone());
 			}
+
 			// 处理 load call store 指令的依赖关系
 			if instr.is_call() {
 				// 先考虑一下那个最后一条 mov other reg a0
@@ -269,7 +276,6 @@ impl InstrDag {
 				last_loads.iter().for_each(|x| {
 					x.borrow_mut().pred.push(node.clone());
 				});
-				//	println!("in is_call {} extending loads {:?}",node.borrow().id,last_loads.iter().map(|x| x.borrow().id).collect::<Vec<_>>());
 				last_loads.clear();
 				last_call = Some(node.clone());
 				if let Some(ret_node) = li_ret.clone() {
@@ -281,7 +287,6 @@ impl InstrDag {
 					i.borrow_mut().pred.push(node.clone());
 				}
 				call_instrs.push(node.clone());
-
 			} else if instr.is_load().unwrap_or(false) {
 				if let Some(last_call) = last_call.clone() {
 					instr_node_succ.push(last_call.clone());
@@ -334,15 +339,14 @@ impl InstrDag {
 		// 开始遍历
 		let mut stack_ = Vec::new();
 		for i in self.nodes.iter() {
-			if i.borrow().succ.len() == 0 {
+			if i.borrow().succ.is_empty() {
 				stack_.push(i.clone());
 				// get latency
 				let siz = i.borrow().instr.get_rtn_array()[4] as usize;
 				i.borrow_mut().to_end = siz;
 			}
 		}
-		while stack_.len() > 0 {
-			let node = stack_.pop().unwrap();
+		while let Some(node) = stack_.pop() {
 			for i in node.borrow().pred.iter() {
 				let new_end = max(
 					i.borrow().to_end,
