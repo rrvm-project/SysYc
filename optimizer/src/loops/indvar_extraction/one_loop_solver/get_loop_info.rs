@@ -6,6 +6,7 @@ use super::OneLoopSolver;
 
 impl<'a> OneLoopSolver<'a> {
 	// 如果不能确定循环总次数，则返回 None
+	// 如果不是单一出口，则返回 None
 	pub fn get_loop_info(&mut self) -> Option<LoopInfo> {
 		let header = self.cur_loop.borrow().header.clone();
 		let preheader = self.preheader.clone();
@@ -40,9 +41,9 @@ impl<'a> OneLoopSolver<'a> {
 								inst.op,
 								CompOp::SLT | CompOp::SLE | CompOp::SGT | CompOp::SGE
 							) {
-								let get_info = |cond_value: Value,
-								                end_value: Value,
-								                take_reverse: bool|
+								let mut get_info = |cond_value: Value,
+								                    end_value: Value,
+								                    take_reverse: bool|
 								 -> Option<LoopInfo> {
 									if self.is_loop_invariant(&end_value) {
 										if let Some(t) = cond_value.unwrap_temp() {
@@ -50,9 +51,12 @@ impl<'a> OneLoopSolver<'a> {
 												if iv.step.len() > 1 {
 													return None;
 												}
+												if iv.scale != Value::Int(1) {
+													return None;
+												}
 												let new_op =
 													convert_comp_op(inst.op, take_not, take_reverse);
-												#[cfg(feature = "debug")]
+												// #[cfg(feature = "debug")]
 												eprintln!("get loop info: Found a loop to optimize with cond_temp: {} {}, end: {}", t, iv, end_value);
 												let info = LoopInfo {
 													preheader: preheader.clone(),
@@ -64,6 +68,10 @@ impl<'a> OneLoopSolver<'a> {
 													begin: iv.base,
 													end: end_value,
 												};
+												self
+													.loopdata
+													.loop_infos
+													.insert(self.cur_loop.borrow().id, info.clone());
 												return Some(info);
 											}
 										}

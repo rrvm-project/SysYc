@@ -260,6 +260,10 @@ impl<'a> LoopSimplify<'a> {
 		let header = loop_.borrow().header.clone();
 		for prev in header.borrow().prev.iter() {
 			if *prev != preheader {
+				assert!(
+					self.loopdata.loop_map[&prev.borrow().id].borrow().id
+						== self.loopdata.loop_map[&header.borrow().id].borrow().id
+				);
 				backedge_blocks.push(prev.clone());
 			}
 		}

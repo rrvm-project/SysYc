@@ -66,7 +66,10 @@ impl Loop {
 	/// This method returns null if there is no preheader for the loop.
 	///
 	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
-	pub fn get_loop_preheader(&self, loop_map: &HashMap<i32, LoopPtr>) -> Option<LlvmNode> {
+	pub fn get_loop_preheader(
+		&self,
+		loop_map: &HashMap<i32, LoopPtr>,
+	) -> Option<LlvmNode> {
 		let pred = self.get_loop_predecessor(loop_map)?;
 		if pred.borrow().succ.len() != 1 {
 			println!("Preheader is not legal to hoist into");
@@ -80,10 +83,16 @@ impl Loop {
 	}
 	/// getLoopPredecessor - If the given loop's header has exactly one unique
 	/// predecessor outside the loop, return it. Otherwise return None.
+	///
 	/// This is less strict that the loop "preheader" concept, which requires
 	/// the predecessor to have exactly one successor.
 	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
-	pub fn get_loop_predecessor(&self, loop_map: &HashMap<i32, LoopPtr>) -> Option<LlvmNode> {
+	///
+	/// $\sum $
+	pub fn get_loop_predecessor(
+		&self,
+		loop_map: &HashMap<i32, LoopPtr>,
+	) -> Option<LlvmNode> {
 		let header = self.header.borrow();
 		let mut pred = None;
 		for pred_ in header.prev.iter() {
@@ -103,7 +112,10 @@ impl Loop {
 	/// getLoopLatch - If there is a single latch block for this loop, return it.
 	/// A latch block is a block that contains a branch back to the header.
 	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
-	pub fn get_loop_latch(&self, loop_map: &HashMap<i32, LoopPtr>) -> Option<LlvmNode> {
+	pub fn get_loop_latch(
+		&self,
+		loop_map: &HashMap<i32, LoopPtr>,
+	) -> Option<LlvmNode> {
 		let header = self.header.borrow();
 		let mut latch = None;
 		for pred in header.prev.iter() {
