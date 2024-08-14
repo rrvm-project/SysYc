@@ -1,8 +1,8 @@
-use crate::loops::indvar::IndVar;
+use crate::loops::{indvar::IndVar, loopinfo::LoopInfo};
 
 use super::OneLoopSolver;
 
-use llvm::{ArithOp, LlvmInstrVariant, LlvmTemp, Value};
+use llvm::{compute_two_value, ArithOp, CompOp, LlvmInstrVariant, LlvmTemp, Value};
 impl<'a> OneLoopSolver<'a> {
 	// 判断单成员的 scc 是否是循环变量
 	pub fn classify_single_member_scc(&mut self, temp: &LlvmTemp) {
@@ -117,4 +117,87 @@ impl<'a> OneLoopSolver<'a> {
 			Value::Float(_) => true,
 		}
 	}
+    pub fn compute_loop_cnt(
+        &mut self,
+		info: &LoopInfo,
+    ) -> Value {
+		let start = &info.begin;
+		let step = &info.step;
+		let end = &info.end;
+		let op = info.comp_op;
+        match op {
+            CompOp::SLT | CompOp::SGT => {
+                // (end - start + step - 1) / step;
+                let (tmp1, instr) = compute_two_value(
+                    end.clone(),
+                    start.clone(),
+                    llvm::ArithOp::Sub,
+                    self.temp_mgr,
+                );
+                instr.map(|i| {
+                    self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+                });
+                let (tmp2, instr) = compute_two_value(
+                    tmp1,
+                    step.clone(),
+                    llvm::ArithOp::Add,
+                    self.temp_mgr,
+                );
+                instr.map(|i| {
+                    self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+                });
+                let (tmp3, instr) = compute_two_value(
+                    tmp2,
+                    llvm::Value::Int(1),
+                    llvm::ArithOp::Sub,
+                    self.temp_mgr,
+                );
+                instr.map(|i| {
+                    self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+                });
+                let (tmp4, instr) = compute_two_value(
+                    tmp3,
+                    step.clone(),
+                    llvm::ArithOp::Div,
+                    self.temp_mgr,
+                );
+                instr.map(|i| {
+                    self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+                });
+                tmp4
+            }
+            CompOp::SLE | CompOp::SGE => {
+                // (end - start + step) / step
+                let (tmp1, instr) = compute_two_value(
+                    end.clone(),
+                    start.clone(),
+                    llvm::ArithOp::Sub,
+                    self.temp_mgr,
+                );
+                instr.map(|i| {
+                    self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+                });
+                let (tmp2, instr) = compute_two_value(
+                    tmp1,
+                    step.clone(),
+                    llvm::ArithOp::Add,
+                    self.temp_mgr,
+                );
+                instr.map(|i| {
+                    self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+                });
+                let (tmp3, instr) = compute_two_value(
+                    tmp2,
+                    step.clone(),
+                    llvm::ArithOp::Div,
+                    self.temp_mgr,
+                );
+                instr.map(|i| {
+                    self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+                });
+                tmp3
+            }
+            _ => unreachable!(),
+        }
+    }
 }

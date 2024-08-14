@@ -66,14 +66,14 @@ impl Loop {
 	/// This method returns null if there is no preheader for the loop.
 	///
 	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
-	pub fn get_loop_preheader(&self, blocks: &[LlvmNode]) -> Option<LlvmNode> {
-		let pred = self.get_loop_predecessor(blocks)?;
-		if !is_legal_to_hoist_into(pred.clone()) {
+	pub fn get_loop_preheader(&self, loop_map: &HashMap<i32, LoopPtr>) -> Option<LlvmNode> {
+		let pred = self.get_loop_predecessor(loop_map)?;
+		if pred.borrow().succ.len() != 1 {
 			println!("Preheader is not legal to hoist into");
 			return None;
 		}
-		if pred.borrow().succ.len() != 1 || pred.borrow().succ[0] != self.header {
-			println!("Multiple preheaders or Illiagal preheader");
+		if pred.borrow().succ[0] != self.header {
+			println!("Illiagal preheader");
 			return None;
 		}
 		Some(pred)
@@ -83,12 +83,16 @@ impl Loop {
 	/// This is less strict that the loop "preheader" concept, which requires
 	/// the predecessor to have exactly one successor.
 	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
-	pub fn get_loop_predecessor(&self, blocks: &[LlvmNode]) -> Option<LlvmNode> {
+	pub fn get_loop_predecessor(&self, loop_map: &HashMap<i32, LoopPtr>) -> Option<LlvmNode> {
 		let header = self.header.borrow();
 		let mut pred = None;
 		for pred_ in header.prev.iter() {
-			if !blocks.contains(pred_) {
+			let pred_loop = loop_map.get(&pred_.borrow().id);
+			// println!("pred_ = {}, header = {}", pred_.borrow().label(), header.label());
+			if pred_loop.map_or(true, |l| !self.is_super_loop_of(l)) {
 				if pred.is_some_and(|p| p != pred_.clone()) {
+					// #[cfg(feature = "debug")]
+					eprintln!("Multiple predecessors found");
 					return None;
 				}
 				pred = Some(pred_.clone());
@@ -99,11 +103,12 @@ impl Loop {
 	/// getLoopLatch - If there is a single latch block for this loop, return it.
 	/// A latch block is a block that contains a branch back to the header.
 	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
-	pub fn get_loop_latch(&self, blocks: &[LlvmNode]) -> Option<LlvmNode> {
+	pub fn get_loop_latch(&self, loop_map: &HashMap<i32, LoopPtr>) -> Option<LlvmNode> {
 		let header = self.header.borrow();
 		let mut latch = None;
 		for pred in header.prev.iter() {
-			if blocks.contains(pred) {
+			let pred_loop = loop_map.get(&pred.borrow().id);
+			if pred_loop.map_or(false, |l| self.is_super_loop_of(l)) {
 				if latch.is_some() {
 					return None;
 				}
@@ -213,9 +218,4 @@ impl Display for Loop {
 			self.level,
 		)
 	}
-}
-
-pub fn is_legal_to_hoist_into(bb: LlvmNode) -> bool {
-	assert!(!bb.borrow().succ.is_empty());
-	return !bb.borrow().jump_instr.as_ref().unwrap().is_ret();
 }
