@@ -5,22 +5,43 @@ use crate::loops::indvar::IndVar;
 use super::OneLoopSolver;
 
 impl<'a> OneLoopSolver<'a> {
+	pub fn compute_two_vec_values(
+		&mut self,
+		step1: &[Value],
+		step2: &[Value],
+		op: ArithOp,
+	) -> Vec<Value> {
+		let mut new_step = Vec::new();
+		for i in 0..step1.len().max(step2.len()) {
+			if i >= step1.len() {
+				new_step.push(step2[i].clone());
+			} else if i >= step2.len() {
+				new_step.push(step1[i].clone());
+			} else {
+				let (v, instr) = compute_two_value(
+					step1[i].clone(),
+					step2[i].clone(),
+					op,
+					self.temp_mgr,
+				);
+				instr.map(|i| {
+					self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
+				});
+				new_step.push(v);
+			}
+		}
+		new_step
+	}
 	pub fn compute_two_indvar(
 		&mut self,
 		v1: IndVar,
 		v2: IndVar,
 		op: ArithOp,
 	) -> Option<IndVar> {
-		let zfp = match (v1.zfp.clone(), v2.zfp.clone()) {
-			(Some(value1), Some(value2)) => {
-				if value1 == value2 {
-					v1.zfp.clone()
-				} else {
-					return None;
-				}
-			}
-			_ => v1.zfp.clone().or(v2.zfp.clone()),
-		};
+		// 仅当 zfp 值相同并且再被 mod 了同一个 p 值时，才又是一个归纳变量
+		if v1.zfp.is_some() || v2.zfp.is_some() {
+			return None;
+		}
 		match op {
 			ArithOp::Add | ArithOp::Sub => {
 				if v1.scale == v2.scale {
@@ -31,10 +52,10 @@ impl<'a> OneLoopSolver<'a> {
 						self.temp_mgr,
 					);
 					instr.map(|i| {
-						self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+						self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
 					});
 					let new_step = self.compute_two_vec_values(&v1.step, &v2.step, op);
-					Some(IndVar::new(new_base, v1.scale, new_step, zfp.clone()))
+					Some(IndVar::new(new_base, v1.scale, new_step, None))
 				} else {
 					None
 				}
@@ -51,11 +72,11 @@ impl<'a> OneLoopSolver<'a> {
 							self.temp_mgr,
 						);
 						instr.map(|i| {
-							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+							self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
 						});
 						let step2 = vec![const_value.clone(); v2.step.len()];
 						let new_step = self.compute_two_vec_values(&v2.step, &step2, op);
-						Some(IndVar::new(new_base, v2.scale, new_step, zfp.clone()))
+						Some(IndVar::new(new_base, v2.scale, new_step, None))
 					} else {
 						None
 					}

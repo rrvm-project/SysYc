@@ -1,40 +1,10 @@
-// 寻找归纳变量的算法
-use std::collections::{HashMap, HashSet};
+use llvm::{compute_two_value, ArithOp, LlvmInstrVariant, LlvmTemp, Value};
 
-use llvm::{compute_two_value, ArithOp, LlvmTemp, LlvmTempManager, Value};
-use rrvm::{program::LlvmFunc, rrvm_loop::LoopPtr, LlvmNode};
+use crate::loops::{chain_node::ChainNode, indvar::IndVar};
 
-use crate::{
-	loops::{chain_node::ChainNode, indvar::IndVar, loop_data::LoopData},
-	metadata::FuncData,
-};
-
-use super::{tarjan_var::TarjanVar, OneLoopSolver};
+use super::OneLoopSolver;
 
 impl<'a> OneLoopSolver<'a> {
-	pub fn new(
-		func: &'a mut LlvmFunc,
-		loopdata: &'a mut LoopData,
-		funcdata: &'a mut FuncData,
-		temp_mgr: &'a mut LlvmTempManager,
-		cur_loop: LoopPtr,
-		preheader: LlvmNode,
-	) -> Self {
-		Self {
-			func,
-			loopdata,
-			funcdata,
-			temp_mgr,
-			tarjan_var: TarjanVar::new(),
-			header_map: HashMap::new(),
-			cur_loop,
-			preheader,
-			useful_variants: HashSet::new(),
-			indvars: HashMap::new(),
-			new_invariant_instr: HashMap::new(),
-			flag: false,
-		}
-	}
 	pub fn run(&mut self, start: LlvmTemp) {
 		self.tarjan(start);
 	}
@@ -57,7 +27,7 @@ impl<'a> OneLoopSolver<'a> {
 					self.tarjan_var.low[&temp].min(self.tarjan_var.low[operand]),
 				);
 			} else if self.tarjan_var.dfsnum[operand] < self.tarjan_var.dfsnum[&temp] // TODO: Tarjan 算法中 这里需不需要判断 dfsnum 的大小，我感觉不用
-				&& self.stack_contains(operand)
+                && self.stack_contains(operand)
 			{
 				self.tarjan_var.low.insert(
 					temp.clone(),
@@ -77,20 +47,6 @@ impl<'a> OneLoopSolver<'a> {
 			self.process(scc);
 		}
 	}
-	pub fn stack_push(&mut self, temp: LlvmTemp) {
-		self.tarjan_var.stack.push(temp.clone());
-		self.tarjan_var.in_stack.insert(temp);
-	}
-	pub fn stack_pop(&mut self) -> Option<LlvmTemp> {
-		let temp = self.tarjan_var.stack.pop();
-		if let Some(t) = &temp {
-			self.tarjan_var.in_stack.remove(t);
-		}
-		temp
-	}
-	pub fn stack_contains(&self, temp: &LlvmTemp) -> bool {
-		self.tarjan_var.in_stack.contains(temp)
-	}
 	pub fn process(&mut self, scc: Vec<LlvmTemp>) {
 		// 长度为 1 的 scc 不可能是一个单独的 header 中的 phi 语句
 		// 因为这样的 phi 语句长成 X = phi(C, X) 的形式，会在 loop_simplify 中被简化掉
@@ -106,10 +62,10 @@ impl<'a> OneLoopSolver<'a> {
 			scc.iter().for_each(|t| {
 				self.header_map.insert(t.clone(), header.clone());
 			});
-			self.classify_induction_variables(header);
+			self.classify_many_members_scc(header);
 		}
 	}
-	pub fn classify_induction_variables(&mut self, header: LlvmTemp) {
+	pub fn classify_many_members_scc(&mut self, header: LlvmTemp) {
 		let mut is_zfp = None;
 		let reads = self.loopdata.temp_graph.get_use_values(&header);
 		assert!(reads.len() == 2);
@@ -164,6 +120,48 @@ impl<'a> OneLoopSolver<'a> {
 		}
 		self.compute_indvar(indvar_chain, header, phi_base, is_zfp);
 	}
+
+	// 判断单成员的 scc 是否是循环变量
+	pub fn classify_single_member_scc(&mut self, temp: &LlvmTemp) {
+		// 看看它是不是归纳变量的计算结果
+		let instr =
+			self.loopdata.temp_graph.temp_to_instr[temp].instr.get_variant();
+		match instr {
+			LlvmInstrVariant::ArithInstr(inst) => {
+				if let Some(iv1) = self.is_indvar(&inst.lhs) {
+					if let Some(iv2) = self.is_indvar(&inst.rhs) {
+						if let Some(output_iv) = self.compute_two_indvar(iv1, iv2, inst.op)
+						{
+							// #[cfg(feature = "debug")]
+							eprintln!(
+								"OneLoopSolver: computed indvar: {} {} \n which is defined as {}",
+								temp, output_iv, self.loopdata.temp_graph.temp_to_instr[temp].instr
+							);
+							self.indvars.insert(temp.clone(), output_iv);
+						}
+					}
+				}
+			}
+			LlvmInstrVariant::GEPInstr(inst) => {
+				if let Some(iv1) = self.is_indvar(&inst.addr) {
+					if let Some(iv2) = self.is_indvar(&inst.offset) {
+						if let Some(output_iv) =
+							self.compute_two_indvar(iv1, iv2, ArithOp::Add)
+						{
+							// #[cfg(feature = "debug")]
+							eprintln!(
+								"OneLoopSolver: computed indvar: {} {} \n which is defined as {}",
+								temp, output_iv, self.loopdata.temp_graph.temp_to_instr[temp].instr
+							);
+							self.indvars.insert(temp.clone(), output_iv);
+						}
+					}
+				}
+			}
+			// TODO: CompInstr
+			_ => {}
+		}
+	}
 	// 根据 chain 上的内容，为一阶归纳变量计算 base, scale, step，记录在 self.indvars 中
 	pub fn compute_indvar(
 		&mut self,
@@ -198,7 +196,9 @@ impl<'a> OneLoopSolver<'a> {
 							(base, instr) =
 								compute_two_value(base, o.clone(), ArithOp::Add, self.temp_mgr);
 							instr.map(|i| {
-								self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+								self
+									.new_invariant_instr
+									.insert(i.get_write().unwrap().clone(), i)
 							});
 						}
 						indvar_bases.push(base.clone());
@@ -216,7 +216,7 @@ impl<'a> OneLoopSolver<'a> {
 							self.temp_mgr,
 						);
 						instr.map(|i| {
-							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+							self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
 						});
 						(base, instr) = compute_two_value(
 							base,
@@ -225,7 +225,7 @@ impl<'a> OneLoopSolver<'a> {
 							self.temp_mgr,
 						);
 						instr.map(|i| {
-							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+							self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
 						});
 						(step[0], instr) = compute_two_value(
 							step[0].clone(),
@@ -234,7 +234,7 @@ impl<'a> OneLoopSolver<'a> {
 							self.temp_mgr,
 						);
 						instr.map(|i| {
-							self.new_invariant_instr.insert(i.target.clone(), Box::new(i))
+							self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
 						});
 						indvar_bases.push(base.clone());
 					}
@@ -243,15 +243,15 @@ impl<'a> OneLoopSolver<'a> {
 			}
 		}
 		let iv = IndVar::new(phi_base, scale.clone(), step.clone(), is_zfp.clone());
-		#[cfg(feature = "debug")]
+		// #[cfg(feature = "debug")]
 		eprintln!("OneLoopSolver: found a indvar {} {}", header, iv);
 		self.indvars.insert(header.clone(), iv);
 		for (indvar, indvar_base) in indvar_chain.iter().zip(indvar_bases) {
 			let iv =
 				IndVar::new(indvar_base, scale.clone(), step.clone(), is_zfp.clone());
-			#[cfg(feature = "debug")]
+			// #[cfg(feature = "debug")]
 			eprintln!(
-				"OneLoopSolver: found a indvar {} {}",
+				"OneLoopSolver: a indvar in chain {} {}",
 				indvar.temp.clone(),
 				iv
 			);

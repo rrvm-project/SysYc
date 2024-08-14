@@ -1,9 +1,8 @@
-// Ref：Engineering a Compiler 2nd Edition Page 433
-mod compute_indvar;
+mod classify_indvar;
 mod get_loop_info;
 mod helper_functions;
 mod impls;
-mod indvar_optimize;
+mod indvar_extraction;
 mod tarjan_var;
 mod utils;
 use std::collections::{HashMap, HashSet};

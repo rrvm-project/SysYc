@@ -5,7 +5,7 @@ use loop_data::LoopData;
 mod chain_node;
 mod impls;
 mod indvar;
-mod indvar_optimize;
+mod indvar_extraction;
 mod loop_data;
 mod loop_simplify;
 mod loopinfo;

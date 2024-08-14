@@ -1,11 +1,11 @@
-use llvm::{LlvmTemp, LlvmTempManager};
+use llvm::LlvmTempManager;
 use rrvm::{program::LlvmFunc, rrvm_loop::LoopPtr, LlvmNode};
 
 use crate::{loops::loop_data::LoopData, metadata::FuncData};
 
-use super::{one_loop_solver::OneLoopSolver, IndvarOptimize};
+use super::{one_loop_solver::OneLoopSolver, IndvarExtraction};
 
-impl<'a> IndvarOptimize<'a> {
+impl<'a> IndvarExtraction<'a> {
 	pub fn new(
 		func: &'a mut LlvmFunc,
 		loopdata: &'a mut LoopData,
@@ -35,9 +35,10 @@ impl<'a> IndvarOptimize<'a> {
 		if loop_brw.outer.is_none() {
 			return flag;
 		}
-		if let Some(preheader) = loop_brw.get_loop_preheader(
-			&self.loopdata.loop_map,
-		) {
+		// 有
+		if let Some(preheader) =
+			loop_brw.get_loop_preheader(&self.loopdata.loop_map)
+		{
 			flag |= self.visit_loop(loop_.clone(), preheader);
 		}
 		flag
@@ -52,19 +53,8 @@ impl<'a> IndvarOptimize<'a> {
 			loop_.clone(),
 			preheader,
 		);
-		let phi_defs: Vec<LlvmTemp> = loop_
-			.borrow()
-			.header
-			.borrow()
-			.phi_instrs
-			.iter()
-			.map(|i| i.target.clone())
-			.collect();
-		for use_ in phi_defs.iter() {
-			solver.run(use_.clone());
-		}
-		solver.classify_variant();
-		solver.get_loop_info();
+		solver.classify_indvar();
+		solver.indvar_extraction();
 		solver.flag
 	}
 }

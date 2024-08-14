@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
 	loops::{
-		indvar_optimize::IndvarOptimize, loop_data::LoopData,
+		indvar_extraction::IndvarExtraction, loop_data::LoopData,
 		loop_simplify::LoopSimplify,
 	},
 	metadata::{FuncData, MetaData},
@@ -48,7 +48,7 @@ impl HandleLoops {
 			) || last
 		}))
 	}
-	pub fn indvar_optimize(
+	pub fn indvar_extraction(
 		&mut self,
 		program: &mut LlvmProgram,
 		metadata: &mut MetaData,
@@ -59,7 +59,7 @@ impl HandleLoops {
 			func_data: &mut FuncData,
 			temp_mgr: &mut LlvmTempManager,
 		) -> bool {
-			let opter = IndvarOptimize::new(func, loop_data, func_data, temp_mgr);
+			let opter = IndvarExtraction::new(func, loop_data, func_data, temp_mgr);
 			opter.apply()
 		}
 

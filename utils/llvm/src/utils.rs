@@ -1,5 +1,6 @@
 use crate::{
-	llvmop::Value, ArithInstr, ArithOp, LlvmTemp, LlvmTempManager, VarType,
+	llvmop::Value, ArithInstr, ArithOp, GEPInstr, LlvmInstr, LlvmTemp,
+	LlvmTempManager, VarType,
 };
 
 pub fn unwrap_values(arr: Vec<&Value>) -> Vec<LlvmTemp> {
@@ -11,7 +12,7 @@ pub fn compute_two_value(
 	v2: Value,
 	op: ArithOp,
 	temp_mgr: &mut LlvmTempManager,
-) -> (Value, Option<ArithInstr>) {
+) -> (Value, Option<LlvmInstr>) {
 	// 只考虑 int
 	match (v1.clone(), v2.clone()) {
 		(Value::Int(i1), Value::Int(i2)) => {
@@ -20,6 +21,7 @@ pub fn compute_two_value(
 				ArithOp::Mul => i1 * i2,
 				ArithOp::Sub => i1 - i2,
 				ArithOp::Div => i1 / i2,
+				ArithOp::Rem => i1 % i2,
 				_ => unreachable!(),
 			};
 			(Value::Int(i), None)
@@ -27,18 +29,26 @@ pub fn compute_two_value(
 		(Value::Int(i1), Value::Temp(t2)) => {
 			assert!(t2.var_type != VarType::F32);
 			match (i1, op) {
-				(0, ArithOp::Add | ArithOp::Sub) | (1, ArithOp::Mul | ArithOp::Div) => {
-					(v2, None)
-				}
+				(0, ArithOp::Add | ArithOp::Sub)
+				| (1, ArithOp::Mul | ArithOp::Div | ArithOp::Rem) => (v2, None),
 				(0, ArithOp::Mul) => (Value::Int(0), None),
 				_ => {
 					let target = temp_mgr.new_temp(t2.var_type, false);
-					let instr = ArithInstr {
-						target: target.clone(),
-						op,
-						var_type: t2.var_type,
-						lhs: Value::Temp(t2),
-						rhs: Value::Int(i1),
+					let instr: LlvmInstr = if t2.var_type == VarType::I32Ptr {
+						Box::new(GEPInstr {
+							target: target.clone(),
+							var_type: t2.var_type,
+							addr: Value::Temp(t2),
+							offset: Value::Int(i1),
+						})
+					} else {
+						Box::new(ArithInstr {
+							target: target.clone(),
+							op,
+							var_type: t2.var_type,
+							lhs: Value::Temp(t2),
+							rhs: Value::Int(i1),
+						})
 					};
 					(Value::Temp(target), Some(instr))
 				}
@@ -47,18 +57,26 @@ pub fn compute_two_value(
 		(Value::Temp(t1), Value::Int(i2)) => {
 			assert!(t1.var_type != VarType::F32);
 			match (i2, op) {
-				(0, ArithOp::Add | ArithOp::Sub) | (1, ArithOp::Mul | ArithOp::Div) => {
-					(v2, None)
-				}
+				(0, ArithOp::Add | ArithOp::Sub)
+				| (1, ArithOp::Mul | ArithOp::Div | ArithOp::Rem) => (v2, None),
 				(0, ArithOp::Mul) => (Value::Int(0), None),
 				_ => {
 					let target = temp_mgr.new_temp(t1.var_type, false);
-					let instr = ArithInstr {
-						target: target.clone(),
-						op,
-						var_type: t1.var_type,
-						lhs: Value::Temp(t1),
-						rhs: Value::Int(i2),
+					let instr: LlvmInstr = if t1.var_type == VarType::I32Ptr {
+						Box::new(GEPInstr {
+							target: target.clone(),
+							var_type: t1.var_type,
+							addr: Value::Temp(t1),
+							offset: Value::Int(i2),
+						})
+					} else {
+						Box::new(ArithInstr {
+							target: target.clone(),
+							op,
+							var_type: t1.var_type,
+							lhs: Value::Temp(t1),
+							rhs: Value::Int(i2),
+						})
 					};
 					(Value::Temp(target), Some(instr))
 				}
@@ -66,20 +84,35 @@ pub fn compute_two_value(
 		}
 		(Value::Temp(t1), Value::Temp(t2)) => {
 			assert!(t1.var_type == VarType::I32 || t2.var_type == VarType::I32);
-			let target_vartype = if t1.var_type == VarType::I32 {
-				t2.var_type
+			if t1.var_type == VarType::I32Ptr {
+				let target = temp_mgr.new_temp(t1.var_type, false);
+				let instr = Box::new(GEPInstr {
+					target: target.clone(),
+					var_type: t1.var_type,
+					addr: Value::Temp(t1),
+					offset: Value::Temp(t2),
+				});
+				(Value::Temp(target), Some(instr))
+			} else if t2.var_type == VarType::I32Ptr {
+				let target = temp_mgr.new_temp(t2.var_type, false);
+				let instr = Box::new(GEPInstr {
+					target: target.clone(),
+					var_type: t2.var_type,
+					addr: Value::Temp(t2),
+					offset: Value::Temp(t1),
+				});
+				(Value::Temp(target), Some(instr))
 			} else {
-				t1.var_type
-			};
-			let target = temp_mgr.new_temp(target_vartype, false);
-			let instr = ArithInstr {
-				target: target.clone(),
-				op,
-				var_type: target_vartype,
-				lhs: Value::Temp(t1),
-				rhs: Value::Temp(t2),
-			};
-			(Value::Temp(target), Some(instr))
+				let target = temp_mgr.new_temp(t1.var_type, false);
+				let instr = Box::new(ArithInstr {
+					target: target.clone(),
+					op,
+					var_type: t1.var_type,
+					lhs: Value::Temp(t1),
+					rhs: Value::Temp(t2),
+				});
+				(Value::Temp(target), Some(instr))
+			}
 		}
 		_ => {
 			unreachable!();
