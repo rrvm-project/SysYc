@@ -53,7 +53,7 @@ impl<'a> OneLoopSolver<'a> {
 												let new_op =
 													convert_comp_op(inst.op, take_not, take_reverse);
 												#[cfg(feature = "debug")]
-												eprintln!("get loop info: Found a loop to optimize with cond_temp: {} {}", t, iv);
+												eprintln!("get loop info: Found a loop to optimize with cond_temp: {} {}, end: {}", t, iv, end_value);
 												let info = LoopInfo {
 													preheader: preheader.clone(),
 													header: header.clone(),

@@ -36,8 +36,7 @@ impl<'a> IndvarOptimize<'a> {
 			return flag;
 		}
 		if let Some(preheader) = loop_brw.get_loop_preheader(
-			&loop_brw
-				.blocks_without_subloops(&self.func.cfg, &self.loopdata.loop_map),
+			&self.loopdata.loop_map,
 		) {
 			flag |= self.visit_loop(loop_.clone(), preheader);
 		}

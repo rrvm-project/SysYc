@@ -7,7 +7,6 @@ use std::{
 use llvm::{LlvmInstrTrait, LlvmTemp, LlvmTempManager, PhiInstr, Value};
 use rrvm::{
 	cfg::{force_link_llvmnode, unlink_node},
-	dominator::{compute_dominator, compute_dominator_frontier},
 	program::LlvmFunc,
 	rrvm_loop::LoopPtr,
 	LlvmNode,
@@ -48,26 +47,6 @@ impl<'a> LoopSimplify<'a> {
 		for loop_node in dfs_vec.iter() {
 			flag |= self.simplify_one_loop(loop_node.clone());
 		}
-
-		let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-		let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-		let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
-		compute_dominator(
-			&self.func.cfg,
-			false,
-			&mut dominates,
-			&mut dominates_directly,
-			&mut dominator,
-		);
-
-		let mut dominator_frontier: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-		compute_dominator_frontier(
-			&self.func.cfg,
-			false,
-			&dominates_directly,
-			&dominator,
-			&mut dominator_frontier,
-		);
 		let mut replace_map = HashMap::new();
 		for loop_ in dfs_vec.iter() {
 			// Scan over the PHI nodes in the loop header.  Since they now have only two
@@ -215,11 +194,12 @@ impl<'a> LoopSimplify<'a> {
 		}
 		assert!(!outside_blocks.is_empty());
 		let new_bb =
-			self.split_block_predecessors(header_rc, outside_blocks, false);
+			self.split_block_predecessors(header_rc.clone(), outside_blocks, false);
 		#[cfg(feature = "debug")]
-		println!(
-			"LoopSimplify: inserted preheader block {}",
-			new_bb.borrow().label()
+		eprintln!(
+			"LoopSimplify: inserted preheader block {}, header {}",
+			new_bb.borrow().label(),
+			header_rc.borrow().label()
 		);
 		if let Some(o) = loop_brw.outer.clone() {
 			self.loopdata.loop_map.insert(new_bb.borrow().id, o.upgrade().unwrap());
@@ -321,7 +301,7 @@ impl<'a> LoopSimplify<'a> {
 		// Does the loop already have a preheader?  If not, insert one.
 		let preheader = loop_
 			.borrow()
-			.get_loop_preheader(&blocks_without_subloops)
+			.get_loop_preheader(&self.loopdata.loop_map)
 			.unwrap_or_else(|| {
 				flag = true;
 				self.insert_preheader_for_loop(loop_.clone())
