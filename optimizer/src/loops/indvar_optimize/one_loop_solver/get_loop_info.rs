@@ -40,9 +40,9 @@ impl<'a> OneLoopSolver<'a> {
 								inst.op,
 								CompOp::SLT | CompOp::SLE | CompOp::SGT | CompOp::SGE
 							) {
-								let get_info = |cond_value: Value,
-								                end_value: Value,
-								                take_reverse: bool|
+								let mut get_info = |cond_value: Value,
+								                    end_value: Value,
+								                    take_reverse: bool|
 								 -> Option<LoopInfo> {
 									if self.is_loop_invariant(&end_value) {
 										if let Some(t) = cond_value.unwrap_temp() {
@@ -64,6 +64,10 @@ impl<'a> OneLoopSolver<'a> {
 													begin: iv.base,
 													end: end_value,
 												};
+												self
+													.loopdata
+													.loop_infos
+													.insert(self.cur_loop.borrow().id, info.clone());
 												return Some(info);
 											}
 										}

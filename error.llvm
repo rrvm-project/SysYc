@@ -1,0 +1,46 @@
+GlobalVar { ident: "d", data: [Zero(4000)], is_float: false }
+define i32 @main(){
+  entry:
+    %3 = load i32*, i32* @d
+    %18 = call i32 @__create_threads()
+    %19 = icmp eq i32 %18, 3
+    %24 = mul i32 2, %18
+    %25 = add i32 %24, 2
+    br i32 %19, label %B33, label %B32
+  B5:
+    %1 = phi i32 [%24, label %B34], [%6, label %B7]
+    %2 = icmp slt i32 %1, %26
+    br i32 %2, label %B7, label %B14
+  B7:
+    %4 = mul i32 %1, 4
+    %5 = getelementptr i32* %3, i32 %4
+    store i32 %1, i32* %5
+    %6 = add i32 %1, 1
+    br label %B5
+  B14:
+    %29 = call void @__join_threads(i32 %18)
+    %7 = call void @putint(i32 %1)
+    %8 = call void @putch(i32 10)
+    br label %B20
+  B20:
+    %9 = phi i32 [0, label %B14], [%17, label %B22]
+    %10 = icmp slt i32 %9, 9
+    br i32 %10, label %B22, label %B29
+  B22:
+    %12 = mul i32 %9, 4
+    %13 = getelementptr i32* %3, i32 %12
+    %14 = load i32, i32* %13
+    %15 = call void @putint(i32 %14)
+    %16 = call void @putch(i32 10)
+    %17 = add i32 %9, 1
+    br label %B20
+  B29:
+    ret i32 123
+  B32:
+    br label %B34
+  B33:
+    br label %B34
+  B34:
+    %26 = phi i32 [%25, label %B32], [9, label %B33]
+    br label %B5
+}

@@ -9,6 +9,7 @@ mod indvar_optimize;
 mod loop_data;
 mod loop_simplify;
 mod loopinfo;
+mod para;
 mod temp_graph;
 
 pub struct HandleLoops {

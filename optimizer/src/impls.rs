@@ -84,6 +84,7 @@ impl Optimizer2 {
 		let mut loop_handler = HandleLoops::new(program);
 		loop_handler.loop_simplify(program, &mut metadata)?;
 		loop_handler.indvar_optimize(program, &mut metadata)?;
+		loop_handler.parallel(program, &mut metadata)?;
 
 		loop {
 			let mut flag = false;
