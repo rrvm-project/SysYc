@@ -441,23 +441,43 @@ fn sovle_bb(
 	// dbg!(&graph_values);
 	// dbg!(&killed_temp);
 
+	let mut profit: i32 = 0;
 	let mut new_instr = vec![];
 
 	for instr in std::mem::take(&mut bb.borrow_mut().instrs) {
 		if let LlvmInstrVariant::ArithInstr(arith) = instr.get_variant() {
 			if killed_temp.contains(&arith.target) {
-				continue;
+				new_instr.push((1, instr));
+				profit += 1;
 			} else if let Some((target, value)) =
 				graph_values.remove_entry(&arith.target)
 			{
-				build_instr(value, llvm_temp_manager, &mut new_instr, target);
+				new_instr.push((1, instr));
+				profit += 1;
+				let mut gen_instrs = vec![];
+				build_instr(value, llvm_temp_manager, &mut gen_instrs, target);
+				profit -= gen_instrs.len() as i32;
+				for item in gen_instrs {
+					new_instr.push((2, item));
+				}
 			} else {
-				new_instr.push(instr);
+				new_instr.push((0, instr));
 			}
 		} else {
-			new_instr.push(instr);
+			new_instr.push((0, instr));
 		}
 	}
+
+	let new_instr = new_instr
+		.into_iter()
+		.filter_map(|(tag, instr)| {
+			if (profit >= 0 && tag != 1) || (profit < 0 && tag != 2) {
+				Some(instr)
+			} else {
+				None
+			}
+		})
+		.collect();
 
 	bb.borrow_mut().instrs = new_instr;
 
