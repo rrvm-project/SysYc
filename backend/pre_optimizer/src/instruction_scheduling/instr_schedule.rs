@@ -549,9 +549,6 @@ pub fn instr_schedule_by_dag(
 		&mut dag.call_related.clone(), // 是我call的顺序可能会调换，post_process 的时候和原本push进去的顺序不一致
 		dag.branch.clone(),
 		&mut final_state.call_ids.clone(),
-<<<<<<< HEAD
 		dag.li_ret.clone(),
-=======
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 	))
 }
