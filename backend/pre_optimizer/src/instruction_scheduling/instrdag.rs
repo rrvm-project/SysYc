@@ -6,7 +6,7 @@ use std::{
 };
 
 use instruction::riscv::{
-	reg::RiscvReg::{A0, SP},
+	reg::RiscvReg::{Fa0, A0, SP},
 	riscvinstr::RiscvInstrTrait,
 	value::RiscvTemp,
 	RiscvInstr,
@@ -77,6 +77,10 @@ fn preprocess_call(
 					my_call_related.push(i.clone());
 					push_this = true;
 					continue;
+				} else if let RiscvTemp::PhysReg(Fa0) = i.get_riscv_read()[0] {
+					my_call_related.push(i.clone());
+					push_this = true;
+					continue;
 				} else {
 					call_write.push(None);
 				}
@@ -133,9 +137,10 @@ fn preprocess_call(
 		if node.borrow().succ.is_empty()
 			&& last_instr.get_riscv_write().len() == 1
 			&& (last_instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
+				|| last_instr.get_riscv_write()[0] == RiscvTemp::PhysReg(Fa0)
 				|| if let RiscvTemp::VirtReg(t) = &last_instr.get_riscv_write()[0] {
 					if let Some(pre) = t.pre_color {
-						pre == A0
+						(pre == A0) || (pre == Fa0)
 					} else {
 						false
 					}
