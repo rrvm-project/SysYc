@@ -1,5 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+use utils::math::{increment, Range};
+
 use super::super::{dominator::compute_dominator, LlvmCFG, LlvmNode};
 
 use super::{Loop, LoopPtr};
@@ -40,21 +42,17 @@ impl LlvmCFG {
 			}
 		}
 
-		let mut dfs_clock = 0;
-
-		// Thus we can look up whether loop A is (indirect) subloop of loop B O(1)
-		fn dfs_loop_tree(dfs_clock: &mut u32, current: &LoopPtr, depth: i32) {
-			*dfs_clock += 1;
-			current.borrow_mut().id = *dfs_clock;
-			current.borrow_mut().level = depth;
-			for sub in &current.borrow().subloops {
-				dfs_loop_tree(dfs_clock, sub, depth + 1)
+		fn dfs(node: &LoopPtr, depth: i32, mut cnt: i32) -> i32 {
+			let node = &mut node.borrow_mut();
+			node.id = increment(&mut cnt);
+			node.level = depth;
+			for sub in node.subloops.iter() {
+				cnt = dfs(sub, depth, cnt)
 			}
-			*dfs_clock += 1;
-			current.borrow_mut().ura_id = *dfs_clock;
+			node.loop_range = Range::new(node.id, cnt);
+			cnt
 		}
-
-		dfs_loop_tree(&mut dfs_clock, &root_loop, 0);
+		dfs(&root_loop, 0, 0);
 
 		(root_loop, loop_map)
 	}

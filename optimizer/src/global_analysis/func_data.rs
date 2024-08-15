@@ -30,6 +30,7 @@ impl CallGraph {
 }
 
 struct Solver<'a> {
+	func_name: String,
 	dom_tree: LlvmDomTree,
 	temp_mapper: HashMap<LlvmTemp, String>,
 	metadata: &'a mut MetaData,
@@ -44,6 +45,7 @@ impl<'a> Solver<'a> {
 		graph: &'a mut CallGraph,
 	) -> Self {
 		Self {
+			func_name: func.name.clone(),
 			dom_tree: LlvmDomTree::new(&func.cfg, false),
 			temp_mapper: HashMap::new(),
 			usage_info: UsageInfo::default(),
@@ -84,6 +86,7 @@ impl<'a> Solver<'a> {
 					}
 				}
 				CallInstr(instr) => {
+					self.graph.add_edge(instr.func.name.clone(), self.func_name.clone());
 					for (index, (var_type, value)) in instr.params.iter().enumerate() {
 						if var_type.is_ptr() {
 							if let Value::Temp(temp) = value {

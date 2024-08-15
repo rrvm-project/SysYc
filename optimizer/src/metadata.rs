@@ -13,7 +13,7 @@ pub struct VarData {
 	pub to_store: bool,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct UsageInfo {
 	pub may_loads: HashSet<String>,
 	pub may_stores: HashSet<String>,
