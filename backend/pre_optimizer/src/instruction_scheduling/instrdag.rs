@@ -47,12 +47,14 @@ pub struct InstrDag {
 	pub branch: Option<Box<dyn RiscvInstrTrait>>,
 	pub call_writes: Vec<Option<RiscvTemp>>,
 	pub call_reads: Vec<Vec<RiscvTemp>>,
+	pub li_ret: Option<Box<dyn RiscvInstrTrait>>,
 }
 fn preprocess_call(
 	node: &RiscvNode,
 	call_related: &mut Vec<Vec<Box<dyn RiscvInstrTrait>>>, // 换成一个 hashmap 用建完图之后的 node id 来索引
 	call_write: &mut Vec<Option<RiscvTemp>>,
 	call_reads: &mut Vec<Vec<RiscvTemp>>,
+	li_ret: &mut Option<Box<dyn RiscvInstrTrait>>,
 ) -> Vec<Box<dyn RiscvInstrTrait>> {
 	let mut instrs = Vec::new();
 	let mut save_instr = false;
@@ -125,6 +127,26 @@ fn preprocess_call(
 		}
 		call_reads.push(riscv_reads.iter().cloned().collect());
 	}
+	// 判断最后一条
+	if !instrs.is_empty() {
+		let last_instr = instrs.pop().unwrap();
+		if node.borrow().succ.is_empty()
+			&& last_instr.get_riscv_write().len() == 1
+			&& (last_instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
+				|| if let RiscvTemp::VirtReg(t) = &last_instr.get_riscv_write()[0] {
+					if let Some(pre) = t.pre_color {
+						pre == A0
+					} else {
+						false
+					}
+				} else {
+					false
+				}) {
+			*li_ret = Some(last_instr);
+		} else {
+			instrs.push(last_instr);
+		}
+	}
 	instrs
 }
 pub fn postprocess_call(
@@ -132,6 +154,7 @@ pub fn postprocess_call(
 	call_related: &mut HashMap<usize, Vec<Box<dyn RiscvInstrTrait>>>,
 	branch_related: Option<Box<dyn RiscvInstrTrait>>,
 	call_idxs: &mut Vec<usize>,
+	li_ret: Option<Box<dyn RiscvInstrTrait>>,
 ) -> Vec<Box<dyn RiscvInstrTrait>> {
 	let mut my_instrs = Vec::new();
 	for i in instrs {
@@ -142,6 +165,9 @@ pub fn postprocess_call(
 		} else {
 			my_instrs.push(i);
 		}
+	}
+	if let Some(instr) = li_ret {
+		my_instrs.push(instr);
 	}
 	if let Some(instr) = branch_related {
 		my_instrs.push(instr);
@@ -172,6 +198,7 @@ impl InstrDag {
 			&mut call_related,
 			&mut call_write,
 			&mut call_reads,
+			&mut li_ret,
 		);
 		let ret_call_writes = call_write.clone();
 		let ret_call_reads = call_reads.clone();
@@ -193,21 +220,6 @@ impl InstrDag {
 		}
 		for (idx, instr) in processed_instrs.iter().rev().enumerate() {
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
-			if idx == 0
-				&& instr.get_riscv_write().len() == 1
-				&& (instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
-					|| if let RiscvTemp::VirtReg(t) = &instr.get_riscv_write()[0] {
-						if let Some(pre) = t.pre_color {
-							pre == A0
-						} else {
-							false
-						}
-					} else {
-						false
-					}) {
-				li_ret = Some(node.clone());
-			}
-
 			let mut instr_node_succ = Vec::new();
 			let instructions_write = instr.get_riscv_write().clone();
 			if !instr.is_call() {
@@ -278,10 +290,6 @@ impl InstrDag {
 				});
 				last_loads.clear();
 				last_call = Some(node.clone());
-				if let Some(ret_node) = li_ret.clone() {
-					instr_node_succ.push(ret_node.clone());
-					ret_node.borrow_mut().pred.push(node.clone());
-				}
 				for i in call_instrs.iter() {
 					instr_node_succ.push(i.clone());
 					i.borrow_mut().pred.push(node.clone());
@@ -330,6 +338,7 @@ impl InstrDag {
 			branch: last_branch,
 			call_reads: ret_call_reads,
 			call_writes: ret_call_writes,
+			li_ret,
 		})
 	}
 	pub fn assign_nodes(&mut self) {
