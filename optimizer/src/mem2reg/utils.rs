@@ -4,6 +4,7 @@ use std::{
 };
 
 use llvm::{LlvmTemp, Value, VarType};
+use utils::math::Range;
 
 use crate::number::Number;
 
@@ -119,7 +120,7 @@ impl ArrayState {
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct UseState {
 	pub loads: HashSet<Addr>,
-	pub stores: HashSet<Addr>,
+	pub stores: HashMap<Addr, Range>,
 }
 
 #[derive(Default, Clone, PartialEq, Eq)]

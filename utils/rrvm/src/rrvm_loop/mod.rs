@@ -6,6 +6,8 @@ use std::{
 	rc::{Rc, Weak},
 };
 
+use utils::math::Range;
+
 use crate::LlvmCFG;
 
 use super::LlvmNode;
@@ -18,9 +20,10 @@ pub mod loop_analysis;
 // Instances of this class are used to represent loops that are detected in the flow graph.
 #[derive(Clone)]
 pub struct Loop {
-	//
-	pub id: u32,     // dfs的begin
-	pub ura_id: u32, // 里id, dfs的end
+	pub id: i32,
+
+	/// To determine whether a loop is a super loop of another loop
+	pub loop_range: Range,
 	// 外层 loop
 	// 防止内存泄漏！
 	pub outer: Option<LoopWeakPtr>,
@@ -33,23 +36,21 @@ pub struct Loop {
 	// loop 中的所有 block，不包括子 loop 中的 block
 }
 
-#[allow(unused)]
 impl Loop {
 	pub fn is_strict_super_loop_of(&self, other: &LoopPtr) -> bool {
 		let other = other.borrow();
-		self.id < other.id && other.ura_id < self.ura_id
+		self.loop_range.contains(&other.loop_range) && self.id != other.id
 	}
 
 	pub fn is_super_loop_of(&self, other: &LoopPtr) -> bool {
 		let other = other.borrow();
-		(self.id < other.id && other.ura_id < self.ura_id)
-			|| (self.id == other.id && self.ura_id == other.ura_id)
+		self.loop_range.contains(&other.loop_range)
 	}
 
 	fn new(header: LlvmNode) -> Self {
 		Self {
 			id: 0,
-			ura_id: 0,
+			loop_range: Range::default(),
 			outer: None,
 			header,
 			level: -1,
@@ -131,13 +132,13 @@ impl Loop {
 		}
 		exit
 	}
-	fn no_inner(&self) -> bool {
+	fn _no_inner(&self) -> bool {
 		self.subloops.is_empty()
 	}
 	// 临时计算 loop 内有哪些 block, 包括子循环的 block
 	pub fn blocks(
 		&self,
-		cfg: &LlvmCFG,
+		_cfg: &LlvmCFG,
 		loop_map: &HashMap<i32, LoopPtr>,
 	) -> Vec<LlvmNode> {
 		// 从 header 开始，遍历在同一循环内的后继，直到回到 header
@@ -162,7 +163,7 @@ impl Loop {
 	// 临时计算 loop 内有哪些 block, 不包括子循环的 block
 	pub fn blocks_without_subloops(
 		&self,
-		cfg: &LlvmCFG,
+		_cfg: &LlvmCFG,
 		loop_map: &HashMap<i32, LoopPtr>,
 	) -> Vec<LlvmNode> {
 		// 从 header 开始，遍历在同一循环内的后继，直到回到 header

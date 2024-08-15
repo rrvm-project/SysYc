@@ -32,8 +32,6 @@ impl RrvmOptimizer for GlobalAnalysis {
 			.global_vars
 			.retain(|v| metadata.var_data.contains_key(&(v.ident.clone(), 0)));
 
-		eprintln!("{:#?}", metadata.var_data);
-
 		Ok(false)
 	}
 }

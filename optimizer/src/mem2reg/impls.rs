@@ -7,8 +7,8 @@ use super::{
 	Mem2Reg,
 };
 use crate::{
-	metadata::{FuncData, MetaData},
-	number::Number,
+	metadata::MetaData,
+	number::{str2num, Number},
 	RrvmOptimizer,
 };
 use llvm::{LlvmInstrVariant::*, LlvmTemp, LlvmTempManager, Value, VarType};
@@ -21,9 +21,10 @@ use rrvm::{
 use utils::{errors::Result, Label, MEM_TO_REG_LIMIT};
 
 struct Solver<'a> {
+	func_name: String,
 	dom_tree: LlvmDomTree,
 	rng: StdRng,
-	func_data: &'a mut FuncData,
+	metadata: &'a mut MetaData,
 	mgr: &'a mut LlvmTempManager,
 	addrs: HashSet<Addr>,
 	base_addrs: HashMap<Number, Vec<Addr>>,
@@ -41,11 +42,12 @@ struct Solver<'a> {
 impl<'a> Solver<'a> {
 	pub fn new(
 		func: &LlvmFunc,
-		func_data: &'a mut FuncData,
 		mgr: &'a mut LlvmTempManager,
+		metadata: &'a mut MetaData,
 	) -> Self {
 		let mut addr_mapper = HashMap::new();
 		let mut global_base = HashSet::new();
+		let func_data = metadata.get_func_data(&func.name);
 		for param in func.params.iter() {
 			if param.get_type().is_ptr() {
 				let temp = param.unwrap_temp().unwrap();
@@ -54,7 +56,12 @@ impl<'a> Solver<'a> {
 				global_base.insert(number.clone());
 			}
 		}
+		for store_var in func_data.usage_info.may_stores.iter() {
+			let base = str2num(store_var);
+			global_base.insert(base);
+		}
 		Self {
+			func_name: func.name.clone(),
 			dom_tree: LlvmDomTree::new(&func.cfg, false),
 			rng: StdRng::from_entropy(),
 			base_addrs: HashMap::new(),
@@ -69,14 +76,23 @@ impl<'a> Solver<'a> {
 			mgr,
 			global_base,
 			addr_mapper,
-			func_data,
+			metadata,
 		}
 	}
 	fn get_addr(&self, temp: &LlvmTemp) -> Addr {
 		self.addr_mapper.get(temp).unwrap().clone()
 	}
 	fn set_number(&mut self, temp: LlvmTemp) {
-		self.func_data.set_number(temp, Number::new(&mut self.rng))
+		self
+			.metadata
+			.get_func_data(&self.func_name)
+			.set_number(temp, Number::new(&mut self.rng))
+	}
+	fn get_number(&mut self, temp: &LlvmTemp) -> Option<Number> {
+		self.metadata.get_func_data(&self.func_name).get_number(temp).cloned()
+	}
+	fn get_val_number(&mut self, value: &Value) -> Option<Number> {
+		self.metadata.get_func_data(&self.func_name).get_val_number(value)
 	}
 	fn get_val_addr(&self, value: &Value) -> Addr {
 		value.unwrap_temp().map(|temp| self.get_addr(&temp)).unwrap()
@@ -93,7 +109,7 @@ impl<'a> Solver<'a> {
 	) {
 		for instr in node.borrow().phi_instrs.iter() {
 			if instr.var_type.is_ptr() {
-				let number = self.func_data.get_number(&instr.target).unwrap();
+				let number = self.get_number(&instr.target).unwrap();
 				let addr = Addr::new(number.clone(), 0u32.into());
 				self.addr_mapper.insert(instr.target.clone(), addr);
 			}
@@ -101,14 +117,14 @@ impl<'a> Solver<'a> {
 		for instr in node.borrow().instrs.iter() {
 			match instr.get_variant() {
 				AllocInstr(instr) => {
-					let number = self.func_data.get_number(&instr.target).unwrap();
+					let number = self.get_number(&instr.target).unwrap();
 					let addr = Addr::new(number.clone(), 0u32.into());
 					self.addr_mapper.insert(instr.target.clone(), addr);
 				}
 				LoadInstr(instr) => {
 					let temp = instr.addr.unwrap_temp().unwrap();
 					if temp.is_global {
-						let number = self.func_data.get_number(&temp).unwrap();
+						let number = self.get_number(&temp).unwrap();
 						let addr = Addr::new(number.clone(), 0u32.into());
 						addr2temp.insert(addr.clone(), instr.target.clone().into());
 						self.addr_mapper.insert(instr.target.clone(), addr);
@@ -130,9 +146,9 @@ impl<'a> Solver<'a> {
 					}
 				}
 				GEPInstr(instr) => {
+					let offset = self.get_val_number(&instr.offset).unwrap();
 					let base =
 						self.addr_mapper.get(&instr.addr.unwrap_temp().unwrap()).unwrap();
-					let offset = self.func_data.get_val_number(&instr.offset).unwrap();
 					let addr = Addr::new(base.base.clone(), &base.offset + offset);
 					addr2temp.insert(addr.clone(), instr.target.clone().into());
 					self.addr_mapper.insert(instr.target.clone(), addr);
@@ -171,21 +187,27 @@ impl<'a> Solver<'a> {
 							self.insert_def(addr, block.id);
 						}
 					}
+
 					CallInstr(instr) => {
-						for (var_type, param) in instr.params.iter() {
-							if var_type.is_ptr() {
+						for (index, (var_type, param)) in instr.params.iter().enumerate() {
+							if var_type.is_ptr()
+								&& self
+									.metadata
+									.get_var_data(&(instr.func.name.clone(), index))
+									.to_store
+							{
 								let addr = self.get_val_addr(param);
-								let addrs = info.solve_conflict(&addr);
-								self.insert_def(addr, block.id);
-								for addr in addrs {
+								for addr in info.remove(&addr.base) {
 									self.insert_def(addr, block.id);
 								}
 							}
 						}
-						for base in self.global_base.clone() {
+						let func_data = self.metadata.get_func_data(&instr.func.name);
+						for global_var in func_data.usage_info.may_stores.iter() {
+							let base = str2num(global_var);
 							let addrs = info.remove(&base);
 							for addr in addrs {
-								self.insert_def(addr, block.id);
+								self.addr_info.entry(addr).or_default().insert_def(block.id);
 							}
 						}
 					}
@@ -276,13 +298,20 @@ impl<'a> Solver<'a> {
 						vec![ori_instr]
 					}
 					CallInstr(instr) => {
-						for (var_type, param) in instr.params.iter() {
-							if var_type.is_ptr() {
+						for (index, (var_type, param)) in instr.params.iter().enumerate() {
+							if var_type.is_ptr()
+								&& self
+									.metadata
+									.get_var_data(&(instr.func.name.clone(), index))
+									.to_store
+							{
 								let addr = self.get_val_addr(param);
 								array_state.remove_base(&addr.base);
 							}
 						}
-						for base in self.global_base.clone() {
+						let func_data = self.metadata.get_func_data(&instr.func.name);
+						for global_var in func_data.usage_info.may_stores.iter() {
+							let base = str2num(global_var);
 							array_state.remove_base(&base);
 							phi_info.remove(&base);
 						}
@@ -377,24 +406,37 @@ impl<'a> Solver<'a> {
 
 	// part6: solve store instruction
 	pub fn calc_use_state(&mut self, func: &LlvmFunc) {
+		// eprintln!("{}++++++++++++++++++++", func.name);
 		let mut changed;
 		for block in func.cfg.blocks.iter() {
 			self.use_states.insert(block.borrow().id, UseStateItem::default());
 		}
+		let (_, loop_info) = func.cfg.loop_analysis();
 		loop {
 			changed = false;
 			for block in func.cfg.blocks.iter() {
 				let block = block.borrow();
+				// eprintln!("{}", block.id);
+				let range = loop_info.get(&block.id).unwrap().borrow().loop_range;
 				let mut loads = HashSet::new();
-				let mut stores = HashSet::new();
+				let mut stores = HashMap::new();
 				let mut iter = block.succ.iter();
 				if let Some(v) = iter.next() {
 					let state = &self.use_states.get(&v.borrow().id).unwrap().state_in;
 					loads.clone_from(&state.loads);
 					stores.clone_from(&state.stores);
+					// eprintln!("out stores {}", stores.len());
 					for v in iter {
 						let state = &self.use_states.get(&v.borrow().id).unwrap().state_in;
-						stores.retain(|addr| state.stores.contains(addr));
+						// eprintln!("{} 有 {}", v.borrow().id, state.stores.len());
+						stores.retain(|addr, range| {
+							if let Some(v_range) = state.stores.get(addr) {
+								range.extend(v_range);
+								true
+							} else {
+								false
+							}
+						});
 						loads.extend(state.loads.iter().cloned());
 					}
 				} else if func.name != "main" {
@@ -405,7 +447,6 @@ impl<'a> Solver<'a> {
 						.cloned()
 						.collect();
 				}
-				stores.retain(|addr| !loads.contains(addr));
 				let state_out = UseState {
 					loads: loads.clone(),
 					stores: stores.clone(),
@@ -415,33 +456,47 @@ impl<'a> Solver<'a> {
 						LoadInstr(instr) => {
 							if !instr.addr.unwrap_temp().unwrap().is_global {
 								let addr = self.get_val_addr(&instr.addr);
-								stores.retain(|v| v.base != addr.base);
+								stores.retain(|v, _| v.base != addr.base);
 								loads.insert(addr);
 							}
 						}
 						StoreInstr(instr) => {
 							let addr = self.get_val_addr(&instr.addr);
-							if !stores.contains(&addr)
+							if stores.get(&addr).map_or(true, |v| !range.contains(v))
 								&& loads.iter().any(|v| addr.base == v.base)
 							{
-								loads.remove(&addr);
-								stores.insert(addr);
+								if let Some(v) = stores.get_mut(&addr) {
+									v.shirink(&range);
+								} else {
+									stores.insert(addr, range);
+								}
 							}
 						}
 						CallInstr(instr) => {
-							for (var_type, param) in instr.params.iter() {
+							for (index, (var_type, param)) in instr.params.iter().enumerate()
+							{
 								if var_type.is_ptr() {
 									let addr = self.get_val_addr(param);
-									let addrs = self.base_addrs.get(&addr.base).unwrap().clone();
-									loads.extend(addrs);
+									if var_type.is_ptr() {
+										let var_data = self
+											.metadata
+											.get_var_data(&(instr.func.name.clone(), index));
+										if var_data.to_load {
+											let addrs =
+												self.base_addrs.get(&addr.base).unwrap().clone();
+											loads.extend(addrs);
+										}
+									}
 								}
 							}
-							for base in self.global_base.clone() {
+							let func_data = self.metadata.get_func_data(&instr.func.name);
+							for global_var in func_data.usage_info.may_loads.iter() {
+								let base = str2num(global_var);
+								stores.retain(|v, _| v.base != base);
 								let addrs =
 									self.base_addrs.get(&base).cloned().unwrap_or_default();
 								loads.extend(addrs);
 							}
-							stores.retain(|addr| !loads.contains(addr));
 						}
 						_ => {}
 					}
@@ -463,44 +518,66 @@ impl<'a> Solver<'a> {
 	}
 	pub fn solve_store_instr(&mut self, func: &LlvmFunc) {
 		self.calc_use_state(func);
+		let (_, loop_info) = func.cfg.loop_analysis();
+		// eprintln!("{}:===============", func.name);
 		for block in func.cfg.blocks.iter() {
 			let block = &mut block.borrow_mut();
+			let range = loop_info.get(&block.id).unwrap().borrow().loop_range;
+			// eprintln!("{}:", block.id);
+			// let state = &self.use_states.get(&block.id).unwrap().state_in;
+			// eprintln!("in loads: {}", state.loads.len());
+			// eprintln!("in stores: {}", state.stores.len());
 			let mut state = self.use_states.remove(&block.id).unwrap().state_out;
 			// TODO： 考虑跨越基本块的 store 冗余。
 			state.stores.clear();
 			block.instrs.reverse();
+			// eprintln!("out loads: {}", state.loads.len());
+			// eprintln!("out stores: {}", state.stores.len());
 			block.instrs.retain(|instr| match instr.get_variant() {
 				LoadInstr(instr) => {
 					if !instr.addr.unwrap_temp().unwrap().is_global {
 						let addr = self.get_val_addr(&instr.addr);
-						state.stores.retain(|v| v.base != addr.base);
+						state.stores.retain(|v, _| v.base != addr.base);
 						state.loads.insert(addr);
 					}
 					true
 				}
 				StoreInstr(instr) => {
 					let addr = self.get_val_addr(&instr.addr);
-					!state.stores.contains(&addr)
-						&& state.loads.iter().any(|v| addr.base == v.base)
+					// eprintln!("啊？？？");
+					state.stores.get(&addr).map_or(true, |v| {
+						// eprintln!("{:?} {:?}", v, range);
+						!range.contains(v)
+					}) && state.loads.iter().any(|v| addr.base == v.base)
 						&& {
-							state.loads.remove(&addr);
-							state.stores.insert(addr);
+							if let Some(v) = state.stores.get_mut(&addr) {
+								v.shirink(&range);
+							} else {
+								state.stores.insert(addr, range);
+							}
 							true
 						}
 				}
 				CallInstr(instr) => {
-					for (var_type, param) in instr.params.iter() {
+					for (index, (var_type, param)) in instr.params.iter().enumerate() {
 						if var_type.is_ptr() {
 							let addr = self.get_val_addr(param);
-							let addrs = self.base_addrs.get(&addr.base).unwrap().clone();
-							state.loads.extend(addrs);
+							let var_data =
+								self.metadata.get_var_data(&(instr.func.name.clone(), index));
+							if var_data.to_load {
+								let addrs = self.base_addrs.get(&addr.base).unwrap().clone();
+								state.loads.extend(addrs);
+							}
 						}
 					}
-					for base in self.global_base.clone() {
+
+					let func_data = self.metadata.get_func_data(&instr.func.name);
+					for global_var in func_data.usage_info.may_loads.iter() {
+						let base = str2num(global_var);
+						state.stores.retain(|v, _| v.base != base);
 						let addrs = self.base_addrs.get(&base).cloned().unwrap_or_default();
 						state.loads.extend(addrs);
 					}
-					state.stores.retain(|addr| !state.loads.contains(addr));
 					true
 				}
 				_ => true,
@@ -554,14 +631,22 @@ impl<'a> Solver<'a> {
 				true
 			}
 			CallInstr(instr) => {
-				for (var_type, param) in instr.params.iter() {
+				for (index, (var_type, param)) in instr.params.iter().enumerate() {
 					if var_type.is_ptr() {
 						let addr = self.get_val_addr(param);
-						store_base.insert(addr.base);
+						let var_data =
+							self.metadata.get_var_data(&(instr.func.name.clone(), index));
+						if var_data.to_store {
+							store_base.insert(addr.base);
+						}
 					}
 				}
-				for base in self.global_base.clone() {
-					store_base.insert(base);
+				let func_data = self.metadata.get_func_data(&instr.func.name);
+				for global_var in func_data.usage_info.may_stores.iter() {
+					let base = str2num(global_var);
+					if self.global_base.contains(&base) {
+						store_base.insert(base);
+					}
 				}
 				true
 			}
@@ -592,10 +677,10 @@ impl RrvmOptimizer for Mem2Reg {
 	) -> Result<bool> {
 		fn solve(
 			func: &LlvmFunc,
-			func_data: &mut FuncData,
 			mgr: &mut LlvmTempManager,
+			metadata: &mut MetaData,
 		) -> bool {
-			let mut solver = Solver::new(func, func_data, mgr);
+			let mut solver = Solver::new(func, mgr, metadata);
 			solver.calc_addr(func.cfg.get_entry(), HashMap::new());
 			if solver.addrs.is_empty() || solver.addrs.len() > MEM_TO_REG_LIMIT {
 				return false;
@@ -610,11 +695,7 @@ impl RrvmOptimizer for Mem2Reg {
 		}
 
 		Ok(program.funcs.iter().fold(false, |last, func| {
-			solve(
-				func,
-				metadata.get_func_data(&func.name),
-				&mut program.temp_mgr,
-			) || last
+			solve(func, &mut program.temp_mgr, metadata) || last
 		}))
 	}
 }
