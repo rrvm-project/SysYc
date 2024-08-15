@@ -406,7 +406,6 @@ impl<'a> Solver<'a> {
 
 	// part6: solve store instruction
 	pub fn calc_use_state(&mut self, func: &LlvmFunc) {
-		// eprintln!("{}++++++++++++++++++++", func.name);
 		let mut changed;
 		for block in func.cfg.blocks.iter() {
 			self.use_states.insert(block.borrow().id, UseStateItem::default());
@@ -416,7 +415,6 @@ impl<'a> Solver<'a> {
 			changed = false;
 			for block in func.cfg.blocks.iter() {
 				let block = block.borrow();
-				// eprintln!("{}", block.id);
 				let range = loop_info.get(&block.id).unwrap().borrow().loop_range;
 				let mut loads = HashSet::new();
 				let mut stores = HashMap::new();
@@ -425,10 +423,8 @@ impl<'a> Solver<'a> {
 					let state = &self.use_states.get(&v.borrow().id).unwrap().state_in;
 					loads.clone_from(&state.loads);
 					stores.clone_from(&state.stores);
-					// eprintln!("out stores {}", stores.len());
 					for v in iter {
 						let state = &self.use_states.get(&v.borrow().id).unwrap().state_in;
-						// eprintln!("{} 有 {}", v.borrow().id, state.stores.len());
 						stores.retain(|addr, range| {
 							if let Some(v_range) = state.stores.get(addr) {
 								range.extend(v_range);
@@ -519,20 +515,12 @@ impl<'a> Solver<'a> {
 	pub fn solve_store_instr(&mut self, func: &LlvmFunc) {
 		self.calc_use_state(func);
 		let (_, loop_info) = func.cfg.loop_analysis();
-		// eprintln!("{}:===============", func.name);
 		for block in func.cfg.blocks.iter() {
 			let block = &mut block.borrow_mut();
 			let range = loop_info.get(&block.id).unwrap().borrow().loop_range;
-			// eprintln!("{}:", block.id);
-			// let state = &self.use_states.get(&block.id).unwrap().state_in;
-			// eprintln!("in loads: {}", state.loads.len());
-			// eprintln!("in stores: {}", state.stores.len());
 			let mut state = self.use_states.remove(&block.id).unwrap().state_out;
-			// TODO： 考虑跨越基本块的 store 冗余。
 			state.stores.clear();
 			block.instrs.reverse();
-			// eprintln!("out loads: {}", state.loads.len());
-			// eprintln!("out stores: {}", state.stores.len());
 			block.instrs.retain(|instr| match instr.get_variant() {
 				LoadInstr(instr) => {
 					if !instr.addr.unwrap_temp().unwrap().is_global {
@@ -544,11 +532,8 @@ impl<'a> Solver<'a> {
 				}
 				StoreInstr(instr) => {
 					let addr = self.get_val_addr(&instr.addr);
-					// eprintln!("啊？？？");
-					state.stores.get(&addr).map_or(true, |v| {
-						// eprintln!("{:?} {:?}", v, range);
-						!range.contains(v)
-					}) && state.loads.iter().any(|v| addr.base == v.base)
+					state.stores.get(&addr).map_or(true, |v| !range.contains(v))
+						&& state.loads.iter().any(|v| addr.base == v.base)
 						&& {
 							if let Some(v) = state.stores.get_mut(&addr) {
 								v.shirink(&range);

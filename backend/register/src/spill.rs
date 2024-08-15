@@ -25,7 +25,6 @@ pub fn spill(
 				for temp in instr.get_read() {
 					if nodes.contains(&temp) {
 						if let Some(ConstInfo { value, to_float }) = constants.get(&temp) {
-							// eprintln!("鬼子进村！");
 							let mut new_temp = load_imm(*value, &mut new_instrs, mgr);
 							if *to_float {
 								let float_temp = mgr.new_temp(VarType::Float);
