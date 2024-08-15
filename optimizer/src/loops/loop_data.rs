@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use llvm::LlvmTemp;
 use rrvm::{program::LlvmFunc, rrvm_loop::LoopPtr, LlvmNode};
 
-use super::{loopinfo::LoopInfo, temp_graph::TempGraph};
+use super::{indvar::IndVar, loopinfo::LoopInfo, temp_graph::TempGraph};
 pub struct LoopData {
 	// 从自己指向自己的 use
 	pub temp_graph: TempGraph, //重跑
@@ -16,6 +16,9 @@ pub struct LoopData {
 	// loop id to loopinfo
 	// 仅能确定循环次数的 loop 才有 LoopInfo
 	pub loop_infos: HashMap<u32, LoopInfo>, // 维护开始和结束
+	// Temp to IndVar
+	// Temp 仅能相对于它的定义所在的 Loop 来说是 IndVar
+	pub indvars: HashMap<LlvmTemp, IndVar>,
 }
 
 impl LoopData {
@@ -29,6 +32,7 @@ impl LoopData {
 			def_map,
 			root_loop,
 			loop_infos: HashMap::new(),
+			indvars: HashMap::new(),
 		}
 	}
 

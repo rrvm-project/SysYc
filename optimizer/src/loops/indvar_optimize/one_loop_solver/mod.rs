@@ -33,7 +33,7 @@ pub struct OneLoopSolver<'a> {
 	// 对于一个 scc, 只记录 header
 	useful_variants: HashSet<LlvmTemp>,
 	// 不记录 0 阶归纳变量
-	indvars: HashMap<LlvmTemp, IndVar>,
+	pub indvars: HashMap<LlvmTemp, IndVar>,
 	new_invariant_instr: HashMap<LlvmTemp, LlvmInstr>,
 	// 此过程是否做出了优化
 	pub flag: bool,

@@ -6,6 +6,7 @@ use super::OneLoopSolver;
 
 impl<'a> OneLoopSolver<'a> {
 	// 如果不能确定循环总次数，则返回 None
+	// 如果不是单一出口，则返回 None
 	pub fn get_loop_info(&mut self) -> Option<LoopInfo> {
 		let header = self.cur_loop.borrow().header.clone();
 		let preheader = self.preheader.clone();
