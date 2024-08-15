@@ -66,6 +66,7 @@ impl<'a> IndvarOptimize<'a> {
 		}
 		solver.classify_variant();
 		solver.get_loop_info();
+		solver.loopdata.indvars.extend(solver.indvars);
 		solver.flag
 	}
 }
