@@ -6,11 +6,7 @@ use std::{
 };
 
 use instruction::riscv::{
-<<<<<<< HEAD
 	reg::RiscvReg::{Fa0, A0, SP},
-=======
-	reg::RiscvReg::{A0, SP},
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 	riscvinstr::RiscvInstrTrait,
 	value::RiscvTemp,
 	RiscvInstr,
@@ -51,20 +47,14 @@ pub struct InstrDag {
 	pub branch: Option<Box<dyn RiscvInstrTrait>>,
 	pub call_writes: Vec<Option<RiscvTemp>>,
 	pub call_reads: Vec<Vec<RiscvTemp>>,
-<<<<<<< HEAD
 	pub li_ret: Option<Box<dyn RiscvInstrTrait>>,
-=======
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 }
 fn preprocess_call(
 	node: &RiscvNode,
 	call_related: &mut Vec<Vec<Box<dyn RiscvInstrTrait>>>, // 换成一个 hashmap 用建完图之后的 node id 来索引
 	call_write: &mut Vec<Option<RiscvTemp>>,
 	call_reads: &mut Vec<Vec<RiscvTemp>>,
-<<<<<<< HEAD
 	li_ret: &mut Option<Box<dyn RiscvInstrTrait>>,
-=======
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 ) -> Vec<Box<dyn RiscvInstrTrait>> {
 	let mut instrs = Vec::new();
 	let mut save_instr = false;
@@ -87,13 +77,10 @@ fn preprocess_call(
 					my_call_related.push(i.clone());
 					push_this = true;
 					continue;
-<<<<<<< HEAD
 				} else if let RiscvTemp::PhysReg(Fa0) = i.get_riscv_read()[0] {
 					my_call_related.push(i.clone());
 					push_this = true;
 					continue;
-=======
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 				} else {
 					call_write.push(None);
 				}
@@ -144,7 +131,6 @@ fn preprocess_call(
 		}
 		call_reads.push(riscv_reads.iter().cloned().collect());
 	}
-<<<<<<< HEAD
 	// 判断最后一条
 	if !instrs.is_empty() {
 		let last_instr = instrs.pop().unwrap();
@@ -155,6 +141,7 @@ fn preprocess_call(
 				|| if let RiscvTemp::VirtReg(t) = &last_instr.get_riscv_write()[0] {
 					if let Some(pre) = t.pre_color {
 						(pre == A0) || (pre == Fa0)
+
 					} else {
 						false
 					}
@@ -166,8 +153,6 @@ fn preprocess_call(
 			instrs.push(last_instr);
 		}
 	}
-=======
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 	instrs
 }
 pub fn postprocess_call(
@@ -175,10 +160,7 @@ pub fn postprocess_call(
 	call_related: &mut HashMap<usize, Vec<Box<dyn RiscvInstrTrait>>>,
 	branch_related: Option<Box<dyn RiscvInstrTrait>>,
 	call_idxs: &mut Vec<usize>,
-<<<<<<< HEAD
 	li_ret: Option<Box<dyn RiscvInstrTrait>>,
-=======
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 ) -> Vec<Box<dyn RiscvInstrTrait>> {
 	let mut my_instrs = Vec::new();
 	for i in instrs {
@@ -190,12 +172,9 @@ pub fn postprocess_call(
 			my_instrs.push(i);
 		}
 	}
-<<<<<<< HEAD
 	if let Some(instr) = li_ret {
 		my_instrs.push(instr);
 	}
-=======
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 	if let Some(instr) = branch_related {
 		my_instrs.push(instr);
 	}
@@ -225,10 +204,7 @@ impl InstrDag {
 			&mut call_related,
 			&mut call_write,
 			&mut call_reads,
-<<<<<<< HEAD
 			&mut li_ret,
-=======
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 		);
 		let ret_call_writes = call_write.clone();
 		let ret_call_reads = call_reads.clone();
@@ -250,8 +226,6 @@ impl InstrDag {
 		}
 		for (idx, instr) in processed_instrs.iter().rev().enumerate() {
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
-<<<<<<< HEAD
-=======
 			if idx == 0
 				&& instr.get_riscv_write().len() == 1
 				&& (instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
@@ -267,7 +241,6 @@ impl InstrDag {
 				li_ret = Some(node.clone());
 			}
 
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 			let mut instr_node_succ = Vec::new();
 			let instructions_write = instr.get_riscv_write().clone();
 			if !instr.is_call() {
@@ -338,33 +311,22 @@ impl InstrDag {
 				});
 				last_loads.clear();
 				last_call = Some(node.clone());
-<<<<<<< HEAD
-=======
 				if let Some(ret_node) = li_ret.clone() {
 					instr_node_succ.push(ret_node.clone());
 					ret_node.borrow_mut().pred.push(node.clone());
 				}
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 				for i in call_instrs.iter() {
 					instr_node_succ.push(i.clone());
 					i.borrow_mut().pred.push(node.clone());
 				}
 				call_instrs.push(node.clone());
-<<<<<<< HEAD
 			} else if instr.is_load() {
-=======
-			} else if instr.is_load().unwrap_or(false) {
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 				if let Some(last_call) = last_call.clone() {
 					instr_node_succ.push(last_call.clone());
 					last_call.borrow_mut().pred.push(node.clone());
 				}
 				last_loads.push(node.clone());
-<<<<<<< HEAD
 			} else if instr.is_store() {
-=======
-			} else if instr.is_store().unwrap_or(false) {
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 				instr_node_succ.extend(last_loads.iter().cloned());
 				last_loads.iter().for_each(|x| {
 					x.borrow_mut().pred.push(node.clone());
@@ -401,10 +363,7 @@ impl InstrDag {
 			branch: last_branch,
 			call_reads: ret_call_reads,
 			call_writes: ret_call_writes,
-<<<<<<< HEAD
 			li_ret,
-=======
->>>>>>> 15ca5b3 (refa: refactor instruction scheduling)
 		})
 	}
 	pub fn assign_nodes(&mut self) {
