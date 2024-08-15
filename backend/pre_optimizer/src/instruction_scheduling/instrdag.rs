@@ -141,7 +141,10 @@ fn preprocess_call(
 				|| if let RiscvTemp::VirtReg(t) = &last_instr.get_riscv_write()[0] {
 					if let Some(pre) = t.pre_color {
 						(pre == A0) || (pre == Fa0)
+<<<<<<< HEAD
 
+=======
+>>>>>>> d5782f4 (fix: bug fix on float return vals)
 					} else {
 						false
 					}
