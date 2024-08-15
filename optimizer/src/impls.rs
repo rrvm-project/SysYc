@@ -41,7 +41,7 @@ impl Optimizer1 {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
-			// flag |= InlineFunction::new().apply(program, &mut metadata)?;
+			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;

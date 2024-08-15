@@ -2,7 +2,10 @@ use llvm::*;
 use rand::rngs::StdRng;
 use std::collections::HashMap;
 
-use crate::number::{str2num, Number};
+use crate::{
+	metadata::MetaData,
+	number::{str2num, Number},
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HashItem {
@@ -34,6 +37,7 @@ pub struct NodeInfo {
 	pub num_mapper: HashMap<LlvmTemp, Number>,
 	var_mapper: HashMap<Number, Value>,
 	exp_mapper: HashMap<(HashItem, Number, Number), Number>,
+	func_mapper: HashMap<(String, Vec<Number>), Number>,
 }
 
 impl NodeInfo {
@@ -84,6 +88,18 @@ impl NodeInfo {
 	pub fn map_value(&self, value: &Value) -> Value {
 		self.num2value(&self.get_number(value), value.get_type()).unwrap()
 	}
+	pub fn map_func(
+		&mut self,
+		name: String,
+		params: Vec<Number>,
+		rng: &mut StdRng,
+	) -> Number {
+		self
+			.func_mapper
+			.entry((name, params))
+			.or_insert_with(|| Number::new(rng))
+			.clone()
+	}
 }
 
 fn calc<T>(x: &Number, y: &Number, calculator: T) -> Number
@@ -105,6 +121,7 @@ pub fn work(
 	info: &mut NodeInfo,
 	rng: &mut StdRng,
 	flag: &mut bool,
+	metadata: &mut MetaData,
 ) -> Option<LlvmInstr> {
 	use LlvmInstrVariant::*;
 	let mut mapper = HashMap::new();
@@ -227,11 +244,19 @@ pub fn work(
 			(info.num2value(&number, instr.var_type), number)
 		}
 		AllocInstr(_) => (None, Number::new(rng)),
-		CallInstr(insrt) => {
-			for (_, param) in insrt.params.iter() {
-				insert(param, &info.get_number(param));
+		CallInstr(instr) => {
+			let mut params = Vec::new();
+			for (_, param) in instr.params.iter() {
+				let number = info.get_number(param);
+				insert(param, &number);
+				params.push(number);
 			}
-			(None, Number::new(rng))
+			if metadata.is_pure(&instr.func.name) {
+				let number = info.map_func(instr.func.name.clone(), params, rng);
+				(info.num2value(&number, instr.var_type), number)
+			} else {
+				(None, Number::new(rng))
+			}
 		}
 		StoreInstr(instr) => {
 			insert(&instr.value, &info.get_number(&instr.value));

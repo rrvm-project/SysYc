@@ -32,6 +32,18 @@ impl RrvmOptimizer for GlobalAnalysis {
 			.global_vars
 			.retain(|v| metadata.var_data.contains_key(&(v.ident.clone(), 0)));
 
+		metadata.func_data.values_mut().for_each(|v| {
+			v.pure =
+				v.usage_info.may_loads.is_empty() && v.usage_info.may_stores.is_empty()
+		});
+		for ((name, _), info) in metadata.var_data.iter() {
+			if info.to_load || info.to_store {
+				if let Some(func_data) = metadata.func_data.get_mut(name) {
+					func_data.pure = false;
+				}
+			}
+		}
+
 		Ok(false)
 	}
 }

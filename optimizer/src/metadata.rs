@@ -29,7 +29,7 @@ impl UsageInfo {
 #[derive(Default)]
 pub struct FuncData {
 	pub num_mapper: HashMap<LlvmTemp, Number>,
-	pub has_side_effect: bool,
+	pub pure: bool,
 	pub usage_info: UsageInfo,
 }
 
@@ -82,6 +82,9 @@ impl MetaData {
 	}
 	pub fn get_func_data(&mut self, func_name: &str) -> &mut FuncData {
 		self.func_data.entry(func_name.to_string()).or_default()
+	}
+	pub fn is_pure(&mut self, func_name: &str) -> bool {
+		self.func_data.get(func_name).map(|data| data.pure).unwrap_or(false)
 	}
 	pub fn get_var_data(&mut self, var_ident: &VarIdent) -> &mut VarData {
 		self.var_data.entry(var_ident.clone()).or_default()

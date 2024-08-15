@@ -1,4 +1,6 @@
-use llvm::{CloneLlvmInstr, PhiInstr};
+use std::collections::HashMap;
+
+use llvm::{CloneLlvmInstr, LlvmTemp, PhiInstr};
 use rand::{rngs::StdRng, SeedableRng};
 use rrvm::{
 	dominator::LlvmDomTree,
@@ -7,11 +9,7 @@ use rrvm::{
 };
 use utils::{Label, Result};
 
-use crate::{
-	metadata::{FuncData, MetaData},
-	number::Number,
-	RrvmOptimizer,
-};
+use crate::{metadata::MetaData, number::Number, RrvmOptimizer};
 
 use super::{
 	utils::{work, NodeInfo},
@@ -22,11 +20,12 @@ struct Solver<'a> {
 	dom_tree: LlvmDomTree,
 	rng: StdRng,
 	stack: Vec<NodeInfo>,
-	func_data: &'a mut FuncData,
+	metadata: &'a mut MetaData,
+	num_mapper: HashMap<LlvmTemp, Number>,
 }
 
 impl<'a> Solver<'a> {
-	pub fn new(func: &LlvmFunc, func_data: &'a mut FuncData) -> Self {
+	pub fn new(func: &LlvmFunc, metadata: &'a mut MetaData) -> Self {
 		let mut rng = StdRng::from_entropy();
 		let mut info = NodeInfo::default();
 		for param in func.params.iter() {
@@ -37,9 +36,10 @@ impl<'a> Solver<'a> {
 		let stack = vec![info];
 		Self {
 			dom_tree: LlvmDomTree::new(&func.cfg, false),
+			num_mapper: HashMap::new(),
 			rng,
 			stack,
-			func_data,
+			metadata,
 		}
 	}
 
@@ -51,18 +51,27 @@ impl<'a> Solver<'a> {
 		let mut flag = false;
 		let mut block = node.borrow_mut();
 		block.phi_instrs.iter().for_each(|v| {
-			work(v.clone_box(), &mut info, &mut self.rng, &mut flag);
+			work(
+				v.clone_box(),
+				&mut info,
+				&mut self.rng,
+				&mut flag,
+				self.metadata,
+			);
 		});
 		let instrs = std::mem::take(&mut block.instrs);
 		block.instrs = instrs
 			.into_iter()
-			.filter_map(|v| work(v, &mut info, &mut self.rng, &mut flag))
+			.filter_map(|v| {
+				work(v, &mut info, &mut self.rng, &mut flag, self.metadata)
+			})
 			.collect();
 		let new_jump = work(
 			block.jump_instr.clone().unwrap(),
 			&mut info,
 			&mut self.rng,
 			&mut flag,
+			self.metadata,
 		);
 		block.set_jump(new_jump);
 		let node_label = block.label();
@@ -89,7 +98,7 @@ impl<'a> Solver<'a> {
 		let children = self.dom_tree.get_children(node.borrow().id).clone();
 		let (info, mut flag) =
 			self.get_info(node, self.stack.last().cloned().unwrap());
-		self.func_data.num_mapper.extend(info.num_mapper.clone());
+		self.num_mapper.extend(info.num_mapper.clone());
 		self.stack.push(info);
 		for v in children {
 			flag |= self.dfs(v);
@@ -108,14 +117,18 @@ impl RrvmOptimizer for GlobalValueNumbering {
 		program: &mut LlvmProgram,
 		metadata: &mut MetaData,
 	) -> Result<bool> {
-		fn solve(func: &LlvmFunc, func_data: &mut FuncData) -> bool {
-			func_data.clear_num_mapper();
-			let mut solver = Solver::new(func, func_data);
-			solver.dfs(func.cfg.get_entry().clone())
+		fn solve(func: &LlvmFunc, metadata: &mut MetaData) -> bool {
+			let mut solver = Solver::new(func, metadata);
+			let flag = solver.dfs(func.cfg.get_entry().clone());
+			metadata.get_func_data(&func.name).num_mapper = solver.num_mapper;
+			flag
 		}
 
-		Ok(program.funcs.iter().fold(false, |last, func| {
-			solve(func, metadata.get_func_data(&func.name)) || last
-		}))
+		Ok(
+			program
+				.funcs
+				.iter()
+				.fold(false, |last, func| solve(func, metadata) || last),
+		)
 	}
 }
