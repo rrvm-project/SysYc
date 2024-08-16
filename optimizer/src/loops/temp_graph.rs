@@ -18,7 +18,6 @@ pub struct TempGraph {
 	// pub temp_graph: HashMap<LlvmTemp, HashSet<Value>>,
 }
 
-#[allow(unused)]
 impl TempGraph {
 	pub fn new() -> Self {
 		Self {
@@ -29,26 +28,9 @@ impl TempGraph {
 	pub fn add_temp(&mut self, temp: LlvmTemp, instr: LlvmInstr) {
 		self.temp_to_instr.insert(temp, Node { instr });
 	}
-
-	// load 非全局变量的 load 才是 load
-	pub fn is_load(&self, temp: &LlvmTemp) -> bool {
-		if let Some(node) = self.temp_to_instr.get(temp) {
-			node.instr.is_load()
-		} else {
-			eprintln!("temp: {} not found", temp);
-			false
-		}
-	}
 	pub fn is_phi(&self, temp: &LlvmTemp) -> bool {
 		if let Some(node) = self.temp_to_instr.get(temp) {
 			node.instr.is_phi()
-		} else {
-			false
-		}
-	}
-	pub fn is_call(&self, temp: &LlvmTemp) -> bool {
-		if let Some(node) = self.temp_to_instr.get(temp) {
-			node.instr.is_call()
 		} else {
 			false
 		}

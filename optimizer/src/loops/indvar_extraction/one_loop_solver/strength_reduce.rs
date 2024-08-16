@@ -25,10 +25,12 @@ impl<'a> OneLoopSolver<'a> {
 			.get_loop_latch(&self.loopdata.loop_map)
 			.expect("single latch block not found");
 		if !self.dom_tree.dominates[&def_bb.borrow().id].contains(&latch_bb) {
+			#[cfg(feature = "debug")]
 			eprintln!("SR: not reducing iv: {} because def block does not dominate latch block", iv);
 			return false;
 		}
 		if iv.get_type() == IndVarType::Ordinary {
+			#[cfg(feature = "debug")]
 			eprintln!(
 				"SR: reducing iv: {} {} \nwhich is defined as {}",
 				target, iv, self.loopdata.temp_graph.temp_to_instr[target].instr

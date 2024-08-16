@@ -18,7 +18,6 @@ use crate::{
 	metadata::FuncData,
 };
 
-#[allow(unused)]
 // 认为循环内定义的变量都是循环变量，所有不变量已经被全部提出去了
 pub struct OneLoopSolver<'a> {
 	pub loopdata: &'a mut LoopData,

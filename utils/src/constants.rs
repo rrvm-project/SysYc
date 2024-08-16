@@ -25,3 +25,4 @@ pub static VEC_EXTERN: [&str; 17] = [
 ];
 
 pub static VEC_MACRO: [&str; 2] = ["starttime", "stoptime"];
+pub const MAX_PHI_NUM: usize = 10;

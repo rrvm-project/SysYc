@@ -7,7 +7,7 @@ use super::OneLoopSolver;
 use utils::UseTemp;
 
 impl<'a> OneLoopSolver<'a> {
-	pub fn indvar_extraction(&mut self) {
+	pub fn indvar_extraction(&mut self, phi_num: usize) {
 		if let Some(info) = self.get_loop_info() {
 			let phi_defs: Vec<LlvmTemp> = info
 				.header
@@ -16,7 +16,7 @@ impl<'a> OneLoopSolver<'a> {
 				.iter()
 				.map(|phi| phi.target.clone())
 				.collect();
-			self.classify_usefulness();
+			self.classify_usefulness(phi_num);
 			let loop_cnt = self.compute_loop_cnt(&info);
 			let mut headers_to_remove = HashSet::new();
 			for phi_def in phi_defs.iter() {
@@ -59,6 +59,7 @@ impl<'a> OneLoopSolver<'a> {
 		// TODO: 乘法改成双字乘法
 		// TODO： zfp 归纳变量的初始值可能大于 p,需要展开一次循环
 		if indvar.scale == Value::Int(1) {
+			#[cfg(feature = "debug")]
 			eprintln!(
 				"extracting indvar: {} {} with loop_cnt: {}",
 				header, indvar, loop_cnt
