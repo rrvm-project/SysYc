@@ -82,6 +82,9 @@ impl<'a> Solver<'a> {
 	fn get_addr(&self, temp: &LlvmTemp) -> Addr {
 		self.addr_mapper.get(temp).unwrap().clone()
 	}
+	fn try_get_addr(&self, temp: &LlvmTemp) -> Option<Addr> {
+		self.addr_mapper.get(temp).cloned()
+	}
 	fn set_number(&mut self, temp: LlvmTemp) {
 		self
 			.metadata
@@ -109,8 +112,11 @@ impl<'a> Solver<'a> {
 	) {
 		for instr in node.borrow().phi_instrs.iter() {
 			if instr.var_type.is_ptr() {
+				let src_addr = instr.source.iter().find_map(|(value, _)| {
+					self.try_get_addr(&value.unwrap_temp().unwrap())
+				});
 				let number = self.get_number(&instr.target).unwrap();
-				let addr = Addr::new(number.clone(), 0u32.into());
+				let addr = Addr::new(src_addr.unwrap().base, number);
 				self.addr_mapper.insert(instr.target.clone(), addr);
 			}
 		}

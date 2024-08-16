@@ -48,10 +48,6 @@ impl RrvmOptimizer for GlobalAnalysis {
 		calc_var_data(program, metadata);
 		calc_func_data(program, metadata);
 
-		// program
-		// 	.global_vars
-		// 	.retain(|v| metadata.var_data.contains_key(&(v.ident.clone(), 0)));
-
 		metadata.func_data.values_mut().for_each(|v| {
 			v.pure =
 				v.usage_info.may_loads.is_empty() && v.usage_info.may_stores.is_empty()
