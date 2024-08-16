@@ -26,7 +26,6 @@ impl RrvmOptimizer for FoldConstants {
 			let instrs = std::mem::take(&mut block.instrs);
 			let mut sets: HashMap<LlvmTemp, (Value, i32)> = HashMap::new();
 			for instr in instrs.into_iter() {
-				// if let LlvmInstrVariant::ArithInstr(v) = instr.get_variant() {
 				match instr.get_variant() {
 					LlvmInstrVariant::ArithInstr(v) => match v.op {
 						Add | Sub => match (&v.lhs, &v.rhs) {
@@ -83,7 +82,6 @@ impl RrvmOptimizer for FoldConstants {
 						}
 						_ => block.instrs.push(instr),
 					},
-
 					_ => block.instrs.push(instr),
 				}
 			}

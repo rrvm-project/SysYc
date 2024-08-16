@@ -8,6 +8,22 @@ use super::{
 
 use utils::Result;
 
+pub const BUILTIN_FUNCS: &[&str] = &[
+	"getint",
+	"getch",
+	"getfloat",
+	"getarray",
+	"getfarray",
+	"putint",
+	"putch",
+	"putfloat",
+	"putarray",
+	"putfarray",
+	"putf",
+	"starttime",
+	"stoptime",
+];
+
 impl RrvmOptimizer for GlobalAnalysis {
 	fn new() -> Self {
 		Self {}
@@ -25,28 +41,16 @@ impl RrvmOptimizer for GlobalAnalysis {
 		metadata.get_var_data(&("putfarray".to_owned(), 1)).to_load = true;
 		metadata.get_var_data(&("putf".to_owned(), 0)).to_load = true;
 
-		metadata.get_func_data("getint").set_syscall();
-		metadata.get_func_data("getch").set_syscall();
-		metadata.get_func_data("getfloat").set_syscall();
-		metadata.get_func_data("getarray").set_syscall();
-		metadata.get_func_data("getfarray").set_syscall();
-
-		metadata.get_func_data("putint").set_syscall();
-		metadata.get_func_data("putch").set_syscall();
-		metadata.get_func_data("putfloat").set_syscall();
-		metadata.get_func_data("putarray").set_syscall();
-		metadata.get_func_data("putfarray").set_syscall();
-
-		metadata.get_func_data("putf").set_syscall();
-		metadata.get_func_data("starttime").set_syscall();
-		metadata.get_func_data("stoptime").set_syscall();
+		for func in BUILTIN_FUNCS {
+			metadata.get_func_data(func).set_syscall();
+		}
 
 		calc_var_data(program, metadata);
 		calc_func_data(program, metadata);
 
-		program
-			.global_vars
-			.retain(|v| metadata.var_data.contains_key(&(v.ident.clone(), 0)));
+		// program
+		// 	.global_vars
+		// 	.retain(|v| metadata.var_data.contains_key(&(v.ident.clone(), 0)));
 
 		metadata.func_data.values_mut().for_each(|v| {
 			v.pure =

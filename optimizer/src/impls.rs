@@ -60,13 +60,16 @@ impl Optimizer2 {
 	}
 	pub fn apply(self, program: &mut LlvmProgram) -> Result<()> {
 		let mut metadata = MetaData::new();
+		RemoveUnreachCode::new().apply(program, &mut metadata)?;
 
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
-			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
-			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
 			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
+			// eprintln!("{}================", program);
+			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
+			// eprintln!("{}", program);
+			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
@@ -87,9 +90,9 @@ impl Optimizer2 {
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
+			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
-			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;

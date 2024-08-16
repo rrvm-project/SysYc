@@ -2,9 +2,27 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::RemoveUselessCode;
 use crate::{metadata::MetaData, RrvmOptimizer};
-use llvm::{JumpInstr, LlvmTemp};
-use rrvm::{dominator::*, program::LlvmProgram, LlvmCFG, LlvmNode};
-use utils::{errors::Result, UseTemp};
+use llvm::{LlvmInstr, LlvmInstrVariant::*, LlvmTemp};
+use rrvm::{dominator::*, program::LlvmProgram, LlvmCFG};
+use utils::{errors::Result, Label, UseTemp};
+
+#[derive(Hash, PartialEq, Eq, Clone)]
+enum Node {
+	Instr(LlvmTemp),
+	Block(Label),
+}
+
+impl From<LlvmTemp> for Node {
+	fn from(temp: LlvmTemp) -> Self {
+		Self::Instr(temp)
+	}
+}
+
+impl From<Label> for Node {
+	fn from(label: Label) -> Self {
+		Self::Block(label)
+	}
+}
 
 impl RrvmOptimizer for RemoveUselessCode {
 	fn new() -> Self {
@@ -13,187 +31,144 @@ impl RrvmOptimizer for RemoveUselessCode {
 	fn apply(
 		self,
 		program: &mut LlvmProgram,
-		_metadata: &mut MetaData,
+		metadata: &mut MetaData,
 	) -> Result<bool> {
-		fn solve(cfg: &mut LlvmCFG) -> bool {
-			let mut flag: bool = false;
+		fn solve(cfg: &mut LlvmCFG, metadata: &mut MetaData) -> bool {
+			let mut dom_tree = LlvmDomTree::new(cfg, true);
 
-			let mut dominates: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-			let mut dominates_directly: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-			let mut dominator: HashMap<i32, LlvmNode> = HashMap::new();
-			compute_dominator(
-				cfg,
-				true,
-				&mut dominates,
-				&mut dominates_directly,
-				&mut dominator,
-			);
+			let mut graph = HashMap::new();
+			let mut visited = HashSet::new();
+			let mut queue = VecDeque::new();
 
-			let mut dominator_frontier: HashMap<i32, Vec<LlvmNode>> = HashMap::new();
-			compute_dominator_frontier(
-				cfg,
-				true,
-				&dominates_directly,
-				&dominator,
-				&mut dominator_frontier,
-			);
+			let mut add_edge = |u: Node, v: Node| {
+				graph.entry(u).or_insert_with(HashSet::new).insert(v);
+			};
 
-			// LlvmTemp -> Instruction, id of the Basicblock which contains the instruction
-			// instruction here is represented by its index in the basicblock
-			let mut temp_graph: HashMap<LlvmTemp, HashSet<(LlvmTemp, i32)>> =
-				HashMap::new();
-			let mut worklist: VecDeque<LlvmTemp> = VecDeque::new();
-			let mut visited: HashSet<LlvmTemp> = HashSet::new();
-			let mut visited_block: HashSet<i32> = HashSet::new();
-			let mut id_to_virtual_temp: HashMap<i32, LlvmTemp> = HashMap::new();
+			let mut insert_worklist = |node: Node| {
+				if !visited.contains(&node) {
+					visited.insert(node.clone());
+					queue.push_back(node);
+				}
+			};
+
+			let mut has_sideeffect = |instr: &LlvmInstr| match instr.get_variant() {
+				CallInstr(instr) => !metadata.get_func_data(&instr.func.name).pure,
+				_ => instr.has_sideeffect(),
+			};
 
 			for block in cfg.blocks.iter() {
 				let block = block.borrow();
-				let id = block.id;
-				let virtual_temp = LlvmTemp {
-					name: format!("virtual_temp_{}", id),
-					is_global: false,
-					var_type: llvm::VarType::Void,
-				};
-				id_to_virtual_temp.insert(id, virtual_temp.clone());
-			}
-
-			let mut insert_worklist = |t: &LlvmTemp, id: i32| {
-				if !visited.contains(t) {
-					visited.insert(t.clone());
-					worklist.push_back(t.clone());
-				}
-
-				// virtual_temp 用来表示一个基本块是否有用，它将与这个基本块内所有定义的TEMP连边，但是基本块内可能没有定义temp,
-				// 所以这里在发现这个块有用时，直接将 virtual temp 插入
-				if !visited_block.contains(&id) {
-					visited_block.insert(id);
-					let v_temp = id_to_virtual_temp[&id].clone();
-					if !visited.contains(&v_temp) {
-						visited.insert(id_to_virtual_temp[&id].clone());
-						worklist.push_back(id_to_virtual_temp[&id].clone())
-					}
-				}
-			};
-			let mut add_edge = |u: &LlvmTemp, v: &LlvmTemp, id: i32| {
-				temp_graph.entry(u.clone()).or_default().insert((v.clone(), id));
-			};
-			for block in cfg.blocks.iter() {
-				let block = block.borrow();
-				let id = block.id;
 				for instr in block.instrs.iter() {
-					if instr.has_sideeffect() {
-						instr.get_write().iter().for_each(|v| insert_worklist(v, id));
-						instr.get_read().iter().for_each(|v| insert_worklist(v, id));
-					}
-				}
-				let virtual_temp = id_to_virtual_temp[&id].clone();
-				if let Some(jump) = block.jump_instr.as_ref() {
-					jump.get_read().iter().for_each(|v| insert_worklist(v, id));
-					if jump.is_ret() {
-						insert_worklist(&virtual_temp, id);
-					}
-				}
-				for instr in block.instrs.iter() {
-					if let Some(u) = instr.get_write() {
+					if has_sideeffect(instr) {
 						for v in instr.get_read() {
-							add_edge(&u, &v, id);
+							insert_worklist(v.into());
 						}
-						add_edge(&u, &virtual_temp, id);
+						insert_worklist(block.label().into());
+					} else {
+						let u = instr.get_write().unwrap();
+						for v in instr.get_read() {
+							add_edge(u.clone().into(), v.into());
+						}
+						add_edge(u.clone().into(), block.label().into());
 					}
 				}
 				for instr in block.phi_instrs.iter() {
-					if let Some(u) = instr.get_write() {
+					let u = instr.get_write().unwrap();
+					for v in instr.get_read() {
+						add_edge(u.clone().into(), v.into());
+					}
+					for (_, label) in instr.source.iter() {
+						add_edge(u.clone().into(), label.clone().into());
+					}
+				}
+				if let Some(instr) = block.jump_instr.as_ref() {
+					if instr.is_ret() {
+						insert_worklist(block.label().into());
 						for v in instr.get_read() {
-							add_edge(&u, &v, id);
+							insert_worklist(v.into());
 						}
-						for prev in block.prev.iter() {
-							let prev_id = prev.borrow().id;
-							add_edge(&u, &id_to_virtual_temp[&prev_id], prev_id);
+					} else {
+						for v in instr.get_read() {
+							add_edge(block.label().into(), v.into());
 						}
-						add_edge(&u, &virtual_temp, id);
 					}
 				}
-				for bb in dominator_frontier.get(&id).iter().flat_map(|v| v.iter()) {
-					let bb_id = bb.borrow().id;
-					if let Some(jump) = bb.borrow().jump_instr.as_ref() {
-						jump
-							.get_read()
-							.iter()
-							.for_each(|v| add_edge(&virtual_temp, v, bb_id));
-					}
+				for v in dom_tree.get_df(block.id) {
+					add_edge(block.label().into(), v.borrow().label().into());
 				}
-			}
-
-			while let Some(u) = worklist.pop_front() {
-				if let Some(edges) = temp_graph.get(&u) {
-					for (v, id) in edges.iter() {
-						if !visited.contains(v) {
-							visited.insert(v.clone());
-							worklist.push_back(v.clone());
-						}
-
-						if !visited_block.contains(id) {
-							visited_block.insert(*id);
-							let v_temp = id_to_virtual_temp[id].clone();
-							if !visited.contains(&v_temp) {
-								visited.insert(id_to_virtual_temp[id].clone());
-								worklist.push_back(id_to_virtual_temp[id].clone())
-							}
-						}
+				if block.prev.len() > 1 {
+					for v in block.prev.iter() {
+						add_edge(block.label().into(), v.borrow().label().into());
 					}
 				}
 			}
 
-			// Sweep. Clear the useless code
+			while let Some(node) = queue.pop_front() {
+				for v in graph.remove(&node).unwrap_or_default() {
+					if !visited.contains(&v) {
+						visited.insert(v.clone());
+						queue.push_back(v);
+					}
+				}
+			}
+
 			for block in cfg.blocks.iter_mut() {
 				let mut block = block.borrow_mut();
 				block.instrs.retain(|instr| {
-					instr.get_write().map_or(true, |v| visited.contains(&v)) || {
-						flag = true;
-						false
-					}
+					has_sideeffect(instr)
+						|| instr.get_write().map_or(true, |v| visited.contains(&v.into()))
 				});
 				block.phi_instrs.retain(|instr| {
-					instr.get_write().map_or(true, |v| visited.contains(&v)) || {
-						flag = true;
-						false
-					}
+					instr.get_write().map_or(true, |v| visited.contains(&v.into()))
 				});
 			}
 
-			for block in cfg.blocks.iter_mut() {
-				let block_id = block.borrow().id;
-				let mut block = block.borrow_mut();
-				let mut new_target = None;
+			let mut mapper = HashMap::new();
 
-				if let Some(jump) = block.jump_instr.as_ref() {
-					if jump.is_jump_cond() && !visited_block.contains(&block_id) {
-						let mut domi = dominator.get(&block_id).unwrap();
-						while domi.borrow().jump_instr.as_ref().unwrap().is_jump_cond()
-							&& !visited_block.contains(&domi.borrow().id)
-						{
-							domi = dominator.get(&domi.borrow().id).unwrap();
+			for block in cfg.blocks.iter_mut() {
+				let block = block.borrow();
+				if !visited.contains(&block.label().into()) {
+					let mut dom = dom_tree.get_dominator(block.id).unwrap();
+					let dom = loop {
+						if visited.contains(&dom.borrow().label().into()) {
+							break dom;
 						}
-						new_target = Some(domi.borrow().label());
-						block.succ.clear();
-						block.succ.push(domi.clone());
-					}
-				}
-				if let Some(t) = new_target {
-					flag = true;
-					block.jump_instr = Some(Box::new(JumpInstr { target: t }));
+						let dom_id = dom.borrow().id;
+						if let Some(new_dom) = dom_tree.get_dominator(dom_id) {
+							dom = new_dom;
+						} else {
+							break dom;
+						}
+					};
+					mapper.insert(block.label(), dom.clone());
 				}
 			}
+
+			let label_mapper =
+				mapper.iter().map(|(k, v)| (k.clone(), v.borrow().label())).collect();
+
+			for block in cfg.blocks.iter() {
+				let mut block = block.borrow_mut();
+				block.jump_instr.as_mut().unwrap().map_label(&label_mapper);
+				let succ = std::mem::take(&mut block.succ);
+				block.succ = succ
+					.into_iter()
+					.map(|v| {
+						let label = v.borrow().label();
+						mapper.get(&label).cloned().unwrap_or(v)
+					})
+					.collect();
+			}
+
 			cfg.resolve_prev();
-			flag
+			false
 		}
 
 		Ok(
 			program
 				.funcs
 				.iter_mut()
-				.fold(false, |last, func| solve(&mut func.cfg) || last),
+				.fold(false, |last, func| solve(&mut func.cfg, metadata) || last),
 		)
 	}
 }

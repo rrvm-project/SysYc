@@ -40,4 +40,7 @@ impl<T: InstrTrait<U>, U: TempTrait> DomTree<T, U> {
 	pub fn get_df(&mut self, id: i32) -> &Vec<Node<T, U>> {
 		self.df.entry(id).or_default()
 	}
+	pub fn get_dominator(&mut self, id: i32) -> Option<Node<T, U>> {
+		self.dominator.get(&id).cloned()
+	}
 }
