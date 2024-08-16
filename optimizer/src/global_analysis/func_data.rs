@@ -13,7 +13,7 @@ use llvm::LlvmInstrVariant::*;
 
 use crate::metadata::{MetaData, UsageInfo, VarIdent};
 
-use super::var_data;
+use super::{impls::BUILTIN_FUNCS, var_data};
 
 #[derive(Default)]
 struct CallGraph {
@@ -21,10 +21,10 @@ struct CallGraph {
 }
 
 impl CallGraph {
-	pub fn add_edge(&mut self, from: String, to: String) {
-		self.edges.entry(from).or_default().insert(to);
+	pub fn add_edge(&mut self, from: &str, to: &str) {
+		self.edges.entry(from.to_owned()).or_default().insert(to.to_owned());
 	}
-	pub fn get_neighbors(&self, func: &String) -> HashSet<String> {
+	pub fn get_neighbors(&self, func: &str) -> HashSet<String> {
 		self.edges.get(func).cloned().unwrap_or_default()
 	}
 }
@@ -86,7 +86,7 @@ impl<'a> Solver<'a> {
 					}
 				}
 				CallInstr(instr) => {
-					self.graph.add_edge(instr.func.name.clone(), self.func_name.clone());
+					self.graph.add_edge(&instr.func.name, &self.func_name);
 					for (index, (var_type, value)) in instr.params.iter().enumerate() {
 						if var_type.is_ptr() {
 							if let Value::Temp(temp) = value {
@@ -124,33 +124,48 @@ pub fn calc_func_data(program: &mut LlvmProgram, metadata: &mut MetaData) {
 		solver.dfs(func.cfg.get_entry());
 		metadata.get_func_data(&func.name).usage_info = solver.usage_info;
 	}
-	for global_var in program.global_vars.iter() {
+
+	let source_names = program
+		.global_vars
+		.iter()
+		.map(|v| v.ident.as_str())
+		.chain(["系统调用"].iter().copied());
+	let func_names = program
+		.funcs
+		.iter()
+		.map(|f| f.name.as_str())
+		.chain(BUILTIN_FUNCS.iter().copied())
+		.map(|f| f.to_owned());
+
+	for ident in source_names {
 		let mut queue = Vec::new();
-		for func in program.funcs.iter() {
-			if metadata.may_load(&func.name, &global_var.ident) {
-				queue.push(func.name.clone());
+		for name in func_names.clone() {
+			if metadata.may_load(&name, ident) {
+				queue.push(name);
 			}
 		}
 		while let Some(u) = queue.pop() {
 			for v in graph.get_neighbors(&u) {
-				if metadata.may_load(&v, &global_var.ident) {
+				if metadata.may_load(&v, ident) {
 					continue;
 				}
-				metadata.get_func_data(&v).set_may_load(&global_var.ident);
+				metadata.get_func_data(&v).set_may_load(ident);
+				queue.push(v);
 			}
 		}
 		let mut queue = Vec::new();
-		for func in program.funcs.iter() {
-			if metadata.may_store(&func.name, &global_var.ident) {
-				queue.push(func.name.clone());
+		for name in func_names.clone() {
+			if metadata.may_store(&name, ident) {
+				queue.push(name);
 			}
 		}
 		while let Some(u) = queue.pop() {
 			for v in graph.get_neighbors(&u) {
-				if metadata.may_store(&v, &global_var.ident) {
+				if metadata.may_store(&v, ident) {
 					continue;
 				}
-				metadata.get_func_data(&v).set_may_store(&global_var.ident);
+				metadata.get_func_data(&v).set_may_store(ident);
+				queue.push(v);
 			}
 		}
 	}
