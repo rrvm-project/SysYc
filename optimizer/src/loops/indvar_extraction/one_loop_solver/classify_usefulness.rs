@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use llvm::{LlvmInstrVariant, LlvmTemp};
-use utils::UseTemp;
+use utils::{UseTemp, MAX_PHI_NUM};
 
 use super::OneLoopSolver;
 
@@ -10,7 +10,7 @@ impl<'a> OneLoopSolver<'a> {
 	// 本身就有用的语句：store, call, 非 indvar header 的 phi, jumpcond 的 use
 	// 以及被子循环 use 的变量
 	// 如何找被子循环 use 的变量？ 让子循环层层上报自己用了哪些循环外的变量
-	pub fn classify_usefulness(&mut self) {
+	pub fn classify_usefulness(&mut self, phi_num: usize) {
 		let mut work = VecDeque::new();
 		let blocks = self
 			.cur_loop
@@ -41,8 +41,11 @@ impl<'a> OneLoopSolver<'a> {
 			for instr in block.borrow().instrs.iter() {
 				match instr.get_variant() {
 					LlvmInstrVariant::StoreInstr(inst) => {
-						let reads =
-							self.find_temp_to_reduce(inst.get_read(), &mut reduce_map);
+						let reads = self.find_temp_to_reduce(
+							inst.get_read(),
+							&mut reduce_map,
+							phi_num,
+						);
 						work.extend(reads);
 					}
 					LlvmInstrVariant::CallInstr(inst) => {
@@ -57,7 +60,8 @@ impl<'a> OneLoopSolver<'a> {
 				}
 			}
 			for instr in block.borrow().jump_instr.iter() {
-				let reads = self.find_temp_to_reduce(instr.get_read(), &mut reduce_map);
+				let reads =
+					self.find_temp_to_reduce(instr.get_read(), &mut reduce_map, phi_num);
 				work.extend(reads);
 				for read in instr.get_read() {
 					if !self.is_temp_in_current_loop(&read) {
@@ -79,7 +83,7 @@ impl<'a> OneLoopSolver<'a> {
 				// 过滤掉已经被标记为 useful 的变量
 				.filter(|t| !self.useful_variants.contains(t))
 				.collect::<Vec<LlvmTemp>>();
-			reads = self.find_temp_to_reduce(reads, &mut reduce_map);
+			reads = self.find_temp_to_reduce(reads, &mut reduce_map, phi_num);
 			work.extend(reads);
 		}
 		let mut block_in_cur_loop = self
@@ -116,12 +120,17 @@ impl<'a> OneLoopSolver<'a> {
 		&mut self,
 		mut reads: Vec<LlvmTemp>,
 		reduce_map: &mut HashMap<LlvmTemp, LlvmTemp>,
+		mut phi_num: usize,
 	) -> Vec<LlvmTemp> {
 		let mut to_remove = HashSet::new();
 		for read in reads.iter() {
 			if let Some(iv) = self.indvars.get(read).cloned() {
 				if !self.header_map.contains_key(read) && !reduce_map.contains_key(read)
 				{
+					if phi_num >= MAX_PHI_NUM {
+						break;
+					}
+					phi_num += 1;
 					let flag = self.try_strength_reduce(read, &iv, reduce_map);
 					if flag {
 						to_remove.insert(read.clone());
