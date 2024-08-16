@@ -65,6 +65,11 @@ impl FuncData {
 	pub fn set_may_store(&mut self, global_var: &str) {
 		self.usage_info.may_stores.insert(global_var.to_string());
 	}
+	pub fn set_syscall(&mut self) {
+		self.pure = false;
+		self.usage_info.may_loads.insert("系统调用".to_string());
+		self.usage_info.may_stores.insert("系统调用".to_string());
+	}
 }
 
 #[derive(Default)]
