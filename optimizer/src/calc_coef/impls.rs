@@ -4,18 +4,15 @@ use core::panic;
 use llvm::{
 	compute_two_value,
 	ArithOp::{And, Or, Rem, Xor},
-	LlvmInstr, LlvmInstrTrait,
+	LlvmInstrTrait,
 	LlvmInstrVariant::{
 		AllocInstr, ArithInstr, CallInstr, CompInstr, ConvertInstr, GEPInstr,
 		JumpCondInstr, LoadInstr, PhiInstr, StoreInstr,
 	},
-	LlvmTemp, LlvmTempManager, RetInstr,
-	Value::{self, Temp},
-	VarType,
+	LlvmTemp, LlvmTempManager, Value, VarType,
 };
 use rrvm::{
 	cfg::{BasicBlock, CFG},
-	func,
 	program::{LlvmFunc, LlvmProgram},
 };
 use std::{
@@ -34,7 +31,7 @@ impl RrvmOptimizer for CalcCoef {
 	fn apply(
 		self,
 		program: &mut LlvmProgram,
-		metadata: &mut MetaData,
+		_metadata: &mut MetaData,
 	) -> Result<bool> {
 		let old_len = program.funcs.len();
 		let new_funcs: Vec<_> = mem::take(&mut program.funcs)
@@ -90,7 +87,7 @@ fn can_calc(func: &LlvmFunc) -> Option<(LlvmTemp, Box<dyn LlvmInstrTrait>)> {
 			for block in func.cfg.blocks.iter().rev() {
 				// 找 branch 指令，找最后一次写他的指令 如果是参数是 param 或者是 param 和别人比较得到的结果就行
 				let block = &block.borrow();
-				let mut jmp_instr = {
+				let jmp_instr = {
 					if let Some(instr) = block.jump_instr.clone() {
 						vec![instr]
 					} else {
@@ -170,12 +167,11 @@ fn can_calc(func: &LlvmFunc) -> Option<(LlvmTemp, Box<dyn LlvmInstrTrait>)> {
 					if element.is_empty() {
 						element = param_set;
 					} else if element.len() == 1 {
-						if !param_set.contains(&element.iter().next().unwrap()) {
+						if !param_set.contains(element.iter().next().unwrap()) {
 							return None;
 						}
 					} else {
-						element =
-							element.intersection(&param_set).map(|x| x.clone()).collect();
+						element = element.intersection(&param_set).cloned().collect();
 					}
 				}
 				if element.is_empty() {
@@ -205,6 +201,7 @@ fn can_calc(func: &LlvmFunc) -> Option<(LlvmTemp, Box<dyn LlvmInstrTrait>)> {
 	}
 	None
 }
+#[allow(clippy::borrowed_box, clippy::too_many_arguments)]
 fn map_instr(
 	instr: &Box<dyn LlvmInstrTrait>,
 	entry_map: &mut HashMap<LlvmTemp, Entry>,
@@ -247,7 +244,7 @@ fn map_instr(
 					Entry {
 						k_val: Value::Int(0),
 						b_val: value,
-						mod_val: None,
+						_mod_val: None,
 					},
 				);
 			} else if let Some(lhs_entry) = get_lhs {
@@ -276,7 +273,7 @@ fn map_instr(
 							Entry {
 								k_val: Value::Int(0),
 								b_val: val0,
-								mod_val: None,
+								_mod_val: None,
 							},
 						);
 						if let Some(instr) = instr0 {
@@ -318,7 +315,7 @@ fn map_instr(
 								Entry {
 									k_val: val0,
 									b_val: val1,
-									mod_val: None,
+									_mod_val: None,
 								},
 							);
 							if let Some(instr0) = instr0 {
@@ -345,7 +342,7 @@ fn map_instr(
 								Entry {
 									k_val: val0,
 									b_val: val1,
-									mod_val: None,
+									_mod_val: None,
 								},
 							);
 							if let Some(instr0) = instr0 {
@@ -373,7 +370,7 @@ fn map_instr(
 							Entry {
 								k_val: val0,
 								b_val: val1,
-								mod_val: None,
+								_mod_val: None,
 							},
 						);
 						if let Some(instr0) = instr0 {
@@ -402,7 +399,7 @@ fn map_instr(
 						Entry {
 							k_val: val0,
 							b_val: val1,
-							mod_val: None,
+							_mod_val: None,
 						},
 					);
 					if let Some(instr0) = instr0 {
@@ -441,7 +438,7 @@ fn map_instr(
 						Entry {
 							k_val: Value::Int(0),
 							b_val: val0,
-							mod_val: None,
+							_mod_val: None,
 						},
 					);
 					if let Some(instr) = instr0 {
@@ -465,7 +462,7 @@ fn map_instr(
 						Entry {
 							k_val: val0,
 							b_val: val1,
-							mod_val: None,
+							_mod_val: None,
 						},
 					);
 					if let Some(instr0) = instr0 {
@@ -531,7 +528,7 @@ fn map_instr(
 						Entry {
 							k_val: Value::Int(0),
 							b_val: Value::Temp(my_target),
-							mod_val: None,
+							_mod_val: None,
 						},
 					);
 				} else {
@@ -575,7 +572,7 @@ fn map_instr(
 					Entry {
 						k_val: Value::Int(0),
 						b_val: Value::Temp(my_target),
-						mod_val: None,
+						_mod_val: None,
 					},
 				);
 			} else {
@@ -615,13 +612,13 @@ fn map_instr(
 			// 想一下怎么处理有 phi 的情况
 			// 处理有 phi 的情况，搞成俩 phi
 			let target = phi_instr.target.clone();
-			let mut new_sources_k: Vec<_> = phi_instr
+			let new_sources_k: Vec<_> = phi_instr
 				.source
 				.iter()
 				.map(|(val, label)| {
 					let get_val = {
 						if let Value::Temp(t) = val {
-							let entry = entry_map.get(&t);
+							let entry = entry_map.get(t);
 							if let Some(entry) = entry {
 								entry.k_val.clone()
 							} else {
@@ -634,13 +631,13 @@ fn map_instr(
 					(get_val, label.clone())
 				})
 				.collect();
-			let mut new_sources_b: Vec<_> = phi_instr
+			let new_sources_b: Vec<_> = phi_instr
 				.source
 				.iter()
 				.map(|(val, label)| {
 					let get_val = {
 						if let Value::Temp(t) = val {
-							let entry = entry_map.get(&t);
+							let entry = entry_map.get(t);
 							if let Some(entry) = entry {
 								entry.b_val.clone()
 							} else {
@@ -674,7 +671,7 @@ fn map_instr(
 				Entry {
 					k_val: Value::Temp(k_target),
 					b_val: Value::Temp(b_target),
-					mod_val: None,
+					_mod_val: None,
 				},
 			);
 		}
@@ -715,12 +712,6 @@ fn map_instr(
 				block_instrs.push(Box::new(instr));
 			} else {
 				// 我们把 call 指令转成从 a 里面把 value load 出来再给到 call 的 dst 里面
-				// eprintln!("before calling self {}",call_instr);
-				// for i in block_instrs.iter() {
-				// 	eprintln!("{}",i);
-				// }
-				// eprintln!("entry_map {:?}",entry_map);
-				// io::stderr().flush().unwrap();
 				let dst = call_instr.target.clone();
 				let kdst = mgr.new_temp(data.get_type(), false);
 				let bdst = mgr.new_temp(data.get_type(), false);
@@ -806,7 +797,7 @@ fn map_instr(
 						Entry {
 							k_val: val0,
 							b_val: val3,
-							mod_val: None,
+							_mod_val: None,
 						},
 					);
 				} else {
@@ -844,8 +835,8 @@ fn map_instr(
 						dst,
 						Entry {
 							k_val: match &val2 {
-								Value::Int(i) => Value::Int(0),
-								Value::Float(f) => Value::Float(0.0),
+								Value::Int(_i) => Value::Int(0),
+								Value::Float(_f) => Value::Float(0.0),
 								Value::Temp(t) => {
 									if t.var_type == llvm::VarType::I32 {
 										Value::Int(0)
@@ -855,17 +846,10 @@ fn map_instr(
 								}
 							},
 							b_val: val2,
-							mod_val: None,
+							_mod_val: None,
 						},
 					);
 				}
-				// eprintln!("after calling self {}",call_instr);
-				// for i in block_instrs.iter() {
-				// 	eprintln!("{}",i);
-				// }
-				// eprintln!("entry_map {:?}",entry_map);
-				// eprintln!("----------------------");
-				// io::stderr().flush().unwrap();
 			}
 		}
 		llvm::LlvmInstrVariant::RetInstr(retinstr) => {
@@ -916,12 +900,16 @@ fn map_instr(
 							offset: Value::Int(4),
 						};
 						let store_instr = llvm::StoreInstr {
-							value: val,
+							value: val.clone(),
 							addr: Value::Temp(gep_instr.target.clone()),
 						};
 						// 另一个 store 为0
 						let store_instr2 = llvm::StoreInstr {
-							value: Value::Int(0),
+							value: match val.get_type() {
+								llvm::VarType::I32 => Value::Int(0),
+								llvm::VarType::F32 => Value::Float(0.0),
+								_ => Value::Int(0),
+							},
 							addr: Value::Temp(addr.clone()),
 						};
 						let ret = llvm::RetInstr { value: None };
@@ -948,9 +936,9 @@ fn map_instr(
 struct Entry {
 	k_val: Value,
 	b_val: Value,
-	mod_val: Option<Value>, // 这个先不考虑
+	_mod_val: Option<Value>, // 这个先不考虑
 }
-
+type Blocks = Vec<Rc<RefCell<BasicBlock<Box<dyn LlvmInstrTrait>, LlvmTemp>>>>;
 fn map_coef_instrs(
 	func: &LlvmFunc,
 	index: LlvmTemp,
@@ -959,16 +947,16 @@ fn map_coef_instrs(
 	special_nodes: HashSet<i32>,
 	recurse_index: Box<dyn LlvmInstrTrait>,
 	my_index: LlvmTemp,
-) -> Option<Vec<Rc<RefCell<BasicBlock<Box<dyn LlvmInstrTrait>, LlvmTemp>>>>> {
+) -> Option<Blocks> {
 	let mut entry_map = HashMap::new();
-	let mut data =
+	let data =
 		func.params.iter().find(|x| **x != Value::Temp(index.clone())).unwrap();
 	entry_map.insert(
 		index.clone(),
 		Entry {
 			k_val: Value::Int(0),
 			b_val: Value::Temp(my_index.clone()),
-			mod_val: None,
+			_mod_val: None,
 		},
 	);
 	if let Value::Temp(t) = data {
@@ -978,7 +966,7 @@ fn map_coef_instrs(
 				Entry {
 					k_val: Value::Int(1),
 					b_val: Value::Int(0),
-					mod_val: None,
+					_mod_val: None,
 				},
 			);
 		} else {
@@ -987,7 +975,7 @@ fn map_coef_instrs(
 				Entry {
 					k_val: Value::Float(1.0),
 					b_val: Value::Float(0.0),
-					mod_val: None,
+					_mod_val: None,
 				},
 			);
 		}
@@ -1010,7 +998,7 @@ fn map_coef_instrs(
 	if !res {
 		return None;
 	}
-	let mut call_instr = llvm::CallInstr {
+	let call_instr = llvm::CallInstr {
 		target: mgr.new_temp(llvm::VarType::I32, false),
 		var_type: llvm::VarType::Void,
 		func: Label::new(format!("{}_calc_coef", func.name)),
@@ -1022,14 +1010,14 @@ fn map_coef_instrs(
 	let mut phi_instrs = vec![];
 	let mut jmp_instrs = vec![];
 	// 先把 data 和 index 放进entry_map 因为自有 Value 所以不用搞 instrs
-	for (idx, block) in func.cfg.blocks.iter().enumerate() {
+	for block in func.cfg.blocks.iter() {
 		let mut block_instrs: Vec<Box<dyn LlvmInstrTrait>> = vec![];
 		let mut block_phi_instrs: Vec<llvm::PhiInstr> = vec![];
 		if special_nodes.contains(&block.borrow().id) {
 			block_instrs.push(calc_recurse_instr.clone());
 			block_instrs.push(Box::new(call_instr.clone()));
 		}
-		let mut has_jmp = block.borrow().jump_instr.is_some();
+		let has_jmp = block.borrow().jump_instr.is_some();
 		let jmp_vec = {
 			if let Some(instr) = block.borrow().jump_instr.clone() {
 				vec![instr]
@@ -1073,10 +1061,10 @@ fn map_coef_instrs(
 		.zip(jmp_instrs.iter())
 	{
 		let (((block, instrs), phi_instrs), jmp_instr) = block;
-		let mut new_block = block.clone();
-		new_block.borrow_mut().instrs = instrs.clone();
-		new_block.borrow_mut().phi_instrs = phi_instrs.clone();
-		new_block.borrow_mut().jump_instr = jmp_instr.clone();
+		let new_block = block.clone();
+		new_block.borrow_mut().instrs.clone_from(instrs);
+		new_block.borrow_mut().phi_instrs.clone_from(phi_instrs);
+		new_block.borrow_mut().jump_instr.clone_from(jmp_instr);
 		new_blocks.push(new_block);
 	}
 	Some(new_blocks)
@@ -1191,8 +1179,8 @@ fn calc_coef(
 			name: format!("{}_calc_coef", func.name),
 		},
 		params: vec![
-			(llvm::VarType::I32, Value::Temp(index.clone())),
 			(llvm::VarType::I32Ptr, Value::Temp(alloc_target.clone())),
+			(llvm::VarType::I32, Value::Temp(index.clone())),
 		],
 	};
 	let f_tmp = mgr.new_temp(data.clone().unwrap().var_type, false);
@@ -1220,7 +1208,11 @@ fn calc_coef(
 		var_type: data.clone().unwrap().var_type,
 		lhs: Value::Temp(f_tmp),
 		rhs: Value::Temp(data.clone().unwrap()),
-		op: llvm::ArithOp::Mul,
+		op: match data.clone().unwrap().var_type {
+			llvm::VarType::I32 => llvm::ArithOp::Mul,
+			llvm::VarType::F32 => llvm::ArithOp::Fmul,
+			_ => llvm::ArithOp::Mul,
+		},
 	};
 	let add_dst = mgr.new_temp(data.clone().unwrap().var_type, false);
 	let add_instr = llvm::ArithInstr {
@@ -1228,7 +1220,11 @@ fn calc_coef(
 		var_type: data.clone().unwrap().var_type,
 		lhs: Value::Temp(g_tmp),
 		rhs: Value::Temp(mul_dst),
-		op: llvm::ArithOp::Add,
+		op: match data.clone().unwrap().var_type {
+			llvm::VarType::I32 => llvm::ArithOp::Add,
+			llvm::VarType::F32 => llvm::ArithOp::Fadd,
+			_ => llvm::ArithOp::Add,
+		},
 	};
 	let ret_instr = llvm::RetInstr {
 		value: Some(Value::Temp(add_dst)),
@@ -1244,7 +1240,7 @@ fn calc_coef(
 	let node = BasicBlock::new_node(0, 1.0);
 	node.borrow_mut().instrs = instrs;
 	node.borrow_mut().jump_instr = Some(Box::new(ret_instr));
-	let mut wrapper_func = LlvmFunc {
+	let wrapper_func = LlvmFunc {
 		total: mgr.total as i32,
 		spills: 0,
 		cfg: CFG { blocks: vec![node] },
@@ -1252,11 +1248,9 @@ fn calc_coef(
 		ret_type: func.ret_type,
 		params: func.params.clone(),
 	};
-	let mut addr =
-		mgr.new_temp_with_name("addr".to_string(), llvm::VarType::I32Ptr);
-	let mut my_index =
-		mgr.new_temp_with_name("index".to_string(), index.var_type);
-	let mut new_blocks = map_coef_instrs(
+	let addr = mgr.new_temp(llvm::VarType::I32Ptr, false);
+	let my_index = mgr.new_temp(index.var_type, false);
+	let new_blocks = map_coef_instrs(
 		func,
 		index,
 		addr.clone(),
@@ -1278,7 +1272,7 @@ fn calc_coef(
 		};
 		return vec![new_func];
 	}
-	let mut calc_func = LlvmFunc {
+	let calc_func = LlvmFunc {
 		total: mgr.total as i32,
 		spills: 0,
 		cfg: rrvm::cfg::CFG {
