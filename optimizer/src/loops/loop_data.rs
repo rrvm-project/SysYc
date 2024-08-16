@@ -15,7 +15,7 @@ pub struct LoopData {
 	pub root_loop: LoopPtr,
 	// loop id to loopinfo
 	// 仅能确定循环次数的 loop 才有 LoopInfo
-	pub loop_infos: HashMap<u32, LoopInfo>,
+	pub loop_infos: HashMap<i32, LoopInfo>,
 	// Temp to IndVar
 	// Temp 仅能相对于它的定义所在的 Loop 来说是 IndVar
 	pub indvars: HashMap<LlvmTemp, IndVar>,

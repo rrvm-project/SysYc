@@ -132,7 +132,7 @@ impl<'a> OneLoopSolver<'a> {
 					if let Some(iv2) = self.is_indvar(&inst.rhs) {
 						if let Some(output_iv) = self.compute_two_indvar(iv1, iv2, inst.op)
 						{
-							// #[cfg(feature = "debug")]
+							#[cfg(feature = "debug")]
 							eprintln!(
 								"OneLoopSolver: computed indvar: {} {} \n which is defined as {}",
 								temp, output_iv, self.loopdata.temp_graph.temp_to_instr[temp].instr
@@ -148,7 +148,7 @@ impl<'a> OneLoopSolver<'a> {
 						if let Some(output_iv) =
 							self.compute_two_indvar(iv1, iv2, ArithOp::Add)
 						{
-							// #[cfg(feature = "debug")]
+							#[cfg(feature = "debug")]
 							eprintln!(
 								"OneLoopSolver: computed indvar: {} {} \n which is defined as {}",
 								temp, output_iv, self.loopdata.temp_graph.temp_to_instr[temp].instr
@@ -193,8 +193,12 @@ impl<'a> OneLoopSolver<'a> {
 							chain_node.op,
 						);
 						for o in chain_node.operand.iter() {
-							(base, instr) =
-								compute_two_value(base, o.clone(), ArithOp::Add, self.temp_mgr);
+							(base, instr) = compute_two_value(
+								base,
+								o.clone(),
+								chain_node.op,
+								self.temp_mgr,
+							);
 							instr.map(|i| {
 								self
 									.new_invariant_instr
@@ -212,7 +216,7 @@ impl<'a> OneLoopSolver<'a> {
 						(scale, instr) = compute_two_value(
 							scale,
 							chain_node.operand[0].clone(),
-							ArithOp::Mul,
+							chain_node.op,
 							self.temp_mgr,
 						);
 						instr.map(|i| {
@@ -221,7 +225,7 @@ impl<'a> OneLoopSolver<'a> {
 						(base, instr) = compute_two_value(
 							base,
 							chain_node.operand[0].clone(),
-							ArithOp::Mul,
+							chain_node.op,
 							self.temp_mgr,
 						);
 						instr.map(|i| {
@@ -230,7 +234,7 @@ impl<'a> OneLoopSolver<'a> {
 						(step[0], instr) = compute_two_value(
 							step[0].clone(),
 							chain_node.operand[0].clone(),
-							ArithOp::Mul,
+							chain_node.op,
 							self.temp_mgr,
 						);
 						instr.map(|i| {
@@ -243,13 +247,13 @@ impl<'a> OneLoopSolver<'a> {
 			}
 		}
 		let iv = IndVar::new(phi_base, scale.clone(), step.clone(), is_zfp.clone());
-		// #[cfg(feature = "debug")]
+		#[cfg(feature = "debug")]
 		eprintln!("OneLoopSolver: found a indvar {} {}", header, iv);
 		self.indvars.insert(header.clone(), iv);
 		for (indvar, indvar_base) in indvar_chain.iter().zip(indvar_bases) {
 			let iv =
 				IndVar::new(indvar_base, scale.clone(), step.clone(), is_zfp.clone());
-			// #[cfg(feature = "debug")]
+			#[cfg(feature = "debug")]
 			eprintln!(
 				"OneLoopSolver: a indvar in chain {} {}",
 				indvar.temp.clone(),

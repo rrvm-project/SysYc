@@ -5,7 +5,7 @@ use crate::loops::{indvar::IndVar, loopinfo::LoopInfo};
 use super::OneLoopSolver;
 
 use llvm::{compute_two_value, CompOp, LlvmInstr, LlvmTemp, Value};
-use rrvm::rrvm_loop::LoopPtr;
+use rrvm::{rrvm_loop::LoopPtr, LlvmNode};
 impl<'a> OneLoopSolver<'a> {
 	pub fn stack_push(&mut self, temp: LlvmTemp) {
 		self.tarjan_var.stack.push(temp.clone());
@@ -66,13 +66,7 @@ impl<'a> OneLoopSolver<'a> {
 			.or_else(|| get_variant_and_step_inner(member2, member1))
 	}
 	pub fn is_temp_in_current_loop(&self, temp: &LlvmTemp) -> bool {
-		self.loopdata.def_map.get(temp).map_or(false, |bb| {
-			self
-				.loopdata
-				.loop_map
-				.get(&bb.borrow().id)
-				.map_or(false, |l| l.borrow().id == self.cur_loop.borrow().id)
-		})
+		self.def_loop(temp).borrow().id == self.cur_loop.borrow().id
 	}
 	pub fn is_indvar(&self, value: &Value) -> Option<IndVar> {
 		self
@@ -232,5 +226,8 @@ impl<'a> OneLoopSolver<'a> {
 			.add_temp(instr.get_write().unwrap().clone(), instr.clone());
 		preheader.borrow_mut().instrs.push(instr);
 		self.flag = true;
+	}
+	pub fn get_cur_loop_preheader(&self) -> LlvmNode {
+		self.cur_loop.borrow().get_loop_preheader(&self.loopdata.loop_map).unwrap()
 	}
 }

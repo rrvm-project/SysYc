@@ -35,7 +35,7 @@ impl TempGraph {
 		if let Some(node) = self.temp_to_instr.get(temp) {
 			node.instr.is_load()
 		} else {
-			println!("temp: {:?} not found", temp);
+			eprintln!("temp: {} not found", temp);
 			false
 		}
 	}

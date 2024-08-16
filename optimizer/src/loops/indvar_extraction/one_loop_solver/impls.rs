@@ -2,7 +2,7 @@
 use std::collections::{HashMap, HashSet};
 
 use llvm::{LlvmTemp, LlvmTempManager};
-use rrvm::{program::LlvmFunc, rrvm_loop::LoopPtr, LlvmNode};
+use rrvm::{dominator::LlvmDomTree, program::LlvmFunc, rrvm_loop::LoopPtr};
 
 use crate::{loops::loop_data::LoopData, metadata::FuncData};
 
@@ -14,18 +14,20 @@ impl<'a> OneLoopSolver<'a> {
 		loopdata: &'a mut LoopData,
 		funcdata: &'a mut FuncData,
 		temp_mgr: &'a mut LlvmTempManager,
+		outside_use: &'a mut HashSet<LlvmTemp>,
+		dom_tree: &'a LlvmDomTree,
 		cur_loop: LoopPtr,
-		preheader: LlvmNode,
 	) -> Self {
 		Self {
 			func,
 			loopdata,
 			funcdata,
 			temp_mgr,
+			outside_use,
+			dom_tree,
 			tarjan_var: TarjanVar::new(),
 			header_map: HashMap::new(),
 			cur_loop,
-			preheader,
 			useful_variants: HashSet::new(),
 			indvars: HashMap::new(),
 			new_invariant_instr: HashMap::new(),

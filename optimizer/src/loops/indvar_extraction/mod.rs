@@ -1,5 +1,5 @@
 use llvm::LlvmTempManager;
-use rrvm::program::LlvmFunc;
+use rrvm::{dominator::LlvmDomTree, program::LlvmFunc};
 
 use crate::metadata::FuncData;
 
@@ -13,4 +13,5 @@ pub struct IndvarExtraction<'a> {
 	pub funcdata: &'a mut FuncData,
 	pub temp_mgr: &'a mut LlvmTempManager,
 	pub func: &'a mut LlvmFunc,
+	pub dom_tree: LlvmDomTree,
 }
