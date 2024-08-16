@@ -93,6 +93,10 @@ fn handle_function(
 	loop_data: LoopData,
 	mgr: &mut LlvmTempManager,
 ) -> LoopData {
+	if func.name != "main" {
+		//似乎只在main中工作
+		return loop_data;
+	}
 	let (mut loop_map, root_loop, mut loop_infos, mut indvars) = (
 		loop_data.loop_map,
 		loop_data.root_loop,
@@ -102,7 +106,7 @@ fn handle_function(
 	//loop map: 所有的loop 都有
 	//loop info: 如果没有一定不能并行
 
-	let mut ok_loop_id: HashSet<u32> = HashSet::new();
+	let mut ok_loop_id: HashSet<i32> = HashSet::new();
 
 	let mut ptr_set: pointer_tracer::PointerTracer = PointerTracer::new();
 	let mut indvar_ptr_set: pointer_tracer::PointerTracer = PointerTracer::new();
@@ -301,18 +305,17 @@ fn last_check(info: LoopInfo, indvars: &mut HashMap<LlvmTemp, IndVar>) -> bool {
 
 fn parallel_loop(
 	current: LoopPtr,
-	ok: &HashSet<u32>,
+	ok: &HashSet<i32>,
 	loop_map: &mut HashMap<i32, LoopPtr>,
-	loop_info: &mut HashMap<u32, LoopInfo>,
+	loop_info: &mut HashMap<i32, LoopInfo>,
 	mgr: &mut LlvmTempManager,
 	indvars: &mut HashMap<LlvmTemp, IndVar>,
 ) {
 	let current_id = current.borrow().id;
-	let current_ura_id = current.borrow().id;
 
 	let mut operate_on_this = ok.contains(&current_id);
 
-	let is_single_layer = current_ura_id == current_id + 1;
+	let is_single_layer = current.borrow().subloops.is_empty();
 
 	let mut operated = false;
 
@@ -353,20 +356,11 @@ fn parallel_loop(
 
 	if operated {
 		eprintln!(
-			"para {} {} B{}",
+			"para {} B{}",
 			current.borrow().id,
-			current.borrow().ura_id,
 			current.borrow().header.borrow().id
 		);
 	}
-	// else {
-	// 	eprintln!(
-	// 		"fail {} {} B{}",
-	// 		current.borrow().id,
-	// 		current.borrow().ura_id,
-	// 		current.borrow().header.borrow().id
-	// 	);
-	// }
 
 	if operated || current_id != 1 {
 		return;

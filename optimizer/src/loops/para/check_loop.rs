@@ -8,7 +8,7 @@ pub fn check_ok(
 	root_loop: LoopPtr,
 	ptr_tracer: &mut PointerTracer,
 	indvar_ptr_tracer: &mut PointerTracer,
-	ok: &mut HashSet<u32>,
+	ok: &mut HashSet<i32>,
 	cfg: &LlvmCFG,
 	loop_map: &HashMap<i32, LoopPtr>,
 ) {
