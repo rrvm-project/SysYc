@@ -1,0 +1,82 @@
+  .file "./project-eval/testcases/performance/recursive_call_3.sy"
+  .option nopic
+  .attribute unaligned_access, 0
+  .attribute stack_align, 16
+  .text
+  .text
+  .global main
+  .align 1
+  .type func, @function
+func:
+    addi sp, sp, -16
+    sd s1, 0(sp)
+    sd ra, 8(sp)
+    fmv.s fa1, fa0
+    li s1, 0
+    blt a0, s1, L_1
+    addiw s1, a0, -1
+    addi sp, sp, -16
+    fsd fa1, 0(sp)
+    fmv.s fa0, fa1
+    mv a0, s1
+    call func
+    fld fa1, 0(sp)
+    addi sp, sp, 16
+    fadd.s fa1, fa1, fa0
+    addi sp, sp, -16
+    fsd fa1, 0(sp)
+    fmv.s fa0, fa1
+    mv a0, s1
+    call func
+    fld fa1, 0(sp)
+    addi sp, sp, 16
+    fsub.s fa0, fa1, fa0
+    j L_2
+  L_1:
+    fmv.w.x fa0, x0
+  L_2:
+    ld s1, 0(sp)
+    ld ra, 8(sp)
+    addi sp, sp, 16
+    ret
+  .size func, .-func
+  .align 1
+  .type main, @function
+main:
+    addi sp, sp, -16
+    sd ra, 0(sp)
+    sd s1, 8(sp)
+    li a0, 21
+    addi sp, sp, -16
+    sd a0, 0(sp)
+    call _sysy_starttime
+    ld a0, 0(sp)
+    addi sp, sp, 16
+    call getint
+    li s1, 1065361408
+    addi s1, s1, 197
+    fmv.w.x fa1, s1
+    addi sp, sp, -16
+    fsd fa1, 0(sp)
+    fmv.s fa0, fa1
+    call func
+    fld fa1, 0(sp)
+    addi sp, sp, 16
+    fsub.s fa0, fa0, fa1
+    fmv.w.x fa1, x0
+    feq.s a0, fa0, fa1
+    bne a0, x0, L_3
+    j L_4
+  L_3:
+    li a0, 112
+    call putch
+  L_4:
+    li a0, 32
+    call _sysy_stoptime
+    mv a0, x0
+    ld ra, 0(sp)
+    ld s1, 8(sp)
+    addi sp, sp, 16
+    ret
+  .size main, .-main
+  .ident "SYSYC: (made by RRVM) 1.0.0"
