@@ -8,7 +8,10 @@ use crate::{
 	metadata::{FuncData, MetaData},
 };
 use llvm::LlvmTempManager;
-use rrvm::program::{LlvmFunc, LlvmProgram};
+use rrvm::{
+	dominator::LlvmDomTree,
+	program::{LlvmFunc, LlvmProgram},
+};
 use utils::Result;
 
 use super::HandleLoops;
@@ -59,7 +62,9 @@ impl HandleLoops {
 			func_data: &mut FuncData,
 			temp_mgr: &mut LlvmTempManager,
 		) -> bool {
-			let opter = IndvarExtraction::new(func, loop_data, func_data, temp_mgr);
+			let dom_tree = LlvmDomTree::new(&func.cfg, false);
+			let opter =
+				IndvarExtraction::new(func, loop_data, func_data, temp_mgr, dom_tree);
 			opter.apply()
 		}
 

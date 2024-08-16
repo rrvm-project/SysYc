@@ -13,22 +13,21 @@ impl<'a> OneLoopSolver<'a> {
 	) -> Vec<Value> {
 		let mut new_step = Vec::new();
 		for i in 0..step1.len().max(step2.len()) {
-			if i >= step1.len() {
-				new_step.push(step2[i].clone());
-			} else if i >= step2.len() {
-				new_step.push(step1[i].clone());
+			let v1 = if i < step1.len() {
+				step1[i].clone()
 			} else {
-				let (v, instr) = compute_two_value(
-					step1[i].clone(),
-					step2[i].clone(),
-					op,
-					self.temp_mgr,
-				);
-				instr.map(|i| {
-					self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
-				});
-				new_step.push(v);
-			}
+				Value::Int(0)
+			};
+			let v2 = if i < step2.len() {
+				step2[i].clone()
+			} else {
+				Value::Int(0)
+			};
+			let (v, instr) = compute_two_value(v1, v2, op, self.temp_mgr);
+			instr.map(|i| {
+				self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
+			});
+			new_step.push(v);
 		}
 		new_step
 	}

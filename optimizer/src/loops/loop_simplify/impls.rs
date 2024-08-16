@@ -230,7 +230,7 @@ impl<'a> LoopSimplify<'a> {
 
 			let new_bb = self.split_block_predecessors(exit, in_loop_prev, true);
 			#[cfg(feature = "debug")]
-			println!(
+			eprintln!(
 				"LoopSimplify: inserted dedicated exit block {}",
 				new_bb.borrow().label()
 			);
@@ -273,7 +273,7 @@ impl<'a> LoopSimplify<'a> {
 
 		let new_bb = self.split_block_predecessors(header, backedge_blocks, false);
 		#[cfg(feature = "debug")]
-		println!(
+		eprintln!(
 			"LoopSimplify: inserted unique backedge block {}",
 			new_bb.borrow().label()
 		);
@@ -348,7 +348,7 @@ impl<'a> LoopSimplify<'a> {
 			let source = header.phi_instrs[phi_idx].source.clone();
 			if source.len() != 2 {
 				#[cfg(feature = "debug")]
-				println!("LoopSimplify: source.len() != 2, Failed to insert preheader or unique backage");
+				eprintln!("LoopSimplify: source.len() != 2, Failed to insert preheader or unique backage");
 				break;
 			}
 			if source[0].0.unwrap_temp().is_some_and(|t| t == target) {

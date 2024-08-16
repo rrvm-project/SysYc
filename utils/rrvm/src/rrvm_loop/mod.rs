@@ -72,11 +72,11 @@ impl Loop {
 	) -> Option<LlvmNode> {
 		let pred = self.get_loop_predecessor(loop_map)?;
 		if pred.borrow().succ.len() != 1 {
-			println!("Preheader is not legal to hoist into");
+			eprintln!("Preheader is not legal to hoist into");
 			return None;
 		}
 		if pred.borrow().succ[0] != self.header {
-			println!("Illiagal preheader");
+			eprintln!("Illiagal preheader");
 			return None;
 		}
 		Some(pred)
@@ -97,7 +97,7 @@ impl Loop {
 		let mut pred = None;
 		for pred_ in header.prev.iter() {
 			let pred_loop = loop_map.get(&pred_.borrow().id);
-			// println!("pred_ = {}, header = {}", pred_.borrow().label(), header.label());
+			// eprintln!("pred_ = {}, header = {}", pred_.borrow().label(), header.label());
 			if pred_loop.map_or(true, |l| !self.is_super_loop_of(l)) {
 				if pred.is_some_and(|p| p != pred_.clone()) {
 					// #[cfg(feature = "debug")]

@@ -9,7 +9,7 @@ impl<'a> OneLoopSolver<'a> {
 	// 如果不是单一出口，则返回 None
 	pub fn get_loop_info(&mut self) -> Option<LoopInfo> {
 		let header = self.cur_loop.borrow().header.clone();
-		let preheader = self.preheader.clone();
+		let preheader = self.get_cur_loop_preheader().clone();
 		let single_exit = match self.cur_loop.borrow().get_single_exit(
 			&self
 				.cur_loop
@@ -56,7 +56,7 @@ impl<'a> OneLoopSolver<'a> {
 												}
 												let new_op =
 													convert_comp_op(inst.op, take_not, take_reverse);
-												// #[cfg(feature = "debug")]
+												#[cfg(feature = "debug")]
 												eprintln!("get loop info: Found a loop to optimize with cond_temp: {} {}, end: {}", t, iv, end_value);
 												let info = LoopInfo {
 													preheader: preheader.clone(),

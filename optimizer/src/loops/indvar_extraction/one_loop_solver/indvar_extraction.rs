@@ -1,8 +1,6 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 
-use llvm::{
-	compute_two_value, ArithInstr, ArithOp, LlvmInstrVariant, LlvmTemp, Value,
-};
+use llvm::{compute_two_value, ArithInstr, ArithOp, LlvmTemp, Value};
 
 use super::OneLoopSolver;
 
@@ -11,30 +9,37 @@ use utils::UseTemp;
 impl<'a> OneLoopSolver<'a> {
 	pub fn indvar_extraction(&mut self) {
 		if let Some(info) = self.get_loop_info() {
+			let phi_defs: Vec<LlvmTemp> = info
+				.header
+				.borrow()
+				.phi_instrs
+				.iter()
+				.map(|phi| phi.target.clone())
+				.collect();
 			self.classify_usefulness();
 			let loop_cnt = self.compute_loop_cnt(&info);
 			let mut headers_to_remove = HashSet::new();
-			for header in info.header.borrow().phi_instrs.iter() {
-				if !self.useful_variants.contains(&header.target) {
+			for phi_def in phi_defs.iter() {
+				if !self.useful_variants.contains(phi_def) {
 					if let Some(v) =
-						self.extract_one_indvar(header.target.clone(), loop_cnt.clone())
+						self.extract_one_indvar(phi_def.clone(), loop_cnt.clone())
 					{
 						let new_header = ArithInstr {
-							target: header.target.clone(),
+							target: phi_def.clone(),
 							op: ArithOp::Add,
-							var_type: header.var_type,
+							var_type: phi_def.var_type,
 							lhs: v.clone(),
 							rhs: Value::Int(0),
 						};
 						self
 							.new_invariant_instr
-							.insert(header.target.clone(), Box::new(new_header));
-						self.place_temp_into_cfg(&header.target);
-						headers_to_remove.insert(header.target.clone());
+							.insert(phi_def.clone(), Box::new(new_header));
+						self.place_temp_into_cfg(phi_def);
+						headers_to_remove.insert(phi_def.clone());
 					}
 				} else {
-					// #[cfg(feature = "debug")]
-					eprintln!("not extract indvar: {}", header.target);
+					#[cfg(feature = "debug")]
+					eprintln!("not extract indvar: {}", phi_def);
 				}
 			}
 			info
@@ -94,63 +99,9 @@ impl<'a> OneLoopSolver<'a> {
 			}
 			Some(sum)
 		} else {
-			#[cfg(feature = "debug")]
+			// #[cfg(feature = "debug")]
 			eprintln!("not extract indvar: {} {}", header, indvar);
 			None
 		}
-	}
-
-	// 确定哪些 indvar 是有用的，不能外推的
-	// 本身就有用的语句：store, call, 非 indvar header 的 phi
-	pub fn classify_usefulness(&mut self) {
-		let mut work = VecDeque::new();
-		let blocks = self
-			.cur_loop
-			.borrow()
-			.blocks_without_subloops(&self.func.cfg, &self.loopdata.loop_map);
-		for block in blocks.iter() {
-			for instr in block.borrow().phi_instrs.iter() {
-				if !self.indvars.contains_key(&instr.target) {
-					work.push_back(instr.target.clone());
-				}
-			}
-			for instr in block.borrow().instrs.iter() {
-				match instr.get_variant() {
-					LlvmInstrVariant::StoreInstr(inst) => {
-						work.extend(inst.get_read());
-					}
-					LlvmInstrVariant::CallInstr(inst) => {
-						work.push_back(inst.target.clone());
-					}
-					_ => {}
-				}
-			}
-			for instr in block.borrow().jump_instr.iter() {
-				work.extend(instr.get_read());
-			}
-		}
-		while let Some(temp) = work.pop_front() {
-			self.useful_variants.insert(temp.clone());
-			let instr = &self.loopdata.temp_graph.temp_to_instr[&temp].instr;
-			let reads = instr
-				.get_read()
-				.into_iter()
-				// 过滤掉不在当前循环中的变量
-				.filter(|t| self.def_loop(t).borrow().id == self.cur_loop.borrow().id)
-				// 按 scc 缩点
-				.map(|t| self.header_map.get(&t).cloned().unwrap_or(t))
-				// 过滤掉已经被标记为 useful 的变量
-				.filter(|t| !self.useful_variants.contains(t))
-				.collect::<Vec<LlvmTemp>>();
-			work.extend(reads);
-		}
-		#[cfg(feature = "debug")]
-		eprint!("classified useful variants: ");
-		#[cfg(feature = "debug")]
-		self.useful_variants.iter().for_each(|t| {
-			eprint!("{} ", t);
-		});
-		#[cfg(feature = "debug")]
-		eprintln!();
 	}
 }
