@@ -5,19 +5,23 @@ mod pointer_tracer;
 use std::collections::{HashMap, HashSet};
 
 use check_loop::check_ok;
-use llvm::{LlvmTemp, LlvmTempManager, Value};
+use llvm::{LlvmInstrVariant, LlvmTemp, LlvmTempManager, Value};
 use make_parallel::make_parallel;
 use pointer_tracer::PointerTracer;
 use rrvm::{
+	cfg::Node,
+	dominator::{DomTree, LlvmDomTree},
 	program::{LlvmFunc, LlvmProgram},
 	rrvm_loop::LoopPtr,
-	LlvmNode,
 };
 
 use crate::metadata::MetaData;
 
-use super::{loop_data::LoopData, loopinfo::LoopInfo, HandleLoops};
-use utils::Result;
+use super::{
+	indvar::IndVar, indvar_type::IndVarType, loop_data::LoopData,
+	loopinfo::LoopInfo, HandleLoops,
+};
+use utils::{InstrTrait, Result, TempTrait};
 
 impl HandleLoops {
 	pub fn parallel(
@@ -44,15 +48,56 @@ fn get_temp_ref(value: &Value) -> Option<&LlvmTemp> {
 	}
 }
 
+struct DominatorDFS<T, U>
+where
+	T: InstrTrait<U>,
+	U: TempTrait,
+{
+	dom_tree: DomTree<T, U>,
+	stack: Vec<Node<T, U>>,
+}
+
+impl<T, U> Iterator for DominatorDFS<T, U>
+where
+	T: InstrTrait<U>,
+	U: TempTrait,
+{
+	type Item = Node<T, U>;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		if let Some(current) = self.stack.pop() {
+			let current_id = current.borrow().id;
+			self.stack.extend(self.dom_tree.get_children(current_id).iter().cloned());
+			current.into()
+		} else {
+			None
+		}
+	}
+}
+
+impl<T, U> DominatorDFS<T, U>
+where
+	T: InstrTrait<U>,
+	U: TempTrait,
+{
+	pub fn new(dom_tree: DomTree<T, U>, entry: Node<T, U>) -> Self {
+		Self {
+			dom_tree,
+			stack: vec![entry],
+		}
+	}
+}
+
 fn handle_function(
 	func: &mut LlvmFunc,
 	loop_data: LoopData,
 	mgr: &mut LlvmTempManager,
 ) -> LoopData {
-	let (mut loop_map, root_loop, mut loop_infos) = (
+	let (mut loop_map, root_loop, mut loop_infos, mut indvars) = (
 		loop_data.loop_map,
 		loop_data.root_loop,
 		loop_data.loop_infos,
+		loop_data.indvars,
 	);
 	//loop map: 所有的loop 都有
 	//loop info: 如果没有一定不能并行
@@ -60,6 +105,55 @@ fn handle_function(
 	let mut ok_loop_id: HashSet<u32> = HashSet::new();
 
 	let mut ptr_set: pointer_tracer::PointerTracer = PointerTracer::new();
+	let mut indvar_ptr_set: pointer_tracer::PointerTracer = PointerTracer::new();
+
+	fn get_i32(value: &Value) -> Option<i32> {
+		match value {
+			Value::Int(i) => Some(*i),
+			_ => None,
+		}
+	}
+
+	for candidate_loop in &root_loop.borrow().subloops {
+		for block in
+			candidate_loop.borrow().blocks_without_subloops(&func.cfg, &loop_map)
+		{
+			for targets in block.borrow().phi_instrs.iter().map(|instr| &instr.target)
+			{
+				if targets.var_type.is_ptr() {
+					indvar_ptr_set.create(targets);
+				}
+			}
+
+			for gep in block.borrow().instrs.iter().filter_map(|instr| {
+				match instr.get_variant() {
+					LlvmInstrVariant::GEPInstr(gep) => Some(gep),
+					_ => None,
+				}
+			}) {
+				if let Some(target_ind) = indvars.get(&gep.target) {
+					if target_ind.get_type() == IndVarType::Ordinary {
+						if let (Some(step), offset) = (
+							get_i32(target_ind.step.first().unwrap()),
+							get_i32(&gep.offset),
+						) {
+							if step == 0 {
+								//HACK: 取消注释这行可能引起错误
+								//indvar_ptr_set.create(&gep.target);
+							} else if offset.is_some_and(|offset| offset < step) {
+								indvar_ptr_set
+									.link(&gep.target, gep.addr.unwrap_temp_ref().unwrap());
+							} else {
+								indvar_ptr_set.create(&gep.target);
+							}
+						} else {
+							indvar_ptr_set.create(&gep.target);
+						}
+					}
+				}
+			}
+		}
+	}
 
 	// 假定传入参数的不同的指针指向不重叠的内存
 
@@ -71,7 +165,21 @@ fn handle_function(
 		}
 	}
 
-	for block in &func.cfg.blocks {
+	let dom_tree = LlvmDomTree::new(&func.cfg, false);
+
+	for block in DominatorDFS::new(dom_tree, func.cfg.get_entry()) {
+		for instr in &block.borrow().phi_instrs {
+			if let Some(to_link) = instr
+				.source
+				.iter()
+				.find(|(v, _)| v.unwrap_temp_ref().is_some_and(|t| ptr_set.know(t)))
+				.and_then(|(v, _)| v.unwrap_temp_ref())
+			{
+				ptr_set.link(&instr.target, to_link);
+				indvar_ptr_set.link(&instr.target, to_link);
+			}
+		}
+
 		for instr in &block.borrow().instrs {
 			match instr.get_variant() {
 				llvm::LlvmInstrVariant::AllocInstr(i) => {
@@ -95,6 +203,7 @@ fn handle_function(
 				llvm::LlvmInstrVariant::GEPInstr(i) => {
 					if let Some(t) = get_temp_ref(&i.addr) {
 						ptr_set.link(&i.target, t);
+						indvar_ptr_set.link(&i.target, t);
 					}
 				}
 				llvm::LlvmInstrVariant::CallInstr(i) => {
@@ -112,21 +221,26 @@ fn handle_function(
 		}
 	}
 
+	// dbg!(&indvar_ptr_set, &ptr_set);
+
 	check_ok(
 		root_loop.clone(),
 		&mut ptr_set,
+		&mut indvar_ptr_set,
 		&mut ok_loop_id,
 		&func.cfg,
 		&loop_map,
 	);
+
+	// dbg!(&ok_loop_id);
+
 	parallel_loop(
 		root_loop.clone(),
 		&ok_loop_id,
 		&mut loop_map,
 		&mut loop_infos,
 		mgr,
-		&mut func.total,
-		&mut func.cfg.blocks,
+		&mut indvars,
 	);
 
 	let temp_graph = LoopData::build_graph(func);
@@ -138,41 +252,39 @@ fn handle_function(
 		def_map,
 		root_loop,
 		loop_infos,
+		indvars,
 	}
 }
 
-fn last_check(info: LoopInfo) -> bool {
+fn last_check(info: LoopInfo, indvars: &mut HashMap<LlvmTemp, IndVar>) -> bool {
 	let header = info.header.clone();
 	let exit = info.single_exit.clone();
-	let cmp = info.cmp.clone();
 
-	if header.borrow().phi_instrs.len() != 1 {
+	if !matches!(
+		info.comp_op,
+		llvm::CompOp::SGT
+			| llvm::CompOp::SGE
+			| llvm::CompOp::SLT
+			| llvm::CompOp::SLE
+	) {
 		return false;
 	}
 
-	let loop_var = header.borrow().phi_instrs.first().unwrap().target.clone();
-
-	let mut check_cmp_ok = false;
-
-	for instr in header.borrow().instrs.iter() {
-
-		if let llvm::LlvmInstrVariant::CompInstr(i) = instr.get_variant() {
-			if i.target == cmp {
-				match (i.op, &i.lhs, &i.rhs) {
-					(llvm::CompOp::SLT, Value::Temp(lhs), _) if *lhs == loop_var => {
-						check_cmp_ok = true;
-						break;
-					}
-					(llvm::CompOp::SGT, _, Value::Temp(rhs)) if *rhs == loop_var => {
-						check_cmp_ok = true;
-						break;
-					}
-					_ => {}
-				}
-			}
-		}
+	if header.borrow().phi_instrs.is_empty() {
+		return false;
 	}
 
+	for item in header.borrow().phi_instrs.iter() {
+		if indvars.get(&item.target).is_some_and(|indvar| {
+			matches!(
+				indvar.get_type(),
+				crate::loops::indvar_type::IndVarType::Ordinary // | crate::loops::indvar_type::IndVarType::OrdinaryZFP
+			)
+		}) {
+			continue;
+		}
+		return false;
+	}
 	let jump_ok = match header.borrow().jump_instr.as_ref() {
 		Some(jump) => match jump.get_variant() {
 			llvm::LlvmInstrVariant::JumpCondInstr(cond) => {
@@ -183,11 +295,8 @@ fn last_check(info: LoopInfo) -> bool {
 		None => false,
 	};
 
-	let phi_ok = header.borrow().phi_instrs.len() == 1;
-
 	// dbg!(header.borrow().phi_instrs.len());
-
-	check_cmp_ok && jump_ok && phi_ok
+	jump_ok
 }
 
 fn parallel_loop(
@@ -196,37 +305,46 @@ fn parallel_loop(
 	loop_map: &mut HashMap<i32, LoopPtr>,
 	loop_info: &mut HashMap<u32, LoopInfo>,
 	mgr: &mut LlvmTempManager,
-	bb_cnt: &mut i32,
-	blocks: &mut Vec<LlvmNode>,
+	indvars: &mut HashMap<LlvmTemp, IndVar>,
 ) {
 	let current_id = current.borrow().id;
-	let current_ura_id = current.borrow().ura_id;
-	//不并行单层
-	let operate_on_this =
-		ok.contains(&current_id) && current_id + 1 < current_ura_id;
+	let current_ura_id = current.borrow().id;
+
+	let mut operate_on_this = ok.contains(&current_id);
+
+	let is_single_layer = current_ura_id == current_id + 1;
 
 	let mut operated = false;
 
 	if let Some(info) = loop_info.get_mut(&current_id) {
+		if let (Value::Int(start), Value::Int(step), Value::Int(end)) =
+			(&info.begin, &info.step, &info.end)
+		{
+			if is_single_layer && ((end - start) / step) < 4096 {
+				operate_on_this = false;
+			}
+		}
+
 		let preheader = info.preheader.clone();
 
-		let cmp_op = info.comp_op;
-
-		if (cmp_op == llvm::CompOp::SLT || cmp_op == llvm::CompOp::SGT)
-			&& operate_on_this
-			&& last_check(info.clone())
-		{
+		if operate_on_this && last_check(info.clone(), indvars) {
 			let pre_id = preheader.borrow().id;
-			if let Some(outer) = loop_map.get(&pre_id).cloned() {
-				// dbg!(&header.borrow().id, &preheader.borrow().id, &exit.borrow().id, &cmp, &step, &begin, &end);
+			if loop_map.get(&pre_id).cloned().is_some() {
+				let (new_start, new_end, new_index) =
+					make_parallel(info.clone(), mgr, indvars);
 
-				let (new_bb, new_start, new_end) =
-					make_parallel(info.clone(), mgr, bb_cnt, blocks);
-				for item in new_bb {
-					loop_map.insert(item.borrow().id, outer.clone());
-				}
-				info.begin = Value::Temp(new_start);
-				info.end = Value::Temp(new_end);
+				indvars.insert(
+					new_index,
+					IndVar {
+						base: 0.into(),
+						scale: 1.into(),
+						step: vec![1.into()],
+						zfp: None,
+					},
+				);
+
+				info.begin = new_start;
+				info.end = new_end;
 
 				operated = true;
 			}
@@ -241,12 +359,20 @@ fn parallel_loop(
 			current.borrow().header.borrow().id
 		);
 	}
+	// else {
+	// 	eprintln!(
+	// 		"fail {} {} B{}",
+	// 		current.borrow().id,
+	// 		current.borrow().ura_id,
+	// 		current.borrow().header.borrow().id
+	// 	);
+	// }
 
 	if operated || current_id != 1 {
 		return;
 	}
 
 	for sub in current.borrow().subloops.iter().cloned() {
-		parallel_loop(sub, ok, loop_map, loop_info, mgr, bb_cnt, blocks);
+		parallel_loop(sub, ok, loop_map, loop_info, mgr, indvars);
 	}
 }

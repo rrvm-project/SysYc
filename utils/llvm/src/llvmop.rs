@@ -185,6 +185,13 @@ impl Value {
 			_ => None,
 		}
 	}
+
+	pub fn unwrap_temp_ref(&self) -> Option<&LlvmTemp> {
+		match self {
+			Self::Temp(v) => Some(v),
+			_ => None,
+		}
+	}
 }
 
 impl Display for Value {

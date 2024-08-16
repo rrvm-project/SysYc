@@ -1,15 +1,57 @@
-use std::{cell::RefCell, rc::Rc};
+use std::collections::HashMap;
 
 use llvm::{
-	ArithInstr, ArithOp, CallInstr, CompInstr, CompKind, CompOp, JumpCondInstr,
-	JumpInstr, LlvmInstr, LlvmInstrVariant, LlvmTemp, LlvmTempManager, PhiInstr,
-	Value, VarType,
+	ArithInstr, ArithOp, CallInstr, CompInstr, CompKind, CompOp, LlvmInstr,
+	LlvmInstrVariant, LlvmTemp, LlvmTempManager, PhiInstr, Value, VarType,
 };
 
-use rrvm::{prelude::LlvmBasicBlock, LlvmNode};
-use utils::{math::increment, Label};
+use utils::Label;
 
-use crate::loops::loopinfo::LoopInfo;
+use crate::loops::{
+	indvar::IndVar, indvar_type::IndVarType, loopinfo::LoopInfo,
+};
+
+fn add_arith_instr(
+	instr: &mut Vec<LlvmInstr>,
+	mgr: &mut LlvmTempManager,
+	op: ArithOp,
+	lhs: Value,
+	rhs: Value,
+) -> LlvmTemp {
+	let target = mgr.new_temp(VarType::I32, false);
+
+	let i = ArithInstr {
+		target: target.clone(),
+		op,
+		var_type: VarType::I32,
+		lhs,
+		rhs,
+	};
+	instr.push(Box::new(i));
+	target
+}
+
+fn add_comp_instr(
+	instr: &mut Vec<LlvmInstr>,
+	mgr: &mut LlvmTempManager,
+	op: CompOp,
+	lhs: Value,
+	rhs: Value,
+) -> LlvmTemp {
+	let target = mgr.new_temp(VarType::I32, false);
+
+	let i = CompInstr {
+		kind: CompKind::Icmp,
+		target: target.clone(),
+		op,
+		var_type: VarType::I32,
+		lhs,
+		rhs,
+	};
+
+	instr.push(Box::new(i));
+	target
+}
 
 pub fn make_parallel(
 	info: LoopInfo,
@@ -21,35 +63,25 @@ pub fn make_parallel(
 	// step: Value,
 	// begin: Value,
 	// end: Value,
-	bb_cnt: &mut i32,
-	blocks: &mut Vec<LlvmNode>,
-) -> (Vec<LlvmNode>, LlvmTemp, LlvmTemp) {
+	indvars: &mut HashMap<LlvmTemp, IndVar>,
+) -> (Value, Value, LlvmTemp) {
 	// SLT only now!!
 	let pre_header = info.preheader.clone();
 	let header = info.header.clone();
 	let exit = info.single_exit.clone();
-	// let cmp_op = info.comp_op;
+	let cmp_op = info.comp_op;
 	let cmp = info.cmp.clone();
 	let step = info.step.clone();
 	let begin = info.begin.clone();
 	let end = info.end.clone();
 
-	let weight = header.borrow().weight;
-	let hdr_012 =
-		Rc::new(RefCell::new(LlvmBasicBlock::new(increment(bb_cnt), weight)));
-	let hdr_3 =
-		Rc::new(RefCell::new(LlvmBasicBlock::new(increment(bb_cnt), weight)));
-	let hdr_all =
-		Rc::new(RefCell::new(LlvmBasicBlock::new(increment(bb_cnt), weight)));
-
-	pre_header.borrow_mut().succ = vec![hdr_012.clone(), hdr_3.clone()];
-	hdr_012.borrow_mut().prev = vec![pre_header.clone()];
-	hdr_3.borrow_mut().prev = vec![pre_header.clone()];
-	hdr_012.borrow_mut().succ = vec![hdr_all.clone()];
-	hdr_3.borrow_mut().succ = vec![hdr_all.clone()];
-	hdr_all.borrow_mut().prev = vec![hdr_012.clone(), hdr_3.clone()];
-	hdr_all.borrow_mut().succ = vec![header.clone()];
-	header.borrow_mut().prev = vec![hdr_all.clone()];
+	let equal_op = match cmp_op {
+		CompOp::SGT => false,
+		CompOp::SGE => true,
+		CompOp::SLT => false,
+		CompOp::SLE => true,
+		_ => unreachable!(),
+	};
 
 	let tid = mgr.new_temp(llvm::VarType::I32, false);
 	pre_header.borrow_mut().instrs.push(Box::new(CallInstr {
@@ -61,145 +93,191 @@ pub fn make_parallel(
 		params: vec![],
 	}));
 
-	let is_last = mgr.new_temp(llvm::VarType::I32, false);
+	let is_last = add_comp_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		CompOp::EQ,
+		3.into(),
+		tid.clone().into(),
+	);
+	let neg_is_last = add_arith_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		ArithOp::Mul,
+		is_last.into(),
+		(-1).into(),
+	);
 
-	pre_header.borrow_mut().instrs.push(Box::new(CompInstr {
-		target: is_last.clone(),
-		var_type: llvm::VarType::I32,
-		kind: CompKind::Icmp,
-		op: CompOp::EQ,
-		lhs: Value::Temp(tid.clone()),
-		rhs: Value::Int(3),
-	}));
+	let diff = add_arith_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		ArithOp::Sub,
+		end.clone(),
+		begin.clone(),
+	);
+	let diff_div_step = add_arith_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		ArithOp::Div,
+		diff.clone().into(),
+		step.clone(),
+	);
 
-	let old_jump =
-		pre_header.borrow_mut().jump_instr.replace(Box::new(JumpCondInstr {
+	let total_times = if equal_op {
+		add_arith_instr(
+			pre_header.borrow_mut().instrs.as_mut(),
+			mgr,
+			ArithOp::Add,
+			diff_div_step.clone().into(),
+			1.into(),
+		)
+	} else {
+		let diff_div_step_mul_step = add_arith_instr(
+			pre_header.borrow_mut().instrs.as_mut(),
+			mgr,
+			ArithOp::Mul,
+			diff_div_step.clone().into(),
+			step.clone(),
+		);
+		let need_to_add = add_comp_instr(
+			pre_header.borrow_mut().instrs.as_mut(),
+			mgr,
+			CompOp::NE,
+			diff_div_step_mul_step.into(),
+			diff.clone().into(),
+		);
+		add_arith_instr(
+			pre_header.borrow_mut().instrs.as_mut(),
+			mgr,
+			ArithOp::Add,
+			diff_div_step.clone().into(),
+			need_to_add.into(),
+		)
+	};
+
+	let per_part = add_arith_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		ArithOp::Div,
+		total_times.clone().into(),
+		4.into(),
+	);
+	let per_part_4 = add_arith_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		ArithOp::Mul,
+		per_part.clone().into(),
+		4.into(),
+	);
+	let remain = add_arith_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		ArithOp::Sub,
+		total_times.clone().into(),
+		per_part_4.into(),
+	);
+
+	let remain_to_add = add_arith_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		ArithOp::And,
+		remain.into(),
+		neg_is_last.into(),
+	);
+	let this_length = add_arith_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		ArithOp::Add,
+		remain_to_add.into(),
+		per_part.clone().into(),
+	);
+
+	let offset = add_arith_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		ArithOp::Mul,
+		tid.clone().into(),
+		per_part.into(),
+	);
+
+	let header_phi = std::mem::take(&mut header.borrow_mut().phi_instrs);
+
+	let new_index = mgr.new_temp(VarType::I32, false);
+	let next_index = mgr.new_temp(VarType::I32, false);
+
+	let rewrite_phi = |items: &mut Vec<(Value, Label)>, new_value: Value| {
+		for item in items.iter_mut() {
+			if item.1 == pre_header.borrow().label() {
+				item.0 = new_value;
+				break;
+			}
+		}
+	};
+
+	for mut item in header_phi {
+		if let Some(indvar) = indvars.get(&item.target) {
+			if matches!(indvar.get_type(), IndVarType::Ordinary) {
+				let start = indvar.base.clone();
+				let total_offset = add_arith_instr(
+					pre_header.borrow_mut().instrs.as_mut(),
+					mgr,
+					ArithOp::Mul,
+					offset.clone().into(),
+					indvar.step.first().unwrap().clone(),
+				);
+				let thread_start = add_arith_instr(
+					pre_header.borrow_mut().instrs.as_mut(),
+					mgr,
+					ArithOp::Add,
+					start,
+					total_offset.into(),
+				);
+				rewrite_phi(&mut item.source, thread_start.into());
+				header.borrow_mut().phi_instrs.push(PhiInstr {
+					target: item.target,
+					var_type: item.var_type,
+					source: item.source,
+				});
+			} else {
+				unreachable!()
+			}
+		//TODO 有后端指令支持之后在这里搞zfp
+		} else {
+			unreachable!()
+		}
+	}
+
+	let mut new_phi = header.borrow().phi_instrs.last().unwrap().clone();
+
+	new_phi.target = new_index.clone();
+	new_phi.var_type = VarType::I32;
+	new_phi.source.iter_mut().for_each(|(value, label)| {
+		if *label == pre_header.borrow().label() {
+			*value = 0i32.into();
+		} else {
+			*value = next_index.clone().into();
+		}
+	});
+
+	header.borrow_mut().phi_instrs.push(new_phi);
+
+	let mut loop_control: Vec<LlvmInstr> = vec![
+		Box::new(CompInstr {
+			target: cmp.clone(),
 			var_type: llvm::VarType::I32,
-			cond: Value::Temp(is_last),
-			target_true: hdr_3.borrow().label(),
-			target_false: hdr_012.borrow().label(),
-		}));
-
-	hdr_012.borrow_mut().jump_instr = Some(Box::new(JumpInstr {
-		target: hdr_all.borrow().label(),
-	}));
-
-	hdr_3.borrow_mut().jump_instr = Some(Box::new(JumpInstr {
-		target: hdr_all.borrow().label(),
-	}));
-
-	hdr_all.borrow_mut().jump_instr = old_jump;
-
-	let diff = mgr.new_temp(llvm::VarType::I32, false);
-	let div_step = mgr.new_temp(llvm::VarType::I32, false);
-	let quarter = mgr.new_temp(llvm::VarType::I32, false);
-	let quarter_mul_step = mgr.new_temp(llvm::VarType::I32, false);
-	let times_tid = mgr.new_temp(llvm::VarType::I32, false);
-	let add_quarter = mgr.new_temp(llvm::VarType::I32, false);
-
-	pre_header.borrow_mut().instrs.push(Box::new(ArithInstr {
-		target: diff.clone(),
-		var_type: llvm::VarType::I32,
-		op: ArithOp::Sub,
-		lhs: end.clone(),
-		rhs: begin.clone(),
-	}));
-
-	pre_header.borrow_mut().instrs.push(Box::new(ArithInstr {
-		target: div_step.clone(),
-		var_type: llvm::VarType::I32,
-		op: ArithOp::Div,
-		lhs: Value::Temp(diff.clone()),
-		rhs: step.clone(),
-	}));
-
-	pre_header.borrow_mut().instrs.push(Box::new(ArithInstr {
-		target: quarter.clone(),
-		var_type: llvm::VarType::I32,
-		op: ArithOp::Div,
-		lhs: Value::Temp(div_step.clone()),
-		rhs: Value::Int(4),
-	}));
-
-	pre_header.borrow_mut().instrs.push(Box::new(ArithInstr {
-		target: quarter_mul_step.clone(),
-		var_type: llvm::VarType::I32,
-		op: ArithOp::Mul,
-		lhs: Value::Temp(quarter),
-		rhs: step.clone(),
-	}));
-
-	pre_header.borrow_mut().instrs.push(Box::new(ArithInstr {
-		target: times_tid.clone(),
-		var_type: llvm::VarType::I32,
-		op: ArithOp::Mul,
-		lhs: Value::Temp(quarter_mul_step.clone()),
-		rhs: Value::Temp(tid.clone()),
-	}));
-
-	pre_header.borrow_mut().instrs.push(Box::new(ArithInstr {
-		target: add_quarter.clone(),
-		var_type: llvm::VarType::I32,
-		op: ArithOp::Add,
-		lhs: Value::Temp(times_tid.clone()),
-		rhs: Value::Temp(quarter_mul_step),
-	}));
-
-	let end_thread_offset = mgr.new_temp(llvm::VarType::I32, false);
-
-	hdr_all.borrow_mut().phi_instrs = vec![PhiInstr {
-		target: end_thread_offset.clone(),
-		var_type: llvm::VarType::I32,
-		source: vec![
-			(Value::Temp(add_quarter.clone()), hdr_012.borrow().label()),
-			(end.clone(), hdr_3.borrow().label()),
-		],
-	}];
-
-	let begin_thread = mgr.new_temp(llvm::VarType::I32, false);
-	let end_thread = mgr.new_temp(llvm::VarType::I32, false);
-
-	hdr_all.borrow_mut().instrs = vec![
-		Box::new(ArithInstr {
-			target: begin_thread.clone(),
-			var_type: llvm::VarType::I32,
-			op: ArithOp::Add,
-			lhs: Value::Temp(times_tid.clone()),
-			rhs: begin.clone(),
+			kind: CompKind::Icmp,
+			op: CompOp::SLT,
+			lhs: new_index.clone().into(),
+			rhs: this_length.clone().into(),
 		}),
 		Box::new(ArithInstr {
-			target: end_thread.clone(),
+			target: next_index.clone(),
 			var_type: llvm::VarType::I32,
 			op: ArithOp::Add,
-			lhs: Value::Temp(end_thread_offset.clone()),
-			rhs: begin,
+			lhs: new_index.clone().into(),
+			rhs: 1.into(),
 		}),
 	];
-
-	let mut header_phi = std::mem::take(&mut header.borrow_mut().phi_instrs);
-
-	// dbg!(header_phi.len());
-	assert!(header_phi.len() == 1);
-
-	header_phi.get_mut(0).unwrap().source.iter_mut().for_each(
-		|(value, label)| {
-			if *label == pre_header.borrow().label() {
-				*label = hdr_all.borrow().label();
-				*value = Value::Temp(begin_thread.clone());
-			}
-		},
-	);
-	let loop_var = header_phi[0].target.clone();
-	header.borrow_mut().phi_instrs = header_phi;
-
-	let new_loop_cmp = Box::new(CompInstr {
-		target: cmp.clone(),
-		var_type: llvm::VarType::I32,
-		kind: CompKind::Icmp,
-		op: CompOp::SLT,
-		lhs: Value::Temp(loop_var.clone()),
-		rhs: Value::Temp(end_thread.clone()),
-	});
 
 	let mut found = false;
 
@@ -209,21 +287,9 @@ pub fn make_parallel(
 		match instr.get_variant() {
 			LlvmInstrVariant::CompInstr(c) => {
 				if c.target == cmp {
-					match (c.op, &c.lhs, &c.rhs) {
-						(CompOp::SLT, Value::Temp(lhs), _) if *lhs == loop_var => {
-							new_instrs.push(new_loop_cmp);
-							found = true;
-							break;
-						}
-						(CompOp::SGT, _, Value::Temp(rhs)) if *rhs == loop_var => {
-							new_instrs.push(new_loop_cmp);
-							found = true;
-							break;
-						}
-						_ => {
-							new_instrs.push(instr);
-						}
-					}
+					assert!(!loop_control.is_empty());
+					found = true;
+					new_instrs.extend(std::mem::take(&mut loop_control));
 				} else {
 					new_instrs.push(instr);
 				}
@@ -235,7 +301,6 @@ pub fn make_parallel(
 	}
 
 	assert!(found);
-	// TODO 检查跳转情况
 
 	header.borrow_mut().instrs = new_instrs;
 
@@ -251,13 +316,5 @@ pub fn make_parallel(
 		}),
 	);
 
-	blocks.push(hdr_012.clone());
-	blocks.push(hdr_3.clone());
-	blocks.push(hdr_all.clone());
-
-	(
-		vec![hdr_012, hdr_3, hdr_all],
-		begin_thread.clone(),
-		end_thread.clone(),
-	)
+	(0i32.into(), this_length.clone().into(), new_index)
 }
