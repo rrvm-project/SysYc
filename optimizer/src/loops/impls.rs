@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
 	loops::{
 		indvar_extraction::IndvarExtraction, loop_data::LoopData,
-		loop_simplify::LoopSimplify,
+		loop_simplify::LoopSimplify, loop_unroll::LoopUnroll,
 	},
 	metadata::{FuncData, MetaData},
 };
@@ -65,6 +65,30 @@ impl HandleLoops {
 			let dom_tree = LlvmDomTree::new(&func.cfg, false);
 			let opter =
 				IndvarExtraction::new(func, loop_data, func_data, temp_mgr, dom_tree);
+			opter.apply()
+		}
+
+		Ok(program.funcs.iter_mut().fold(false, |last, func| {
+			solve(
+				func,
+				self.loopdatas.get_mut(&func.name).unwrap(),
+				metadata.get_func_data(&func.name),
+				&mut program.temp_mgr,
+			) || last
+		}))
+	}
+	pub fn loop_unroll(
+		&mut self,
+		program: &mut LlvmProgram,
+		metadata: &mut MetaData,
+	) -> Result<bool> {
+		fn solve(
+			func: &mut LlvmFunc,
+			loop_data: &mut LoopData,
+			func_data: &mut FuncData,
+			temp_mgr: &mut LlvmTempManager,
+		) -> bool {
+			let mut opter = LoopUnroll::new(func, loop_data, func_data, temp_mgr);
 			opter.apply()
 		}
 

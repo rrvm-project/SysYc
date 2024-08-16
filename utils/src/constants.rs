@@ -42,3 +42,7 @@ pub static SCHEDULE_THRESHOLD: usize = 15000;
 pub static SOFTWARE_PIPELINE_PARAM: i32 = 0; // 拓扑排序后软流水的权重
 pub static HARDWARE_PIPELINE_PARAM: i32 = 1; // 拓扑排序后硬件流水的权重
 pub static FDIV_WAIT: usize = 20; // fdiv 的 repeat rate
+
+pub const MAX_UNROLL_INSTR_CNT: usize = 200;
+pub const MAX_UNROLL_TOTAL_INSTR_CNT: usize = 6000;
+pub const CALL_INSTR_CNT: usize = 50;

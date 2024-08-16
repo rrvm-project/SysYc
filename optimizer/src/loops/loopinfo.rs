@@ -18,10 +18,41 @@ use rrvm::LlvmNode;
 pub struct LoopInfo {
 	pub preheader: LlvmNode,
 	pub header: LlvmNode,
+	// 它会是 dedicated exit, 也即 它的前驱只有循环中的块
 	pub single_exit: LlvmNode,
 	pub cmp: LlvmTemp,
+	// 有可能是 SGT 和 SGE
 	pub comp_op: CompOp,
 	pub step: Value,
 	pub begin: Value,
 	pub end: Value,
+}
+
+impl LoopInfo {
+	pub fn has_const_loop_cnt(&self) -> Option<i32> {
+		if let (Value::Int(begin), Value::Int(end), Value::Int(step)) =
+			(&self.begin, &self.end, &self.step)
+		{
+			match self.comp_op {
+				CompOp::SLT | CompOp::SGT => {
+					let sign = step / step.abs();
+					let mut full_cnt = (end - begin + step - sign) / step;
+					if full_cnt < 0 {
+						full_cnt = 0;
+					}
+					Some(full_cnt)
+				}
+				CompOp::SLE | CompOp::SGE => {
+					let mut full_cnt = (end - begin + step) / step;
+					if full_cnt < 0 {
+						full_cnt = 0;
+					}
+					Some(full_cnt)
+				}
+				_ => unreachable!(),
+			}
+		} else {
+			None
+		}
+	}
 }

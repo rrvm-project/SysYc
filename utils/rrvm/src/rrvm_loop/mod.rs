@@ -6,7 +6,7 @@ use std::{
 	rc::{Rc, Weak},
 };
 
-use utils::math::Range;
+use utils::{math::Range, CALL_INSTR_CNT};
 
 use crate::LlvmCFG;
 
@@ -112,22 +112,19 @@ impl Loop {
 	/// getLoopLatch - If there is a single latch block for this loop, return it.
 	/// A latch block is a block that contains a branch back to the header.
 	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
-	pub fn get_loop_latch(
+	pub fn get_loop_latches(
 		&self,
 		loop_map: &HashMap<i32, LoopPtr>,
-	) -> Option<LlvmNode> {
+	) -> Vec<LlvmNode> {
 		let header = self.header.borrow();
-		let mut latch = None;
+		let mut latches = Vec::new();
 		for pred in header.prev.iter() {
 			let pred_loop = loop_map.get(&pred.borrow().id);
 			if pred_loop.map_or(false, |l| self.is_super_loop_of(l)) {
-				if latch.is_some() {
-					return None;
-				}
-				latch = Some(pred.clone());
+				latches.push(pred.clone());
 			}
 		}
-		latch
+		latches
 	}
 	/// get the only exit of the loop if it exists
 	/// @param blocks - The set of blocks in the loop, not containing blocks in subloops.
@@ -149,15 +146,11 @@ impl Loop {
 		}
 		exit
 	}
-	fn _no_inner(&self) -> bool {
+	pub fn no_inner(&self) -> bool {
 		self.subloops.is_empty()
 	}
 	// 临时计算 loop 内有哪些 block, 包括子循环的 block
-	pub fn blocks(
-		&self,
-		_cfg: &LlvmCFG,
-		loop_map: &HashMap<i32, LoopPtr>,
-	) -> Vec<LlvmNode> {
+	pub fn blocks(&self, loop_map: &HashMap<i32, LoopPtr>) -> Vec<LlvmNode> {
 		// 从 header 开始，遍历在同一循环内的后继，直到回到 header
 		let mut deduplicate = HashSet::new();
 		let mut visited = Vec::new();
@@ -202,6 +195,19 @@ impl Loop {
 			}
 		}
 		visited
+	}
+	pub fn instr_cnt(&self, loop_map: &HashMap<i32, LoopPtr>) -> usize {
+		self
+			.blocks(loop_map)
+			.iter()
+			.map(|bb| {
+				bb.borrow()
+					.instrs
+					.iter()
+					.map(|i| if i.is_call() { CALL_INSTR_CNT } else { 1 })
+					.sum::<usize>()
+			})
+			.sum()
 	}
 }
 

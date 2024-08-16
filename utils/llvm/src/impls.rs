@@ -77,11 +77,20 @@ impl UseTemp<LlvmTemp> for ArithInstr {
 	}
 }
 
-fn map_llvm_temp(temp: &mut Value, map: &HashMap<LlvmTemp, Value>) {
+fn map_llvm_temp_to_value(temp: &mut Value, map: &HashMap<LlvmTemp, Value>) {
 	if let Value::Temp(v) = temp {
 		if let Some(v) = map.get(v) {
 			*temp = v.clone();
 		}
+	}
+}
+
+fn map_llvm_temp_to_temp(
+	temp: &mut LlvmTemp,
+	map: &HashMap<LlvmTemp, LlvmTemp>,
+) {
+	if let Some(v) = map.get(temp) {
+		*temp = v.clone();
 	}
 }
 
@@ -90,8 +99,17 @@ impl LlvmInstrTrait for ArithInstr {
 		LlvmInstrVariant::ArithInstr(self)
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
-		map_llvm_temp(&mut self.lhs, map);
-		map_llvm_temp(&mut self.rhs, map);
+		map_llvm_temp_to_value(&mut self.lhs, map);
+		map_llvm_temp_to_value(&mut self.rhs, map);
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		if let Value::Temp(t) = &mut self.lhs {
+			map_llvm_temp_to_temp(t, map);
+		}
+		if let Value::Temp(t) = &mut self.rhs {
+			map_llvm_temp_to_temp(t, map);
+		}
+		map_llvm_temp_to_temp(&mut self.target, map);
 	}
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
@@ -116,9 +134,6 @@ impl LlvmInstrTrait for ArithInstr {
 	}
 	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
 		Some((self.lhs.clone(), self.rhs.clone()))
-	}
-	fn swap_target(&mut self, _new: LlvmTemp) {
-		self.target = _new;
 	}
 	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.lhs.clone(), self.rhs.clone()]
@@ -174,17 +189,23 @@ impl LlvmInstrTrait for CompInstr {
 		LlvmInstrVariant::CompInstr(self)
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
-		map_llvm_temp(&mut self.lhs, map);
-		map_llvm_temp(&mut self.rhs, map);
+		map_llvm_temp_to_value(&mut self.lhs, map);
+		map_llvm_temp_to_value(&mut self.rhs, map);
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		if let Value::Temp(t) = &mut self.lhs {
+			map_llvm_temp_to_temp(t, map);
+		}
+		if let Value::Temp(t) = &mut self.rhs {
+			map_llvm_temp_to_temp(t, map);
+		}
+		map_llvm_temp_to_temp(&mut self.target, map);
 	}
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
 	}
 	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
-	}
-	fn swap_target(&mut self, _new: LlvmTemp) {
-		self.target = _new;
 	}
 	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.lhs.clone(), self.rhs.clone()]
@@ -243,16 +264,19 @@ impl LlvmInstrTrait for ConvertInstr {
 		LlvmInstrVariant::ConvertInstr(self)
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
-		map_llvm_temp(&mut self.lhs, map);
+		map_llvm_temp_to_value(&mut self.lhs, map);
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		if let Value::Temp(t) = &mut self.lhs {
+			map_llvm_temp_to_temp(t, map);
+		}
+		map_llvm_temp_to_temp(&mut self.target, map);
 	}
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
 	}
 	fn replaceable(&self, map: &HashMap<LlvmTemp, Value>) -> bool {
 		map.get(&self.target).is_some()
-	}
-	fn swap_target(&mut self, _new: LlvmTemp) {
-		self.target = _new;
 	}
 	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.lhs.clone()]
@@ -352,7 +376,12 @@ impl LlvmInstrTrait for JumpCondInstr {
 		}
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
-		map_llvm_temp(&mut self.cond, map);
+		map_llvm_temp_to_value(&mut self.cond, map);
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		if let Value::Temp(t) = &mut self.cond {
+			map_llvm_temp_to_temp(t, map);
+		}
 	}
 	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.cond.clone()]
@@ -400,8 +429,16 @@ impl LlvmInstrTrait for PhiInstr {
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		for (value, _) in &mut self.source {
-			map_llvm_temp(value, map);
+			map_llvm_temp_to_value(value, map);
 		}
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		for (value, _) in &mut self.source {
+			if let Value::Temp(t) = value {
+				map_llvm_temp_to_temp(t, map);
+			}
+		}
+		map_llvm_temp_to_temp(&mut self.target, map);
 	}
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
@@ -412,9 +449,6 @@ impl LlvmInstrTrait for PhiInstr {
 				*label = new_label.clone();
 			}
 		}
-	}
-	fn swap_target(&mut self, _new: LlvmTemp) {
-		self.target = _new;
 	}
 	fn get_read_values(&self) -> Vec<Value> {
 		self.source.iter().map(|(v, _)| v.clone()).collect()
@@ -468,7 +502,14 @@ impl LlvmInstrTrait for RetInstr {
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		if let Some(value) = &mut self.value {
-			map_llvm_temp(value, map);
+			map_llvm_temp_to_value(value, map);
+		}
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		if let Some(value) = &mut self.value {
+			if let Value::Temp(t) = value {
+				map_llvm_temp_to_temp(t, map);
+			}
 		}
 	}
 	fn map_label(&mut self, _map: &HashMap<Label, Label>) {}
@@ -515,13 +556,16 @@ impl LlvmInstrTrait for AllocInstr {
 		Some((self.target.clone(), self.length.clone()))
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
-		map_llvm_temp(&mut self.length, map);
+		map_llvm_temp_to_value(&mut self.length, map);
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		if let Value::Temp(t) = &mut self.length {
+			map_llvm_temp_to_temp(t, map);
+		}
+		map_llvm_temp_to_temp(&mut self.target, map);
 	}
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
-	}
-	fn swap_target(&mut self, _new: LlvmTemp) {
-		self.target = _new;
 	}
 	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.length.clone()]
@@ -564,8 +608,16 @@ impl LlvmInstrTrait for StoreInstr {
 		true
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
-		map_llvm_temp(&mut self.value, map);
-		map_llvm_temp(&mut self.addr, map);
+		map_llvm_temp_to_value(&mut self.value, map);
+		map_llvm_temp_to_value(&mut self.addr, map);
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		if let Value::Temp(t) = &mut self.value {
+			map_llvm_temp_to_temp(t, map);
+		}
+		if let Value::Temp(t) = &mut self.addr {
+			map_llvm_temp_to_temp(t, map);
+		}
 	}
 	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.value.clone(), self.addr.clone()]
@@ -609,13 +661,16 @@ impl LlvmInstrTrait for LoadInstr {
 		self.addr.unwrap_temp().map_or(true, |v| !v.is_global)
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
-		map_llvm_temp(&mut self.addr, map);
+		map_llvm_temp_to_value(&mut self.addr, map);
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		if let Value::Temp(t) = &mut self.addr {
+			map_llvm_temp_to_temp(t, map);
+		}
+		map_llvm_temp_to_temp(&mut self.target, map);
 	}
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
-	}
-	fn swap_target(&mut self, _new: LlvmTemp) {
-		self.target = _new;
 	}
 	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.addr.clone()]
@@ -656,14 +711,20 @@ impl LlvmInstrTrait for GEPInstr {
 		LlvmInstrVariant::GEPInstr(self)
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
-		map_llvm_temp(&mut self.addr, map);
-		map_llvm_temp(&mut self.offset, map);
+		map_llvm_temp_to_value(&mut self.addr, map);
+		map_llvm_temp_to_value(&mut self.offset, map);
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		if let Value::Temp(t) = &mut self.addr {
+			map_llvm_temp_to_temp(t, map);
+		}
+		if let Value::Temp(t) = &mut self.offset {
+			map_llvm_temp_to_temp(t, map);
+		}
+		map_llvm_temp_to_temp(&mut self.target, map);
 	}
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
-	}
-	fn swap_target(&mut self, _new: LlvmTemp) {
-		self.target = _new;
 	}
 	fn get_read_values(&self) -> Vec<Value> {
 		vec![self.addr.clone(), self.offset.clone()]
@@ -716,14 +777,19 @@ impl LlvmInstrTrait for CallInstr {
 	}
 	fn map_temp(&mut self, map: &HashMap<LlvmTemp, Value>) {
 		for (_, value) in &mut self.params {
-			map_llvm_temp(value, map);
+			map_llvm_temp_to_value(value, map);
 		}
+	}
+	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
+		for (_, value) in &mut self.params {
+			if let Value::Temp(t) = value {
+				map_llvm_temp_to_temp(t, map);
+			}
+		}
+		map_llvm_temp_to_temp(&mut self.target, map);
 	}
 	fn set_target(&mut self, target: LlvmTemp) {
 		self.target = target
-	}
-	fn swap_target(&mut self, _new: LlvmTemp) {
-		self.target = _new;
 	}
 	fn get_read_values(&self) -> Vec<Value> {
 		self.params.iter().map(|(_, x)| x.clone()).collect()
