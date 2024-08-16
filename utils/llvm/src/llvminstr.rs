@@ -67,6 +67,7 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	}
 	fn replace_read(&mut self, _old: LlvmTemp, _new: Value) {}
 	fn map_temp(&mut self, _map: &HashMap<LlvmTemp, Value>) {}
+	fn map_all_temp(&mut self, _map: &HashMap<LlvmTemp, LlvmTemp>) {}
 	fn set_target(&mut self, _target: LlvmTemp) {}
 	fn map_label(&mut self, _map: &HashMap<Label, Label>) {
 		unreachable!()
@@ -79,9 +80,6 @@ pub trait LlvmInstrTrait: Display + CloneLlvmInstr + UseTemp<LlvmTemp> {
 	}
 	fn get_lhs_and_rhs(&self) -> Option<(Value, Value)> {
 		None
-	}
-	fn swap_target(&mut self, _new: LlvmTemp) {
-		unreachable!()
 	}
 	fn get_read_values(&self) -> Vec<Value>;
 	fn set_read_values(&mut self, id: usize, value: Value);

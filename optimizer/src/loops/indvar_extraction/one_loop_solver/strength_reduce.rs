@@ -17,14 +17,14 @@ impl<'a> OneLoopSolver<'a> {
 		iv: &IndVar,
 		reduce_map: &mut HashMap<LlvmTemp, LlvmTemp>,
 	) -> bool {
-		// 被我 reduce 的变量所在的基本块一定要支配 loop 唯一的 latch 块
+		// 被我 reduce 的变量所在的基本块一定要支配 loop 所有的 latch 块
 		let def_bb = self.loopdata.def_map[target].clone();
-		let latch_bb = self
-			.cur_loop
-			.borrow()
-			.get_loop_latch(&self.loopdata.loop_map)
-			.expect("single latch block not found");
-		if !self.dom_tree.dominates[&def_bb.borrow().id].contains(&latch_bb) {
+		let latch_bbs =
+			self.cur_loop.borrow().get_loop_latches(&self.loopdata.loop_map);
+		// TODO：这里需要检查 一个 Vec 是否包含另一个 Vec 的全部内容，有没有更好的实现方式？
+		if latch_bbs.iter().any(|latch_bb| {
+			!self.dom_tree.dominates[&def_bb.borrow().id].contains(&latch_bb)
+		}) {
 			#[cfg(feature = "debug")]
 			eprintln!("SR: not reducing iv: {} because def block does not dominate latch block", iv);
 			return false;

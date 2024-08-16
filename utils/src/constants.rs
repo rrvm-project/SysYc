@@ -26,3 +26,7 @@ pub static VEC_EXTERN: [&str; 17] = [
 
 pub static VEC_MACRO: [&str; 2] = ["starttime", "stoptime"];
 pub const MAX_PHI_NUM: usize = 10;
+
+pub const MAX_UNROLL_INSTR_CNT: usize = 200;
+pub const MAX_UNROLL_TOTAL_INSTR_CNT: usize = 6000;
+pub const CALL_INSTR_CNT: usize = 50;

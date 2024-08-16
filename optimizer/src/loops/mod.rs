@@ -9,6 +9,7 @@ mod indvar_extraction;
 mod indvar_type;
 mod loop_data;
 mod loop_simplify;
+mod loop_unroll;
 mod loopinfo;
 mod temp_graph;
 
