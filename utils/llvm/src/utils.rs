@@ -33,6 +33,16 @@ pub fn compute_two_value(
 			};
 			(Value::Int(i), None)
 		}
+		(Value::Float(f1), Value::Float(f2)) => {
+			let f = match op {
+				ArithOp::Fadd => f1 + f2,
+				ArithOp::Fmul => f1 * f2,
+				ArithOp::Fsub => f1 - f2,
+				ArithOp::Fdiv => f1 / f2,
+				_ => unreachable!(),
+			};
+			(Value::Float(f), None)
+		}
 		(Value::Int(i1), Value::Temp(t2)) => {
 			assert!(t2.var_type != VarType::F32);
 			match (i1, op) {
@@ -51,6 +61,26 @@ pub fn compute_two_value(
 						rhs: Value::Temp(t2),
 					});
 					(Value::Temp(target), Some(instr))
+				}
+			}
+		}
+		(Value::Float(f1), Value::Temp(t2)) => {
+			assert!(t2.var_type == VarType::F32);
+			match (f1, op) {
+				(0.0, ArithOp::Fadd | ArithOp::Fsub) | (1.0, ArithOp::Fmul) => {
+					(v2, None)
+				}
+				(0.0, ArithOp::Fmul) => (Value::Float(0.0), None),
+				_ => {
+					let target = temp_mgr.new_temp(t2.var_type, false);
+					let instr = ArithInstr {
+						target: target.clone(),
+						op,
+						var_type: t2.var_type,
+						lhs: Value::Float(f1),
+						rhs: Value::Temp(t2),
+					};
+					(Value::Temp(target), Some(Box::new(instr)))
 				}
 			}
 		}
@@ -84,8 +114,27 @@ pub fn compute_two_value(
 				}
 			}
 		}
+		(Value::Temp(t1), Value::Float(f2)) => {
+			assert!(t1.var_type == VarType::F32);
+			match (f2, op) {
+				(0.0, ArithOp::Fadd | ArithOp::Fsub)
+				| (1.0, ArithOp::Fmul | ArithOp::Fdiv) => (v1, None),
+				(0.0, ArithOp::Fmul) => (Value::Float(0.0), None),
+				_ => {
+					let target = temp_mgr.new_temp(t1.var_type, false);
+					let instr = ArithInstr {
+						target: target.clone(),
+						op,
+						var_type: t1.var_type,
+						lhs: Value::Temp(t1),
+						rhs: Value::Float(f2),
+					};
+					(Value::Temp(target), Some(Box::new(instr)))
+				}
+			}
+		}
 		(Value::Temp(t1), Value::Temp(t2)) => {
-			assert!(t1.var_type == VarType::I32 || t2.var_type == VarType::I32);
+			assert!(t1.var_type == VarType::I32 || t2.var_type == VarType::I32||t1.var_type==VarType::F32 || t2.var_type==VarType::F32);
 			assert!(t2.var_type != VarType::I32Ptr && t2.var_type != VarType::F32Ptr);
 			if t1.var_type == VarType::I32Ptr || t1.var_type == VarType::F32Ptr {
 				let target = temp_mgr.new_temp(t1.var_type, false);
