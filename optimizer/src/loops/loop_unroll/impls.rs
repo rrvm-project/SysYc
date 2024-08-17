@@ -21,7 +21,8 @@ impl<'a> LoopUnroll<'a> {
 		}
 	}
 	// 条件：只有一个 exit,指令总量小于 MAX_UNROLL_CNT,并且无内层循环
-	pub fn apply(&mut self) -> bool {
+	pub fn apply(mut self) -> bool {
+		self.loopdata.rebuild(self.func);
 		self.dfs(self.loopdata.root_loop.clone());
 		self.flag
 	}

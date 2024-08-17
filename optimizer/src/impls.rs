@@ -62,35 +62,10 @@ impl Optimizer2 {
 		let mut metadata = MetaData::new();
 		RemoveUnreachCode::new().apply(program, &mut metadata)?;
 
-		loop {
-			let mut flag = false;
-			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
-			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
-			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
-			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
-			flag |= FoldConstants::new().apply(program, &mut metadata)?;
-			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
-			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
-			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
-			flag |= InlineFunction::new().apply(program, &mut metadata)?;
-			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
-			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
-			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
-			if !flag {
-				break;
-			}
-		}
-
 		let mut loop_handler = HandleLoops::new(program);
-		loop_handler.loop_simplify(program, &mut metadata)?;
-		loop_handler.indvar_extraction(program, &mut metadata)?;
-		RemoveDeadCode::new().apply(program, &mut metadata)?;
-		RemoveUselessCode::new().apply(program, &mut metadata)?;
-		loop_handler.loop_unroll(program, &mut metadata)?;
 
 		loop {
 			let mut flag = false;
-			println!("1");
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
 			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
@@ -104,6 +79,10 @@ impl Optimizer2 {
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
+			loop_handler.rebuild(program);
+			flag |= loop_handler.loop_simplify(program, &mut metadata)?;
+			flag |= loop_handler.indvar_extraction(program, &mut metadata)?;
+			flag |= loop_handler.loop_unroll(program, &mut metadata)?;
 			if !flag {
 				break;
 			}

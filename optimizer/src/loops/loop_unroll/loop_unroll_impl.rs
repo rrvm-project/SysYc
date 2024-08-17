@@ -66,6 +66,7 @@ impl<'a> LoopUnroll<'a> {
 		let mut temp_map: HashMap<LlvmTemp, LlvmTemp> = HashMap::new();
 		let loop_bbs = loop_.borrow().blocks(&self.loopdata.loop_map);
 		for bb in loop_bbs.iter() {
+			self.loopdata.loop_map.remove(&bb.borrow().id);
 			for instr in bb.borrow().instrs.iter() {
 				if let Some(write) = instr.get_write() {
 					temp_map.insert(write.clone(), write.clone());
