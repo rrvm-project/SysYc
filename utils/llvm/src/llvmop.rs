@@ -45,10 +45,6 @@ pub enum ArithOp {
 	DivD,
 	Rem, // modulo
 	RemD,
-	Fadd, // Float add
-	Fsub, // Float sub
-	Fdiv, // Float div
-	Fmul, // Float mul
 	Shl,
 	ShlD,
 	Lshr, // logical shift right
@@ -56,11 +52,8 @@ pub enum ArithOp {
 	Ashr, // arithmetic shift right
 	AshrD,
 	And,
-	AndD,
 	Or,
-	OrD,
 	Xor,
-	XorD,
 	Clz, // count leading zeros
 	ClzD,
 	Ctz, // count trailing zeros
@@ -69,6 +62,12 @@ pub enum ArithOp {
 	MinD,
 	Max, // max
 	MaxD,
+	Fadd, // Float add
+	Fsub, // Float sub
+	Fdiv, // Float div
+	Fmul, // Float mul
+	Fmin, // Float min
+	Fmax, // Float max
 }
 
 #[derive(Fuyuki, Clone, Copy, PartialEq, Eq, Hash, Debug)]
