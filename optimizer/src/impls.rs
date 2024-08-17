@@ -66,9 +66,7 @@ impl Optimizer2 {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
 			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
-			// eprintln!("{}================", program);
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
-			// eprintln!("{}", program);
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;

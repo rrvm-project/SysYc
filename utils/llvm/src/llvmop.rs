@@ -33,31 +33,42 @@ impl Hash for Value {
 	}
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum HashableValue {
-	Int(i32),
-	Float(u64, i16, i8),
-	Temp(LlvmTemp),
-}
-
 #[derive(Fuyuki, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ArithOp {
 	Add,
 	AddD,
-	Sub,
-	Div,
 	Mul,
-	Rem,  // modulo
+	MulD,
+	Sub,
+	SubD,
+	Div,
+	DivD,
+	Rem, // modulo
+	RemD,
 	Fadd, // Float add
 	Fsub, // Float sub
 	Fdiv, // Float div
 	Fmul, // Float mul
 	Shl,
+	ShlD,
 	Lshr, // logical shift right
+	LshrD,
 	Ashr, // arithmetic shift right
+	AshrD,
 	And,
+	AndD,
 	Or,
+	OrD,
 	Xor,
+	XorD,
+	Clz, // count leading zeros
+	ClzD,
+	Ctz, // count trailing zeros
+	CtzD,
+	Min, // min
+	MinD,
+	Max, // max
+	MaxD,
 }
 
 #[derive(Fuyuki, Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -114,6 +125,7 @@ pub fn is_commutative(op: &ArithOp) -> bool {
 		op,
 		ArithOp::Add
 			| ArithOp::Mul
+			| ArithOp::MulD
 			| ArithOp::And
 			| ArithOp::Or
 			| ArithOp::Xor
@@ -132,34 +144,6 @@ pub enum CompKind {
 pub enum ConvertOp {
 	Int2Float,
 	Float2Int,
-}
-
-// 从标准库偷的，将 f32 分解为底层用来表示小数的三个整数部分，为了让 f32 可以塞进 HashMap
-fn integer_decode(input: f32) -> (u64, i16, i8) {
-	let bits: u32 = input.to_bits();
-	let sign: i8 = if bits >> 31 == 0 { 1 } else { -1 };
-	let mut exponent: i16 = ((bits >> 23) & 0xff) as i16;
-	let mantissa = if exponent == 0 {
-		(bits & 0x7fffff) << 1
-	} else {
-		(bits & 0x7fffff) | 0x800000
-	};
-	// Exponent bias + mantissa shift
-	exponent -= 127 + 23;
-	(mantissa as u64, exponent, sign)
-}
-
-impl From<Value> for HashableValue {
-	fn from(v: Value) -> Self {
-		match v {
-			Value::Int(v) => Self::Int(v),
-			Value::Float(v) => {
-				let (mantissa, exponent, sign) = integer_decode(v);
-				Self::Float(mantissa, exponent, sign)
-			}
-			Value::Temp(v) => Self::Temp(v),
-		}
-	}
 }
 
 impl Value {

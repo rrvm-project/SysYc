@@ -10,7 +10,6 @@ mod loops;
 mod mem2reg;
 mod metadata;
 mod number;
-mod strength_reduce;
 mod tail_recursion;
 mod unreachable;
 mod useless_code;
