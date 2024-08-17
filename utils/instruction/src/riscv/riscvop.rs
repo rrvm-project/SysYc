@@ -82,17 +82,8 @@ pub enum RTriInstrOp {
 	Max,
 	#[style("max.w")]
 	Maxw,
-	#[style("sh1add.w")]
-	Sh1addw,
-	#[style("sh2add.w")]
-	Sh2addw,
-	#[style("sh3add.w")]
-	Sh3addw,
-	#[style("sh1add.d")]
 	Sh1add,
-	#[style("sh2add.d")]
 	Sh2add,
-	#[style("sh3add.d")]
 	Sh3add,
 
 	#[style("feq.s")]
