@@ -38,14 +38,14 @@ impl LoopInfo {
 					if begin >= end {
 						full_cnt = 0;
 					}
-					return Some(full_cnt);
+					Some(full_cnt)
 				}
 				CompOp::SLE => {
 					let mut full_cnt = (end - begin + step) / step;
 					if begin > end {
 						full_cnt = 0;
 					}
-					return Some(full_cnt);
+					Some(full_cnt)
 				}
 				_ => unreachable!(),
 			}

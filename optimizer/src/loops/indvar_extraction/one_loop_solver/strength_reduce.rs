@@ -23,7 +23,7 @@ impl<'a> OneLoopSolver<'a> {
 			self.cur_loop.borrow().get_loop_latches(&self.loopdata.loop_map);
 		// TODO：这里需要检查 一个 Vec 是否包含另一个 Vec 的全部内容，有没有更好的实现方式？
 		if latch_bbs.iter().any(|latch_bb| {
-			!self.dom_tree.dominates[&def_bb.borrow().id].contains(&latch_bb)
+			!self.dom_tree.dominates[&def_bb.borrow().id].contains(latch_bb)
 		}) {
 			#[cfg(feature = "debug")]
 			eprintln!("SR: not reducing iv: {} because def block does not dominate latch block", iv);

@@ -53,9 +53,9 @@ impl<'a> LoopUnroll<'a> {
 			unlink_node(latch, &header);
 		});
 
-        // 断开 header 与 exit 的连接
-        unlink_node(&header, &info.single_exit);
-        header.borrow_mut().gen_jump(llvm::VarType::Void);
+		// 断开 header 与 exit 的连接
+		unlink_node(&header, &info.single_exit);
+		header.borrow_mut().gen_jump(llvm::VarType::Void);
 
 		let mut next_bb_id = self.func.total + 1;
 
@@ -123,18 +123,19 @@ impl<'a> LoopUnroll<'a> {
 			// 特别地，新 header 的前驱是上一次 latches 映射到的块
 			// 上一次 latch 的后继是新 header
 			for bb in loop_bbs.iter() {
-                let is_mapping_header = bb.borrow().id == header.borrow().id;
-				let is_mapping_latch = latches.contains(&bb);
+				let is_mapping_header = bb.borrow().id == header.borrow().id;
+				let is_mapping_latch = latches.contains(bb);
 				let new_bb = bb_map[&bb.borrow().id].clone();
 				bb_to_insert.push(new_bb.clone());
-                // 维护前驱关系
+				// 维护前驱关系
 				assert!(new_bb.borrow().prev.is_empty());
 				let mut prev_label_map = HashMap::new();
 				new_bb.borrow_mut().prev = if is_mapping_header {
 					latches
 						.iter()
 						.map(|latch| {
-                            let new_latch = latches_map.get(&latch.borrow().id).unwrap().clone();
+							let new_latch =
+								latches_map.get(&latch.borrow().id).unwrap().clone();
 							prev_label_map
 								.insert(latch.borrow().label(), new_latch.borrow().label());
 							new_latch
@@ -145,65 +146,69 @@ impl<'a> LoopUnroll<'a> {
 						.prev
 						.iter()
 						.map(|prev| {
-                            let new_prev = bb_map.get(&prev.borrow().id).unwrap().clone();
-                            prev_label_map.insert(prev.borrow().label(), new_prev.borrow().label());
-                            new_prev
-                        })
+							let new_prev = bb_map.get(&prev.borrow().id).unwrap().clone();
+							prev_label_map
+								.insert(prev.borrow().label(), new_prev.borrow().label());
+							new_prev
+						})
 						.collect::<Vec<_>>()
 				};
 
-                // 维护后继关系
-                let mut succ_label_map = HashMap::new();
+				// 维护后继关系
+				let mut succ_label_map = HashMap::new();
 				assert!(new_bb.borrow().succ.is_empty());
-				if !latches.contains(&bb) {
+				if !latches.contains(bb) {
 					new_bb.borrow_mut().succ = bb
 						.borrow()
 						.succ
 						.iter()
 						.map(|succ| {
-                            let new_succ = bb_map.get(&succ.borrow().id).unwrap().clone();
-                            succ_label_map.insert(succ.borrow().label(), new_succ.borrow().label());
-                            new_succ
-                        })
+							let new_succ = bb_map.get(&succ.borrow().id).unwrap().clone();
+							succ_label_map
+								.insert(succ.borrow().label(), new_succ.borrow().label());
+							new_succ
+						})
 						.collect::<Vec<_>>();
 				} else {
-                    // 在此处完成对上一轮 latch 的后继的映射
-                    let new_header = bb_map[&header.borrow().id].clone();
-                    let old_latch = latches_map.get(&bb.borrow().id).unwrap().clone();
-                    old_latch.borrow_mut().succ = vec![new_header.clone()];
+					// 在此处完成对上一轮 latch 的后继的映射
+					let new_header = bb_map[&header.borrow().id].clone();
+					let old_latch = latches_map.get(&bb.borrow().id).unwrap().clone();
+					old_latch.borrow_mut().succ = vec![new_header.clone()];
 					assert!(old_latch.borrow().jump_instr.is_none());
 					old_latch.borrow_mut().gen_jump(llvm::VarType::Void);
-                }
+				}
 
-                // 维护 Temp 的映射关系
-                if is_mapping_header {
-                    // header 中的 phi 的 use 需要使用上一轮映射的值, 但 target 不能变
-                    for phi in new_bb.borrow_mut().phi_instrs.iter_mut() {
-                        let old_target = phi.target.clone();
-                        phi.map_all_temp(&temp_map);
-                        phi.set_target(old_target);
-                    }
-                }
+				// 维护 Temp 的映射关系
+				if is_mapping_header {
+					// header 中的 phi 的 use 需要使用上一轮映射的值, 但 target 不能变
+					for phi in new_bb.borrow_mut().phi_instrs.iter_mut() {
+						let old_target = phi.target.clone();
+						phi.map_all_temp(&temp_map);
+						phi.set_target(old_target);
+					}
+				}
 
-                // 创造新 temp
-                temp_map.iter_mut().for_each(|(_, v)| *v = self.temp_mgr.new_temp(v.var_type, false));
-                // 映射新 temp
-                if is_mapping_header {
-                    // header 中的 phi 只需要映射 target
-                    for phi in new_bb.borrow_mut().phi_instrs.iter_mut() {
-                        let old_target = phi.target.clone();
-                        phi.set_target(temp_map[&old_target].clone());
+				// 创造新 temp
+				temp_map
+					.iter_mut()
+					.for_each(|(_, v)| *v = self.temp_mgr.new_temp(v.var_type, false));
+				// 映射新 temp
+				if is_mapping_header {
+					// header 中的 phi 只需要映射 target
+					for phi in new_bb.borrow_mut().phi_instrs.iter_mut() {
+						let old_target = phi.target.clone();
+						phi.set_target(temp_map[&old_target].clone());
 						phi.map_label(&prev_label_map);
-                    }
-                } else {
-                    for phi in new_bb.borrow_mut().phi_instrs.iter_mut() {
-                        phi.map_all_temp(&temp_map);
+					}
+				} else {
+					for phi in new_bb.borrow_mut().phi_instrs.iter_mut() {
+						phi.map_all_temp(&temp_map);
 						phi.map_label(&prev_label_map);
-                    }
-                }
-                for instr in new_bb.borrow_mut().instrs.iter_mut() {
-                    instr.map_all_temp(&temp_map);
-                }
+					}
+				}
+				for instr in new_bb.borrow_mut().instrs.iter_mut() {
+					instr.map_all_temp(&temp_map);
+				}
 				if is_mapping_latch {
 					latches_map.insert(bb.borrow().id, new_bb.clone());
 				} else {
@@ -249,7 +254,9 @@ impl<'a> LoopUnroll<'a> {
 				instr.map_temp(&phi_initial_value);
 			}
 			let mut new_instr = header.borrow().instrs.clone();
-			new_instr.iter_mut().for_each(|instr| instr.map_all_temp(&new_target_map));
+			new_instr
+				.iter_mut()
+				.for_each(|instr| instr.map_all_temp(&new_target_map));
 			new_instr.append(&mut info.single_exit.borrow_mut().instrs);
 			info.single_exit.borrow_mut().instrs = new_instr;
 		} else {

@@ -6,7 +6,7 @@ use crate::metadata::FuncData;
 use super::loop_data::LoopData;
 
 pub mod impls;
-pub mod loop_unroll;
+pub mod loop_unroll_impl;
 
 pub struct LoopUnroll<'a> {
 	pub loopdata: &'a mut LoopData,
