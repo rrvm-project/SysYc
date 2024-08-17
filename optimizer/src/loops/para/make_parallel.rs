@@ -83,15 +83,23 @@ pub fn make_parallel(
 		_ => unreachable!(),
 	};
 
-	let tid = mgr.new_temp(llvm::VarType::I32, false);
+	let tid_old = mgr.new_temp(llvm::VarType::I32, false);
 	pre_header.borrow_mut().instrs.push(Box::new(CallInstr {
-		target: tid.clone(),
+		target: tid_old.clone(),
 		var_type: llvm::VarType::I32,
 		func: Label {
 			name: "__create_threads".to_string(),
 		},
 		params: vec![],
 	}));
+
+	let tid = add_arith_instr(
+		pre_header.borrow_mut().instrs.as_mut(),
+		mgr,
+		ArithOp::Sub,
+		3.into(),
+		tid_old.into(),
+	);
 
 	let is_last = add_comp_instr(
 		pre_header.borrow_mut().instrs.as_mut(),
