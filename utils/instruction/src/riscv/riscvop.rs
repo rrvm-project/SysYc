@@ -106,6 +106,10 @@ pub enum RTriInstrOp {
 	Fabs,
 	#[style("fneg.s")]
 	Fneg,
+	#[style("fmin.s")]
+	Fmin,
+	#[style("fmax.s")]
+	Fmax,
 }
 
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
@@ -211,12 +215,9 @@ pub fn to_rop(op: &ArithOp) -> RTriInstrOp {
 		ArithOp::LshrD => Srl,
 		ArithOp::Ashr => Sraw,
 		ArithOp::AshrD => Sra,
-		ArithOp::And => Andw,
-		ArithOp::AndD => And,
-		ArithOp::Or => Orw,
-		ArithOp::OrD => Or,
-		ArithOp::Xor => Xorw,
-		ArithOp::XorD => Xor,
+		ArithOp::And => And,
+		ArithOp::Or => Or,
+		ArithOp::Xor => Xor,
 		ArithOp::Fadd => Fadd,
 		ArithOp::Fsub => Fsub,
 		ArithOp::Fmul => Fmul,
@@ -229,5 +230,7 @@ pub fn to_rop(op: &ArithOp) -> RTriInstrOp {
 		ArithOp::MinD => Min,
 		ArithOp::Max => Maxw,
 		ArithOp::MaxD => Max,
+		ArithOp::Fmin => Fmin,
+		ArithOp::Fmax => Fmax,
 	}
 }
