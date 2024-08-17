@@ -100,7 +100,7 @@ impl<'a> OneLoopSolver<'a> {
 			}
 			Some(sum)
 		} else {
-			// #[cfg(feature = "debug")]
+			#[cfg(feature = "debug")]
 			eprintln!("not extract indvar: {} {}", header, indvar);
 			None
 		}
