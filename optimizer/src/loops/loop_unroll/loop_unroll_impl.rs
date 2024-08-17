@@ -214,6 +214,7 @@ impl<'a> LoopUnroll<'a> {
 				}
 			}
 		}
+		self.func.total = next_bb_id - 1;
 
 		self.func.cfg.blocks.splice(pos_to_insert..pos_to_insert, bb_to_insert);
 		// 如果是全部展开则

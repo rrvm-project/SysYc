@@ -84,10 +84,13 @@ impl Optimizer2 {
 		let mut loop_handler = HandleLoops::new(program);
 		loop_handler.loop_simplify(program, &mut metadata)?;
 		loop_handler.indvar_extraction(program, &mut metadata)?;
+		RemoveDeadCode::new().apply(program, &mut metadata)?;
+		RemoveUselessCode::new().apply(program, &mut metadata)?;
 		loop_handler.loop_unroll(program, &mut metadata)?;
 
 		loop {
 			let mut flag = false;
+			println!("1");
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
 			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
