@@ -5,12 +5,13 @@ use rrvm::{program::LlvmFunc, rrvm_loop::LoopPtr, LlvmNode};
 
 use super::{indvar::IndVar, loopinfo::LoopInfo, temp_graph::TempGraph};
 pub struct LoopData {
+	// 前两项建议每次使用前重建，后四项建议动态维护
 	// 从自己指向自己的 use
 	pub temp_graph: TempGraph,
-	// 每个 basicblock 属于哪个循环
-	pub loop_map: HashMap<i32, LoopPtr>,
 	// 每个变量在哪个基本块中被定义
 	pub def_map: HashMap<LlvmTemp, LlvmNode>,
+	// 每个 basicblock 属于哪个循环
+	pub loop_map: HashMap<i32, LoopPtr>,
 	// 循环树的根
 	pub root_loop: LoopPtr,
 	// loop id to loopinfo
@@ -49,5 +50,9 @@ impl LoopData {
 			}
 		}
 		def_map
+	}
+	pub fn rebuild(&mut self, func: &mut LlvmFunc) {
+		self.def_map = Self::build_def_map(func);
+		self.temp_graph = Self::build_graph(func);
 	}
 }

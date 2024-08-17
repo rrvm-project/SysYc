@@ -24,6 +24,7 @@ impl<'a> IndvarExtraction<'a> {
 		}
 	}
 	pub fn apply(mut self) -> bool {
+		self.loopdata.rebuild(self.func);
 		let (flag, _, _phi_num) = self.dfs(self.loopdata.root_loop.clone());
 		#[cfg(feature = "debug")]
 		eprintln!("loop: entry, subloop phi num: {}", _phi_num);
