@@ -14,8 +14,9 @@ use rrvm::{cfg::BasicBlock, program::LlvmFunc};
 pub struct Entry {
 	pub k_val: Vec<Value>,
 	pub b_val: Value,
-	pub _mod_val: Option<Value>, // 这个先不考虑
+	pub mod_val: Option<Value>, // 这个先不考虑
 	pub params_len: usize,       // 除了 index 以外
+    pub is_actived: bool,       // 判断取模是否有效
 }
 
 pub fn is_constant_term(entry: &Entry) -> bool {
@@ -56,28 +57,29 @@ pub fn get_entry(
 				_ => unreachable!(),
 			},
 			b_val: value.clone(),
-			_mod_val: None,
+			mod_val: None,
 			params_len,
+            is_actived: false,
 		})
 	}
 }
 pub fn get_typed_add(value: &LlvmTemp) -> ArithOp {
 	match value.var_type {
-		VarType::I32 => llvm::ArithOp::Add,
+		VarType::I32 => llvm::ArithOp::AddD,
 		VarType::F32 => llvm::ArithOp::Fadd,
 		_ => unreachable!(),
 	}
 }
 pub fn get_value_typed_add(value: &Value) -> ArithOp {
 	match value {
-		Value::Int(_) => llvm::ArithOp::Add,
+		Value::Int(_) => llvm::ArithOp::AddD,
 		Value::Float(_) => llvm::ArithOp::Fadd,
 		Value::Temp(t) => get_typed_add(t),
 	}
 }
 pub fn get_typed_mul(value: &LlvmTemp) -> ArithOp {
 	match value.var_type {
-		VarType::I32 => llvm::ArithOp::Mul,
+		VarType::I32 => llvm::ArithOp::MulD,
 		VarType::F32 => llvm::ArithOp::Fmul,
 		_ => unreachable!(),
 	}
@@ -120,8 +122,9 @@ pub fn calc_mul(
 		Entry {
 			k_val: new_k,
 			b_val: val2,
-			_mod_val: None,
+			mod_val: None,
 			params_len: entry.params_len,
+            is_actived: false,
 		},
 	);
 	if let Some(instr2) = instr2 {
@@ -202,8 +205,9 @@ pub fn calc_mul_entries(
 			Entry {
 				k_val: new_ks.clone(),
 				b_val: val_b,
-				_mod_val: None,
+				mod_val: None,
 				params_len: entry1.params_len,
+                is_actived: false,
 			},
 		);
 	}
@@ -238,14 +242,31 @@ pub fn calc_arith(
 				arith_instr.op,
 				mgr,
 			);
+            let mut new_entry=Entry {
+                k_val: val_instr_vec.iter().map(|(val, _)| val.clone()).collect(),
+                b_val: val1,
+                mod_val: None,
+                params_len,
+                is_actived: false,
+            };
+            if let Some(mod_val_lhs)=lhs_entry.mod_val{
+                if let Some(mod_val_rhs)=rhs_entry.mod_val{
+                    if mod_val_lhs==mod_val_rhs{
+                        new_entry.mod_val=Some(mod_val_lhs);
+                    }else{
+                        return false;
+                    }
+                }else{
+                    new_entry.mod_val=Some(mod_val_lhs);
+                }
+            }else{
+                if let Some(mod_val_rhs)=rhs_entry.mod_val{
+                    new_entry.mod_val=Some(mod_val_rhs);
+                }
+            }
 			entry_map.insert(
 				target,
-				Entry {
-					k_val: val_instr_vec.iter().map(|(val, _)| val.clone()).collect(),
-					b_val: val1,
-					_mod_val: None,
-					params_len,
-				},
+				new_entry,
 			);
 			for (_val, instr) in val_instr_vec {
 				if let Some(instr) = instr {
@@ -260,6 +281,9 @@ pub fn calc_arith(
 			if !is_constant_term(&rhs_entry) {
 				return false;
 			}
+            if let Some(mod_val)=lhs_entry.mod_val{
+                return false;
+            }
 			let val_instr_vec = lhs_entry
 				.k_val
 				.iter()
@@ -283,8 +307,9 @@ pub fn calc_arith(
 				Entry {
 					k_val: val_instr_vec.iter().map(|(val, _)| val.clone()).collect(),
 					b_val: val1,
-					_mod_val: None,
+					mod_val: None,
 					params_len,
+                    is_actived: false,
 				},
 			);
 			for (_val, instr) in val_instr_vec {
@@ -296,10 +321,15 @@ pub fn calc_arith(
 				block_instrs.push(Box::new(instr1));
 			}
 		}
-		Fdiv | Div | Xor | And | Or | Rem => {
+		Fdiv | Div | Xor | And | Or  => {
 			if (!is_constant_term(&rhs_entry)) || (!is_constant_term(&lhs_entry)) {
 				return false;
 			}
+            if let Some(_mod_val)=lhs_entry.mod_val{
+                if matches!(arith_instr.op,Xor|And|Or){
+                    return false;
+                }
+            }
 			let (val0, instr0) = compute_two_value(
 				lhs_entry.b_val.clone(),
 				rhs_entry.b_val.clone(),
@@ -315,8 +345,9 @@ pub fn calc_arith(
 						_ => unreachable!(),
 					},
 					b_val: val0,
-					_mod_val: None,
+					mod_val: None,
 					params_len,
+                    is_actived: false,
 				},
 			);
 			if let Some(instr0) = instr0 {
@@ -333,6 +364,7 @@ pub fn calc_arith(
 				}
 			};
 			if !is_lhs_const {
+                // TODO 传一下 mod_val 的 status
 				calc_mul(
 					&lhs_entry,
 					&rhs_entry.b_val,
@@ -354,6 +386,12 @@ pub fn calc_arith(
 				);
 			}
 		}
+        Rem=>{
+            todo!()
+        }
+        _=>{
+            return false;
+        }
 	}
 	true
 }
@@ -502,8 +540,9 @@ pub fn calc_call(
 		let func_entry = Entry {
 			k_val: kvals.clone(),
 			b_val: Value::Temp(b_target),
-			_mod_val: None,
+			mod_val: None,
 			params_len: kvals.len(),
+            is_actived: false,
 		};
 		let params: Vec<_> = call_instr
 			.params
