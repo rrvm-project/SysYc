@@ -13,9 +13,6 @@ pub struct Node {
 
 pub struct TempGraph {
 	pub temp_to_instr: HashMap<LlvmTemp, Node>,
-	// pub temp_to_optype: HashMap<LlvmTemp, OpType>,
-	// // 从自己指向自己的 use
-	// pub temp_graph: HashMap<LlvmTemp, HashSet<Value>>,
 }
 
 impl TempGraph {

@@ -27,6 +27,13 @@ impl HandleLoops {
 		program.funcs.iter_mut().for_each(|func| solve(func, &mut loopdatas));
 		Self { loopdatas }
 	}
+	pub fn rebuild(&mut self, program: &mut LlvmProgram) {
+		self.loopdatas.clear();
+		program.funcs.iter_mut().for_each(|func| {
+			let loopdata = LoopData::new(func);
+			self.loopdatas.insert(func.name.clone(), loopdata);
+		});
+	}
 	pub fn loop_simplify(
 		&mut self,
 		program: &mut LlvmProgram,
@@ -88,7 +95,7 @@ impl HandleLoops {
 			func_data: &mut FuncData,
 			temp_mgr: &mut LlvmTempManager,
 		) -> bool {
-			let mut opter = LoopUnroll::new(func, loop_data, func_data, temp_mgr);
+			let opter = LoopUnroll::new(func, loop_data, func_data, temp_mgr);
 			opter.apply()
 		}
 

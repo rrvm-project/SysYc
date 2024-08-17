@@ -33,6 +33,7 @@ impl<'a> LoopSimplify<'a> {
 	}
 	// 按 dfs 序逐个 loop 处理
 	pub fn apply(mut self) -> bool {
+		self.loopdata.rebuild(self.func);
 		let mut flag = false;
 		let mut dfs_vec = Vec::new();
 		fn dfs(node: LoopPtr, dfs_vec: &mut Vec<LoopPtr>) {

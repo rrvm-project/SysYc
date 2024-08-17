@@ -506,10 +506,8 @@ impl LlvmInstrTrait for RetInstr {
 		}
 	}
 	fn map_all_temp(&mut self, map: &HashMap<LlvmTemp, LlvmTemp>) {
-		if let Some(value) = &mut self.value {
-			if let Value::Temp(t) = value {
-				map_llvm_temp_to_temp(t, map);
-			}
+		if let Some(Value::Temp(t)) = &mut self.value {
+			map_llvm_temp_to_temp(t, map);
 		}
 	}
 	fn map_label(&mut self, _map: &HashMap<Label, Label>) {}
