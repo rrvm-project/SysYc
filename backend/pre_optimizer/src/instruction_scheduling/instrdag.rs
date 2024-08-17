@@ -300,13 +300,13 @@ impl InstrDag {
 					i.borrow_mut().pred.push(node.clone());
 				}
 				call_instrs.push(node.clone());
-			} else if instr.is_load().unwrap_or(false) {
+			} else if instr.is_load() {
 				if let Some(last_call) = last_call.clone() {
 					instr_node_succ.push(last_call.clone());
 					last_call.borrow_mut().pred.push(node.clone());
 				}
 				last_loads.push(node.clone());
-			} else if instr.is_store().unwrap_or(false) {
+			} else if instr.is_store() {
 				instr_node_succ.extend(last_loads.iter().cloned());
 				last_loads.iter().for_each(|x| {
 					x.borrow_mut().pred.push(node.clone());

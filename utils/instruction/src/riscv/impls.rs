@@ -221,16 +221,16 @@ impl RiscvInstrTrait for IBinInstr {
 	fn get_imm(&self) -> Option<RiscvImm> {
 		Some(self.rs1.clone())
 	}
-	fn is_load(&self) -> Option<bool> {
+	fn is_load(&self) -> bool {
 		match self.op {
-			Li | LD | LW | LWU | LA | FLD | FLW | Auipc => Some(true),
-			SB | SH | SW | SD | FSD | FSW => Some(false),
+			Li | LD | LW | LWU | LA | FLD | FLW | Auipc => true,
+			SB | SH | SW | SD | FSD | FSW => false,
 		}
 	}
-	fn is_store(&self) -> Option<bool> {
+	fn is_store(&self) -> bool {
 		match self.op {
-			Li | LD | LW | LWU | LA | FLD | FLW | Auipc => Some(false),
-			SB | SH | SW | SD | FSD | FSW => Some(true),
+			Li | LD | LW | LWU | LA | FLD | FLW | Auipc => false,
+			SB | SH | SW | SD | FSD | FSW => true,
 		}
 	}
 }
