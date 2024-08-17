@@ -31,25 +31,36 @@ pub enum ITriInstrOp {
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
 pub enum RTriInstrOp {
 	Add,
-	Sub,
-	Mul,
-	Rem,
-	Div,
-	Xor,
-	Or,
-	And,
-	Sll,
-	Srl,
-	Sra,
-
 	Addw,
+	Sub,
 	Subw,
+	Mul,
 	Mulw,
+	Rem,
 	Remw,
+	Div,
 	Divw,
+	Xor,
+	Xorw,
+	Or,
+	Orw,
+	And,
+	Andw,
+	Sll,
 	Sllw,
+	Srl,
 	Srlw,
+	Sra,
 	Sraw,
+
+	#[style("clz.d")]
+	Clz,
+	#[style("clz.w")]
+	Clzw,
+	#[style("ctz.d")]
+	Ctz,
+	#[style("ctz.w")]
+	Ctzw,
 
 	Slt,
 	Sltu,
@@ -63,12 +74,38 @@ pub enum RTriInstrOp {
 	#[style("fdiv.s")]
 	Fdiv,
 
+	#[style("min.d")]
+	Min,
+	#[style("min.w")]
+	Minw,
+	#[style("max.d")]
+	Max,
+	#[style("max.w")]
+	Maxw,
+	#[style("sh1add.w")]
+	Sh1addw,
+	#[style("sh2add.w")]
+	Sh2addw,
+	#[style("sh3add.w")]
+	Sh3addw,
+	#[style("sh1add.d")]
+	Sh1add,
+	#[style("sh2add.d")]
+	Sh2add,
+	#[style("sh3add.d")]
+	Sh3add,
+
 	#[style("feq.s")]
 	Feq,
 	#[style("flt.s")]
 	Flt,
 	#[style("fle.s")]
 	Fle,
+
+	#[style("fabs.s")]
+	Fabs,
+	#[style("fneg.s")]
+	Fneg,
 }
 
 #[derive(Fuyuki, PartialEq, Eq, Clone, Copy)]
@@ -161,18 +198,36 @@ pub fn to_rop(op: &ArithOp) -> RTriInstrOp {
 		ArithOp::Add => Addw,
 		ArithOp::AddD => Add,
 		ArithOp::Sub => Subw,
+		ArithOp::SubD => Sub,
 		ArithOp::Mul => Mulw,
+		ArithOp::MulD => Mul,
 		ArithOp::Div => Divw,
+		ArithOp::DivD => Div,
 		ArithOp::Rem => Remw,
+		ArithOp::RemD => Rem,
 		ArithOp::Shl => Sllw,
+		ArithOp::ShlD => Sll,
 		ArithOp::Lshr => Srlw,
+		ArithOp::LshrD => Srl,
 		ArithOp::Ashr => Sraw,
+		ArithOp::AshrD => Sra,
+		ArithOp::And => Andw,
+		ArithOp::AndD => And,
+		ArithOp::Or => Orw,
+		ArithOp::OrD => Or,
+		ArithOp::Xor => Xorw,
+		ArithOp::XorD => Xor,
 		ArithOp::Fadd => Fadd,
 		ArithOp::Fsub => Fsub,
 		ArithOp::Fmul => Fmul,
 		ArithOp::Fdiv => Fdiv,
-		ArithOp::And => And,
-		ArithOp::Or => Or,
-		ArithOp::Xor => Xor,
+		ArithOp::Clz => Clzw,
+		ArithOp::ClzD => Clz,
+		ArithOp::Ctz => Ctzw,
+		ArithOp::CtzD => Ctz,
+		ArithOp::Min => Minw,
+		ArithOp::MinD => Min,
+		ArithOp::Max => Maxw,
+		ArithOp::MaxD => Max,
 	}
 }
