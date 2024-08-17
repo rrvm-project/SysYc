@@ -9,11 +9,11 @@ pub mod rrvm_loop;
 
 use basicblock::Node;
 use cfg::CFG;
-use instruction::riscv::RiscvInstr;
+use instruction::{riscv::RiscvInstr, Temp};
 use llvm::LlvmInstr;
 
 pub type LlvmCFG = CFG<LlvmInstr, llvm::LlvmTemp>;
-pub type RiscvCFG = CFG<RiscvInstr, instruction::temp::Temp>;
+pub type RiscvCFG = CFG<RiscvInstr, Temp>;
 
 pub type LlvmNode = Node<LlvmInstr, llvm::LlvmTemp>;
-pub type RiscvNode = Node<RiscvInstr, instruction::temp::Temp>;
+pub type RiscvNode = Node<RiscvInstr, Temp>;

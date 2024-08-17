@@ -1,6 +1,5 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use instr_dag::InstrDag;
 use instruction::{riscv::prelude::*, temp::TempManager};
 
 use llvm::Value;
@@ -8,12 +7,8 @@ use rrvm::prelude::*;
 use transformer::to_riscv;
 use utils::{errors::Result, SysycError::RiscvGenError};
 
-pub mod instr_dag;
-pub mod instr_schedule;
-
 pub mod remove_phi;
 pub mod transformer;
-use crate::instr_schedule::instr_schedule;
 
 pub fn get_functions(
 	program: &mut RiscvProgram,
@@ -33,7 +28,6 @@ pub fn convert_func(
 	let mut edge = Vec::new();
 	let mut table = HashMap::new();
 	let mut alloc_table = HashMap::new();
-
 	func.cfg.blocks.iter().for_each(remove_phi::remove_phi);
 	for block in func.cfg.blocks.iter() {
 		for instr in block.borrow().instrs.iter() {
@@ -89,23 +83,16 @@ pub fn convert_func(
 		ret_type: func.ret_type,
 	})
 }
-fn _transform_basicblock_by_dag(
-	node: &LlvmNode,
-	mgr: &mut TempManager,
-) -> Result<RiscvNode> {
-	let instr_dag = InstrDag::new(&node.borrow().instrs, mgr)?;
-	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
-	block.instrs = instr_schedule(instr_dag)?;
-	Ok(Rc::new(RefCell::new(block)))
-}
 
 fn transform_basicblock(
 	node: &LlvmNode,
 	mgr: &mut TempManager,
 ) -> Result<RiscvNode> {
+	// 先识别该基本块是否是基本本块（循环内只有一个基本块的情况），判断其前驱后继是否含有同一个基本块
 	let instrs: Result<Vec<_>, _> =
 		node.borrow().instrs.iter().map(|v| to_riscv(v, mgr)).collect();
 	let mut block = BasicBlock::new(node.borrow().id, node.borrow().weight);
 	block.instrs = instrs?.into_iter().flatten().collect();
-	Ok(Rc::new(RefCell::new(block)))
+	let riscv_node = Rc::new(RefCell::new(block));
+	Ok(riscv_node)
 }

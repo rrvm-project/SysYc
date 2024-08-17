@@ -29,7 +29,12 @@ pub trait UseTemp<U> {
 		None
 	}
 }
-
+pub trait RTN {
+	// mem,br,mul/div,floating-point,sum 是这5项的意思
+	fn get_rtn_array(&self) -> [i32; 5] {
+		[0; 5]
+	}
+}
 pub trait InstrTrait<U>: Display + UseTemp<U> {
 	fn is_call(&self) -> bool;
 	fn is_branch(&self) -> bool;
