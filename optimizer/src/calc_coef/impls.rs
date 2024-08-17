@@ -137,6 +137,7 @@ fn map_instr(
 	io::stderr().flush().unwrap();
 	match instr.get_variant() {
 		ArithInstr(arith_instr) => {
+			// TODO 处理取模的情况
 			return calc_arith(arith_instr, entry_map, block_instrs, mgr, params_len);
 		}
 		CompInstr(comp_instr) => {
@@ -163,8 +164,9 @@ fn map_instr(
 						Entry {
 							k_val: vec![Value::Int(0); params_len],
 							b_val: Value::Temp(my_target),
-							_mod_val: None,
+							mod_val: None,
 							params_len,
+							is_actived: false,
 						},
 					);
 				} else {
@@ -261,8 +263,9 @@ fn map_instr(
 				Entry {
 					k_val: k_targets.into_iter().map(Value::Temp).collect(),
 					b_val: Value::Temp(b_target),
-					_mod_val: None,
+					mod_val: None,
 					params_len,
+					is_actived: false,	
 				},
 			);
 		}
@@ -319,8 +322,9 @@ fn map_coef_instrs(
 		Entry {
 			k_val: vec![Value::Int(0); params_len],
 			b_val: Value::Temp(my_index.clone()),
-			_mod_val: None,
+			mod_val: None,
 			params_len,
+			is_actived: false,
 		},
 	);
 	for (idx, i) in data.iter().enumerate() {
@@ -340,8 +344,9 @@ fn map_coef_instrs(
 				Entry {
 					k_val,
 					b_val: get_typed_zero(tmp),
-					_mod_val: None,
+					mod_val: None,
 					params_len,
+					is_actived: false,
 				},
 			);
 		}
