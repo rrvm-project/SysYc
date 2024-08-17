@@ -21,6 +21,7 @@ pub struct LoopInfo {
 	// 它会是 dedicated exit, 也即 它的前驱只有循环中的块
 	pub single_exit: LlvmNode,
 	pub cmp: LlvmTemp,
+	// 有可能是 SGT 和 SGE
 	pub comp_op: CompOp,
 	pub step: Value,
 	pub begin: Value,
@@ -33,14 +34,15 @@ impl LoopInfo {
 			(&self.begin, &self.end, &self.step)
 		{
 			match self.comp_op {
-				CompOp::SLT => {
-					let mut full_cnt = (end - begin + step - 1) / step;
+				CompOp::SLT | CompOp::SGT => {
+					let sign = step / step.abs();
+					let mut full_cnt = (end - begin + step - sign) / step;
 					if begin >= end {
 						full_cnt = 0;
 					}
 					Some(full_cnt)
 				}
-				CompOp::SLE => {
+				CompOp::SLE | CompOp::SGE => {
 					let mut full_cnt = (end - begin + step) / step;
 					if begin > end {
 						full_cnt = 0;

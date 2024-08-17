@@ -82,9 +82,11 @@ impl Optimizer2 {
 		}
 
 		let mut loop_handler = HandleLoops::new(program);
+		eprintln!("{}", program);
 		loop_handler.loop_simplify(program, &mut metadata)?;
 		loop_handler.indvar_extraction(program, &mut metadata)?;
 		loop_handler.loop_unroll(program, &mut metadata)?;
+		eprintln!("{}", program);
 
 		loop {
 			let mut flag = false;

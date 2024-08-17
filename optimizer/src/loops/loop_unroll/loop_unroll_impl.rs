@@ -52,8 +52,10 @@ impl<'a> LoopUnroll<'a> {
 		latches.iter().for_each(|latch| {
 			unlink_node(latch, &header);
 		});
+		header.borrow_mut().prev.retain(|prev| prev.borrow().id == info.preheader.borrow().id);
 
 		// 断开 header 与 exit 的连接
+		let original_header_jump = header.borrow_mut().jump_instr.take();
 		unlink_node(&header, &info.single_exit);
 		header.borrow_mut().gen_jump(llvm::VarType::Void);
 
@@ -118,6 +120,28 @@ impl<'a> LoopUnroll<'a> {
 					(bb.borrow().id, Rc::new(RefCell::new(new_bb)))
 				})
 				.collect::<HashMap<_, _>>();
+			// 先单独映射完 header 中 phi 的 source, 并让上一轮映射的 latch 指向它
+			let new_header = bb_map[&header.borrow().id].clone();
+			new_header.borrow_mut().prev = latches
+				.iter()
+				.map(|latch| latches_map.get(&latch.borrow().id).unwrap().clone())
+				.collect::<Vec<_>>();
+			for latch in latches.iter() {
+				let old_latch = latches_map.get(&latch.borrow().id).unwrap().clone();
+				old_latch.borrow_mut().succ = vec![new_header.clone()];
+				old_latch.borrow_mut().jump_instr = None;
+				old_latch.borrow_mut().gen_jump(llvm::VarType::Void);
+			}
+			for phi in new_header.borrow_mut().phi_instrs.iter_mut() {
+				let old_target = phi.target.clone();
+				phi.map_all_temp(&temp_map);
+				phi.set_target(old_target);
+			}
+			// 再创造新 temp
+			temp_map
+				.iter_mut()
+				.for_each(|(_, v)| *v = self.temp_mgr.new_temp(v.var_type, false));
+
 			// 复制块间的前驱关系，映射块中的变量
 			// 新块的前驱后继是旧块的前驱后继映射到的新块
 			// 特别地，新 header 的前驱是上一次 latches 映射到的块
@@ -128,21 +152,10 @@ impl<'a> LoopUnroll<'a> {
 				let new_bb = bb_map[&bb.borrow().id].clone();
 				bb_to_insert.push(new_bb.clone());
 				// 维护前驱关系
-				assert!(new_bb.borrow().prev.is_empty());
 				let mut prev_label_map = HashMap::new();
-				new_bb.borrow_mut().prev = if is_mapping_header {
-					latches
-						.iter()
-						.map(|latch| {
-							let new_latch =
-								latches_map.get(&latch.borrow().id).unwrap().clone();
-							prev_label_map
-								.insert(latch.borrow().label(), new_latch.borrow().label());
-							new_latch
-						})
-						.collect::<Vec<_>>()
-				} else {
-					bb.borrow()
+				if !is_mapping_header {
+					assert!(new_bb.borrow().prev.is_empty());
+					new_bb.borrow_mut().prev = bb.borrow()
 						.prev
 						.iter()
 						.map(|prev| {
@@ -169,30 +182,9 @@ impl<'a> LoopUnroll<'a> {
 							new_succ
 						})
 						.collect::<Vec<_>>();
-				} else {
-					// 在此处完成对上一轮 latch 的后继的映射
-					let new_header = bb_map[&header.borrow().id].clone();
-					let old_latch = latches_map.get(&bb.borrow().id).unwrap().clone();
-					old_latch.borrow_mut().succ = vec![new_header.clone()];
-					assert!(old_latch.borrow().jump_instr.is_none());
-					old_latch.borrow_mut().gen_jump(llvm::VarType::Void);
 				}
 
 				// 维护 Temp 的映射关系
-				if is_mapping_header {
-					// header 中的 phi 的 use 需要使用上一轮映射的值, 但 target 不能变
-					for phi in new_bb.borrow_mut().phi_instrs.iter_mut() {
-						let old_target = phi.target.clone();
-						phi.map_all_temp(&temp_map);
-						phi.set_target(old_target);
-					}
-				}
-
-				// 创造新 temp
-				temp_map
-					.iter_mut()
-					.for_each(|(_, v)| *v = self.temp_mgr.new_temp(v.var_type, false));
-				// 映射新 temp
 				if is_mapping_header {
 					// header 中的 phi 只需要映射 target
 					for phi in new_bb.borrow_mut().phi_instrs.iter_mut() {
@@ -222,38 +214,49 @@ impl<'a> LoopUnroll<'a> {
 
 		self.func.cfg.blocks.splice(pos_to_insert..pos_to_insert, bb_to_insert);
 		// 如果是全部展开则
-		// latch 指向 exit
-		// 从 header 中把 phi 语句都薅过来，target 不变，修改 sources，放到 exit 的 phi_instrs 中
-		// header 中原有的 phi 的 target 都变成从 preheader 来的初始值
-		// 从 header 中把其余 instr 都薅过来，target map 成新的，放到 exit 的 instrs 的前面
 		// 否则
 		// latch 指向 header
 		// header 中 phi 的 sources 被修改
 		if is_full_unroll {
+			// latch 指向 exit
 			let mut label_map = HashMap::new();
+			assert!(info.single_exit.borrow().prev.is_empty());
 			for latch in latches.iter() {
 				let mapped_latch = latches_map[&latch.borrow().id].clone();
 				mapped_latch.borrow_mut().succ = vec![info.single_exit.clone()];
-				assert!(mapped_latch.borrow().jump_instr.is_none());
+				mapped_latch.borrow_mut().jump_instr = None;
 				mapped_latch.borrow_mut().gen_jump(llvm::VarType::Void);
 				label_map.insert(latch.borrow().label(), mapped_latch.borrow().label());
+				info.single_exit.borrow_mut().prev.push(mapped_latch);
 			}
-			let mut phis = header.borrow_mut().phi_instrs.clone();
+			// 从 header 中把 phi 语句都薅过来，target 不变，修改 sources，放到 exit 的 phi_instrs 中
+			let mut phis = header.borrow_mut().phi_instrs.drain(..).collect::<Vec<_>>();
 			for phi in phis.iter_mut() {
 				phi.map_label(&label_map);
+				let old_target = phi.target.clone();
 				phi.map_all_temp(&temp_map);
+				phi.set_target(old_target);
 			}
 			assert!(info.single_exit.borrow().phi_instrs.is_empty());
 			info.single_exit.borrow_mut().phi_instrs = phis;
+			// header 中原有的 phi 的 target 都变成从 preheader 来的初始值, 下面的 use 也都换掉
+			for bb in loop_bbs.iter() {
+				bb.borrow_mut().phi_instrs.iter_mut().for_each(|phi| phi.map_temp(&phi_initial_value));
+				bb.borrow_mut().instrs.iter_mut().for_each(|instr| instr.map_temp(&phi_initial_value));
+				bb.borrow_mut().jump_instr.iter_mut().for_each(|jump| jump.map_temp(&phi_initial_value));
+			}
+			// 从 header 中把其余 instr 都薅过来，target map 成新的，放到 exit 的 instrs 的前面
 			let mut new_target_map = HashMap::new();
-			for instr in header.borrow_mut().instrs.iter_mut() {
+			let mut new_instr = header.borrow().instrs.clone();
+			for instr in new_instr.iter() {
 				if let Some(write) = instr.get_write() {
 					let new_write = self.temp_mgr.new_temp(write.var_type, false);
 					new_target_map.insert(write.clone(), new_write.clone());
 				}
-				instr.map_temp(&phi_initial_value);
 			}
-			let mut new_instr = header.borrow().instrs.clone();
+			for instr in new_instr.iter_mut() {
+				instr.map_all_temp(&new_target_map);
+			}
 			new_instr
 				.iter_mut()
 				.for_each(|instr| instr.map_all_temp(&new_target_map));
@@ -264,15 +267,18 @@ impl<'a> LoopUnroll<'a> {
 			for latch in latches.iter() {
 				let mapped_latch = latches_map[&latch.borrow().id].clone();
 				mapped_latch.borrow_mut().succ = vec![info.header.clone()];
-				assert!(mapped_latch.borrow().jump_instr.is_none());
+				mapped_latch.borrow_mut().jump_instr = None;
 				mapped_latch.borrow_mut().gen_jump(llvm::VarType::Void);
 				label_map.insert(latch.borrow().label(), mapped_latch.borrow().label());
+				header.borrow_mut().prev.push(mapped_latch);
 			}
 			let mut phis = header.borrow_mut().phi_instrs.clone();
 			for phi in phis.iter_mut() {
 				phi.map_label(&label_map);
 				phi.map_all_temp(&temp_map);
 			}
+			header.borrow_mut().succ.push(info.single_exit.clone());
+			header.borrow_mut().jump_instr = original_header_jump;
 		}
 		false
 	}

@@ -26,12 +26,13 @@ impl<'a> LoopUnroll<'a> {
 		self.flag
 	}
 	pub fn dfs(&mut self, loop_: LoopPtr) {
-		loop_.borrow_mut().subloops.retain(|subloop| {
+		let mut subloops = loop_.borrow().subloops.clone();
+		subloops.retain(|subloop| {
 			if subloop.borrow().no_inner() {
 				if let Some(info) =
 					self.loopdata.loop_infos.get(&subloop.borrow().id).cloned()
 				{
-					!self.unroll_one_loop(loop_.clone(), info)
+					!self.unroll_one_loop(subloop.clone(), info)
 				} else {
 					true
 				}
@@ -40,5 +41,6 @@ impl<'a> LoopUnroll<'a> {
 				true
 			}
 		});
+		loop_.borrow_mut().subloops = subloops;
 	}
 }
