@@ -1,8 +1,4 @@
-use std::{
-	collections::HashMap,
-	fmt::Display,
-	ops::{Add, Sub},
-};
+use std::{collections::HashMap, fmt::Display};
 use sysyc_derive::UseTemp;
 use utils::{mapper::LabelMapper, InstrTrait, Label, UseTemp, RTN};
 
