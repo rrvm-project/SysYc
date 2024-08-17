@@ -15,6 +15,7 @@ pub struct RrvmFunc<T: InstrTrait<U>, U: TempTrait> {
 	pub name: String,
 	pub ret_type: VarType,
 	pub params: Vec<Value>,
+	pub need_cache: bool,
 }
 
 impl<T: InstrTrait<U>, U: TempTrait> RrvmFunc<T, U> {

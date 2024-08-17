@@ -9,6 +9,7 @@ use global_analysis::GlobalAnalysis;
 use global_value_numbering::GlobalValueNumbering;
 use loops::HandleLoops;
 use mem2reg::Mem2Reg;
+use stateless_cache::StatelessCache;
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
@@ -131,6 +132,7 @@ impl Optimizer2 {
 				break;
 			}
 		}
+		StatelessCache::new().apply(program, &mut metadata)?;
 
 		program.analysis();
 		Ok(())

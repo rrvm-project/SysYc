@@ -11,6 +11,7 @@ mod loops;
 mod mem2reg;
 mod metadata;
 mod number;
+mod stateless_cache;
 mod tail_recursion;
 mod unreachable;
 mod useless_code;

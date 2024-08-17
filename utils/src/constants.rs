@@ -47,3 +47,8 @@ pub const MAX_UNROLL_INSTR_CNT: usize = 200;
 pub const MAX_UNROLL_TOTAL_INSTR_CNT: usize = 6000;
 pub const CALL_INSTR_CNT: usize = 50;
 pub const MAX_BLOCK_CNT: usize = 1000;
+
+pub static CACHE_PREFIX: &str = "CACHE__PREFIX__FUYUKI__";
+pub const CACHE_SIZE: usize = 8;
+pub const CACHE_MAX_ARGS: usize = 4;
+pub const CACHE_MAGIC: u32 = 0x47220717;
