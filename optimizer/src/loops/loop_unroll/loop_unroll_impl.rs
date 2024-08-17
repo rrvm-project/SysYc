@@ -126,15 +126,18 @@ impl<'a> LoopUnroll<'a> {
 				.iter()
 				.map(|latch| latches_map.get(&latch.borrow().id).unwrap().clone())
 				.collect::<Vec<_>>();
+			let mut prev_label_map = HashMap::new();
 			for latch in latches.iter() {
 				let old_latch = latches_map.get(&latch.borrow().id).unwrap().clone();
 				old_latch.borrow_mut().succ = vec![new_header.clone()];
 				old_latch.borrow_mut().jump_instr = None;
 				old_latch.borrow_mut().gen_jump(llvm::VarType::Void);
+				prev_label_map.insert(latch.borrow().label(), old_latch.borrow().label());
 			}
 			for phi in new_header.borrow_mut().phi_instrs.iter_mut() {
 				let old_target = phi.target.clone();
 				phi.map_all_temp(&temp_map);
+				phi.map_label(&prev_label_map);
 				phi.set_target(old_target);
 			}
 			// 再创造新 temp

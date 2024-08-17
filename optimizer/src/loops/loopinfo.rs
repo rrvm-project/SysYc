@@ -37,14 +37,14 @@ impl LoopInfo {
 				CompOp::SLT | CompOp::SGT => {
 					let sign = step / step.abs();
 					let mut full_cnt = (end - begin + step - sign) / step;
-					if begin >= end {
+					if full_cnt < 0 {
 						full_cnt = 0;
 					}
 					Some(full_cnt)
 				}
 				CompOp::SLE | CompOp::SGE => {
 					let mut full_cnt = (end - begin + step) / step;
-					if begin > end {
+					if full_cnt < 0 {
 						full_cnt = 0;
 					}
 					Some(full_cnt)
