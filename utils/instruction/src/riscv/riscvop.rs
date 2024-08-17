@@ -129,6 +129,8 @@ pub enum RBinInstrOp {
 	FMv,
 	#[style("fmv.w.x")]
 	MvInt2Float,
+	#[style("fmv.x.w")]
+	MvFloat2Int,
 	#[style("fcvt.s.w")]
 	Int2Float,
 	#[style("fcvt.w.s")]

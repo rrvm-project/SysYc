@@ -91,6 +91,13 @@ impl MetaData {
 	pub fn is_pure(&mut self, func_name: &str) -> bool {
 		self.func_data.get(func_name).map(|data| data.pure).unwrap_or(false)
 	}
+	pub fn is_stateless(&mut self, func_name: &str) -> bool {
+		self
+			.func_data
+			.get(func_name)
+			.map(|data| data.usage_info.may_loads.is_empty())
+			.unwrap_or(false)
+	}
 	pub fn get_var_data(&mut self, var_ident: &VarIdent) -> &mut VarData {
 		self.var_data.entry(var_ident.clone()).or_default()
 	}

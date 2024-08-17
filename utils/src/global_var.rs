@@ -2,13 +2,13 @@ use std::fmt::Display;
 
 pub use ValueItem::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ValueItem {
 	Word(u32),
 	Zero(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GlobalVar {
 	pub ident: String,
 	pub data: Vec<ValueItem>,

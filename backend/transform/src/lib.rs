@@ -81,6 +81,7 @@ pub fn convert_func(
 		name: func.name,
 		params: func.params,
 		ret_type: func.ret_type,
+		need_cache: func.need_cache,
 	})
 }
 
