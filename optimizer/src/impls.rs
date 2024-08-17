@@ -1,5 +1,3 @@
-use std::io::{self, Write};
-
 use crate::{useless_phis::RemoveUselessPhis, *};
 use alloc_hoisting::AllocHoisting;
 use calc_coef::CalcCoef;
@@ -71,25 +69,9 @@ impl Optimizer2 {
 			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
-			// eprintln!("{}", program);
-			// eprintln!("before CalcCoef");
-			// for i in program.funcs.iter() {
-			// 	eprintln!("func : {} func_params: {:?}", i.name, i.params);
-			// 	for block in i.cfg.blocks.iter() {
-			// 		eprintln!("block : {}", block.borrow().label());
-			// 		for instr in block.borrow().instrs.iter() {
-			// 			eprintln!("instr : {}", instr);
-			// 		}
-			// 		if let Some(jump_instr) = block.borrow().jump_instr.clone() {
-			// 			eprintln!("jump_instr : {}", jump_instr);
-			// 		}
-			// 	}
-			// }
-			// io::stderr().flush().unwrap();
-			flag |= CalcCoef::new().apply(program, &mut metadata)?;
-			// eprintln!("program : {}", program);
-			io::stderr().flush().unwrap();
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
+			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
+			flag |= CalcCoef::new().apply(program, &mut metadata)?;
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;

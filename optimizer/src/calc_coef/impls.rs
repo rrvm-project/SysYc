@@ -1,15 +1,22 @@
-use super::CalcCoef;
-use crate::{MetaData, RrvmOptimizer};
+use super::{
+	utils::{get_typed_one, get_typed_zero, topology_sort},
+	CalcCoef,
+};
+use crate::{
+	calc_coef::utils::{
+		calc_arith, calc_call, calc_ret, create_wrapper, get_constant_term, Entry,
+	},
+	metadata::FuncData,
+	MetaData, RrvmOptimizer,
+};
 use core::panic;
 use llvm::{
-	compute_two_value,
-	ArithOp::{And, Or, Rem, Xor},
 	LlvmInstrTrait,
 	LlvmInstrVariant::{
 		AllocInstr, ArithInstr, CallInstr, CompInstr, ConvertInstr, GEPInstr,
 		JumpCondInstr, LoadInstr, PhiInstr, StoreInstr,
 	},
-	LlvmTemp, LlvmTempManager, Value, VarType,
+	LlvmTemp, LlvmTempManager, Value,
 };
 use rrvm::{
 	cfg::{BasicBlock, CFG},
@@ -31,14 +38,30 @@ impl RrvmOptimizer for CalcCoef {
 	fn apply(
 		self,
 		program: &mut LlvmProgram,
-		_metadata: &mut MetaData,
+		metadata: &mut MetaData,
 	) -> Result<bool> {
 		let old_len = program.funcs.len();
 		let new_funcs: Vec<_> = mem::take(&mut program.funcs)
 			.into_iter()
 			.flat_map(|func| {
-				if let Some((index, recurse_index)) = can_calc(&func) {
-					calc_coef(&func, index, &mut program.temp_mgr, recurse_index)
+				let ord_blocks = topology_sort(&func);
+				if ord_blocks.is_empty() {
+					return vec![func];
+				}
+				if can_calc(&func, metadata) {
+					for index in func.params.iter().map(|x| x.unwrap_temp().unwrap()) {
+						let calc_funcs = calc_coef(
+							&func,
+							index,
+							&mut program.temp_mgr,
+							ord_blocks.clone(),
+							metadata.get_func_data(&func.name),
+						);
+						if calc_funcs.len() == 2 {
+							return calc_funcs;
+						}
+					}
+					vec![func]
 				} else {
 					vec![func]
 				}
@@ -48,158 +71,56 @@ impl RrvmOptimizer for CalcCoef {
 		Ok(old_len != program.funcs.len())
 	}
 }
-fn can_calc(func: &LlvmFunc) -> Option<(LlvmTemp, Box<dyn LlvmInstrTrait>)> {
-	if func.params.len() == 2 {
-		// check if recursive call and has (every) branch based on the index parameter (此处加强了条件)
-		let mut param: Option<llvm::LlvmTemp> = None;
-		let mut has_recursion = false;
-		for block in func.cfg.blocks.iter() {
-			for instr in block.borrow().instrs.iter() {
-				if let CallInstr(callinstr) = instr.get_variant() {
-					if callinstr.func.name == func.name {
-						has_recursion = true;
-						break;
-					}
+fn can_calc(func: &LlvmFunc, metadata: &mut MetaData) -> bool {
+	// 按照以下条件进行判断：1. 参数>=2 2. 有至少1次递归 3. 递归函数中有相同项（用 gvn 判断）4. 没有 load/store 没有 convert 没有 alloc gep
+	if func.params.len() < 2 {
+		return false;
+	}
+	for block in func.cfg.blocks.iter() {
+		for instr in block.borrow().instrs.iter() {
+			match instr.get_variant() {
+				LoadInstr(_) | StoreInstr(_) | AllocInstr(_) | ConvertInstr(_)
+				| GEPInstr(_) => {
+					return false;
 				}
-			}
-		}
-		// 判断是否纯函数，检查有无语句是 store/gep/alloca 对于 load 全局变量这种就可以忽略
-		for block in func.cfg.blocks.iter() {
-			for instr in block.borrow().instrs.iter() {
-				if let GEPInstr(_) | AllocInstr(_) | StoreInstr(_) | LoadInstr(_) =
-					instr.get_variant()
-				{
-					// TODO 这里先不考虑全局变量，之后再加
-					return None;
-				} else if let ArithInstr(instr) = instr.get_variant() {
-					if Rem == instr.op
-						|| And == instr.op
-						|| Or == instr.op
-						|| Xor == instr.op
-					{
-						return None;
-					}
-				}
-			}
-		}
-		if has_recursion {
-			let mut jmp_conds = HashSet::new();
-			for block in func.cfg.blocks.iter().rev() {
-				// 找 branch 指令，找最后一次写他的指令 如果是参数是 param 或者是 param 和别人比较得到的结果就行
-				let block = &block.borrow();
-				let jmp_instr = {
-					if let Some(instr) = block.jump_instr.clone() {
-						vec![instr]
-					} else {
-						vec![]
-					}
-				};
-				for i in block.instrs.iter().chain(jmp_instr.iter()).rev() {
-					if let JumpCondInstr(jmp_cond) = i.get_variant() {
-						if let Value::Temp(t) = &jmp_cond.cond {
-							if !func.params.contains(&jmp_cond.cond) {
-								jmp_conds.insert(t.clone());
-							}
-						}
-					}
-					if let Some(t) = i.get_write() {
-						if jmp_conds.contains(&t) {
-							jmp_conds.remove(&t);
-							// 进行检查
-							if let CompInstr(compinstr) = i.get_variant() {
-								if let Value::Temp(t) = &compinstr.lhs {
-									io::stderr().flush().unwrap();
-									if func.params.contains(&compinstr.lhs) {
-										if let Some(ref p) = param {
-											if *p != *t {
-												return None;
-											}
-										} else {
-											param = Some(t.clone());
-										}
-									}
-								} else if let Value::Temp(t) = &compinstr.rhs {
-									if func.params.contains(&compinstr.rhs) {
-										if let Some(ref p) = param {
-											if *p != *t {
-												return None;
-											}
-										} else {
-											param = Some(t.clone());
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			if let Some(p) = param {
-				// 检查满不满足那个在所有递归 call 函数中不变的条件，1. 有一样的变量，2. 该变量的写是和 index 有关而且和另一个参数为常数
-				// 找到所有 call 指令
-				let mut call_instrs = vec![];
-				for block in func.cfg.blocks.iter() {
-					for instr in block.borrow().instrs.iter() {
-						if let CallInstr(callinstr) = instr.get_variant() {
-							if callinstr.func.name == func.name {
-								call_instrs.push(callinstr.clone());
-							}
-						}
-					}
-				}
-				let params =
-					call_instrs.iter().map(|x| x.params.clone()).collect::<Vec<_>>();
-				// 每对 param 要不都是常数 要不有一个相同的元素
-				let mut element = HashSet::new();
-				for param in params.iter() {
-					let param1 = param[0].1.clone();
-					let param2 = param[1].1.clone();
-					let mut param_set = HashSet::new();
-					if let Value::Temp(t) = param1 {
-						param_set.insert(t);
-					}
-					if let Value::Temp(t) = param2 {
-						param_set.insert(t);
-					}
-					if param_set.is_empty() {
-						continue;
-					}
-					if element.is_empty() {
-						element = param_set;
-					} else if element.len() == 1 {
-						if !param_set.contains(element.iter().next().unwrap()) {
-							return None;
-						}
-					} else {
-						element = element.intersection(&param_set).cloned().collect();
-					}
-				}
-				if element.is_empty() {
-					return None;
-				}
-				let tmp = element.iter().next().unwrap();
-				let mut my_instr = None;
-				// 检查写的地方 read 是否含有 p
-				for block in func.cfg.blocks.iter() {
-					for instr in block.borrow().instrs.iter() {
-						let write = instr.get_write();
-						if let Some(write_tmp) = write {
-							if *tmp == write_tmp {
-								my_instr = Some(instr.clone());
-								let read = instr.get_read();
-								if !read.iter().any(|x| *x == p.clone()) {
-									return None;
-								}
-								break;
-							}
-						}
-					}
-				}
-				return Some((p, my_instr.unwrap().clone()));
+				_ => {}
 			}
 		}
 	}
-	None
+	let mut call_selfs = vec![];
+	for i in func.cfg.blocks.iter() {
+		for instr in i.borrow().instrs.iter() {
+			if let CallInstr(callinstr) = instr.get_variant() {
+				if callinstr.func.name == func.name {
+					call_selfs.push(callinstr.clone());
+				}
+			}
+		}
+	}
+	if call_selfs.is_empty() {
+		return false;
+	}
+	let func_data = metadata.get_func_data(&func.name);
+	let mut params_data = Vec::new();
+	for call_instr in call_selfs.iter() {
+		let nums = call_instr
+			.params
+			.iter()
+			.filter(|(_, val)| matches!(val, Value::Temp(_)))
+			.map(|(_, val)| {
+				func_data.get_number(&val.unwrap_temp().unwrap()).unwrap()
+			})
+			.collect::<Vec<_>>();
+		if params_data.is_empty() {
+			params_data = nums.to_vec();
+		} else if !nums.iter().zip(params_data.iter()).any(|(a, b)| a == b) {
+			return false;
+		}
+	}
+	if params_data.is_empty() {
+		return false;
+	}
+	true
 }
 #[allow(clippy::borrowed_box, clippy::too_many_arguments)]
 fn map_instr(
@@ -208,309 +129,23 @@ fn map_instr(
 	block_instrs: &mut Vec<Box<dyn LlvmInstrTrait>>,
 	mgr: &mut LlvmTempManager,
 	block_phi_instrs: &mut Vec<llvm::PhiInstr>,
-	data: &Value,
 	addr: &LlvmTemp,
 	func_name: String,
-	recurse_index: &Box<dyn LlvmInstrTrait>,
+	params_len: usize,
+	index: usize,
 ) -> bool {
+	io::stderr().flush().unwrap();
 	match instr.get_variant() {
 		ArithInstr(arith_instr) => {
-			let lhs = arith_instr.lhs.clone();
-			let rhs = arith_instr.rhs.clone();
-			let target = arith_instr.target.clone();
-			// 分类讨论 lhs 和 rhs 分别能否在 entry_map 中找到
-			let get_lhs = {
-				if let Value::Temp(t) = &lhs {
-					entry_map.get(t)
-				} else {
-					None
-				}
-			};
-			let get_rhs = {
-				if let Value::Temp(t) = &rhs {
-					entry_map.get(t)
-				} else {
-					None
-				}
-			};
-			if get_lhs.is_none() && get_rhs.is_none() {
-				// 直接调用 compute_two_value
-				let (value, instr) = compute_two_value(lhs, rhs, arith_instr.op, mgr);
-				if let Some(instr) = instr {
-					block_instrs.push(Box::new(instr));
-				}
-				entry_map.insert(
-					target,
-					Entry {
-						k_val: Value::Int(0),
-						b_val: value,
-						_mod_val: None,
-					},
-				);
-			} else if let Some(lhs_entry) = get_lhs {
-				if let Some(rhs_entry) = get_rhs {
-					if let llvm::ArithOp::Ashr
-					| llvm::ArithOp::Div
-					| llvm::ArithOp::Fdiv
-					| llvm::ArithOp::Lshr
-					| llvm::ArithOp::Shl = arith_instr.op
-					{
-						match get_rhs.unwrap().k_val {
-							Value::Int(0) => {}
-							Value::Float(0.0) => {}
-							_ => {
-								return false;
-							}
-						}
-						let (val0, instr0) = compute_two_value(
-							lhs,
-							get_rhs.unwrap().b_val.clone(),
-							arith_instr.op,
-							mgr,
-						);
-						entry_map.insert(
-							target,
-							Entry {
-								k_val: Value::Int(0),
-								b_val: val0,
-								_mod_val: None,
-							},
-						);
-						if let Some(instr) = instr0 {
-							block_instrs.push(Box::new(instr));
-						}
-					} else if let llvm::ArithOp::Fmul | llvm::ArithOp::Mul =
-						arith_instr.op
-					{
-						let mut is_lhs_const = false;
-						match get_rhs.unwrap().k_val {
-							Value::Int(0) => {}
-							Value::Float(0.0) => {}
-							_ => {
-								match get_lhs.unwrap().k_val {
-									Value::Int(0) => {}
-									Value::Float(0.0) => {}
-									_ => {
-										return false;
-									}
-								}
-								is_lhs_const = true;
-							}
-						}
-						if !is_lhs_const {
-							let (val0, instr0) = compute_two_value(
-								lhs_entry.k_val.clone(),
-								rhs_entry.b_val.clone(),
-								arith_instr.op,
-								mgr,
-							);
-							let (val1, instr1) = compute_two_value(
-								lhs_entry.b_val.clone(),
-								rhs_entry.b_val.clone(),
-								arith_instr.op,
-								mgr,
-							);
-							entry_map.insert(
-								target,
-								Entry {
-									k_val: val0,
-									b_val: val1,
-									_mod_val: None,
-								},
-							);
-							if let Some(instr0) = instr0 {
-								block_instrs.push(Box::new(instr0));
-							}
-							if let Some(instr1) = instr1 {
-								block_instrs.push(Box::new(instr1));
-							}
-						} else {
-							let (val0, instr0) = compute_two_value(
-								lhs_entry.b_val.clone(),
-								rhs_entry.k_val.clone(),
-								arith_instr.op,
-								mgr,
-							);
-							let (val1, instr1) = compute_two_value(
-								lhs_entry.b_val.clone(),
-								rhs_entry.b_val.clone(),
-								arith_instr.op,
-								mgr,
-							);
-							entry_map.insert(
-								target,
-								Entry {
-									k_val: val0,
-									b_val: val1,
-									_mod_val: None,
-								},
-							);
-							if let Some(instr0) = instr0 {
-								block_instrs.push(Box::new(instr0));
-							}
-							if let Some(instr1) = instr1 {
-								block_instrs.push(Box::new(instr1));
-							}
-						}
-					} else {
-						let (val0, instr0) = compute_two_value(
-							lhs_entry.k_val.clone(),
-							rhs_entry.k_val.clone(),
-							arith_instr.op,
-							mgr,
-						);
-						let (val1, instr1) = compute_two_value(
-							lhs_entry.b_val.clone(),
-							rhs_entry.b_val.clone(),
-							arith_instr.op,
-							mgr,
-						);
-						entry_map.insert(
-							target,
-							Entry {
-								k_val: val0,
-								b_val: val1,
-								_mod_val: None,
-							},
-						);
-						if let Some(instr0) = instr0 {
-							block_instrs.push(Box::new(instr0));
-						}
-						if let Some(instr1) = instr1 {
-							block_instrs.push(Box::new(instr1));
-						}
-					}
-				} else {
-					// lhs 是 entry_map 中的
-					let (val0, instr0) = compute_two_value(
-						lhs_entry.k_val.clone(),
-						rhs.clone(),
-						arith_instr.op,
-						mgr,
-					);
-					let (val1, instr1) = compute_two_value(
-						lhs_entry.b_val.clone(),
-						rhs,
-						arith_instr.op,
-						mgr,
-					);
-					entry_map.insert(
-						target,
-						Entry {
-							k_val: val0,
-							b_val: val1,
-							_mod_val: None,
-						},
-					);
-					if let Some(instr0) = instr0 {
-						block_instrs.push(Box::new(instr0));
-					}
-					if let Some(instr1) = instr1 {
-						block_instrs.push(Box::new(instr1));
-					}
-				}
-			} else {
-				// rhs 是 entry_map 中的
-				// 先判断是否是可以直接终止计算的特殊情况
-				if let llvm::ArithOp::Ashr
-				| llvm::ArithOp::Div
-				| llvm::ArithOp::Fdiv
-				| llvm::ArithOp::Fmul
-				| llvm::ArithOp::Lshr
-				| llvm::ArithOp::Mul
-				| llvm::ArithOp::Shl = arith_instr.op
-				{
-					match get_rhs.unwrap().k_val {
-						Value::Int(0) => {}
-						Value::Float(0.0) => {}
-						_ => {
-							return false;
-						}
-					}
-					let (val0, instr0) = compute_two_value(
-						lhs,
-						get_rhs.unwrap().b_val.clone(),
-						arith_instr.op,
-						mgr,
-					);
-					entry_map.insert(
-						target,
-						Entry {
-							k_val: Value::Int(0),
-							b_val: val0,
-							_mod_val: None,
-						},
-					);
-					if let Some(instr) = instr0 {
-						block_instrs.push(Box::new(instr));
-					}
-				} else {
-					let (val0, instr0) = compute_two_value(
-						lhs.clone(),
-						get_rhs.unwrap().k_val.clone(),
-						arith_instr.op,
-						mgr,
-					);
-					let (val1, instr1) = compute_two_value(
-						lhs,
-						get_rhs.unwrap().b_val.clone(),
-						arith_instr.op,
-						mgr,
-					);
-					entry_map.insert(
-						target,
-						Entry {
-							k_val: val0,
-							b_val: val1,
-							_mod_val: None,
-						},
-					);
-					if let Some(instr0) = instr0 {
-						block_instrs.push(Box::new(instr0));
-					}
-					if let Some(instr1) = instr1 {
-						block_instrs.push(Box::new(instr1));
-					}
-				}
-			}
+			return calc_arith(arith_instr, entry_map, block_instrs, mgr, params_len);
 		}
 		CompInstr(comp_instr) => {
 			// 要求 lhs rhs 的 data 系数为 0
 			let lhs = comp_instr.lhs.clone();
 			let rhs = comp_instr.rhs.clone();
 			let target = comp_instr.target.clone();
-			let get_lhs_val = {
-				if let Value::Temp(t) = lhs {
-					let entry = entry_map.get(&t);
-					if let Some(entry) = entry {
-						if let Value::Int(0) | Value::Float(0.0) = entry.k_val {
-							Some(entry.b_val.clone())
-						} else {
-							None
-						}
-					} else {
-						None
-					}
-				} else {
-					Some(lhs.clone())
-				}
-			};
-			let get_rhs_val = {
-				if let Value::Temp(t) = rhs {
-					let entry = entry_map.get(&t);
-					if let Some(entry) = entry {
-						if let Value::Int(0) | Value::Float(0.0) = entry.k_val {
-							Some(entry.b_val.clone())
-						} else {
-							None
-						}
-					} else {
-						None
-					}
-				} else {
-					Some(rhs.clone())
-				}
-			};
+			let get_lhs_val = get_constant_term(&lhs, entry_map);
+			let get_rhs_val = get_constant_term(&rhs, entry_map);
 			if let Some(lhs_val) = get_lhs_val {
 				if let Some(rhs_val) = get_rhs_val {
 					let my_target = mgr.new_temp(llvm::VarType::I32, false);
@@ -526,9 +161,10 @@ fn map_instr(
 					entry_map.insert(
 						target,
 						Entry {
-							k_val: Value::Int(0),
+							k_val: vec![Value::Int(0); params_len],
 							b_val: Value::Temp(my_target),
 							_mod_val: None,
+							params_len,
 						},
 					);
 				} else {
@@ -538,66 +174,10 @@ fn map_instr(
 				return false;
 			}
 		}
-		ConvertInstr(convert_instr) => {
-			// 也是要求 lhs 和 data 无关
-			let target = convert_instr.target.clone();
-			let lhs = convert_instr.lhs.clone();
-			let get_lhs_val = {
-				if let Value::Temp(t) = lhs {
-					let entry = entry_map.get(&t);
-					if let Some(entry) = entry {
-						if let Value::Int(0) | Value::Float(0.0) = entry.k_val {
-							Some(entry.b_val.clone())
-						} else {
-							None
-						}
-					} else {
-						panic!("convert instr lhs not in entry map");
-					}
-				} else {
-					Some(lhs.clone())
-				}
-			};
-			if let Some(lhs_val) = get_lhs_val {
-				let my_target = mgr.new_temp(convert_instr.var_type, false);
-				let instr = llvm::ConvertInstr {
-					target: my_target.clone(),
-					op: convert_instr.op,
-					lhs: lhs_val,
-					var_type: convert_instr.var_type,
-				};
-				block_instrs.push(Box::new(instr));
-				entry_map.insert(
-					target,
-					Entry {
-						k_val: Value::Int(0),
-						b_val: Value::Temp(my_target),
-						_mod_val: None,
-					},
-				);
-			} else {
-				return false;
-			}
-		}
 		JumpCondInstr(jump_cond_instr) => {
 			// 同上要求 cond 和 data 无关
 			let cond = jump_cond_instr.cond.clone();
-			let get_cond_val = {
-				if let Value::Temp(t) = cond {
-					let entry = entry_map.get(&t);
-					if let Some(entry) = entry {
-						if let Value::Int(0) | Value::Float(0.0) = entry.k_val {
-							Some(entry.b_val.clone())
-						} else {
-							None
-						}
-					} else {
-						panic!("jump cond instr cond not in entry map");
-					}
-				} else {
-					Some(cond.clone())
-				}
-			};
+			let get_cond_val = get_constant_term(&cond, entry_map);
 			if let Some(cond_val) = get_cond_val {
 				let instr = llvm::JumpCondInstr {
 					cond: cond_val.clone(),
@@ -606,11 +186,13 @@ fn map_instr(
 					var_type: cond_val.get_type(),
 				};
 				block_instrs.push(Box::new(instr));
+			} else {
+				return false;
 			}
 		}
 		PhiInstr(phi_instr) => {
 			// 想一下怎么处理有 phi 的情况
-			// 处理有 phi 的情况，搞成俩 phi
+			// 处理有 phi 的情况，搞成多个 phi
 			let target = phi_instr.target.clone();
 			let new_sources_k: Vec<_> = phi_instr
 				.source
@@ -625,7 +207,7 @@ fn map_instr(
 								panic!("phi instr val not in entry map");
 							}
 						} else {
-							Value::Int(0)
+							vec![Value::Int(0); params_len]
 						}
 					};
 					(get_val, label.clone())
@@ -650,278 +232,54 @@ fn map_instr(
 					(get_val, label.clone())
 				})
 				.collect();
-			let k_target = mgr.new_temp(phi_instr.var_type, false);
+			let mut k_targets = vec![];
+			for i in 0..params_len {
+				let k_target = mgr.new_temp(phi_instr.var_type, false);
+				let instr = llvm::PhiInstr {
+					target: k_target.clone(),
+					source: new_sources_k
+						.clone()
+						.into_iter()
+						.map(|(val, label)| (val[i].clone(), label))
+						.collect::<Vec<_>>(),
+					var_type: phi_instr.var_type,
+				};
+				block_instrs.push(Box::new(instr.clone()));
+				block_phi_instrs.push(instr);
+				k_targets.push(k_target);
+			}
 			let b_target = mgr.new_temp(phi_instr.var_type, false);
-			let instr1 = llvm::PhiInstr {
-				target: k_target.clone(),
-				source: new_sources_k.clone(),
-				var_type: phi_instr.var_type,
-			};
 			let instr2 = llvm::PhiInstr {
 				target: b_target.clone(),
 				source: new_sources_b.clone(),
 				var_type: phi_instr.var_type,
 			};
-			block_instrs.push(Box::new(instr1.clone()));
 			block_instrs.push(Box::new(instr2.clone()));
-			block_phi_instrs.push(instr1);
 			block_phi_instrs.push(instr2);
 			entry_map.insert(
 				target,
 				Entry {
-					k_val: Value::Temp(k_target),
+					k_val: k_targets.into_iter().map(Value::Temp).collect(),
 					b_val: Value::Temp(b_target),
 					_mod_val: None,
+					params_len,
 				},
 			);
 		}
 		CallInstr(call_instr) => {
 			// 检查是否是 call 的自身，如果不是的话，params 中都不能与 data 有关
-			if call_instr.func.name != func_name {
-				let params = call_instr.params.clone();
-				let mut new_params = Vec::new();
-				for param in params.iter() {
-					let get_param_val = {
-						if let Value::Temp(t) = &param.1 {
-							let entry = entry_map.get(t);
-							if let Some(entry) = entry {
-								if let Value::Int(0) | Value::Float(0.0) = entry.k_val {
-									Some(entry.b_val.clone())
-								} else {
-									None
-								}
-							} else {
-								panic!("call instr param not in entry map");
-							}
-						} else {
-							Some(param.1.clone())
-						}
-					};
-					if let Some(param_val) = get_param_val {
-						new_params.push((param.0, param_val));
-					} else {
-						return false;
-					}
-				}
-				let instr = llvm::CallInstr {
-					target: call_instr.target.clone(),
-					var_type: call_instr.var_type,
-					func: call_instr.func.clone(),
-					params: new_params,
-				};
-				block_instrs.push(Box::new(instr));
-			} else {
-				// 我们把 call 指令转成从 a 里面把 value load 出来再给到 call 的 dst 里面
-				let dst = call_instr.target.clone();
-				let kdst = mgr.new_temp(data.get_type(), false);
-				let bdst = mgr.new_temp(data.get_type(), false);
-				let b_addr = mgr.new_temp(
-					match bdst.var_type {
-						llvm::VarType::I32 => llvm::VarType::I32Ptr,
-						llvm::VarType::F32 => llvm::VarType::F32Ptr,
-						_ => llvm::VarType::I32Ptr,
-					},
-					false,
-				);
-				let load1 = llvm::LoadInstr {
-					target: kdst.clone(),
-					var_type: data.get_type(),
-					addr: Value::Temp(addr.clone()),
-				};
-				let gep_instr = llvm::GEPInstr {
-					target: b_addr.clone(),
-					var_type: b_addr.var_type,
-					addr: Value::Temp(addr.clone()),
-					offset: Value::Int(4),
-				};
-				let load2 = llvm::LoadInstr {
-					target: bdst.clone(),
-					var_type: data.get_type(),
-					addr: Value::Temp(gep_instr.target.clone()),
-				};
-				// get param that is not recurse index and get its entry
-				let my_recurse_index = recurse_index.get_write().unwrap();
-				let my_data = call_instr
-					.params
-					.iter()
-					.find(|x| x.1 != llvm::Value::Temp(my_recurse_index.clone()))
-					.unwrap()
-					.1
-					.clone();
-				if let Value::Temp(tmp) = my_data {
-					let entry = entry_map.get(&tmp).unwrap();
-					let (val0, instr1) = compute_two_value(
-						llvm::Value::Temp(kdst.clone()),
-						entry.k_val.clone(),
-						match &kdst.var_type {
-							llvm::VarType::I32 => llvm::ArithOp::Mul,
-							llvm::VarType::F32 => llvm::ArithOp::Fmul,
-							_ => llvm::ArithOp::Mul,
-						},
-						mgr,
-					);
-					let (val2, instr2) = compute_two_value(
-						llvm::Value::Temp(kdst.clone()),
-						entry.b_val.clone(),
-						match &kdst.var_type {
-							llvm::VarType::I32 => llvm::ArithOp::Mul,
-							llvm::VarType::F32 => llvm::ArithOp::Fmul,
-							_ => llvm::ArithOp::Mul,
-						},
-						mgr,
-					);
-					let (val3, instr3) = compute_two_value(
-						llvm::Value::Temp(bdst.clone()),
-						val2,
-						match &bdst.var_type {
-							llvm::VarType::I32 => llvm::ArithOp::Add,
-							llvm::VarType::F32 => llvm::ArithOp::Fadd,
-							_ => llvm::ArithOp::Add,
-						},
-						mgr,
-					);
-					block_instrs.push(Box::new(load1));
-					block_instrs.push(Box::new(gep_instr));
-					block_instrs.push(Box::new(load2));
-					if let Some(instr1) = instr1 {
-						block_instrs.push(Box::new(instr1));
-					}
-					if let Some(instr2) = instr2 {
-						block_instrs.push(Box::new(instr2));
-					}
-					if let Some(instr3) = instr3 {
-						block_instrs.push(Box::new(instr3));
-					}
-					entry_map.insert(
-						dst,
-						Entry {
-							k_val: val0,
-							b_val: val3,
-							_mod_val: None,
-						},
-					);
-				} else {
-					// fb+g
-					let (val0, instr1) = compute_two_value(
-						llvm::Value::Temp(kdst.clone()),
-						my_data.clone(),
-						match &kdst.var_type {
-							llvm::VarType::I32 => llvm::ArithOp::Mul,
-							llvm::VarType::F32 => llvm::ArithOp::Fmul,
-							_ => llvm::ArithOp::Mul,
-						},
-						mgr,
-					);
-					let (val2, instr2) = compute_two_value(
-						llvm::Value::Temp(bdst.clone()),
-						val0,
-						match &bdst.var_type {
-							llvm::VarType::I32 => llvm::ArithOp::Add,
-							llvm::VarType::F32 => llvm::ArithOp::Fadd,
-							_ => llvm::ArithOp::Add,
-						},
-						mgr,
-					);
-					block_instrs.push(Box::new(load1));
-					block_instrs.push(Box::new(gep_instr));
-					block_instrs.push(Box::new(load2));
-					if let Some(instr1) = instr1 {
-						block_instrs.push(Box::new(instr1));
-					}
-					if let Some(instr2) = instr2 {
-						block_instrs.push(Box::new(instr2));
-					}
-					entry_map.insert(
-						dst,
-						Entry {
-							k_val: match &val2 {
-								Value::Int(_i) => Value::Int(0),
-								Value::Float(_f) => Value::Float(0.0),
-								Value::Temp(t) => {
-									if t.var_type == llvm::VarType::I32 {
-										Value::Int(0)
-									} else {
-										Value::Float(0.0)
-									}
-								}
-							},
-							b_val: val2,
-							_mod_val: None,
-						},
-					);
-				}
-			}
+			return calc_call(
+				call_instr,
+				entry_map,
+				block_instrs,
+				mgr,
+				func_name,
+				addr,
+				index,
+			);
 		}
 		llvm::LlvmInstrVariant::RetInstr(retinstr) => {
-			// 把 value 塞到 a 里面去
-			// 注意我们是把 k_value 放在了上面
-			let value = retinstr.value.clone();
-			if let Some(val) = value {
-				match val {
-					Value::Temp(t) => {
-						let entry = entry_map.get(&t);
-						if let Some(entry) = entry {
-							// store 进 a 里面去
-							let gep1 = llvm::GEPInstr {
-								target: mgr.new_temp(llvm::VarType::I32Ptr, false),
-								var_type: llvm::VarType::I32Ptr,
-								addr: Value::Temp(addr.clone()),
-								offset: Value::Int(0),
-							};
-							let store1 = llvm::StoreInstr {
-								value: entry.k_val.clone(),
-								addr: Value::Temp(gep1.target.clone()),
-							};
-							let gep2 = llvm::GEPInstr {
-								target: mgr.new_temp(llvm::VarType::I32Ptr, false),
-								var_type: llvm::VarType::I32Ptr,
-								addr: Value::Temp(addr.clone()),
-								offset: Value::Int(4),
-							};
-							let store2 = llvm::StoreInstr {
-								value: entry.b_val.clone(),
-								addr: Value::Temp(gep2.target.clone()),
-							};
-							let ret = llvm::RetInstr { value: None };
-							block_instrs.push(Box::new(gep1));
-							block_instrs.push(Box::new(store1));
-							block_instrs.push(Box::new(gep2));
-							block_instrs.push(Box::new(store2));
-							block_instrs.push(Box::new(ret));
-						} else {
-							panic!("ret instr value not in entry map");
-						}
-					}
-					_ => {
-						let gep_instr = llvm::GEPInstr {
-							target: mgr.new_temp(llvm::VarType::I32Ptr, false),
-							var_type: llvm::VarType::I32Ptr,
-							addr: Value::Temp(addr.clone()),
-							offset: Value::Int(4),
-						};
-						let store_instr = llvm::StoreInstr {
-							value: val.clone(),
-							addr: Value::Temp(gep_instr.target.clone()),
-						};
-						// 另一个 store 为0
-						let store_instr2 = llvm::StoreInstr {
-							value: match val.get_type() {
-								llvm::VarType::I32 => Value::Int(0),
-								llvm::VarType::F32 => Value::Float(0.0),
-								_ => Value::Int(0),
-							},
-							addr: Value::Temp(addr.clone()),
-						};
-						let ret = llvm::RetInstr { value: None };
-						block_instrs.push(Box::new(gep_instr));
-						block_instrs.push(Box::new(store_instr));
-						block_instrs.push(Box::new(store_instr2));
-						block_instrs.push(Box::new(ret));
-					}
-				}
-			} else {
-				return false;
-			}
+			return calc_ret(retinstr, entry_map, block_instrs, mgr, addr);
 		}
 		llvm::LlvmInstrVariant::JumpInstr(instr) => {
 			block_instrs.push(Box::new(instr.clone()));
@@ -932,71 +290,79 @@ fn map_instr(
 	}
 	true
 }
-#[derive(Debug, Clone)]
-struct Entry {
-	k_val: Value,
-	b_val: Value,
-	_mod_val: Option<Value>, // 这个先不考虑
-}
+
 type Blocks = Vec<Rc<RefCell<BasicBlock<Box<dyn LlvmInstrTrait>, LlvmTemp>>>>;
+#[allow(clippy::too_many_arguments)]
 fn map_coef_instrs(
 	func: &LlvmFunc,
 	index: LlvmTemp,
 	addr: LlvmTemp,
 	mgr: &mut LlvmTempManager,
 	special_nodes: HashSet<i32>,
-	recurse_index: Box<dyn LlvmInstrTrait>,
-	my_index: LlvmTemp,
+	recurse_index: Vec<Box<dyn LlvmInstrTrait>>, // 生成 recursive_index 的 instrs
+	my_index: LlvmTemp,                          // recursive index
+	block_ord: Vec<i32>,
+	my_recurse_index: LlvmTemp,
 ) -> Option<Blocks> {
+	let params_len = func.params.len() - 1;
 	let mut entry_map = HashMap::new();
-	let data =
-		func.params.iter().find(|x| **x != Value::Temp(index.clone())).unwrap();
+	let index_pos =
+		func.params.iter().position(|x| *x == Value::Temp(index.clone())).unwrap();
+	let data: Vec<llvm::Value> = func
+		.params
+		.iter()
+		.filter(|x| **x != Value::Temp(index.clone()))
+		.cloned()
+		.collect();
 	entry_map.insert(
 		index.clone(),
 		Entry {
-			k_val: Value::Int(0),
+			k_val: vec![Value::Int(0); params_len],
 			b_val: Value::Temp(my_index.clone()),
 			_mod_val: None,
+			params_len,
 		},
 	);
-	if let Value::Temp(t) = data {
-		if VarType::I32 == t.var_type {
+	for (idx, i) in data.iter().enumerate() {
+		if let Value::Temp(tmp) = i {
+			// 只有第i项为 Int(1) 其他项为 Int(0)的 vector
+			let k_val = (0..params_len)
+				.map(|i| {
+					if i == idx {
+						get_typed_one(tmp)
+					} else {
+						get_typed_zero(tmp)
+					}
+				})
+				.collect();
 			entry_map.insert(
-				t.clone(),
+				tmp.clone(),
 				Entry {
-					k_val: Value::Int(1),
-					b_val: Value::Int(0),
+					k_val,
+					b_val: get_typed_zero(tmp),
 					_mod_val: None,
-				},
-			);
-		} else {
-			entry_map.insert(
-				t.clone(),
-				Entry {
-					k_val: Value::Float(1.0),
-					b_val: Value::Float(0.0),
-					_mod_val: None,
+					params_len,
 				},
 			);
 		}
 	}
 	let mut new_instrs = vec![];
 	let mut res_vec = vec![];
-	let res = map_instr(
-		&recurse_index,
-		&mut entry_map,
-		&mut res_vec,
-		mgr,
-		&mut vec![],
-		data,
-		&addr,
-		func.name.clone(),
-		&recurse_index,
-	);
-	let calc_recurse_instr = res_vec[0].clone();
-	let my_recurse_index = calc_recurse_instr.get_write().unwrap();
-	if !res {
-		return None;
+	for recurse in recurse_index.iter() {
+		let res = map_instr(
+			recurse,
+			&mut entry_map,
+			&mut res_vec,
+			mgr,
+			&mut vec![],
+			&addr,
+			func.name.clone(),
+			func.params.len() - 1,
+			index_pos,
+		);
+		if !res {
+			return None;
+		}
 	}
 	let call_instr = llvm::CallInstr {
 		target: mgr.new_temp(llvm::VarType::I32, false),
@@ -1004,17 +370,23 @@ fn map_coef_instrs(
 		func: Label::new(format!("{}_calc_coef", func.name)),
 		params: vec![
 			(llvm::VarType::I32Ptr, Value::Temp(addr.clone())),
-			(llvm::VarType::I32, Value::Temp(my_recurse_index.clone())),
+			(
+				llvm::VarType::I32,
+				entry_map.get(&my_recurse_index).unwrap().b_val.clone(),
+			),
 		],
 	};
 	let mut phi_instrs = vec![];
 	let mut jmp_instrs = vec![];
 	// 先把 data 和 index 放进entry_map 因为自有 Value 所以不用搞 instrs
-	for block in func.cfg.blocks.iter() {
+	for id in block_ord.iter() {
+		let block = func.cfg.blocks.iter().find(|x| x.borrow().id == *id).unwrap();
 		let mut block_instrs: Vec<Box<dyn LlvmInstrTrait>> = vec![];
 		let mut block_phi_instrs: Vec<llvm::PhiInstr> = vec![];
 		if special_nodes.contains(&block.borrow().id) {
-			block_instrs.push(calc_recurse_instr.clone());
+			for i in res_vec.iter() {
+				block_instrs.push(i.clone());
+			}
 			block_instrs.push(Box::new(call_instr.clone()));
 		}
 		let has_jmp = block.borrow().jump_instr.is_some();
@@ -1032,10 +404,10 @@ fn map_coef_instrs(
 				&mut block_instrs,
 				mgr,
 				&mut block_phi_instrs,
-				data,
 				&addr,
 				func.name.clone(),
-				&recurse_index,
+				params_len,
+				index_pos,
 			);
 			if !res {
 				return None;
@@ -1073,26 +445,22 @@ fn calc_coef(
 	func: &LlvmFunc,
 	index: LlvmTemp,
 	mgr: &mut LlvmTempManager,
-	recurse_index: Box<dyn LlvmInstrTrait>,
+	block_ord: Vec<i32>,
+	funcdata: &mut FuncData,
 ) -> Vec<LlvmFunc> {
-	let data_val =
-		func.params.iter().find(|x| **x != Value::Temp(index.clone())).unwrap();
-	let data = {
-		if let Value::Temp(t) = data_val {
-			Some(t.clone())
-		} else {
-			None
-		}
-	};
+	let data = func
+		.params
+		.iter()
+		.filter(|x| **x != Value::Temp(index.clone()))
+		.cloned()
+		.collect::<Vec<_>>();
 	//  多源 bfs
 	// 找到所有特殊点，即是有递归调用自身的点
-	let mut special_node_ids = HashSet::new();
 	let mut special_map = HashMap::new();
 	for block in func.cfg.blocks.iter() {
 		for instr in block.borrow().instrs.iter() {
 			if let CallInstr(callinstr) = instr.get_variant() {
 				if callinstr.func.name == func.name {
-					special_node_ids.insert(block.borrow().id);
 					special_map.insert(block.borrow().id, block.clone());
 				}
 			}
@@ -1101,35 +469,31 @@ fn calc_coef(
 	// bfs 算特可达点
 	loop {
 		// calculate special reachables
-		let mut special_reachables = HashSet::new();
 		let mut special_reachable_map = HashMap::new();
 		let mut queue = VecDeque::new();
-		for node in special_node_ids.iter() {
+		for node in special_map.keys() {
 			queue.push_back(special_map.get(node).unwrap().clone());
 		}
 		while let Some(node) = queue.pop_front() {
-			if special_reachables.contains(&node.borrow().id) {
+			if special_reachable_map.contains_key(&node.borrow().id) {
 				continue;
 			}
-			special_reachables.insert(node.borrow().id);
 			special_reachable_map.insert(node.borrow().id, node.clone());
 			for succ in node.borrow().succ.iter() {
 				queue.push_back(succ.clone());
 			}
 		}
 		// calculate special nodes
-		let mut new_special_nodes = HashSet::new();
 		let mut new_special_map = HashMap::new();
-		for node in special_node_ids.iter() {
+		for node in special_map.keys() {
 			if !special_map
 				.get(node)
 				.unwrap()
 				.borrow()
 				.prev
 				.iter()
-				.any(|v| special_reachables.contains(&v.borrow().id))
+				.any(|v| special_reachable_map.contains_key(&v.borrow().id))
 			{
-				new_special_nodes.insert(*node);
 				new_special_map.insert(*node, special_map.get(node).unwrap().clone());
 			} else if !special_map
 				.get(node)
@@ -1137,109 +501,33 @@ fn calc_coef(
 				.borrow()
 				.prev
 				.iter()
-				.all(|v| special_reachables.contains(&v.borrow().id))
+				.all(|v| special_reachable_map.contains_key(&v.borrow().id))
 			{
 				let borrowed_node = special_map.get(node).unwrap().borrow();
 				let filtered_prevs = borrowed_node
 					.prev
 					.iter()
-					.filter(|v| !special_reachables.contains(&v.borrow().id));
-				new_special_nodes.extend(filtered_prevs.clone().map(|v| v.borrow().id));
+					.filter(|v| !special_reachable_map.contains_key(&v.borrow().id));
 				new_special_map
 					.extend(filtered_prevs.map(|v| (v.borrow().id, v.clone())));
 			}
 		}
-		let mut is_changed = special_node_ids.len() != new_special_nodes.len();
-		for (val1, val2) in special_node_ids.iter().zip(new_special_nodes.iter()) {
-			if *val1 != *val2 {
-				is_changed = true;
-				break;
-			}
-		}
+		let is_changed = special_map.keys().collect::<HashSet<_>>()
+			!= new_special_map.keys().collect::<HashSet<_>>();
 		if !is_changed {
 			break;
 		} else {
 			special_map = new_special_map;
-			special_node_ids = new_special_nodes;
 		}
 	}
 
-	// 对于每一个变量, todo 改成 load 和 gep 间隔
-	let mut instrs: Vec<Box<dyn LlvmInstrTrait>> = vec![];
-	let alloc_target = mgr.new_temp(llvm::VarType::I32Ptr, false);
-	let alloc_instr = llvm::AllocInstr {
-		target: alloc_target.clone(),
-		length: Value::Int(16),
-		var_type: llvm::VarType::I32Ptr,
-	};
-	let call_instr = llvm::CallInstr {
-		target: mgr.new_temp(llvm::VarType::I32, false),
-		var_type: llvm::VarType::Void,
-		func: utils::Label {
-			name: format!("{}_calc_coef", func.name),
-		},
-		params: vec![
-			(llvm::VarType::I32Ptr, Value::Temp(alloc_target.clone())),
-			(llvm::VarType::I32, Value::Temp(index.clone())),
-		],
-	};
-	let f_tmp = mgr.new_temp(data.clone().unwrap().var_type, false);
-	let load_f = llvm::LoadInstr {
-		target: f_tmp.clone(),
-		var_type: data.clone().unwrap().var_type,
-		addr: Value::Temp(alloc_target.clone()),
-	};
-	let gep_dst = mgr.new_temp(llvm::VarType::I32Ptr, false);
-	let gep_ptr = llvm::GEPInstr {
-		target: gep_dst.clone(),
-		var_type: llvm::VarType::I32Ptr,
-		addr: Value::Temp(alloc_target.clone()),
-		offset: Value::Int(4),
-	};
-	let g_tmp = mgr.new_temp(data.clone().unwrap().var_type, false);
-	let load_g = llvm::LoadInstr {
-		target: g_tmp.clone(),
-		var_type: data.clone().unwrap().var_type,
-		addr: Value::Temp(gep_dst),
-	};
-	let mul_dst = mgr.new_temp(data.clone().unwrap().var_type, false);
-	let mul_instr = llvm::ArithInstr {
-		target: mul_dst.clone(),
-		var_type: data.clone().unwrap().var_type,
-		lhs: Value::Temp(f_tmp),
-		rhs: Value::Temp(data.clone().unwrap()),
-		op: match data.clone().unwrap().var_type {
-			llvm::VarType::I32 => llvm::ArithOp::Mul,
-			llvm::VarType::F32 => llvm::ArithOp::Fmul,
-			_ => llvm::ArithOp::Mul,
-		},
-	};
-	let add_dst = mgr.new_temp(data.clone().unwrap().var_type, false);
-	let add_instr = llvm::ArithInstr {
-		target: add_dst.clone(),
-		var_type: data.clone().unwrap().var_type,
-		lhs: Value::Temp(g_tmp),
-		rhs: Value::Temp(mul_dst),
-		op: match data.clone().unwrap().var_type {
-			llvm::VarType::I32 => llvm::ArithOp::Add,
-			llvm::VarType::F32 => llvm::ArithOp::Fadd,
-			_ => llvm::ArithOp::Add,
-		},
-	};
-	let ret_instr = llvm::RetInstr {
-		value: Some(Value::Temp(add_dst)),
-	};
-	instrs.push(Box::new(alloc_instr));
-	instrs.push(Box::new(call_instr));
-	instrs.push(Box::new(load_f));
-	instrs.push(Box::new(gep_ptr));
-	instrs.push(Box::new(load_g));
-	instrs.push(Box::new(mul_instr));
-	instrs.push(Box::new(add_instr));
-
-	let node = BasicBlock::new_node(0, 1.0);
-	node.borrow_mut().instrs = instrs;
-	node.borrow_mut().jump_instr = Some(Box::new(ret_instr));
+	let node = create_wrapper(
+		&data.iter().map(|x| x.unwrap_temp().unwrap()).collect(),
+		&index,
+		func.name.clone(),
+		mgr,
+		func.params.len() - 1,
+	);
 	let wrapper_func = LlvmFunc {
 		total: mgr.total as i32,
 		spills: 0,
@@ -1250,27 +538,81 @@ fn calc_coef(
 	};
 	let addr = mgr.new_temp(llvm::VarType::I32Ptr, false);
 	let my_index = mgr.new_temp(index.var_type, false);
+	// calculate recurse index
+	let index_pos =
+		func.params.iter().position(|x| *x == Value::Temp(index.clone())).unwrap();
+	// 检查，找所有 call 自身指令
+	let copied_func = LlvmFunc {
+		total: func.total,
+		spills: func.spills,
+		cfg: CFG {
+			blocks: func.cfg.blocks.clone(),
+		},
+		name: func.name.clone(),
+		ret_type: func.ret_type,
+		params: func.params.clone(),
+	};
+
+	let mut recurse_num = None;
+	for i in func.cfg.blocks.iter() {
+		for instr in i.borrow().instrs.iter() {
+			if let CallInstr(callinstr) = instr.get_variant() {
+				if callinstr.func.name == func.name {
+					let (_ty, recurse_tmp) = callinstr.params[index_pos].clone();
+					if let Value::Temp(t) = recurse_tmp {
+						if recurse_num.is_none() {
+							recurse_num = Some(t);
+						} else {
+							// t 和 recurse_num 不能相等
+							if funcdata.get_number(&t).unwrap()
+								!= funcdata.get_number(&recurse_num.clone().unwrap()).unwrap()
+							{
+								return vec![copied_func];
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if recurse_num.is_none() {
+		return vec![copied_func];
+	}
+	let recurse_tmp = recurse_num.unwrap();
+	let mut recurse_idx = vec![];
+	let mut reads = VecDeque::new();
+	reads.push_back(recurse_tmp.clone());
+	while !reads.is_empty() {
+		let tmp = reads.pop_front().unwrap();
+		// 找到所有使用 tmp 的指令
+		for i in func.cfg.blocks.iter() {
+			for instr in i.borrow().instrs.iter() {
+				if let Some(write) = instr.get_write() {
+					if write == tmp {
+						recurse_idx.push(instr.clone());
+						for i in instr.get_read() {
+							reads.push_back(i);
+						}
+						break;
+					}
+				}
+			}
+		}
+	}
+	recurse_idx.reverse();
 	let new_blocks = map_coef_instrs(
 		func,
 		index,
 		addr.clone(),
 		mgr,
-		special_node_ids,
-		recurse_index,
+		special_map.keys().cloned().collect(),
+		recurse_idx,
 		my_index.clone(),
+		block_ord,
+		recurse_tmp,
 	);
 	if new_blocks.is_none() {
-		let new_func = LlvmFunc {
-			total: func.total,
-			spills: func.spills,
-			cfg: CFG {
-				blocks: func.cfg.blocks.clone(),
-			},
-			name: func.name.clone(),
-			ret_type: func.ret_type,
-			params: func.params.clone(),
-		};
-		return vec![new_func];
+		return vec![copied_func];
 	}
 	let calc_func = LlvmFunc {
 		total: mgr.total as i32,
