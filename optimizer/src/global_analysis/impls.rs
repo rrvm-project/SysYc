@@ -20,8 +20,8 @@ pub const BUILTIN_FUNCS: &[&str] = &[
 	"putarray",
 	"putfarray",
 	"putf",
-	"starttime",
-	"stoptime",
+	"_sysy_starttime",
+	"_sysy_stoptime",
 ];
 
 impl RrvmOptimizer for GlobalAnalysis {

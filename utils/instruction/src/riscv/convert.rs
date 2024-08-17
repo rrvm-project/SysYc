@@ -84,18 +84,19 @@ fn solve_mul(
 		return true;
 	}
 	let base = num >> offset;
-	let temp = mgr.new_temp(VarType::Int);
+	let temp1 = mgr.new_temp(VarType::Int);
+	let temp2 = mgr.new_temp(VarType::Int);
 	if is_pow2(base - 1) {
 		let offset_temp = (base - 1).trailing_zeros() as i32;
-		instrs.push(ITriInstr::new(Slliw, temp, lhs, offset_temp.into()));
-		instrs.push(RTriInstr::new(Addw, rd, temp, lhs));
-		instrs.push(ITriInstr::new(Slliw, rd, rd, offset.into()));
+		instrs.push(ITriInstr::new(Slliw, temp1, lhs, offset_temp.into()));
+		instrs.push(RTriInstr::new(Addw, temp2, temp1, lhs));
+		instrs.push(ITriInstr::new(Slliw, rd, temp2, offset.into()));
 		true
 	} else if is_pow2(base + 1) {
 		let offset_temp = (base + 1).trailing_zeros() as i32;
-		instrs.push(ITriInstr::new(Slliw, temp, lhs, offset_temp.into()));
-		instrs.push(RTriInstr::new(Subw, rd, temp, lhs));
-		instrs.push(ITriInstr::new(Slliw, rd, rd, offset.into()));
+		instrs.push(ITriInstr::new(Slliw, temp1, lhs, offset_temp.into()));
+		instrs.push(RTriInstr::new(Subw, temp2, temp1, lhs));
+		instrs.push(ITriInstr::new(Slliw, rd, temp2, offset.into()));
 		true
 	} else {
 		false
@@ -111,21 +112,26 @@ fn solve_div(
 ) {
 	if is_pow2(num) {
 		let l = num.trailing_zeros() as i32;
-		let temp = mgr.new_temp(VarType::Int);
-		instrs.push(ITriInstr::new(Srliw, temp, lhs, 31.into()));
-		instrs.push(RTriInstr::new(Sub, rd, lhs, temp));
-		instrs.push(ITriInstr::new(Srai, rd, rd, l.into()));
-		instrs.push(RTriInstr::new(Addw, rd, rd, temp));
+		let temp1 = mgr.new_temp(VarType::Int);
+		let temp2 = mgr.new_temp(VarType::Int);
+		let temp3 = mgr.new_temp(VarType::Int);
+		instrs.push(ITriInstr::new(Srliw, temp1, lhs, 31.into()));
+		instrs.push(RTriInstr::new(Sub, temp2, lhs, temp1));
+		instrs.push(ITriInstr::new(Srai, temp3, temp2, l.into()));
+		instrs.push(RTriInstr::new(Addw, rd, temp3, temp1));
 	} else {
 		let l = ((num - 1).ilog2() + 1) as i32;
 		let m = (2147483649i64 << l) / num as i64;
 		let temp = load_imm(m, instrs, mgr);
-		let new_temp = mgr.new_temp(VarType::Int);
-		instrs.push(RTriInstr::new(Mul, rd, temp, lhs));
-		instrs.push(ITriInstr::new(Srliw, new_temp, lhs, 31.into()));
-		instrs.push(RTriInstr::new(Sub, rd, rd, new_temp));
-		instrs.push(ITriInstr::new(Srai, rd, rd, (l + 31).into()));
-		instrs.push(RTriInstr::new(Addw, rd, rd, new_temp));
+		let temp1 = mgr.new_temp(VarType::Int);
+		let temp2 = mgr.new_temp(VarType::Int);
+		let temp3 = mgr.new_temp(VarType::Int);
+		let temp4 = mgr.new_temp(VarType::Int);
+		instrs.push(RTriInstr::new(Mul, temp1, temp, lhs));
+		instrs.push(ITriInstr::new(Srliw, temp2, lhs, 31.into()));
+		instrs.push(RTriInstr::new(Sub, temp3, temp1, temp2));
+		instrs.push(ITriInstr::new(Srai, temp4, temp3, (l + 31).into()));
+		instrs.push(RTriInstr::new(Addw, rd, temp4, temp2));
 	}
 }
 
@@ -142,8 +148,9 @@ fn solve_rem(
 		if l == 1 {
 			instrs.push(ITriInstr::new(Srliw, temp, lhs, 31.into()));
 		} else {
-			instrs.push(ITriInstr::new(Slli, temp, lhs, 1.into()));
-			instrs.push(ITriInstr::new(Srli, temp, temp, (64 - l).into()));
+			let new_temp = mgr.new_temp(VarType::Int);
+			instrs.push(ITriInstr::new(Slli, new_temp, lhs, 1.into()));
+			instrs.push(ITriInstr::new(Srli, temp, new_temp, (64 - l).into()));
 		}
 		instrs.push(RTriInstr::new(Add, temp, temp, lhs));
 		if is_lower(-num) {
