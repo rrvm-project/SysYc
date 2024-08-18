@@ -101,7 +101,6 @@ impl<'a> OneLoopSolver<'a> {
 			let reads = self.loopdata.temp_graph.get_use_values(&chain_runner);
 			// For it to be on a chain, it must have at least one read
 			assert!(!reads.is_empty());
-			// TODO: 目前只允许 chain 中的操作是整数加法，减法，乘法
 			if let Some(chain_op) =
 				self.loopdata.temp_graph.is_candidate_operator(&chain_runner)
 			{
@@ -184,7 +183,8 @@ impl<'a> OneLoopSolver<'a> {
 		let mut indvar_bases = vec![];
 		for chain_node in indvar_chain[..end].iter() {
 			match chain_node.op {
-				ArithOp::Add | ArithOp::Sub => {
+				// allow double word indvar
+				ArithOp::Add | ArithOp::Sub | ArithOp::AddD | ArithOp::SubD => {
 					// 有 + - 时保证 scale 是 1
 					if scale == Value::Int(1) {
 						step = self.compute_two_vec_values(
@@ -210,7 +210,8 @@ impl<'a> OneLoopSolver<'a> {
 						return;
 					}
 				}
-				ArithOp::Mul => {
+				// allow double word indvar
+				ArithOp::Mul | ArithOp::MulD => {
 					// 有 * 时保证 step 是 1 阶归纳变量
 					if step.len() == 1 && chain_node.operand.len() == 1 {
 						(scale, instr) = compute_two_value(

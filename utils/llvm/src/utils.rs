@@ -1,6 +1,8 @@
 use crate::{
-	llvmop::Value, ArithInstr, ArithOp, GEPInstr, LlvmInstr, LlvmTemp,
-	LlvmTempManager, VarType,
+	llvmop::Value,
+	ArithInstr,
+	ArithOp::{self, *},
+	GEPInstr, LlvmInstr, LlvmTemp, LlvmTempManager, VarType,
 };
 
 pub fn unwrap_values(arr: Vec<&Value>) -> Vec<LlvmTemp> {
@@ -17,11 +19,16 @@ pub fn compute_two_value(
 	match (v1.clone(), v2.clone()) {
 		(Value::Int(i1), Value::Int(i2)) => {
 			let i = match op {
-				ArithOp::Add => i1 + i2,
-				ArithOp::Mul => i1 * i2,
-				ArithOp::Sub => i1 - i2,
-				ArithOp::Div => i1 / i2,
-				ArithOp::Rem => i1 % i2,
+				Add => i1 + i2,
+				AddD => i1 + i2,
+				Mul => i1 * i2,
+				MulD => i1 * i2,
+				Sub => i1 - i2,
+				SubD => i1 - i2,
+				Div => i1 / i2,
+				DivD => i1 / i2,
+				Rem => i1 % i2,
+				RemD => i1 % i2,
 				_ => unreachable!(),
 			};
 			(Value::Int(i), None)
@@ -29,8 +36,8 @@ pub fn compute_two_value(
 		(Value::Int(i1), Value::Temp(t2)) => {
 			assert!(t2.var_type != VarType::F32);
 			match (i1, op) {
-				(0, ArithOp::Add) | (1, ArithOp::Mul) => (v2, None),
-				(0, ArithOp::Mul) => (Value::Int(0), None),
+				(0, Add | AddD) | (1, Mul | MulD) => (v2, None),
+				(0, Mul | MulD) => (Value::Int(0), None),
 				_ => {
 					assert!(
 						t2.var_type != VarType::I32Ptr && t2.var_type != VarType::F32Ptr
@@ -50,9 +57,9 @@ pub fn compute_two_value(
 		(Value::Temp(t1), Value::Int(i2)) => {
 			assert!(t1.var_type != VarType::F32);
 			match (i2, op) {
-				(0, ArithOp::Add | ArithOp::Sub)
-				| (1, ArithOp::Mul | ArithOp::Div | ArithOp::Rem) => (v1, None),
-				(0, ArithOp::Mul) => (Value::Int(0), None),
+				(0, Add | Sub | AddD | SubD)
+				| (1, Mul | Div | Rem | MulD | DivD | RemD) => (v1, None),
+				(0, Mul | MulD) => (Value::Int(0), None),
 				_ => {
 					let target = temp_mgr.new_temp(t1.var_type, false);
 					let instr: LlvmInstr = if t1.var_type == VarType::I32Ptr

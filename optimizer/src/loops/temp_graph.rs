@@ -36,9 +36,15 @@ impl TempGraph {
 		if let Some(node) = self.temp_to_instr.get(temp) {
 			match node.instr.get_variant() {
 				LlvmInstrVariant::ArithInstr(inst) => match inst.op {
-					ArithOp::Add | ArithOp::Sub | ArithOp::Mul | ArithOp::Rem => {
-						Some(inst.op)
-					}
+					// allow double word indvar
+					ArithOp::Add
+					| ArithOp::Sub
+					| ArithOp::Mul
+					| ArithOp::Rem
+					| ArithOp::AddD
+					| ArithOp::SubD
+					| ArithOp::MulD
+					| ArithOp::RemD => Some(inst.op),
 					_ => None,
 				},
 				LlvmInstrVariant::GEPInstr(_) => Some(ArithOp::Add),

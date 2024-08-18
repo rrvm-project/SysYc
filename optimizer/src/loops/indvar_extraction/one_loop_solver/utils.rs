@@ -42,7 +42,8 @@ impl<'a> OneLoopSolver<'a> {
 			return None;
 		}
 		match op {
-			ArithOp::Add | ArithOp::Sub => {
+			// allow double word indvar
+			ArithOp::Add | ArithOp::Sub | ArithOp::AddD | ArithOp::SubD => {
 				if v1.scale == v2.scale {
 					let (new_base, instr) = compute_two_value(
 						v1.base.clone(),
@@ -59,7 +60,8 @@ impl<'a> OneLoopSolver<'a> {
 					None
 				}
 			}
-			ArithOp::Mul => {
+			// allow double word indvar
+			ArithOp::Mul | ArithOp::MulD => {
 				let mut mul_a_const = |v1: IndVar, v2: IndVar| -> Option<IndVar> {
 					// 只乘常数
 					if v1.scale == Value::Int(1) && v1.step.is_empty() {

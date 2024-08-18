@@ -80,23 +80,23 @@ impl<'a> OneLoopSolver<'a> {
 			let mut coef = loop_cnt.clone();
 			let mut sum = indvar.base.clone();
 			for (index, step) in indvar.step.iter().enumerate() {
-				let tmp1 = compute_two_value(&coef, step, ArithOp::Mul);
+				let tmp1 = compute_two_value(&coef, step, ArithOp::MulD);
 				let tmp2 = compute_two_value(&tmp1, &fract, ArithOp::Div);
 				sum = compute_two_value(&sum, &tmp2, ArithOp::Add);
 				fract = compute_two_value(
 					&fract,
 					&Value::Int(index as i32 + 2),
-					ArithOp::Mul,
+					ArithOp::MulD,
 				);
 				let cnt_minus_one = compute_two_value(
 					&loop_cnt,
 					&Value::Int(index as i32 + 1),
-					ArithOp::Sub,
+					ArithOp::SubD,
 				);
-				coef = compute_two_value(&coef, &cnt_minus_one, ArithOp::Mul);
+				coef = compute_two_value(&coef, &cnt_minus_one, ArithOp::MulD);
 			}
 			if let Some(zfp) = indvar.zfp.as_ref() {
-				sum = compute_two_value(&sum, zfp, ArithOp::Rem);
+				sum = compute_two_value(&sum, zfp, ArithOp::RemD);
 			}
 			Some(sum)
 		} else {
