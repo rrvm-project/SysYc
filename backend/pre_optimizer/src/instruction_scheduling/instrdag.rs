@@ -25,6 +25,7 @@ pub struct InstrNode {
 	pub last_use: usize,
 	pub pred: Vec<Node>,
 	pub to_end: usize,
+	pub out_deg: usize,
 }
 impl InstrNode {
 	pub fn new(instr: &RiscvInstr, id: usize) -> Self {
@@ -36,6 +37,7 @@ impl InstrNode {
 			last_use: 0,
 			pred: Vec::new(),
 			to_end: 0,
+			out_deg: 0,
 		}
 	}
 }
@@ -201,6 +203,10 @@ impl InstrDag {
 		let mut call_related_map = HashMap::new();
 		let mut call_instrs: Vec<Rc<RefCell<InstrNode>>> = Vec::new();
 		let mut my_call_write = None;
+		// eprintln!("instrs before preprocess_call");
+		// for i in node.borrow().instrs.iter() {
+		// 	eprintln!("{}", i);
+		// }
 		// preprocessing call related: 把 call 前后的 从 save 到 restore 的若干条指令保存在 call_related 里面,然后加入到 is_filtered_idx 之后遍历instrs 的时候遇到就直接continue
 		let mut processed_instrs = preprocess_call(
 			node,
@@ -346,9 +352,11 @@ impl InstrDag {
 			nodes.push(node);
 		}
 		for node in nodes.iter() {
+			let len = node.borrow().succ.len();
 			for succ in node.borrow().succ.iter() {
 				succ.borrow_mut().in_deg += 1;
 			}
+			node.borrow_mut().out_deg += len;
 		}
 		for (index, instr) in nodes.iter_mut().enumerate().rev() {
 			instr.borrow_mut().last_use +=
@@ -370,10 +378,12 @@ impl InstrDag {
 		})
 	}
 	pub fn assign_nodes(&mut self) {
+		// 这个函数是软流水函数 实际不参与运算
 		// 先备份一遍所有 node 的 indegs
-		let indegs =
-			self.nodes.iter().map(|x| x.borrow().in_deg).collect::<Vec<_>>();
+		let out_degs =
+			self.nodes.iter().map(|x| x.borrow().out_deg).collect::<Vec<_>>();
 		// 开始遍历
+
 		let mut stack_ = Vec::new();
 		for i in self.nodes.iter() {
 			if i.borrow().succ.is_empty() {
@@ -390,15 +400,15 @@ impl InstrDag {
 					node.borrow().to_end + i.borrow().instr.get_rtn_array()[4] as usize,
 				);
 				i.borrow_mut().to_end = new_end;
-				i.borrow_mut().in_deg -= 1;
-				if i.borrow().in_deg == 0 {
+				i.borrow_mut().out_deg -= 1;
+				if i.borrow().out_deg == 0 {
 					stack_.push(i.clone());
 				}
 			}
 		}
 		// 对每个点恢复 in_deg
-		for (i, j) in self.nodes.iter().zip(indegs.iter()) {
-			i.borrow_mut().in_deg = *j;
+		for (i, j) in self.nodes.iter().zip(out_degs.iter()) {
+			i.borrow_mut().out_deg = *j;
 		}
 	}
 }

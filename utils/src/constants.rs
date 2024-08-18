@@ -32,15 +32,15 @@ pub static DEPENDENCY_EXPLORE_DEPTH: i32 = 10; //  software pipelining 过程中
 pub static BLOCKSIZE_THRESHOLD: usize = 100; // software pipelining 判断如果基本本块大小超了 BLOCKSIZE_THRESHOLD 后就不进行针对基本本块的优化
 pub static BFS_STATE_THRESHOLD: usize = 9; // 在 instr_scheduling 中，每轮 bfs 所保留的状态的阈值
 																					 // for instruction scheduling: register punishment
-pub static ADD_ALLOCATABLES: i32 = 0;
-pub static NEAR_END: i32 = 0; // 寄存器生命周期更快结束的指令优先
-pub static REDUCE_SUB: i32 = 0; // 后继中的节点对应指令，寄存器生命周期更快结束的指令优先
-pub static REDUCE_LIVE: i32 = 0;
+pub static ADD_ALLOCATABLES: i32 = 20;
+pub static NEAR_END: i32 = 10; // 寄存器生命周期更快结束的指令优先
+pub static REDUCE_SUB: i32 = 4; // 后继中的节点对应指令，寄存器生命周期更快结束的指令优先
+pub static REDUCE_LIVE: i32 = 2;
 pub static LIVE_THROUGH: usize = 30;
 pub static SUM_MIN_RATIO: i32 = 1;
 pub static SCHEDULE_THRESHOLD: usize = 15000;
 pub static SOFTWARE_PIPELINE_PARAM: i32 = 0; // 拓扑排序后软流水的权重
-pub static HARDWARE_PIPELINE_PARAM: i32 = 1; // 拓扑排序后硬件流水的权重
+pub static HARDWARE_PIPELINE_PARAM: i32 = 0; // 拓扑排序后硬件流水的权重
 pub static FDIV_WAIT: usize = 20; // fdiv 的 repeat rate
 
 pub const MAX_UNROLL_INSTR_CNT: usize = 200;
