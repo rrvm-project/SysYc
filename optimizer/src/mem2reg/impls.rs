@@ -56,7 +56,7 @@ impl<'a> Solver<'a> {
 				global_base.insert(number.clone());
 			}
 		}
-		for store_var in func_data.usage_info.may_stores.iter() {
+		for (store_var, _) in func_data.usage_info.may_stores.iter() {
 			let base = str2num(store_var);
 			global_base.insert(base);
 		}
@@ -209,7 +209,7 @@ impl<'a> Solver<'a> {
 							}
 						}
 						let func_data = self.metadata.get_func_data(&instr.func.name);
-						for global_var in func_data.usage_info.may_stores.iter() {
+						for (global_var, _) in func_data.usage_info.may_stores.iter() {
 							let base = str2num(global_var);
 							let addrs = info.remove(&base);
 							for addr in addrs {
@@ -316,7 +316,7 @@ impl<'a> Solver<'a> {
 							}
 						}
 						let func_data = self.metadata.get_func_data(&instr.func.name);
-						for global_var in func_data.usage_info.may_stores.iter() {
+						for (global_var, _) in func_data.usage_info.may_stores.iter() {
 							let base = str2num(global_var);
 							array_state.remove_base(&base);
 							phi_info.remove(&base);
@@ -492,7 +492,7 @@ impl<'a> Solver<'a> {
 								}
 							}
 							let func_data = self.metadata.get_func_data(&instr.func.name);
-							for global_var in func_data.usage_info.may_loads.iter() {
+							for (global_var, _) in func_data.usage_info.may_loads.iter() {
 								let base = str2num(global_var);
 								stores.retain(|v, _| v.base != base);
 								let addrs =
@@ -563,7 +563,7 @@ impl<'a> Solver<'a> {
 					}
 
 					let func_data = self.metadata.get_func_data(&instr.func.name);
-					for global_var in func_data.usage_info.may_loads.iter() {
+					for (global_var, _) in func_data.usage_info.may_loads.iter() {
 						let base = str2num(global_var);
 						state.stores.retain(|v, _| v.base != base);
 						let addrs = self.base_addrs.get(&base).cloned().unwrap_or_default();
@@ -633,7 +633,7 @@ impl<'a> Solver<'a> {
 					}
 				}
 				let func_data = self.metadata.get_func_data(&instr.func.name);
-				for global_var in func_data.usage_info.may_stores.iter() {
+				for (global_var, _) in func_data.usage_info.may_stores.iter() {
 					let base = str2num(global_var);
 					if self.global_base.contains(&base) {
 						store_base.insert(base);
