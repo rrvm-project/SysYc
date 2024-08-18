@@ -15,8 +15,8 @@ pub struct VarData {
 
 #[derive(Default, Clone, Debug)]
 pub struct UsageInfo {
-	pub may_loads: HashSet<String>,
-	pub may_stores: HashSet<String>,
+	pub may_loads: HashSet<VarIdent>,
+	pub may_stores: HashSet<VarIdent>,
 }
 
 impl UsageInfo {
@@ -53,22 +53,22 @@ impl FuncData {
 			Value::Temp(temp) => self.get_number(temp).cloned(),
 		}
 	}
-	pub fn may_load(&self, global_var: &str) -> bool {
+	pub fn may_load(&self, global_var: &VarIdent) -> bool {
 		self.usage_info.may_loads.contains(global_var)
 	}
-	pub fn may_store(&self, global_var: &str) -> bool {
+	pub fn may_store(&self, global_var: &VarIdent) -> bool {
 		self.usage_info.may_stores.contains(global_var)
 	}
-	pub fn set_may_load(&mut self, global_var: &str) {
-		self.usage_info.may_loads.insert(global_var.to_string());
+	pub fn set_may_load(&mut self, global_var: VarIdent) {
+		self.usage_info.may_loads.insert(global_var);
 	}
-	pub fn set_may_store(&mut self, global_var: &str) {
-		self.usage_info.may_stores.insert(global_var.to_string());
+	pub fn set_may_store(&mut self, global_var: VarIdent) {
+		self.usage_info.may_stores.insert(global_var);
 	}
 	pub fn set_syscall(&mut self) {
 		self.pure = false;
-		self.usage_info.may_loads.insert("系统调用".to_string());
-		self.usage_info.may_stores.insert("系统调用".to_string());
+		self.usage_info.may_loads.insert(("系统调用".to_owned(), 0));
+		self.usage_info.may_stores.insert(("系统调用".to_owned(), 0));
 	}
 }
 
@@ -98,14 +98,14 @@ impl MetaData {
 		self
 			.func_data
 			.get(func_name)
-			.map(|data| data.may_load(global_var))
+			.map(|data| data.may_load(&(global_var.to_owned(), 0)))
 			.unwrap_or(false)
 	}
 	pub fn may_store(&mut self, func_name: &str, global_var: &str) -> bool {
 		self
 			.func_data
 			.get(func_name)
-			.map(|data| data.may_store(global_var))
+			.map(|data| data.may_store(&(global_var.to_owned(), 0)))
 			.unwrap_or(false)
 	}
 }
