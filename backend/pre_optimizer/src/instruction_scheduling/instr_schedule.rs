@@ -513,7 +513,7 @@ pub fn instr_schedule_by_dag(
 				// calc my_reads
 				let my_reads = {
 					if state.instrs.last().unwrap().is_call() {
-						dag.call_reads.last().unwrap().clone()
+						dag.call_reads[state.call_ids.len() - 1].clone()
 					} else {
 						dag.nodes[*instr_idx].borrow().instr.get_riscv_read().clone()
 					}
