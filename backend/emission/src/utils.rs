@@ -81,8 +81,10 @@ pub const RUNTIME_FUNCTION: &str = r#"
 		li a0, (CLONE_VM | SIGCHLD)
 		li a7, SYS_clone
 		ecall
+		blt a0, zero, .try_again
 		bne a0, zero, .ret_i
 		addi a5, a5, 1
+	.try_again:
 		blt a5, a6, .L0_builtin
 	.ret_n:
 		mv a0, a6
