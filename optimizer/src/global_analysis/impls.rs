@@ -22,6 +22,8 @@ pub const BUILTIN_FUNCS: &[&str] = &[
 	"putf",
 	"_sysy_starttime",
 	"_sysy_stoptime",
+	"__create_threads",
+	"__join_threads",
 ];
 
 impl RrvmOptimizer for GlobalAnalysis {

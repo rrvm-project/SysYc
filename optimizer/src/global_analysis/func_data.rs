@@ -32,7 +32,7 @@ impl CallGraph {
 struct Solver<'a> {
 	func_name: String,
 	dom_tree: LlvmDomTree,
-	temp_mapper: HashMap<LlvmTemp, String>,
+	temp_mapper: HashMap<LlvmTemp, VarIdent>,
 	metadata: &'a mut MetaData,
 	graph: &'a mut CallGraph,
 	usage_info: UsageInfo,
@@ -44,23 +44,42 @@ impl<'a> Solver<'a> {
 		metadata: &'a mut MetaData,
 		graph: &'a mut CallGraph,
 	) -> Self {
+		let mut temp_mapper = HashMap::new();
+		for (index, param) in func.params.iter().enumerate() {
+			if param.get_type().is_ptr() {
+				let addr = param.unwrap_temp().unwrap();
+				temp_mapper.insert(addr, (func.name.clone(), index));
+			}
+		}
 		Self {
 			func_name: func.name.clone(),
 			dom_tree: LlvmDomTree::new(&func.cfg, false),
-			temp_mapper: HashMap::new(),
 			usage_info: UsageInfo::default(),
+			temp_mapper,
 			metadata,
 			graph,
 		}
 	}
 	pub fn dfs(&mut self, node: LlvmNode) {
 		let block = &mut node.borrow_mut();
+		for instr in block.phi_instrs.iter() {
+			if instr.var_type.is_ptr() {
+				let src_addr = instr.source.iter().find_map(|(value, _)| {
+					value.unwrap_temp().and_then(|v| self.temp_mapper.get(&v))
+				});
+				if let Some(ident) = src_addr {
+					self.temp_mapper.insert(instr.target.clone(), ident.clone());
+				}
+			}
+		}
 		block.instrs.retain(|instr| {
 			match instr.get_variant() {
 				LoadInstr(instr) => {
 					if let Value::Temp(addr) = &instr.addr {
 						if addr.is_global {
-							self.temp_mapper.insert(instr.target.clone(), addr.name.clone());
+							self
+								.temp_mapper
+								.insert(instr.target.clone(), (addr.name.clone(), 0));
 						} else if let Some(global_var) = self.temp_mapper.get(addr) {
 							self.usage_info.may_loads.insert(global_var.clone());
 						}
@@ -69,7 +88,7 @@ impl<'a> Solver<'a> {
 				GEPInstr(instr) => {
 					if let Value::Temp(addr) = &instr.addr {
 						if let Some(global_var) = self.temp_mapper.get(addr) {
-							self.usage_info.may_loads.insert(global_var.clone());
+							self.temp_mapper.insert(instr.target.clone(), global_var.clone());
 						}
 					}
 				}
@@ -77,8 +96,7 @@ impl<'a> Solver<'a> {
 					if let Value::Temp(addr) = &instr.addr {
 						if let Some(global_var) = self.temp_mapper.get(addr) {
 							self.usage_info.may_stores.insert(global_var.clone());
-							let var_data =
-								self.metadata.get_var_data(&(global_var.clone(), 0));
+							let var_data = self.metadata.get_var_data(global_var);
 							if !var_data.to_load {
 								return false;
 							}
@@ -149,7 +167,7 @@ pub fn calc_func_data(program: &mut LlvmProgram, metadata: &mut MetaData) {
 				if metadata.may_load(&v, ident) {
 					continue;
 				}
-				metadata.get_func_data(&v).set_may_load(ident);
+				metadata.get_func_data(&v).set_may_load((ident.to_owned(), 0));
 				queue.push(v);
 			}
 		}
@@ -164,7 +182,7 @@ pub fn calc_func_data(program: &mut LlvmProgram, metadata: &mut MetaData) {
 				if metadata.may_store(&v, ident) {
 					continue;
 				}
-				metadata.get_func_data(&v).set_may_store(ident);
+				metadata.get_func_data(&v).set_may_store((ident.to_owned(), 0));
 				queue.push(v);
 			}
 		}
