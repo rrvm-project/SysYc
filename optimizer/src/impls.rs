@@ -7,7 +7,7 @@ use function_inline::InlineFunction;
 use global_analysis::GlobalAnalysis;
 use global_value_numbering::GlobalValueNumbering;
 use loops::HandleLoops;
-use mem2reg::Mem2Reg;
+// use mem2reg::Mem2Reg;
 use tail_recursion::SolveTailRecursion;
 use unreachable::RemoveUnreachCode;
 use useless_code::RemoveUselessCode;
@@ -73,7 +73,7 @@ impl Optimizer2 {
 			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
-			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
+			// flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
 			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;

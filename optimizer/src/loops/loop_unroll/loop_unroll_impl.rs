@@ -52,7 +52,10 @@ impl<'a> LoopUnroll<'a> {
 		latches.iter().for_each(|latch| {
 			unlink_node(latch, &header);
 		});
-		header.borrow_mut().prev.retain(|prev| prev.borrow().id == info.preheader.borrow().id);
+		header
+			.borrow_mut()
+			.prev
+			.retain(|prev| prev.borrow().id == info.preheader.borrow().id);
 
 		// 断开 header 与 exit 的连接
 		let original_header_jump = header.borrow_mut().jump_instr.take();
@@ -133,7 +136,8 @@ impl<'a> LoopUnroll<'a> {
 				old_latch.borrow_mut().succ = vec![new_header.clone()];
 				old_latch.borrow_mut().jump_instr = None;
 				old_latch.borrow_mut().gen_jump(llvm::VarType::Void);
-				prev_label_map.insert(latch.borrow().label(), old_latch.borrow().label());
+				prev_label_map
+					.insert(latch.borrow().label(), old_latch.borrow().label());
 			}
 			for phi in new_header.borrow_mut().phi_instrs.iter_mut() {
 				let old_target = phi.target.clone();
@@ -159,7 +163,8 @@ impl<'a> LoopUnroll<'a> {
 				let mut prev_label_map = HashMap::new();
 				if !is_mapping_header {
 					assert!(new_bb.borrow().prev.is_empty());
-					new_bb.borrow_mut().prev = bb.borrow()
+					new_bb.borrow_mut().prev = bb
+						.borrow()
 						.prev
 						.iter()
 						.map(|prev| {
@@ -235,7 +240,8 @@ impl<'a> LoopUnroll<'a> {
 				info.single_exit.borrow_mut().prev.push(mapped_latch);
 			}
 			// 从 header 中把 phi 语句都薅过来，target 不变，修改 sources，放到 exit 的 phi_instrs 中
-			let mut phis = header.borrow_mut().phi_instrs.drain(..).collect::<Vec<_>>();
+			let mut phis =
+				header.borrow_mut().phi_instrs.drain(..).collect::<Vec<_>>();
 			for phi in phis.iter_mut() {
 				phi.map_label(&label_map);
 				let old_target = phi.target.clone();
@@ -246,9 +252,18 @@ impl<'a> LoopUnroll<'a> {
 			info.single_exit.borrow_mut().phi_instrs = phis;
 			// header 中原有的 phi 的 target 都变成从 preheader 来的初始值, 下面的 use 也都换掉
 			for bb in loop_bbs.iter() {
-				bb.borrow_mut().phi_instrs.iter_mut().for_each(|phi| phi.map_temp(&phi_initial_value));
-				bb.borrow_mut().instrs.iter_mut().for_each(|instr| instr.map_temp(&phi_initial_value));
-				bb.borrow_mut().jump_instr.iter_mut().for_each(|jump| jump.map_temp(&phi_initial_value));
+				bb.borrow_mut()
+					.phi_instrs
+					.iter_mut()
+					.for_each(|phi| phi.map_temp(&phi_initial_value));
+				bb.borrow_mut()
+					.instrs
+					.iter_mut()
+					.for_each(|instr| instr.map_temp(&phi_initial_value));
+				bb.borrow_mut()
+					.jump_instr
+					.iter_mut()
+					.for_each(|jump| jump.map_temp(&phi_initial_value));
 			}
 			// 从 header 中把其余 instr 都薅过来，target map 成新的，放到 exit 的 instrs 的前面
 			let mut new_target_map = HashMap::new();
