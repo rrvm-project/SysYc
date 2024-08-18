@@ -143,10 +143,6 @@ fn preprocess_call(
 				|| if let RiscvTemp::VirtReg(t) = &last_instr.get_riscv_write()[0] {
 					if let Some(pre) = t.pre_color {
 						(pre == A0) || (pre == Fa0)
-<<<<<<< HEAD
-
-=======
->>>>>>> d5782f4 (fix: bug fix on float return vals)
 					} else {
 						false
 					}
@@ -203,10 +199,6 @@ impl InstrDag {
 		let mut call_related_map = HashMap::new();
 		let mut call_instrs: Vec<Rc<RefCell<InstrNode>>> = Vec::new();
 		let mut my_call_write = None;
-		// eprintln!("instrs before preprocess_call");
-		// for i in node.borrow().instrs.iter() {
-		// 	eprintln!("{}", i);
-		// }
 		// preprocessing call related: 把 call 前后的 从 save 到 restore 的若干条指令保存在 call_related 里面,然后加入到 is_filtered_idx 之后遍历instrs 的时候遇到就直接continue
 		let mut processed_instrs = preprocess_call(
 			node,
@@ -235,20 +227,6 @@ impl InstrDag {
 		}
 		for (idx, instr) in processed_instrs.iter().rev().enumerate() {
 			let node = Rc::new(RefCell::new(InstrNode::new(instr, idx)));
-			if idx == 0
-				&& instr.get_riscv_write().len() == 1
-				&& (instr.get_riscv_write()[0] == RiscvTemp::PhysReg(A0)
-					|| if let RiscvTemp::VirtReg(t) = &instr.get_riscv_write()[0] {
-						if let Some(pre) = t.pre_color {
-							pre == A0
-						} else {
-							false
-						}
-					} else {
-						false
-					}) {
-				li_ret = Some(node.clone());
-			}
 
 			let mut instr_node_succ = Vec::new();
 			let instructions_write = instr.get_riscv_write().clone();
@@ -320,10 +298,6 @@ impl InstrDag {
 				});
 				last_loads.clear();
 				last_call = Some(node.clone());
-				if let Some(ret_node) = li_ret.clone() {
-					instr_node_succ.push(ret_node.clone());
-					ret_node.borrow_mut().pred.push(node.clone());
-				}
 				for i in call_instrs.iter() {
 					instr_node_succ.push(i.clone());
 					i.borrow_mut().pred.push(node.clone());
