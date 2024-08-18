@@ -300,6 +300,7 @@ impl<'a> LoopUnroll<'a> {
 			header.borrow_mut().succ.push(info.single_exit.clone());
 			header.borrow_mut().jump_instr = original_header_jump;
 		}
-		false
+		self.flag = true;
+		true
 	}
 }
