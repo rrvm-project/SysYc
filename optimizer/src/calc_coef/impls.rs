@@ -1,5 +1,5 @@
 use super::{
-	utils::{get_typed_one, get_typed_zero, topology_sort},
+	utils::{get_typed_one, get_typed_zero, topology_sort, ModStatus},
 	CalcCoef,
 };
 use crate::{
@@ -164,9 +164,8 @@ fn map_instr(
 						Entry {
 							k_val: vec![Value::Int(0); params_len],
 							b_val: Value::Temp(my_target),
-							mod_val: None,
+							mod_val: ModStatus::new(),
 							params_len,
-							is_actived: false,
 						},
 					);
 				} else {
