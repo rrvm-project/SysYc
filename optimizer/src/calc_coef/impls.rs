@@ -1,5 +1,5 @@
 use super::{
-	utils::{get_typed_one, get_typed_zero, topology_sort, ModStatus},
+	utils::{calc_mod, get_entry, get_typed_one, get_typed_zero, is_constant_term, topology_sort, ModStatus},
 	CalcCoef,
 };
 use crate::{
@@ -137,7 +137,6 @@ fn map_instr(
 	io::stderr().flush().unwrap();
 	match instr.get_variant() {
 		ArithInstr(arith_instr) => {
-			// TODO 处理取模的情况
 			return calc_arith(arith_instr, entry_map, block_instrs, mgr, params_len);
 		}
 		CompInstr(comp_instr) => {
@@ -234,6 +233,16 @@ fn map_instr(
 				})
 				.collect();
 			let mut k_targets = vec![];
+			let mut entries:Vec<_>=phi_instr.source.iter().map(|(val,label)| get_entry(val, entry_map, params_len)).collect();
+			if entries.iter().any(|x| x.is_none()){
+				return false;
+			}
+			let mut entries_unwrapped:Vec<_>=entries.iter().map(|x| x.clone().unwrap()).collect();
+			let instr:Box<dyn LlvmInstrTrait>=Box::new(phi_instr.clone());
+			let status=calc_mod(&instr, entries_unwrapped);
+			if status.is_none(){
+				return false;
+			}
 			for i in 0..params_len {
 				let k_target = mgr.new_temp(phi_instr.var_type, false);
 				let instr = llvm::PhiInstr {
@@ -262,9 +271,8 @@ fn map_instr(
 				Entry {
 					k_val: k_targets.into_iter().map(Value::Temp).collect(),
 					b_val: Value::Temp(b_target),
-					mod_val: None,
+					mod_val: status.unwrap(),
 					params_len,
-					is_actived: false,	
 				},
 			);
 		}
@@ -292,7 +300,46 @@ fn map_instr(
 	}
 	true
 }
-
+pub fn judge_return(entries:&Vec<Entry>)->Option<Option<Value>>{
+	let mut imms=vec![];
+	let mut mod_val=None;
+	for entry in entries.iter(){
+		// 判断是否是立即数
+		if is_constant_term(entry){
+		if let Value::Int(i)=entry.b_val{
+			imms.push(i);
+			continue;
+		}
+		}
+		// 判断模数
+		let mod_num=entry.mod_val.mod_val.clone();
+		if let Some(mod_num)=mod_num{
+			if entry.mod_val.is_activated{
+			if mod_val.is_none(){
+				mod_val=Some(mod_num);
+			}else{
+				if mod_val!=Some(mod_num){
+					return None;
+				}
+			}
+		}else{
+			return None;
+		}
+		}else if !mod_val.is_none(){
+			return None;
+		}
+	}for imm in imms.iter(){
+		// 判断所有 imm 都小于除数的绝对值
+		if let Some(mod_val)=mod_val.clone(){
+			if let Value::Int(mod_val)=mod_val{
+				if imm.abs()>=mod_val.abs(){
+					return None;
+				}
+			}
+		}
+	}
+	Some(mod_val)
+}
 type Blocks = Vec<Rc<RefCell<BasicBlock<Box<dyn LlvmInstrTrait>, LlvmTemp>>>>;
 #[allow(clippy::too_many_arguments)]
 fn map_coef_instrs(
@@ -305,7 +352,7 @@ fn map_coef_instrs(
 	my_index: LlvmTemp,                          // recursive index
 	block_ord: Vec<i32>,
 	my_recurse_index: LlvmTemp,
-) -> Option<Blocks> {
+) -> Option<(Blocks,Option<Value>)> {
 	let params_len = func.params.len() - 1;
 	let mut entry_map = HashMap::new();
 	let index_pos =
@@ -321,9 +368,8 @@ fn map_coef_instrs(
 		Entry {
 			k_val: vec![Value::Int(0); params_len],
 			b_val: Value::Temp(my_index.clone()),
-			mod_val: None,
+			mod_val: ModStatus::new(),
 			params_len,
-			is_actived: false,
 		},
 	);
 	for (idx, i) in data.iter().enumerate() {
@@ -343,9 +389,8 @@ fn map_coef_instrs(
 				Entry {
 					k_val,
 					b_val: get_typed_zero(tmp),
-					mod_val: None,
+					mod_val: ModStatus::new(),
 					params_len,
-					is_actived: false,
 				},
 			);
 		}
@@ -426,6 +471,49 @@ fn map_coef_instrs(
 		phi_instrs.push(block_phi_instrs);
 		new_instrs.push(block_instrs);
 	}
+	// assemble entries with return values' maps
+	let mut ret_entries_vec=vec![];
+	let mut ret_imms=vec![];  // 得到返回值之后再判断
+	for block in func.cfg.blocks.iter(){
+		if let Some(jmp_instr)=block.borrow().jump_instr.clone(){
+			match jmp_instr.get_variant(){
+				llvm::LlvmInstrVariant::RetInstr(retinstr)=>{
+					let val=retinstr.value.clone();
+					if let Some(val)=val{
+						match val{
+							Value::Temp(t)=>{
+								let entry=entry_map.get(&t);
+								if let Some(entry)=entry{
+									ret_entries_vec.push(entry.clone());
+								}else{
+									panic!("ret instr val not in entry map");
+								}
+							}
+							Value::Int(i)=>{
+								ret_imms.push(i);
+							}
+							_=>{}
+						}
+					}
+				}
+				_=>{}
+			}
+		}
+	}
+	let mod_val=judge_return(&ret_entries_vec);
+	if mod_val.is_none(){
+		return None;
+	}
+	let unwrapped_mod_val=mod_val.unwrap();
+	if let Some(mod_val)=&unwrapped_mod_val{
+		for imm in ret_imms.iter(){
+			if let Value::Int(i)=mod_val{
+				if imm.abs()>=(*i).abs(){
+					return None;
+				}
+			}
+		}
+	}
 	// assemble blocks with phi_instrs and new_instrs
 	let mut new_blocks = vec![];
 	for block in func
@@ -443,7 +531,7 @@ fn map_coef_instrs(
 		new_block.borrow_mut().jump_instr.clone_from(jmp_instr);
 		new_blocks.push(new_block);
 	}
-	Some(new_blocks)
+	Some((new_blocks,unwrapped_mod_val))
 }
 fn calc_coef(
 	func: &LlvmFunc,
@@ -525,21 +613,6 @@ fn calc_coef(
 		}
 	}
 
-	let node = create_wrapper(
-		&data.iter().map(|x| x.unwrap_temp().unwrap()).collect(),
-		&index,
-		func.name.clone(),
-		mgr,
-		func.params.len() - 1,
-	);
-	let wrapper_func = LlvmFunc {
-		total: mgr.total as i32,
-		spills: 0,
-		cfg: CFG { blocks: vec![node] },
-		name: func.name.clone(),
-		ret_type: func.ret_type,
-		params: func.params.clone(),
-	};
 	let addr = mgr.new_temp(llvm::VarType::I32Ptr, false);
 	let my_index = mgr.new_temp(index.var_type, false);
 	// calculate recurse index
@@ -606,7 +679,7 @@ fn calc_coef(
 	recurse_idx.reverse();
 	let new_blocks = map_coef_instrs(
 		func,
-		index,
+		index.clone(),
 		addr.clone(),
 		mgr,
 		special_map.keys().cloned().collect(),
@@ -618,15 +691,32 @@ fn calc_coef(
 	if new_blocks.is_none() {
 		return vec![copied_func];
 	}
+	let (new_blocks,mod_val)=new_blocks.unwrap();
 	let calc_func = LlvmFunc {
 		total: mgr.total as i32,
 		spills: 0,
 		cfg: rrvm::cfg::CFG {
-			blocks: new_blocks.unwrap(),
+			blocks: new_blocks,
 		},
 		name: format!("{}_calc_coef", func.name),
 		ret_type: llvm::VarType::Void,
 		params: vec![Value::Temp(addr.clone()), Value::Temp(my_index)],
+	};
+	let node = create_wrapper(
+		&data.iter().map(|x| x.unwrap_temp().unwrap()).collect(),
+		&index,
+		func.name.clone(),
+		mgr,
+		func.params.len() - 1,
+		mod_val,
+	);
+	let wrapper_func = LlvmFunc {
+		total: mgr.total as i32,
+		spills: 0,
+		cfg: CFG { blocks: vec![node] },
+		name: func.name.clone(),
+		ret_type: func.ret_type,
+		params: func.params.clone(),
 	};
 	vec![wrapper_func, calc_func]
 }

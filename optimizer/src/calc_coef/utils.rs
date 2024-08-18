@@ -193,7 +193,7 @@ pub fn calc_mod(instr:&Box<dyn LlvmInstrTrait>,entries:Vec<Entry>)->Option<ModSt
 		CallInstr(call_instr)=>{
 			// 和 Phi 基本一致
 			let mut mod_val:Option<Value>=None;
-			let mut has_nonconst=entries.iter().any(|entry| !is_constant_term(entry));
+			let has_nonconst=entries.iter().any(|entry| !is_constant_term(entry));
 			for entry in entries.iter(){
 				if let Some(val)=get_downcast_status(entry).mod_val{
 					if let Some(mod_val)=&mod_val{
@@ -327,7 +327,10 @@ pub fn calc_mul(
 		Entry {
 			k_val: new_k,
 			b_val: val2,
-			mod_val: ModStatus::new(),
+			mod_val: ModStatus{
+				mod_val:entry.mod_val.mod_val.clone(),
+				is_activated:false,
+			},
 			params_len: entry.params_len,
 		},
 	);
@@ -344,6 +347,7 @@ pub fn calc_mul_entries(
 	mgr: &mut LlvmTempManager,
 	entry_map: &mut HashMap<LlvmTemp, Entry>,
 	block_instrs: &mut Vec<Box<dyn LlvmInstrTrait>>,
+	status:ModStatus,
 ) {
 	let mut prev_val: Option<Value> = None;
 	let mut new_ks = vec![];
@@ -373,8 +377,7 @@ pub fn calc_mul_entries(
 		prev_val = None;
 	}
 	// 处理 b_val
-	for val in entry1.k_val.iter() {
-		for entry in entry2.iter() {
+	for (val,entry) in entry1.k_val.iter().zip(entry2.iter()) {
 			let (val1, instr1) =
 				compute_two_value(val.clone(), entry.b_val.clone(), op, mgr);
 			if let Some(instr1) = instr1 {
@@ -409,11 +412,11 @@ pub fn calc_mul_entries(
 			Entry {
 				k_val: new_ks.clone(),
 				b_val: val_b,
-				mod_val: ModStatus::new(),
+				mod_val: status,
 				params_len: entry1.params_len,
 			},
 		);
-	}
+	
 }
 pub fn calc_arith(
 	arith_instr: &ArithInstr,
@@ -769,6 +772,11 @@ pub fn calc_call(
 				get_entry(val, entry_map, call_instr.params.len() - 1).unwrap()
 			})
 			.collect();
+		let call_instr_llvm:Box<dyn LlvmInstrTrait>=Box::new(call_instr.clone());
+		let status=calc_mod(&Box::new(call_instr_llvm.clone()), vec![func_entry.clone()]);
+		if status.is_none(){
+			return false;
+		}
 		calc_mul_entries(
 			&func_entry,
 			&params,
@@ -777,6 +785,7 @@ pub fn calc_call(
 			mgr,
 			entry_map,
 			block_instrs,
+			status.unwrap()
 		);
 	}
 	true
@@ -788,6 +797,7 @@ pub fn create_wrapper(
 	func_name: String,
 	mgr: &mut LlvmTempManager,
 	params_len: usize,
+	mod_val:Option<Value>,
 ) -> Rc<RefCell<BasicBlock<Box<dyn LlvmInstrTrait>, LlvmTemp>>> {
 	let mut instrs: Vec<Box<dyn LlvmInstrTrait>> = vec![];
 	let alloc_target = mgr.new_temp(llvm::VarType::I32Ptr, false);
@@ -861,7 +871,7 @@ pub fn create_wrapper(
 		var_type: data[0].var_type,
 		addr: Value::Temp(gep2.target.clone()),
 	};
-	let add2_target = mgr.new_temp(data[0].var_type, false);
+	let mut add2_target = mgr.new_temp(data[0].var_type, false);
 	let add2 = llvm::ArithInstr {
 		target: add2_target.clone(),
 		op: get_typed_add(&data[0]),
@@ -872,6 +882,18 @@ pub fn create_wrapper(
 	instrs.push(Box::new(gep2));
 	instrs.push(Box::new(load2));
 	instrs.push(Box::new(add2));
+	// 判断是否取模
+	if let Some(mod_val)=mod_val{
+		let rem=llvm::ArithInstr{
+			target: mgr.new_temp(data[0].var_type, false),
+			op: llvm::ArithOp::RemD,
+			var_type: data[0].var_type,
+			lhs: Value::Temp(add2_target.clone()),
+			rhs: mod_val,
+		};
+		instrs.push(Box::new(rem.clone()));
+		add2_target=rem.target.clone();
+	}
 	let ret_instr = llvm::RetInstr {
 		value: Some(Value::Temp(add2_target)),
 	};
