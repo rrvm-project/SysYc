@@ -54,6 +54,16 @@ impl<'a> Solver<'a> {
 	}
 	pub fn dfs(&mut self, node: LlvmNode) {
 		let block = &node.borrow();
+		for instr in block.phi_instrs.iter() {
+			if instr.var_type.is_ptr() {
+				let src_addr = instr.source.iter().find_map(|(value, _)| {
+					value.unwrap_temp().and_then(|v| self.ident_mapper.get(&v))
+				});
+				if let Some(ident) = src_addr {
+					self.ident_mapper.insert(instr.target.clone(), ident.clone());
+				}
+			}
+		}
 		for instr in block.instrs.iter() {
 			match instr.get_variant() {
 				LoadInstr(instr) => {
