@@ -97,7 +97,7 @@ impl<'a> Solver<'a> {
 						if let Some(global_var) = self.temp_mapper.get(addr) {
 							self.usage_info.may_stores.insert(global_var.clone());
 							let var_data = self.metadata.get_var_data(global_var);
-							if !var_data.to_load {
+							if global_var.0 != self.func_name && !var_data.to_load {
 								return false;
 							}
 						}
@@ -143,11 +143,7 @@ pub fn calc_func_data(program: &mut LlvmProgram, metadata: &mut MetaData) {
 		metadata.get_func_data(&func.name).usage_info = solver.usage_info;
 	}
 
-	let source_names = program
-		.global_vars
-		.iter()
-		.map(|v| v.ident.as_str())
-		.chain(["系统调用"].iter().copied());
+	let source_names: Vec<_> = metadata.var_data.keys().cloned().collect();
 	let func_names = program
 		.funcs
 		.iter()
@@ -158,31 +154,31 @@ pub fn calc_func_data(program: &mut LlvmProgram, metadata: &mut MetaData) {
 	for ident in source_names {
 		let mut queue = Vec::new();
 		for name in func_names.clone() {
-			if metadata.may_load(&name, ident) {
+			if metadata.may_load(&name, &ident) {
 				queue.push(name);
 			}
 		}
 		while let Some(u) = queue.pop() {
 			for v in graph.get_neighbors(&u) {
-				if metadata.may_load(&v, ident) {
+				if metadata.may_load(&v, &ident) {
 					continue;
 				}
-				metadata.get_func_data(&v).set_may_load((ident.to_owned(), 0));
+				metadata.get_func_data(&v).set_may_load(ident.clone());
 				queue.push(v);
 			}
 		}
 		let mut queue = Vec::new();
 		for name in func_names.clone() {
-			if metadata.may_store(&name, ident) {
+			if metadata.may_store(&name, &ident) {
 				queue.push(name);
 			}
 		}
 		while let Some(u) = queue.pop() {
 			for v in graph.get_neighbors(&u) {
-				if metadata.may_store(&v, ident) {
+				if metadata.may_store(&v, &ident) {
 					continue;
 				}
-				metadata.get_func_data(&v).set_may_store((ident.to_owned(), 0));
+				metadata.get_func_data(&v).set_may_store(ident.clone());
 				queue.push(v);
 			}
 		}

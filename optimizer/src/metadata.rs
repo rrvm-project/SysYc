@@ -94,18 +94,18 @@ impl MetaData {
 	pub fn get_var_data(&mut self, var_ident: &VarIdent) -> &mut VarData {
 		self.var_data.entry(var_ident.clone()).or_default()
 	}
-	pub fn may_load(&mut self, func_name: &str, global_var: &str) -> bool {
+	pub fn may_load(&mut self, func_name: &str, var_ident: &VarIdent) -> bool {
 		self
 			.func_data
 			.get(func_name)
-			.map(|data| data.may_load(&(global_var.to_owned(), 0)))
+			.map(|data| data.may_load(var_ident))
 			.unwrap_or(false)
 	}
-	pub fn may_store(&mut self, func_name: &str, global_var: &str) -> bool {
+	pub fn may_store(&mut self, func_name: &str, var_ident: &VarIdent) -> bool {
 		self
 			.func_data
 			.get(func_name)
-			.map(|data| data.may_store(&(global_var.to_owned(), 0)))
+			.map(|data| data.may_store(var_ident))
 			.unwrap_or(false)
 	}
 }
