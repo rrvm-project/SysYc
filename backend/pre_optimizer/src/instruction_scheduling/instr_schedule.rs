@@ -371,7 +371,7 @@ pub fn instr_schedule_by_dag(
 		flight_time: 0,
 	});
 	let depth = dag.nodes.len(); // bfs 深度已知，是所需要调度的指令总数
-	for _i in 0..depth {
+	for _ in 0..depth {
 		let real_cnt = states.len();
 		let mut keeps = Vec::new();
 		for j in 0..real_cnt {
