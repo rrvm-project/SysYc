@@ -1,7 +1,7 @@
 use crate::{
 	llvmop::Value,
 	ArithInstr,
-	ArithOp::{self, *},
+	ArithOp::{self},
 	GEPInstr, LlvmInstr, LlvmTemp, LlvmTempManager, VarType,
 };
 
