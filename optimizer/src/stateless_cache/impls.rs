@@ -1,7 +1,4 @@
-use llvm::{
-	LlvmInstrTrait, LlvmInstrVariant, LlvmTemp, LlvmTempManager, StoreInstr,
-	VarType,
-};
+use llvm::{LlvmInstrTrait, LlvmTemp, LlvmTempManager, VarType};
 
 use rrvm::program::LlvmFunc;
 use utils::{
@@ -39,6 +36,9 @@ fn check_calls(func: &LlvmFunc) -> Option<usize> {
 		for instr in bb.borrow().instrs.iter() {
 			if let llvm::LlvmInstrVariant::CallInstr(call) = instr.get_variant() {
 				if call.get_label().to_string() == func.name {
+					if bb.borrow().weight > 0.9 {
+						times += 1;
+					}
 					times += 1;
 				} else {
 					return None;
@@ -51,12 +51,13 @@ fn check_calls(func: &LlvmFunc) -> Option<usize> {
 
 fn process_func(
 	func: &mut LlvmFunc,
-	mgr: &mut LlvmTempManager,
+	_mgr: &mut LlvmTempManager,
 	global: &mut Vec<GlobalVar>,
 ) -> Option<()> {
 	if check_calls(func)? <= 1 {
 		return None;
 	}
+
 	let (params, return_type) = check_para_return(func)?;
 
 	if params.is_empty() || params.len() > utils::CACHE_MAX_ARGS {
@@ -95,29 +96,7 @@ fn process_func(
 	};
 	global.push(begin.clone());
 
-	let store_addr = mgr.new_temp(return_type.to_ptr(), false);
-
-	func.params.push(store_addr.clone().into());
-
-	for block in func.cfg.blocks.iter_mut() {
-		let mut return_value = None;
-		if let Some(LlvmInstrVariant::RetInstr(r)) =
-			block.borrow().jump_instr.as_ref().map(|i| i.get_variant())
-		{
-			return_value = r.value.clone();
-		}
-
-		if let Some(return_value) = return_value {
-			let store = Box::new(StoreInstr {
-				value: return_value,
-				addr: store_addr.clone().into(),
-			});
-
-			block.borrow_mut().instrs.push(store);
-		}
-
-		func.need_cache = true;
-	}
+	func.need_cache = true;
 
 	Some(())
 }
@@ -134,6 +113,10 @@ impl RrvmOptimizer for StatelessCache {
 		let mut changed = false;
 		for func in program.funcs.iter_mut() {
 			if !metadata.is_stateless(&func.name) {
+				continue;
+			}
+
+			if func.name == "main" {
 				continue;
 			}
 

@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 utils = { path = "../../utils" }
 rrvm = { path = "../../utils/rrvm" }
+llvm = { path = "../../utils/llvm" }
 instruction = { path = "../../utils/instruction" }
