@@ -39,6 +39,9 @@ fn check_calls(func: &LlvmFunc) -> Option<usize> {
 		for instr in bb.borrow().instrs.iter() {
 			if let llvm::LlvmInstrVariant::CallInstr(call) = instr.get_variant() {
 				if call.get_label().to_string() == func.name {
+					if bb.borrow().weight > 0.9 {
+						times += 1;
+					}
 					times += 1;
 				} else {
 					return None;
@@ -57,6 +60,7 @@ fn process_func(
 	if check_calls(func)? <= 1 {
 		return None;
 	}
+
 	let (params, return_type) = check_para_return(func)?;
 
 	if params.is_empty() || params.len() > utils::CACHE_MAX_ARGS {
@@ -104,7 +108,7 @@ fn process_func(
 		if let Some(LlvmInstrVariant::RetInstr(r)) =
 			block.borrow().jump_instr.as_ref().map(|i| i.get_variant())
 		{
-			return_value = r.value.clone();
+			return_value.clone_from(&r.value);
 		}
 
 		if let Some(return_value) = return_value {
@@ -134,6 +138,10 @@ impl RrvmOptimizer for StatelessCache {
 		let mut changed = false;
 		for func in program.funcs.iter_mut() {
 			if !metadata.is_stateless(&func.name) {
+				continue;
+			}
+
+			if func.name == "main" {
 				continue;
 			}
 

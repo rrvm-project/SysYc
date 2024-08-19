@@ -628,6 +628,7 @@ fn calc_coef(
 		name: func.name.clone(),
 		ret_type: func.ret_type,
 		params: func.params.clone(),
+		need_cache: false,
 	};
 
 	let mut recurse_num = None;
@@ -699,6 +700,7 @@ fn calc_coef(
 		name: format!("{}_calc_coef", func.name),
 		ret_type: llvm::VarType::Void,
 		params: vec![Value::Temp(addr.clone()), Value::Temp(my_index)],
+		need_cache: false,
 	};
 	let node = create_wrapper(
 		&data.iter().map(|x| x.unwrap_temp().unwrap()).collect(),
@@ -715,6 +717,7 @@ fn calc_coef(
 		name: func.name.clone(),
 		ret_type: func.ret_type,
 		params: func.params.clone(),
+		need_cache: false,
 	};
 	vec![wrapper_func, calc_func]
 }
