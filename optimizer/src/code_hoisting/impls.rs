@@ -1,13 +1,16 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use llvm::{LlvmInstrVariant::*, LlvmTemp};
+use llvm::{LlvmInstrVariant::*, LlvmTemp, Value};
 use rrvm::{
 	dominator::LlvmDomTree,
 	program::{LlvmFunc, LlvmProgram},
 	LlvmNode,
 };
 
-use crate::{metadata::MetaData, RrvmOptimizer};
+use crate::{
+	metadata::{FuncData, MetaData},
+	RrvmOptimizer,
+};
 
 use super::CodeHoisting;
 
@@ -28,16 +31,22 @@ impl NodeInfo {
 	}
 }
 
-struct Solver {
+struct Solver<'a> {
+	changed: bool,
 	dom_tree: LlvmDomTree,
 	stack: Vec<NodeInfo>,
+	func_data: &'a mut FuncData,
+	temp_mapper: HashMap<LlvmTemp, Value>,
 }
 
-impl Solver {
-	pub fn new(func: &LlvmFunc) -> Self {
+impl<'a> Solver<'a> {
+	pub fn new(func: &LlvmFunc, metadata: &'a mut MetaData) -> Self {
 		Self {
 			dom_tree: LlvmDomTree::new(&func.cfg, false),
 			stack: Vec::new(),
+			changed: false,
+			func_data: metadata.get_func_data(&func.name),
+			temp_mapper: HashMap::new(),
 		}
 	}
 
@@ -61,8 +70,7 @@ impl Solver {
 		info
 	}
 
-	fn hoist(&mut self, node: &LlvmNode) -> bool {
-		let mut flag = false;
+	fn hoist(&mut self, node: &LlvmNode) {
 		let node_weight = node.borrow().weight;
 		node.borrow_mut().instrs.retain(|instr| {
 			let mut best_node: Option<LlvmNode> = None;
@@ -98,25 +106,81 @@ impl Solver {
 						}
 					}
 				}
-				flag = true;
+				self.changed = true;
 				false
 			} else {
 				true
 			}
 		});
-		flag
 	}
 
-	pub fn dfs(&mut self, node: LlvmNode) -> bool {
+	pub fn dfs(&mut self, node: LlvmNode) {
 		let children = self.dom_tree.get_children(node.borrow().id).clone();
 		let info = self.get_info(&node);
-		let mut flag = self.hoist(&node);
+		self.hoist(&node);
 		self.stack.push(info);
 		for v in children {
-			flag |= self.dfs(v);
+			self.dfs(v);
 		}
 		self.stack.pop();
-		flag
+	}
+
+	// hoist instructions which existed in all successors
+	pub fn hoist_common(&mut self, node: &LlvmNode) {
+		let children = self.dom_tree.get_children(node.borrow().id).clone();
+		for v in children.iter() {
+			self.hoist_common(v);
+		}
+		if node.borrow().succ.len() < 2 {
+			return;
+		};
+		if node
+			.borrow()
+			.succ
+			.iter()
+			.any(|v| !self.dom_tree.dominates(node.borrow().id, v.borrow().id))
+		{
+			return;
+		}
+		let mut common = node.borrow().succ[0].borrow().instrs.clone();
+		for child in node.borrow().succ.iter() {
+			let length = common
+				.iter()
+				.zip(child.borrow().instrs.iter())
+				.take_while(|(a, b)| self.func_data.is_equal(a, b))
+				.count();
+			common.truncate(length);
+		}
+		for succ in node.borrow().succ.iter() {
+			let instrs: Vec<_> =
+				succ.borrow_mut().instrs.drain(0..common.len()).collect();
+			for (instr, common_instr) in instrs.iter().zip(common.iter()) {
+				if let (Some(x), Some(y)) =
+					(instr.get_write(), common_instr.get_write())
+				{
+					self.temp_mapper.insert(x, y.into());
+				}
+			}
+		}
+		self.changed |= !common.is_empty();
+		node.borrow_mut().instrs.extend(common);
+	}
+
+	pub fn map_temp(&self, func: &LlvmFunc) {
+		for node in func.cfg.blocks.iter() {
+			let block = &mut node.borrow_mut();
+			for instr in block.instrs.iter_mut() {
+				instr.map_temp(&self.temp_mapper);
+			}
+			for instr in block.phi_instrs.iter_mut() {
+				for (value, _) in instr.source.iter_mut() {
+					value.map_temp(&self.temp_mapper);
+				}
+			}
+			if let Some(instr) = block.jump_instr.as_mut() {
+				instr.map_temp(&self.temp_mapper)
+			}
+		}
 	}
 }
 
@@ -128,13 +192,21 @@ impl RrvmOptimizer for CodeHoisting {
 	fn apply(
 		self,
 		program: &mut LlvmProgram,
-		_metadata: &mut MetaData,
+		metadata: &mut MetaData,
 	) -> Result<bool> {
-		fn solve(func: &LlvmFunc) -> bool {
-			let mut solver = Solver::new(func);
-			solver.dfs(func.cfg.get_entry().clone())
+		fn solve(func: &LlvmFunc, metadata: &mut MetaData) -> bool {
+			let mut solver = Solver::new(func, metadata);
+			solver.dfs(func.cfg.get_entry().clone());
+			solver.hoist_common(&func.cfg.get_entry());
+			solver.map_temp(func);
+			solver.changed
 		}
 
-		Ok(program.funcs.iter().fold(false, |last, func| solve(func) || last))
+		Ok(
+			program
+				.funcs
+				.iter()
+				.fold(false, |last, func| solve(func, metadata) || last),
+		)
 	}
 }

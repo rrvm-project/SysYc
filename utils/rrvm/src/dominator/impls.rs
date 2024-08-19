@@ -43,4 +43,10 @@ impl<T: InstrTrait<U>, U: TempTrait> DomTree<T, U> {
 	pub fn get_dominator(&mut self, id: i32) -> Option<Node<T, U>> {
 		self.dominator.get(&id).cloned()
 	}
+	pub fn dominates(&mut self, id1: i32, id2: i32) -> bool {
+		self
+			.dominates
+			.get(&id1)
+			.map_or(false, |v| v.iter().any(|x| x.borrow().id == id2))
+	}
 }

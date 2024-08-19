@@ -300,6 +300,7 @@ impl RrvmOptimizer for IfCombine {
 						continue;
 					}
 
+					eprintln!("if combine 成功");
 					flag = true;
 					prev1.instrs.clear();
 					prev2.instrs.clear();

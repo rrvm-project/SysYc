@@ -1,4 +1,5 @@
 use std::{
+	collections::HashMap,
 	fmt::Display,
 	hash::{Hash, Hasher},
 };
@@ -198,6 +199,13 @@ impl Value {
 		match self {
 			Self::Temp(v) => Some(v.clone()),
 			_ => None,
+		}
+	}
+	pub fn map_temp(&mut self, mapper: &HashMap<LlvmTemp, Value>) {
+		if let Some(temp) = self.unwrap_temp() {
+			if let Some(value) = mapper.get(&temp) {
+				*self = value.clone();
+			}
 		}
 	}
 }

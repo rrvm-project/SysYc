@@ -80,7 +80,7 @@ impl<'a> Solver<'a> {
 		}
 	}
 	fn get_addr(&self, temp: &LlvmTemp) -> Addr {
-		self.addr_mapper.get(temp).unwrap().clone()
+		self.addr_mapper.get(temp).expect(&temp.name).clone()
 	}
 	fn try_get_addr(&self, temp: &LlvmTemp) -> Option<Addr> {
 		self.addr_mapper.get(temp).cloned()
@@ -92,7 +92,7 @@ impl<'a> Solver<'a> {
 			.set_number(temp, Number::new(&mut self.rng))
 	}
 	fn get_number(&mut self, temp: &LlvmTemp) -> Option<Number> {
-		self.metadata.get_func_data(&self.func_name).get_number(temp).cloned()
+		self.metadata.get_func_data(&self.func_name).get_number(temp)
 	}
 	fn get_val_number(&mut self, value: &Value) -> Option<Number> {
 		self.metadata.get_func_data(&self.func_name).get_val_number(value)

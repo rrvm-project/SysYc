@@ -96,6 +96,8 @@ impl Optimizer2 {
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			flag |= IfCombine::new().apply(program, &mut metadata)?;
+			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
+			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
 			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
