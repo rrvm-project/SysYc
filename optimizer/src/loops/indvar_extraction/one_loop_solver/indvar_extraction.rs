@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 
-use llvm::{compute_two_value, ArithInstr, ArithOp, LlvmTemp, Value};
+use llvm::{
+	compute_two_value, ArithInstr, ArithOp, LlvmInstr, LlvmTemp, LlvmTempManager,
+	Value,
+};
 
 use super::OneLoopSolver;
 
@@ -99,6 +102,61 @@ impl<'a> OneLoopSolver<'a> {
 			}
 			Some(sum)
 		} else if indvar.step == vec![Value::Int(0)] {
+			if indvar.scale == indvar.divisor {
+				return Some(indvar.base.clone());
+			}
+			if let Some(scale_power) = is_power_of_two(&indvar.scale) {
+				if let Some(divisor_power) = is_power_of_two(&indvar.divisor) {
+					let (scale_power, instr) = compute_two_value(
+						Value::Int(scale_power),
+						loop_cnt.clone(),
+						ArithOp::Mul,
+						self.temp_mgr,
+					);
+					instr.and_then(|i| {
+						self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
+					});
+					let (divisor_power, instr) = compute_two_value(
+						Value::Int(divisor_power),
+						loop_cnt.clone(),
+						ArithOp::Mul,
+						self.temp_mgr,
+					);
+					instr.and_then(|i| {
+						self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
+					});
+					let (scale_power, instr) =
+						compute_two_power(&scale_power, self.temp_mgr);
+					instr.and_then(|i| {
+						self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
+					});
+					let (divisor_power, instr) =
+						compute_two_power(&divisor_power, self.temp_mgr);
+					instr.and_then(|i| {
+						self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
+					});
+					let (tmp3, instr) = compute_two_value(
+						indvar.base,
+						scale_power,
+						ArithOp::MulD,
+						self.temp_mgr,
+					);
+					instr.and_then(|i| {
+						self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
+					});
+					let (tmp4, instr) = compute_two_value(
+						tmp3,
+						divisor_power,
+						ArithOp::DivD,
+						self.temp_mgr,
+					);
+					instr.and_then(|i| {
+						self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
+					});
+					return Some(tmp4);
+				}
+			}
+			#[cfg(feature = "debug")]
 			eprintln!("not extract indvar(step==0): {} {}", header, indvar);
 			None
 		} else {
@@ -106,5 +164,41 @@ impl<'a> OneLoopSolver<'a> {
 			eprintln!("not extract indvar: {} {}", header, indvar);
 			None
 		}
+	}
+}
+
+// 判断一个 Value 是不是 2 的幂, 返回幂次
+fn is_power_of_two(value: &Value) -> Option<i32> {
+	match value {
+		Value::Int(v) => {
+			if v.count_ones() == 1 {
+				Some(v.trailing_zeros() as i32)
+			} else {
+				None
+			}
+		}
+		_ => None,
+	}
+}
+
+// 计算 2 的 Value 次幂
+fn compute_two_power(
+	value: &Value,
+	temp_mgr: &mut LlvmTempManager,
+) -> (Value, Option<LlvmInstr>) {
+	match value {
+		Value::Int(v) => (Value::Int(1 << v), None),
+		Value::Temp(t) => {
+			let target = temp_mgr.new_temp(t.var_type, false);
+			let instr = ArithInstr {
+				target: target.clone(),
+				var_type: target.var_type,
+				op: ArithOp::ShlD,
+				lhs: Value::Int(1),
+				rhs: value.clone(),
+			};
+			(Value::Temp(target), Some(Box::new(instr)))
+		}
+		_ => unreachable!(),
 	}
 }
