@@ -1,5 +1,7 @@
 use std::{
-	cell::RefCell, collections::{HashMap, VecDeque}, rc::Rc
+	cell::RefCell,
+	collections::{HashMap, VecDeque},
+	rc::Rc,
 };
 
 use llvm::{
@@ -8,15 +10,15 @@ use llvm::{
 };
 use rrvm::{cfg::BasicBlock, program::LlvmFunc};
 #[derive(Debug, Clone)]
-pub struct ModStatus{
-	pub mod_val:Option<Value>,
+pub struct ModStatus {
+	pub mod_val: Option<Value>,
 	pub is_activated: bool,
 }
-impl ModStatus{
-	pub fn new()->Self{
-		ModStatus{
-			mod_val:None,
-			is_activated:false,
+impl ModStatus {
+	pub fn new() -> Self {
+		ModStatus {
+			mod_val: None,
+			is_activated: false,
 		}
 	}
 }
@@ -24,203 +26,226 @@ impl ModStatus{
 pub struct Entry {
 	pub k_val: Vec<Value>,
 	pub b_val: Value,
-	pub mod_val:ModStatus, // 这个先不考虑
-	pub params_len: usize,       // 除了 index 以外
+	pub mod_val: ModStatus, // 这个先不考虑
+	pub params_len: usize,  // 除了 index 以外
 }
-pub fn get_downcast_status(entry:&Entry)->ModStatus{
-		if is_constant_term(entry){
-			// 判断是否是立即数
-				ModStatus{
-					mod_val:None,
-					is_activated:false
-				}
-		}else{
-			entry.mod_val.clone()
+pub fn get_downcast_status(entry: &Entry) -> ModStatus {
+	if is_constant_term(entry) {
+		// 判断是否是立即数
+		ModStatus {
+			mod_val: None,
+			is_activated: false,
 		}
+	} else {
+		entry.mod_val.clone()
+	}
 }
 #[allow(clippy::borrowed_box)]
-pub fn calc_mod(instr:&Box<dyn LlvmInstrTrait>,entries:Vec<Entry>)->Option<ModStatus>{  // lhs rhs 相关的参数直接都传进来吧
+pub fn calc_mod(
+	instr: &Box<dyn LlvmInstrTrait>,
+	entries: Vec<Entry>,
+) -> Option<ModStatus> {
+	// lhs rhs 相关的参数直接都传进来吧
 	use llvm::LlvmInstrVariant::*;
 	use ArithOp::*;
-	match instr.get_variant(){
-		ArithInstr(arith_instr)=>{
-			let lhs_modval=&entries[0].mod_val;
-			let rhs_modval=&entries[1].mod_val;
-			match arith_instr.op{
-				Add|Sub|AddD|Mul|MulD|SubD=>{
-					if let Some(val)=lhs_modval.mod_val.clone(){
-						if let Some(val2)=rhs_modval.mod_val.clone(){
-							if val==val2{
-								Some(ModStatus{
-									mod_val:Some(val),
-									is_activated:false,
+	match instr.get_variant() {
+		ArithInstr(arith_instr) => {
+			let lhs_modval = &entries[0].mod_val;
+			let rhs_modval = &entries[1].mod_val;
+			match arith_instr.op {
+				Add | Sub | AddD | Mul | MulD | SubD => {
+					if let Some(val) = lhs_modval.mod_val.clone() {
+						if let Some(val2) = rhs_modval.mod_val.clone() {
+							if val == val2 {
+								Some(ModStatus {
+									mod_val: Some(val),
+									is_activated: false,
 								})
-							}else{
+							} else {
 								// 尝试 down_cast
-								if get_downcast_status(&entries[0]).mod_val.is_none(){
-									return Some(ModStatus { mod_val: Some(val2), is_activated:false });
-								}else if get_downcast_status(&entries[1]).mod_val.is_none(){
-									return Some(ModStatus{mod_val:Some(val),is_activated:false});
+								if get_downcast_status(&entries[0]).mod_val.is_none() {
+									return Some(ModStatus {
+										mod_val: Some(val2),
+										is_activated: false,
+									});
+								} else if get_downcast_status(&entries[1]).mod_val.is_none() {
+									return Some(ModStatus {
+										mod_val: Some(val),
+										is_activated: false,
+									});
 								}
 								None
 							}
-						}else{
-							Some(ModStatus{
-								mod_val:Some(val),
-								is_activated:false,
+						} else {
+							Some(ModStatus {
+								mod_val: Some(val),
+								is_activated: false,
 							})
 						}
-					}else if let Some(val2)=&rhs_modval.mod_val{
-							Some(ModStatus{
-								mod_val:Some(val2.clone()),
-								is_activated:false,
-							})
-						}else{
-							Some(ModStatus::new())
-						}
-					
-				}
-				Div|DivD=>{
-					Some(ModStatus::new())
-				}
-				Lshr|LshrD|Xor|Or|And|Ashr|AshrD|Shl|ShlD=>{
-					if (get_downcast_status(&entries[0]).mod_val.is_none())&&(get_downcast_status(&entries[1]).mod_val.is_none()){
+					} else if let Some(val2) = &rhs_modval.mod_val {
+						Some(ModStatus {
+							mod_val: Some(val2.clone()),
+							is_activated: false,
+						})
+					} else {
 						Some(ModStatus::new())
-					}else{
+					}
+				}
+				Div | DivD => Some(ModStatus::new()),
+				Lshr | LshrD | Xor | Or | And | Ashr | AshrD | Shl | ShlD => {
+					if (get_downcast_status(&entries[0]).mod_val.is_none())
+						&& (get_downcast_status(&entries[1]).mod_val.is_none())
+					{
+						Some(ModStatus::new())
+					} else {
 						None
 					}
 				}
-				Rem|RemD=>{
-					if is_constant_term(&entries[1]){
-						if let Value::Int(curmod)=entries[1].b_val{
-							if let Some(mod_val)=&lhs_modval.mod_val{
-								if let Value::Int(modval)=mod_val{
-									if *modval==curmod{
-										Some(ModStatus{
-											mod_val:Some(mod_val.clone()),
-											is_activated:true,
+				Rem | RemD => {
+					if is_constant_term(&entries[1]) {
+						if let Value::Int(curmod) = entries[1].b_val {
+							if let Some(mod_val) = &lhs_modval.mod_val {
+								if let Value::Int(modval) = mod_val {
+									if *modval == curmod {
+										Some(ModStatus {
+											mod_val: Some(mod_val.clone()),
+											is_activated: true,
 										})
-									}else if *modval>curmod{
+									} else if *modval > curmod {
 										// 看 lhs 能不能转
-										if get_downcast_status(&entries[0]).mod_val.is_none(){
-											return Some(ModStatus { mod_val: Some(mod_val.clone()), is_activated: true });
+										if get_downcast_status(&entries[0]).mod_val.is_none() {
+											return Some(ModStatus {
+												mod_val: Some(mod_val.clone()),
+												is_activated: true,
+											});
 										}
 										return None;
-									}else if lhs_modval.is_activated{
-										return Some(ModStatus{
-											mod_val:Some(mod_val.clone()),
-											is_activated:true,
+									} else if lhs_modval.is_activated {
+										return Some(ModStatus {
+											mod_val: Some(mod_val.clone()),
+											is_activated: true,
 										});
-									}else{     // 非 is_activated
-										if get_downcast_status(&entries[0]).mod_val.is_none(){
-											return Some(ModStatus{
-												mod_val:Some(mod_val.clone()),
-												is_activated:true,
+									} else {
+										// 非 is_activated
+										if get_downcast_status(&entries[0]).mod_val.is_none() {
+											return Some(ModStatus {
+												mod_val: Some(mod_val.clone()),
+												is_activated: true,
 											});
 										}
 										return None;
 									}
-								}else{           // lhs mod_val 非常数
+								} else {
+									// lhs mod_val 非常数
 									None
 								}
-							}else{     // lhs mod_value 为空
-								Some(ModStatus{
+							} else {
+								// lhs mod_value 为空
+								Some(ModStatus {
 									mod_val: Some(llvm::Value::Int(curmod)),
-									is_activated:true,
-								})	
+									is_activated: true,
+								})
 							}
-						}else{         // 模非立即数
+						} else {
+							// 模非立即数
 							None
 						}
-					}else{   // 模非立即数
+					} else {
+						// 模非立即数
 						None
 					}
 				}
-				_=>{   // 其他指令先不考虑了
+				_ => {
+					// 其他指令先不考虑了
 					Some(ModStatus::new())
 				}
 			}
 		}
-		CompInstr(_comp_instr)=>{
-			if get_downcast_status(&entries[0]).mod_val.is_none()&&get_downcast_status(&entries[1]).mod_val.is_none(){
+		CompInstr(_comp_instr) => {
+			if get_downcast_status(&entries[0]).mod_val.is_none()
+				&& get_downcast_status(&entries[1]).mod_val.is_none()
+			{
 				Some(ModStatus::new())
-			}else{
+			} else {
 				None
 			}
 		}
-		JumpCondInstr(_)=>{
-		Some(ModStatus::new())
-		}
-		PhiInstr(_)=>{
+		JumpCondInstr(_) => Some(ModStatus::new()),
+		PhiInstr(_) => {
 			// 尝试找共同模数
 			// 先判断能否做，把所有数都给 downcast 了
-			let mut mod_val=None;
-			let has_nonconst=entries.iter().any(|entry| !is_constant_term(entry));
-			for entry in entries.iter(){
-				if let Some(val)=get_downcast_status(entry).mod_val{
-					if let Some(mod_val)=mod_val.clone(){
-						if mod_val==val{
+			let mut mod_val = None;
+			let has_nonconst = entries.iter().any(|entry| !is_constant_term(entry));
+			for entry in entries.iter() {
+				if let Some(val) = get_downcast_status(entry).mod_val {
+					if let Some(mod_val) = mod_val.clone() {
+						if mod_val == val {
 							continue;
-						}else{
+						} else {
 							return None;
 						}
-					}else{
-						mod_val=Some(val);
+					} else {
+						mod_val = Some(val);
 					}
 				}
 			}
-			if let Some(mod_val)=&mod_val{
-				if !has_nonconst{
-				let has_mod_entries:Vec<_>=entries.iter().filter(|x| {
-					if let Some(entry_mod)=&x.mod_val.mod_val{
-						if entry_mod.clone()==mod_val.clone(){
-							return true;
-						}
-					}false
-				}).collect();
-				let is_active=has_mod_entries.iter().all(|x| x.mod_val.is_activated);
-				Some(ModStatus{
-					mod_val:Some(mod_val.clone()),
-					is_activated:is_active,
-				})
-			}else{
-				Some(ModStatus::new())
-			}
-			}else{
+			if let Some(mod_val) = &mod_val {
+				if !has_nonconst {
+					let has_mod_entries: Vec<_> = entries
+						.iter()
+						.filter(|x| {
+							if let Some(entry_mod) = &x.mod_val.mod_val {
+								if entry_mod.clone() == mod_val.clone() {
+									return true;
+								}
+							}
+							false
+						})
+						.collect();
+					let is_active =
+						has_mod_entries.iter().all(|x| x.mod_val.is_activated);
+					Some(ModStatus {
+						mod_val: Some(mod_val.clone()),
+						is_activated: is_active,
+					})
+				} else {
+					Some(ModStatus::new())
+				}
+			} else {
 				Some(ModStatus::new())
 			}
 		}
-		CallInstr(_call_instr)=>{
+		CallInstr(_call_instr) => {
 			// 和 Phi 基本一致
-			let mut mod_val:Option<Value>=None;
-			let has_nonconst=entries.iter().any(|entry| !is_constant_term(entry));
-			for entry in entries.iter(){
-				if let Some(val)=get_downcast_status(entry).mod_val{
-					if let Some(mod_val)=&mod_val{
-						if mod_val.clone()==val{
+			let mut mod_val: Option<Value> = None;
+			let has_nonconst = entries.iter().any(|entry| !is_constant_term(entry));
+			for entry in entries.iter() {
+				if let Some(val) = get_downcast_status(entry).mod_val {
+					if let Some(mod_val) = &mod_val {
+						if mod_val.clone() == val {
 							continue;
-						}else{
+						} else {
 							return None;
 						}
-					}else{
-						mod_val=Some(val);
+					} else {
+						mod_val = Some(val);
 					}
 				}
 			}
-			if let Some(mod_val)=mod_val{
-				if !has_nonconst{
-				Some(ModStatus{
-					mod_val:Some(mod_val),
-					is_activated:false,
-				})
-			}else{
-				Some(ModStatus::new())
-			}
-			}else{
+			if let Some(mod_val) = mod_val {
+				if !has_nonconst {
+					Some(ModStatus {
+						mod_val: Some(mod_val),
+						is_activated: false,
+					})
+				} else {
+					Some(ModStatus::new())
+				}
+			} else {
 				Some(ModStatus::new())
 			}
 		}
-		_=>{
+		_ => {
 			unreachable!();
 		}
 	}
@@ -264,7 +289,7 @@ pub fn get_entry(
 			},
 			b_val: value.clone(),
 			params_len,
-            mod_val:ModStatus::new()
+			mod_val: ModStatus::new(),
 		})
 	}
 }
@@ -317,7 +342,7 @@ pub fn calc_mul(
 		let (val1, instr1) = compute_two_value(val.clone(), value.clone(), op, mgr);
 		new_k.push(val1);
 		if let Some(instr1) = instr1 {
-			block_instrs.push(Box::new(instr1));
+			block_instrs.push(instr1);
 		}
 	}
 	let (val2, instr2) =
@@ -327,15 +352,15 @@ pub fn calc_mul(
 		Entry {
 			k_val: new_k,
 			b_val: val2,
-			mod_val: ModStatus{
-				mod_val:entry.mod_val.mod_val.clone(),
-				is_activated:false,
+			mod_val: ModStatus {
+				mod_val: entry.mod_val.mod_val.clone(),
+				is_activated: false,
 			},
 			params_len: entry.params_len,
 		},
 	);
 	if let Some(instr2) = instr2 {
-		block_instrs.push(Box::new(instr2));
+		block_instrs.push(instr2);
 	}
 }
 // 处理 call 返回值的情况
@@ -348,7 +373,7 @@ pub fn calc_mul_entries(
 	mgr: &mut LlvmTempManager,
 	entry_map: &mut HashMap<LlvmTemp, Entry>,
 	block_instrs: &mut Vec<Box<dyn LlvmInstrTrait>>,
-	status:ModStatus,
+	status: ModStatus,
 ) {
 	let mut prev_val: Option<Value> = None;
 	let mut new_ks = vec![];
@@ -357,7 +382,7 @@ pub fn calc_mul_entries(
 			let (val1, instr1) =
 				compute_two_value(val.clone(), entry.k_val[idx].clone(), op, mgr);
 			if let Some(instr1) = instr1 {
-				block_instrs.push(Box::new(instr1));
+				block_instrs.push(instr1);
 			}
 			if let Some(val) = prev_val {
 				let (val2, instr2) = compute_two_value(
@@ -367,7 +392,7 @@ pub fn calc_mul_entries(
 					mgr,
 				);
 				if let Some(instr2) = instr2 {
-					block_instrs.push(Box::new(instr2));
+					block_instrs.push(instr2);
 				}
 				prev_val = Some(val2);
 			} else {
@@ -378,46 +403,45 @@ pub fn calc_mul_entries(
 		prev_val = None;
 	}
 	// 处理 b_val
-	for (val,entry) in entry1.k_val.iter().zip(entry2.iter()) {
-			let (val1, instr1) =
-				compute_two_value(val.clone(), entry.b_val.clone(), op, mgr);
-			if let Some(instr1) = instr1 {
-				block_instrs.push(Box::new(instr1));
-			}
-			if let Some(val) = &prev_val {
-				let (val2, instr2) = compute_two_value(
-					val.clone(),
-					val1.clone(),
-					get_value_typed_add(&val1),
-					mgr,
-				);
-				if let Some(instr2) = instr2 {
-					block_instrs.push(Box::new(instr2));
-				}
-				prev_val = Some(val2);
-			} else {
-				prev_val = Some(val1);
-			}
+	for (val, entry) in entry1.k_val.iter().zip(entry2.iter()) {
+		let (val1, instr1) =
+			compute_two_value(val.clone(), entry.b_val.clone(), op, mgr);
+		if let Some(instr1) = instr1 {
+			block_instrs.push(instr1);
 		}
-		let (val_b, instr_b) = compute_two_value(
-			entry1.b_val.clone(),
-			prev_val.clone().unwrap().clone(),
-			get_value_typed_add(&entry1.b_val),
-			mgr,
-		);
-		if let Some(instr_b) = instr_b {
-			block_instrs.push(Box::new(instr_b));
+		if let Some(val) = &prev_val {
+			let (val2, instr2) = compute_two_value(
+				val.clone(),
+				val1.clone(),
+				get_value_typed_add(&val1),
+				mgr,
+			);
+			if let Some(instr2) = instr2 {
+				block_instrs.push(instr2);
+			}
+			prev_val = Some(val2);
+		} else {
+			prev_val = Some(val1);
 		}
-		entry_map.insert(
-			target.clone(),
-			Entry {
-				k_val: new_ks.clone(),
-				b_val: val_b,
-				mod_val: status,
-				params_len: entry1.params_len,
-			},
-		);
-	
+	}
+	let (val_b, instr_b) = compute_two_value(
+		entry1.b_val.clone(),
+		prev_val.clone().unwrap().clone(),
+		get_value_typed_add(&entry1.b_val),
+		mgr,
+	);
+	if let Some(instr_b) = instr_b {
+		block_instrs.push(instr_b);
+	}
+	entry_map.insert(
+		target.clone(),
+		Entry {
+			k_val: new_ks.clone(),
+			b_val: val_b,
+			mod_val: status,
+			params_len: entry1.params_len,
+		},
+	);
 }
 pub fn calc_arith(
 	arith_instr: &ArithInstr,
@@ -434,7 +458,7 @@ pub fn calc_arith(
 	let lhs_entry = get_entry(&lhs, entry_map, params_len).unwrap();
 	let rhs_entry = get_entry(&rhs, entry_map, params_len).unwrap();
 	match arith_instr.op {
-		Add | Sub | Fadd | Fsub | AddD |SubD=> {
+		Add | Sub | Fadd | Fsub | AddD | SubD => {
 			let val_instr_vec = lhs_entry
 				.k_val
 				.iter()
@@ -449,111 +473,117 @@ pub fn calc_arith(
 				arith_instr.op,
 				mgr,
 			);
-			let llvm_arith_instr:Box<dyn LlvmInstrTrait>=Box::new(arith_instr.clone());
-			let mod_val=calc_mod(&llvm_arith_instr, vec![lhs_entry,rhs_entry]);
-			if let Some(mod_val)=mod_val{
-            let new_entry=Entry {
-                k_val: val_instr_vec.iter().map(|(val, _)| val.clone()).collect(),
-                b_val: val1,
-                params_len,
-                mod_val,
-            };
-			entry_map.insert(
-				target,
-				new_entry,
-			);
-			for (_val, instr) in val_instr_vec {
-				if let Some(instr) = instr {
-					block_instrs.push(Box::new(instr));
+			let llvm_arith_instr: Box<dyn LlvmInstrTrait> =
+				Box::new(arith_instr.clone());
+			let mod_val = calc_mod(&llvm_arith_instr, vec![lhs_entry, rhs_entry]);
+			if let Some(mod_val) = mod_val {
+				let new_entry = Entry {
+					k_val: val_instr_vec.iter().map(|(val, _)| val.clone()).collect(),
+					b_val: val1,
+					params_len,
+					mod_val,
+				};
+				entry_map.insert(target, new_entry);
+				for (_val, instr) in val_instr_vec {
+					if let Some(instr) = instr {
+						block_instrs.push(instr);
+					}
 				}
+				if let Some(instr1) = instr1 {
+					block_instrs.push(instr1);
+				}
+			} else {
+				return false;
 			}
-			if let Some(instr1) = instr1 {
-				block_instrs.push(Box::new(instr1));
-			}
-		}else{
-			return false;
 		}
-		}
-		Ashr | Shl | Lshr |AshrD|ShlD|LshrD=> {
+		Ashr | Shl | Lshr | AshrD | ShlD | LshrD => {
 			if !is_constant_term(&rhs_entry) {
 				return false;
 			}
-			let llvm_arith_instr:Box<dyn LlvmInstrTrait>=Box::new(arith_instr.clone());
-            let mod_val=calc_mod(&llvm_arith_instr, vec![lhs_entry.clone(),rhs_entry.clone()]);
-			if let Some(mod_val)=mod_val{
-			let val_instr_vec = lhs_entry
-				.k_val
-				.iter()
-				.map(|lhs| {
-					compute_two_value(
-						lhs.clone(),
-						rhs_entry.b_val.clone(),
-						arith_instr.op,
-						mgr,
-					)
-				})
-				.collect::<Vec<_>>();
-			let (val1, instr1) = compute_two_value(
-				lhs_entry.b_val.clone(),
-				rhs_entry.b_val.clone(),
-				arith_instr.op,
-				mgr,
+			let llvm_arith_instr: Box<dyn LlvmInstrTrait> =
+				Box::new(arith_instr.clone());
+			let mod_val = calc_mod(
+				&llvm_arith_instr,
+				vec![lhs_entry.clone(), rhs_entry.clone()],
 			);
-			entry_map.insert(
-				target,
-				Entry {
-					k_val: val_instr_vec.iter().map(|(val, _)| val.clone()).collect(),
-					b_val: val1,
-					mod_val,
-					params_len,
-				},
-			);
-			for (_val, instr) in val_instr_vec {
-				if let Some(instr) = instr {
-					block_instrs.push(Box::new(instr));
+			if let Some(mod_val) = mod_val {
+				let val_instr_vec = lhs_entry
+					.k_val
+					.iter()
+					.map(|lhs| {
+						compute_two_value(
+							lhs.clone(),
+							rhs_entry.b_val.clone(),
+							arith_instr.op,
+							mgr,
+						)
+					})
+					.collect::<Vec<_>>();
+				let (val1, instr1) = compute_two_value(
+					lhs_entry.b_val.clone(),
+					rhs_entry.b_val.clone(),
+					arith_instr.op,
+					mgr,
+				);
+				entry_map.insert(
+					target,
+					Entry {
+						k_val: val_instr_vec.iter().map(|(val, _)| val.clone()).collect(),
+						b_val: val1,
+						mod_val,
+						params_len,
+					},
+				);
+				for (_val, instr) in val_instr_vec {
+					if let Some(instr) = instr {
+						block_instrs.push(instr);
+					}
 				}
+				if let Some(instr1) = instr1 {
+					block_instrs.push(instr1);
+				}
+			} else {
+				return false;
 			}
-			if let Some(instr1) = instr1 {
-				block_instrs.push(Box::new(instr1));
-			}
-		}else{
-			return false;
 		}
-		}
-		Fdiv | Div | Xor | And | Or  => {
+		Fdiv | Div | Xor | And | Or => {
 			if (!is_constant_term(&rhs_entry)) || (!is_constant_term(&lhs_entry)) {
 				return false;
 			}
-            let llvm_arith_instr:Box<dyn LlvmInstrTrait>=Box::new(arith_instr.clone());
-            let mod_val=calc_mod(&llvm_arith_instr, vec![lhs_entry.clone(),rhs_entry.clone()]);
-			if let Some(mod_val)=mod_val{
-			let (val0, instr0) = compute_two_value(
-				lhs_entry.b_val.clone(),
-				rhs_entry.b_val.clone(),
-				arith_instr.op,
-				mgr,
+			let llvm_arith_instr: Box<dyn LlvmInstrTrait> =
+				Box::new(arith_instr.clone());
+			let mod_val = calc_mod(
+				&llvm_arith_instr,
+				vec![lhs_entry.clone(), rhs_entry.clone()],
 			);
-			entry_map.insert(
-				target.clone(),
-				Entry {
-					k_val: match target.var_type {
-						VarType::I32 => vec![Value::Int(0); params_len],
-						VarType::F32 => vec![Value::Float(0.0); params_len],
-						_ => unreachable!(),
+			if let Some(mod_val) = mod_val {
+				let (val0, instr0) = compute_two_value(
+					lhs_entry.b_val.clone(),
+					rhs_entry.b_val.clone(),
+					arith_instr.op,
+					mgr,
+				);
+				entry_map.insert(
+					target.clone(),
+					Entry {
+						k_val: match target.var_type {
+							VarType::I32 => vec![Value::Int(0); params_len],
+							VarType::F32 => vec![Value::Float(0.0); params_len],
+							_ => unreachable!(),
+						},
+						b_val: val0,
+						mod_val,
+						params_len,
 					},
-					b_val: val0,
-					mod_val,
-					params_len,
-				},
-			);
-			if let Some(instr0) = instr0 {
-				block_instrs.push(Box::new(instr0));
+				);
+				if let Some(instr0) = instr0 {
+					block_instrs.push(instr0);
+				}
+			} else {
+				return false;
 			}
-		}else{
-			return false;
 		}
-		}
-		Fmul | Mul|MulD => {
+		Fmul | Mul | MulD => {
 			// **这里认为乘法有交换律**
 			let is_lhs_const = {
 				if is_constant_term(&lhs_entry) || is_constant_term(&rhs_entry) {
@@ -584,34 +614,57 @@ pub fn calc_arith(
 				);
 			}
 		}
-        Rem|RemD=>{
-           // 先判断rhs 是立即数
-		   if is_constant_term(&rhs_entry){
-			if let Value::Int(_)=&rhs_entry.b_val{
-				let llvm_arith_instr:Box<dyn LlvmInstrTrait>=Box::new(arith_instr.clone());
-				let mod_val=calc_mod(&llvm_arith_instr, vec![lhs_entry.clone(),rhs_entry.clone()]);
-				if let Some(mod_val)=mod_val{
-					let mut kvals=vec![];
-					for val in lhs_entry.k_val.iter(){
-						let (val1,instr1)=compute_two_value(val.clone(), rhs_entry.clone().b_val, ArithOp::Rem, mgr);
-						kvals.push(val1);
-						if let Some(instr1)=instr1{
-							block_instrs.push(Box::new(instr1));
+		Rem | RemD => {
+			// 先判断rhs 是立即数
+			if is_constant_term(&rhs_entry) {
+				if let Value::Int(_) = &rhs_entry.b_val {
+					let llvm_arith_instr: Box<dyn LlvmInstrTrait> =
+						Box::new(arith_instr.clone());
+					let mod_val = calc_mod(
+						&llvm_arith_instr,
+						vec![lhs_entry.clone(), rhs_entry.clone()],
+					);
+					if let Some(mod_val) = mod_val {
+						let mut kvals = vec![];
+						for val in lhs_entry.k_val.iter() {
+							let (val1, instr1) = compute_two_value(
+								val.clone(),
+								rhs_entry.clone().b_val,
+								ArithOp::Rem,
+								mgr,
+							);
+							kvals.push(val1);
+							if let Some(instr1) = instr1 {
+								block_instrs.push(instr1);
+							}
 						}
+						let (valb, instrb) = compute_two_value(
+							lhs_entry.b_val.clone(),
+							rhs_entry.b_val,
+							ArithOp::Rem,
+							mgr,
+						);
+						if let Some(instr) = instrb {
+							block_instrs.push(instr);
+						}
+						entry_map.insert(
+							target,
+							Entry {
+								k_val: kvals,
+								b_val: valb,
+								mod_val,
+								params_len,
+							},
+						);
+						return true;
 					}
-					let (valb,instrb)=compute_two_value(lhs_entry.b_val.clone(), rhs_entry.b_val, ArithOp::Rem,mgr);
-					if let Some(instr)=instrb{
-						block_instrs.push(Box::new(instr));
-					}
-					entry_map.insert(target,Entry { k_val: kvals, b_val: valb, mod_val, params_len });
-					return true;
 				}
 			}
-		   }return false;
-        }
-        _=>{
-            return false;
-        }
+			return false;
+		}
+		_ => {
+			return false;
+		}
 	}
 	true
 }
@@ -772,9 +825,10 @@ pub fn calc_call(
 				get_entry(val, entry_map, call_instr.params.len() - 1).unwrap()
 			})
 			.collect();
-		let call_instr_llvm:Box<dyn LlvmInstrTrait>=Box::new(call_instr.clone());
-		let status=calc_mod(&Box::new(call_instr_llvm.clone()), vec![func_entry.clone()]);
-		if status.is_none(){
+		let call_instr_llvm: Box<dyn LlvmInstrTrait> = Box::new(call_instr.clone());
+		let status =
+			calc_mod(&Box::new(call_instr_llvm.clone()), vec![func_entry.clone()]);
+		if status.is_none() {
 			return false;
 		}
 		calc_mul_entries(
@@ -785,7 +839,7 @@ pub fn calc_call(
 			mgr,
 			entry_map,
 			block_instrs,
-			status.unwrap()
+			status.unwrap(),
 		);
 	}
 	true
@@ -797,7 +851,7 @@ pub fn create_wrapper(
 	func_name: String,
 	mgr: &mut LlvmTempManager,
 	params_len: usize,
-	mod_val:Option<Value>,
+	mod_val: Option<Value>,
 ) -> Rc<RefCell<BasicBlock<Box<dyn LlvmInstrTrait>, LlvmTemp>>> {
 	let mut instrs: Vec<Box<dyn LlvmInstrTrait>> = vec![];
 	let alloc_target = mgr.new_temp(llvm::VarType::I32Ptr, false);
@@ -883,8 +937,8 @@ pub fn create_wrapper(
 	instrs.push(Box::new(load2));
 	instrs.push(Box::new(add2));
 	// 判断是否取模
-	if let Some(mod_val)=mod_val{
-		let rem=llvm::ArithInstr{
+	if let Some(mod_val) = mod_val {
+		let rem = llvm::ArithInstr {
 			target: mgr.new_temp(data[0].var_type, false),
 			op: llvm::ArithOp::RemD,
 			var_type: data[0].var_type,
@@ -892,7 +946,7 @@ pub fn create_wrapper(
 			rhs: mod_val,
 		};
 		instrs.push(Box::new(rem.clone()));
-		add2_target=rem.target.clone();
+		add2_target = rem.target.clone();
 	}
 	let ret_instr = llvm::RetInstr {
 		value: Some(Value::Temp(add2_target)),

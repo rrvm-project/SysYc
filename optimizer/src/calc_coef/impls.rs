@@ -1,5 +1,8 @@
 use super::{
-	utils::{calc_mod, get_entry, get_typed_one, get_typed_zero, is_constant_term, topology_sort, ModStatus},
+	utils::{
+		calc_mod, get_entry, get_typed_one, get_typed_zero, is_constant_term,
+		topology_sort, ModStatus,
+	},
 	CalcCoef,
 };
 use crate::{
@@ -25,7 +28,6 @@ use rrvm::{
 use std::{
 	cell::RefCell,
 	collections::{HashMap, HashSet, VecDeque},
-	io::{self, Write},
 	mem,
 	rc::Rc,
 	vec,
@@ -134,7 +136,6 @@ fn map_instr(
 	params_len: usize,
 	index: usize,
 ) -> bool {
-	io::stderr().flush().unwrap();
 	match instr.get_variant() {
 		ArithInstr(arith_instr) => {
 			return calc_arith(arith_instr, entry_map, block_instrs, mgr, params_len);
@@ -233,14 +234,19 @@ fn map_instr(
 				})
 				.collect();
 			let mut k_targets = vec![];
-			let entries:Vec<_>=phi_instr.source.iter().map(|(val,_label)| get_entry(val, entry_map, params_len)).collect();
-			if entries.iter().any(|x| x.is_none()){
+			let entries: Vec<_> = phi_instr
+				.source
+				.iter()
+				.map(|(val, _label)| get_entry(val, entry_map, params_len))
+				.collect();
+			if entries.iter().any(|x| x.is_none()) {
 				return false;
 			}
-			let entries_unwrapped:Vec<_>=entries.iter().map(|x| x.clone().unwrap()).collect();
-			let instr:Box<dyn LlvmInstrTrait>=Box::new(phi_instr.clone());
-			let status=calc_mod(&instr, entries_unwrapped);
-			if status.is_none(){
+			let entries_unwrapped: Vec<_> =
+				entries.iter().map(|x| x.clone().unwrap()).collect();
+			let instr: Box<dyn LlvmInstrTrait> = Box::new(phi_instr.clone());
+			let status = calc_mod(&instr, entries_unwrapped);
+			if status.is_none() {
 				return false;
 			}
 			for i in 0..params_len {
@@ -300,39 +306,38 @@ fn map_instr(
 	}
 	true
 }
-pub fn judge_return(entries:&[Entry])->Option<Option<Value>>{
-	let mut imms=vec![];
-	let mut mod_val=None;
-	for entry in entries.iter(){
+pub fn judge_return(entries: &[Entry]) -> Option<Option<Value>> {
+	let mut imms = vec![];
+	let mut mod_val = None;
+	for entry in entries.iter() {
 		// 判断是否是立即数
-		if is_constant_term(entry){
-		if let Value::Int(i)=entry.b_val{
-			imms.push(i);
-			continue;
-		}
+		if is_constant_term(entry) {
+			if let Value::Int(i) = entry.b_val {
+				imms.push(i);
+				continue;
+			}
 		}
 		// 判断模数
-		let mod_num=entry.mod_val.mod_val.clone();
-		if let Some(mod_num)=mod_num{
-			if entry.mod_val.is_activated{
-			if mod_val.is_none(){
-				mod_val=Some(mod_num);
-			}else if mod_val!=Some(mod_num){
+		let mod_num = entry.mod_val.mod_val.clone();
+		if let Some(mod_num) = mod_num {
+			if entry.mod_val.is_activated {
+				if mod_val.is_none() {
+					mod_val = Some(mod_num);
+				} else if mod_val != Some(mod_num) {
 					return None;
 				}
-			
-		}else{
+			} else {
+				return None;
+			}
+		} else if mod_val.is_some() {
 			return None;
 		}
-		}else if mod_val.is_some(){
-			return None;
-		}
-	}for imm in imms.iter(){
+	}
+	for imm in imms.iter() {
 		// 判断所有 imm 都小于除数的绝对值
-		if let Some(Value::Int(mod_val))=mod_val.clone(){
-				if imm.abs()>=mod_val.abs(){
-					return None;
-				
+		if let Some(Value::Int(mod_val)) = mod_val.clone() {
+			if imm.abs() >= mod_val.abs() {
+				return None;
 			}
 		}
 	}
@@ -350,7 +355,7 @@ fn map_coef_instrs(
 	my_index: LlvmTemp,                          // recursive index
 	block_ord: Vec<i32>,
 	my_recurse_index: LlvmTemp,
-) -> Option<(Blocks,Option<Value>)> {
+) -> Option<(Blocks, Option<Value>)> {
 	let params_len = func.params.len() - 1;
 	let mut entry_map = HashMap::new();
 	let index_pos =
@@ -470,39 +475,40 @@ fn map_coef_instrs(
 		new_instrs.push(block_instrs);
 	}
 	// assemble entries with return values' maps
-	let mut ret_entries_vec=vec![];
-	let mut ret_imms=vec![];  // 得到返回值之后再判断
-	for block in func.cfg.blocks.iter(){
-		if let Some(jmp_instr)=block.borrow().jump_instr.clone(){
-			if let llvm::LlvmInstrVariant::RetInstr(retinstr)= jmp_instr.get_variant(){
-					let val=retinstr.value.clone();
-					if let Some(val)=val{
-						match val{
-							Value::Temp(t)=>{
-								let entry=entry_map.get(&t);
-								if let Some(entry)=entry{
-									ret_entries_vec.push(entry.clone());
-								}else{
-									panic!("ret instr val not in entry map");
-								}
+	let mut ret_entries_vec = vec![];
+	let mut ret_imms = vec![]; // 得到返回值之后再判断
+	for block in func.cfg.blocks.iter() {
+		if let Some(jmp_instr) = block.borrow().jump_instr.clone() {
+			if let llvm::LlvmInstrVariant::RetInstr(retinstr) =
+				jmp_instr.get_variant()
+			{
+				let val = retinstr.value.clone();
+				if let Some(val) = val {
+					match val {
+						Value::Temp(t) => {
+							let entry = entry_map.get(&t);
+							if let Some(entry) = entry {
+								ret_entries_vec.push(entry.clone());
+							} else {
+								panic!("ret instr val not in entry map");
 							}
-							Value::Int(i)=>{
-								ret_imms.push(i);
-							}
-							_=>{}
 						}
-					
+						Value::Int(i) => {
+							ret_imms.push(i);
+						}
+						_ => {}
+					}
 				}
 			}
 		}
 	}
-	let mod_val=judge_return(&ret_entries_vec);
+	let mod_val = judge_return(&ret_entries_vec);
 	mod_val.as_ref()?;
-	let unwrapped_mod_val=mod_val.unwrap();
-	if let Some(mod_val)=&unwrapped_mod_val{
-		for imm in ret_imms.iter(){
-			if let Value::Int(i)=mod_val{
-				if imm.abs()>=(*i).abs(){
+	let unwrapped_mod_val = mod_val.unwrap();
+	if let Some(mod_val) = &unwrapped_mod_val {
+		for imm in ret_imms.iter() {
+			if let Value::Int(i) = mod_val {
+				if imm.abs() >= (*i).abs() {
 					return None;
 				}
 			}
@@ -525,7 +531,7 @@ fn map_coef_instrs(
 		new_block.borrow_mut().jump_instr.clone_from(jmp_instr);
 		new_blocks.push(new_block);
 	}
-	Some((new_blocks,unwrapped_mod_val))
+	Some((new_blocks, unwrapped_mod_val))
 }
 fn calc_coef(
 	func: &LlvmFunc,
@@ -685,13 +691,11 @@ fn calc_coef(
 	if new_blocks.is_none() {
 		return vec![copied_func];
 	}
-	let (new_blocks,mod_val)=new_blocks.unwrap();
+	let (new_blocks, mod_val) = new_blocks.unwrap();
 	let calc_func = LlvmFunc {
 		total: mgr.total as i32,
 		spills: 0,
-		cfg: rrvm::cfg::CFG {
-			blocks: new_blocks,
-		},
+		cfg: rrvm::cfg::CFG { blocks: new_blocks },
 		name: format!("{}_calc_coef", func.name),
 		ret_type: llvm::VarType::Void,
 		params: vec![Value::Temp(addr.clone()), Value::Temp(my_index)],
