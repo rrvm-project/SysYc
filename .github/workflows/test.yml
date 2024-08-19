@@ -28,17 +28,17 @@ jobs:
 
     - name: Run functional test
       working-directory: ./project-eval
-      run: python test_on_remote.py -t ./testcases/functional -b -O0 -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
+      run: python test_on_remote.py -t ${{ secrets.DATA_DIR }}/functional -b -O0 -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
 
     - name: Run hidden functional test
       working-directory: ./project-eval
-      run: python test_on_remote.py -t ./testcases/h_functional -b -O0 -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
+      run: python test_on_remote.py -t ${{ secrets.DATA_DIR }}/h_functional -b -O0 -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
       continue-on-error: true
       
     - name: Run performance test
       working-directory: ./project-eval
-      run: python test_on_remote.py -t ./testcases/performance -b -O1 -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
+      run: python test_on_remote.py -t ${{ secrets.DATA_DIR }}/performance -b -O1 -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
 
     - name: Run hidden performance test
       working-directory: ./project-eval
-      run: python test_on_remote.py -t ./testcases/h_performance -b -O1 -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
+      run: python test_on_remote.py -t ${{ secrets.DATA_DIR }}/h_performance -b -O1 -r cmmc --remote_address ${{ secrets.BACKEND_ADDRESS }} --remote_port 12345
