@@ -9,7 +9,7 @@ pub use llvminstr::*;
 pub use llvmop::{Value, *};
 pub use llvmvar::*;
 pub use temp::{LlvmTemp, LlvmTempManager};
-pub use utils::compute_two_value;
+pub use utils::*;
 
 pub enum LlvmInstrVariant<'a> {
 	ArithInstr(&'a ArithInstr),

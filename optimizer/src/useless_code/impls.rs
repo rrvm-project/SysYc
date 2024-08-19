@@ -35,7 +35,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 	) -> Result<bool> {
 		fn solve(cfg: &mut LlvmCFG, metadata: &mut MetaData) -> bool {
 			let mut dom_tree = LlvmDomTree::new(cfg, true);
-
+			let mut flag = false;
 			let mut graph = HashMap::new();
 			let mut visited = HashSet::new();
 			let mut queue = VecDeque::new();
@@ -117,9 +117,16 @@ impl RrvmOptimizer for RemoveUselessCode {
 				block.instrs.retain(|instr| {
 					has_sideeffect(instr)
 						|| instr.get_write().map_or(true, |v| visited.contains(&v.into()))
+						|| {
+							flag = true;
+							false
+						}
 				});
 				block.phi_instrs.retain(|instr| {
-					instr.get_write().map_or(true, |v| visited.contains(&v.into()))
+					instr.get_write().map_or(true, |v| visited.contains(&v.into())) || {
+						flag = true;
+						false
+					}
 				});
 			}
 
@@ -140,6 +147,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 							break dom;
 						}
 					};
+					flag = true;
 					mapper.insert(block.label(), dom.clone());
 				}
 			}
@@ -161,7 +169,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 			}
 
 			cfg.resolve_prev();
-			false
+			flag
 		}
 
 		Ok(

@@ -167,3 +167,71 @@ pub fn compute_two_value(
 		}
 	}
 }
+
+pub fn compute_two_boolean(
+	v1: Value,
+	v2: Value,
+	op: ArithOp,
+	temp_mgr: &mut LlvmTempManager,
+) -> (Value, Option<LlvmInstr>) {
+	match op {
+		And => {
+			if v1 == Value::Int(0) || v2 == Value::Int(0) {
+				(Value::Int(0), None)
+			} else if v1 == Value::Int(1) {
+				(v2, None)
+			} else if v2 == Value::Int(1) || v1 == v2 {
+				(v1, None)
+			} else {
+				let target = temp_mgr.new_temp(VarType::I32, false);
+				let instr = Box::new(ArithInstr {
+					target: target.clone(),
+					op,
+					var_type: VarType::I32,
+					lhs: v1,
+					rhs: v2,
+				});
+				(Value::Temp(target), Some(instr))
+			}
+		}
+		Or => {
+			if v1 == Value::Int(1) || v2 == Value::Int(1) {
+				(Value::Int(1), None)
+			} else if v1 == Value::Int(0) {
+				(v2, None)
+			} else if v2 == Value::Int(0) || v1 == v2 {
+				(v1, None)
+			} else {
+				let target = temp_mgr.new_temp(VarType::I32, false);
+				let instr = Box::new(ArithInstr {
+					target: target.clone(),
+					op,
+					var_type: VarType::I32,
+					lhs: v1,
+					rhs: v2,
+				});
+				(Value::Temp(target), Some(instr))
+			}
+		}
+		Xor => {
+			if v1 == Value::Int(0) {
+				(v2, None)
+			} else if v2 == Value::Int(0) {
+				(v1, None)
+			} else if v1 == v2 {
+				(Value::Int(0), None)
+			} else {
+				let target = temp_mgr.new_temp(VarType::I32, false);
+				let instr = Box::new(ArithInstr {
+					target: target.clone(),
+					op,
+					var_type: VarType::I32,
+					lhs: v1,
+					rhs: v2,
+				});
+				(Value::Temp(target), Some(instr))
+			}
+		}
+		_ => unreachable!(),
+	}
+}

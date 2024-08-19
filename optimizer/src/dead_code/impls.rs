@@ -14,7 +14,8 @@ impl RrvmOptimizer for RemoveDeadCode {
 		program: &mut LlvmProgram,
 		_metadata: &mut MetaData,
 	) -> Result<bool> {
-		fn solve(cfg: &mut LlvmCFG) {
+		fn solve(cfg: &mut LlvmCFG) -> bool {
+			let mut flag = false;
 			let mut visited = HashSet::new();
 			let mut stack = vec![cfg.get_entry()];
 			while let Some(u) = stack.pop() {
@@ -23,6 +24,7 @@ impl RrvmOptimizer for RemoveDeadCode {
 				// remove unreachable branch
 				let new_jump = u.borrow().jump_instr.as_ref().unwrap().new_jump();
 				if let Some(instr) = new_jump {
+					flag = true;
 					let label = &instr.target;
 					u.borrow_mut().succ.retain(|v| v.borrow().label() == *label);
 					if u.borrow().succ.len() == 2 {
@@ -65,12 +67,13 @@ impl RrvmOptimizer for RemoveDeadCode {
 			});
 			// solve data flow
 			cfg.resolve_prev();
+			flag
 		}
-		Ok(program.funcs.iter_mut().fold(false, |last, func| {
+		Ok(program.funcs.iter_mut().fold(false, |mut last, func| {
 			let mut cnt = 0;
 			loop {
 				let size = func.cfg.size();
-				solve(&mut func.cfg);
+				last |= solve(&mut func.cfg);
 				if func.cfg.size() == size {
 					break;
 				}
