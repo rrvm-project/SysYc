@@ -13,15 +13,21 @@ pub fn compute_two_value(
 	op: ArithOp,
 	temp_mgr: &mut LlvmTempManager,
 ) -> (Value, Option<LlvmInstr>) {
-	// 只考虑 int, intPtr, floatPtr
+	use ArithOp::*;
+	// 只考虑 int
 	match (v1.clone(), v2.clone()) {
 		(Value::Int(i1), Value::Int(i2)) => {
 			let i = match op {
-				ArithOp::Add => i1 + i2,
-				ArithOp::Mul => i1 * i2,
-				ArithOp::Sub => i1 - i2,
-				ArithOp::Div => i1 / i2,
-				ArithOp::Rem => i1 % i2,
+				Add => i1 + i2,
+				AddD => i1 + i2,
+				Mul => i1 * i2,
+				MulD => i1 * i2,
+				Sub => i1 - i2,
+				SubD => i1 - i2,
+				Div => i1 / i2,
+				DivD => i1 / i2,
+				Rem => i1 % i2,
+				RemD => i1 % i2,
 				_ => unreachable!(),
 			};
 			(Value::Int(i), None)
@@ -39,49 +45,50 @@ pub fn compute_two_value(
 		(Value::Int(i1), Value::Temp(t2)) => {
 			assert!(t2.var_type != VarType::F32);
 			match (i1, op) {
-				(0, ArithOp::Add) | (1, ArithOp::Mul) => (v2, None),
-				(0, ArithOp::Mul) => (Value::Int(0), None),
+				(0, ArithOp::Add | ArithOp::AddD) | (1, ArithOp::Mul|ArithOp::MulD) => (v2, None),
+				(0, Mul|MulD) => (Value::Int(0), None),
 				_ => {
 					assert!(
 						t2.var_type != VarType::I32Ptr && t2.var_type != VarType::F32Ptr
 					);
 					let target = temp_mgr.new_temp(t2.var_type, false);
-					let instr: LlvmInstr = Box::new(ArithInstr {
+					let instr:LlvmInstr = Box::new(ArithInstr {
 						target: target.clone(),
 						op,
 						var_type: t2.var_type,
 						lhs: Value::Int(i1),
 						rhs: Value::Temp(t2),
 					});
-					(Value::Temp(target), Some(instr))
+					(Value::Temp(target),Some(instr))
 				}
 			}
 		}
 		(Value::Float(f1), Value::Temp(t2)) => {
 			assert!(t2.var_type == VarType::F32);
 			match (f1, op) {
-				(0.0, ArithOp::Fadd | ArithOp::Fsub) | (1.0, ArithOp::Fmul) => {
+				(0.0, ArithOp::Fadd) | (1.0, ArithOp::Fmul) => {
 					(v2, None)
 				}
 				(0.0, ArithOp::Fmul) => (Value::Float(0.0), None),
 				_ => {
 					let target = temp_mgr.new_temp(t2.var_type, false);
-					let instr = ArithInstr {
+					let instr = Box::new(ArithInstr {
 						target: target.clone(),
 						op,
 						var_type: t2.var_type,
 						lhs: Value::Float(f1),
 						rhs: Value::Temp(t2),
-					};
-					(Value::Temp(target), Some(Box::new(instr)))
+					});
+					(Value::Temp(target), Some(instr))
 				}
 			}
 		}
 		(Value::Temp(t1), Value::Int(i2)) => {
 			assert!(t1.var_type != VarType::F32);
 			match (i2, op) {
-				(0, ArithOp::Add | ArithOp::Sub)
-				| (1, ArithOp::Mul | ArithOp::Div | ArithOp::Rem) => (v1, None),
+				(0, ArithOp::Add | ArithOp::AddD) | (1, ArithOp::Mul | ArithOp::MulD) => {
+					(v1, None)
+				}
 				(0, ArithOp::Mul) => (Value::Int(0), None),
 				_ => {
 					let target = temp_mgr.new_temp(t1.var_type, false);

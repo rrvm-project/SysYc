@@ -46,7 +46,7 @@ pub fn calc_mod(instr:&Box<dyn LlvmInstrTrait>,entries:Vec<Entry>)->Option<ModSt
 			let lhs_modval=&entries[0].mod_val;
 			let rhs_modval=&entries[1].mod_val;
 			match arith_instr.op{
-				Add|Sub|AddD|Mul|MulD=>{
+				Add|Sub|AddD|Mul|MulD|SubD=>{
 					if let Some(val)=lhs_modval.mod_val.clone(){
 						if let Some(val2)=rhs_modval.mod_val.clone(){
 							if val==val2{
@@ -80,7 +80,7 @@ pub fn calc_mod(instr:&Box<dyn LlvmInstrTrait>,entries:Vec<Entry>)->Option<ModSt
 						}
 					}
 				}
-				Div=>{
+				Div|DivD=>{
 					return Some(ModStatus::new());
 				}
 				Lshr|LshrD|Xor|Or|And|Ashr|AshrD|Shl|ShlD=>{
@@ -190,7 +190,7 @@ pub fn calc_mod(instr:&Box<dyn LlvmInstrTrait>,entries:Vec<Entry>)->Option<ModSt
 				return Some(ModStatus::new());
 			}
 		}
-		CallInstr(call_instr)=>{
+		CallInstr(_call_instr)=>{
 			// 和 Phi 基本一致
 			let mut mod_val:Option<Value>=None;
 			let has_nonconst=entries.iter().any(|entry| !is_constant_term(entry));
@@ -433,7 +433,11 @@ pub fn calc_arith(
 	let lhs_entry = get_entry(&lhs, entry_map, params_len).unwrap();
 	let rhs_entry = get_entry(&rhs, entry_map, params_len).unwrap();
 	match arith_instr.op {
-		Add | Sub | Fadd | Fsub | AddD => {
+		Add | Sub | Fadd | Fsub | AddD |SubD=> {
+			eprintln!("mapping ... {}",arith_instr);
+			for i in block_instrs.iter(){
+				eprintln!("instrs:{}",i);
+			}
 			let val_instr_vec = lhs_entry
 				.k_val
 				.iter()
@@ -469,11 +473,12 @@ pub fn calc_arith(
 			if let Some(instr1) = instr1 {
 				block_instrs.push(Box::new(instr1));
 			}
+			eprintln!("after mapping");
 		}else{
 			return false;
 		}
 		}
-		Ashr | Shl | Lshr => {
+		Ashr | Shl | Lshr |AshrD|ShlD|LshrD=> {
 			if !is_constant_term(&rhs_entry) {
 				return false;
 			}
@@ -552,7 +557,7 @@ pub fn calc_arith(
 			return false;
 		}
 		}
-		Fmul | Mul => {
+		Fmul | Mul|MulD => {
 			// **这里认为乘法有交换律**
 			let is_lhs_const = {
 				if is_constant_term(&lhs_entry) || is_constant_term(&rhs_entry) {
@@ -562,7 +567,6 @@ pub fn calc_arith(
 				}
 			};
 			if !is_lhs_const {
-                // TODO 传一下 mod_val 的 status
 				calc_mul(
 					&lhs_entry,
 					&rhs_entry.b_val,
@@ -584,7 +588,7 @@ pub fn calc_arith(
 				);
 			}
 		}
-        Rem=>{
+        Rem|RemD=>{
            // 先判断rhs 是立即数
 		   if is_constant_term(&rhs_entry){
 			if let Value::Int(mod_num)=&rhs_entry.b_val{
