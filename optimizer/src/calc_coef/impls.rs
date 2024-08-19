@@ -1,13 +1,20 @@
 use super::{
-	ast::{AstNode, LlvmOp, ReduceType}, utils::{
+	ast::{AstNode, LlvmOp, ReduceType},
+	utils::{
 		calc_mod, get_entry, get_typed_one, get_typed_zero, is_constant_term,
 		topology_sort, ModStatus,
-	}, CalcCoef
+	},
+	CalcCoef,
 };
 use crate::{
-	calc_coef::{ast::map_ast_instr, utils::{
-		calc_arith, calc_call, calc_ret, create_wrapper, get_constant_term, Entry,
-	}}, function_inline::entry, metadata::FuncData, MetaData, RrvmOptimizer
+	calc_coef::{
+		ast::map_ast_instr,
+		utils::{
+			calc_arith, calc_call, calc_ret, create_wrapper, get_constant_term, Entry,
+		},
+	},
+	metadata::FuncData,
+	MetaData, RrvmOptimizer,
 };
 use core::panic;
 use llvm::{
@@ -16,14 +23,19 @@ use llvm::{
 		AllocInstr, ArithInstr, CallInstr, CompInstr, ConvertInstr, GEPInstr,
 		JumpCondInstr, LoadInstr, PhiInstr, StoreInstr,
 	},
-	LlvmTemp, LlvmTempManager, Value,
+	LlvmTemp, LlvmTempManager, Value, VarType,
 };
 use rrvm::{
 	cfg::{BasicBlock, CFG},
+	func::RrvmFunc,
 	program::{LlvmFunc, LlvmProgram},
 };
 use std::{
-	cell::RefCell, collections::{HashMap, HashSet, VecDeque}, mem, rc::Rc, vec
+	cell::RefCell,
+	collections::{HashMap, HashSet, VecDeque},
+	mem,
+	rc::Rc,
+	vec,
 };
 use utils::{errors::Result, Label};
 impl RrvmOptimizer for CalcCoef {
@@ -44,15 +56,15 @@ impl RrvmOptimizer for CalcCoef {
 					return vec![func];
 				}
 				if can_calc(&func, metadata) {
-					let mut ast_map=map_ast(&func, &ord_blocks);
+					let ast_map = map_ast(&func, &ord_blocks);
 					for index in func.params.iter().map(|x| x.unwrap_temp().unwrap()) {
-						
 						let calc_funcs = calc_coef(
 							&func,
 							index,
 							&mut program.temp_mgr,
 							ord_blocks.clone(),
 							metadata.get_func_data(&func.name),
+							ast_map.clone(),
 						);
 						if calc_funcs.len() == 2 {
 							return calc_funcs;
@@ -350,7 +362,7 @@ fn map_coef_instrs(
 	my_index: LlvmTemp,                          // recursive index
 	block_ord: Vec<i32>,
 	my_recurse_index: LlvmTemp,
-) -> Option<(Blocks, Option<Value>)> {
+) -> Option<(Blocks, Option<Value>, HashMap<LlvmTemp, Entry>)> {
 	let params_len = func.params.len() - 1;
 	let mut entry_map = HashMap::new();
 	let index_pos =
@@ -526,7 +538,7 @@ fn map_coef_instrs(
 		new_block.borrow_mut().jump_instr.clone_from(jmp_instr);
 		new_blocks.push(new_block);
 	}
-	Some((new_blocks, unwrapped_mod_val))
+	Some((new_blocks, unwrapped_mod_val, entry_map))
 }
 fn calc_coef(
 	func: &LlvmFunc,
@@ -534,6 +546,7 @@ fn calc_coef(
 	mgr: &mut LlvmTempManager,
 	block_ord: Vec<i32>,
 	funcdata: &mut FuncData,
+	ast_map: HashMap<LlvmTemp, Rc<RefCell<AstNode>>>
 ) -> Vec<LlvmFunc> {
 	let data = func
 		.params
@@ -607,13 +620,6 @@ fn calc_coef(
 			special_map = new_special_map;
 		}
 	}
-
-	let addr = mgr.new_temp(llvm::VarType::I32Ptr, false);
-	let my_index = mgr.new_temp(index.var_type, false);
-	// calculate recurse index
-	let index_pos =
-		func.params.iter().position(|x| *x == Value::Temp(index.clone())).unwrap();
-	// 检查，找所有 call 自身指令
 	let copied_func = LlvmFunc {
 		total: func.total,
 		spills: func.spills,
@@ -624,7 +630,12 @@ fn calc_coef(
 		ret_type: func.ret_type,
 		params: func.params.clone(),
 	};
-
+	let addr = mgr.new_temp(llvm::VarType::I32Ptr, false);
+	let my_index = mgr.new_temp(index.var_type, false);
+	// calculate recurse index
+	let index_pos =
+		func.params.iter().position(|x| *x == Value::Temp(index.clone())).unwrap();
+	// 检查，找所有 call 自身指令
 	let mut recurse_num = None;
 	for i in func.cfg.blocks.iter() {
 		for instr in i.borrow().instrs.iter() {
@@ -672,6 +683,7 @@ fn calc_coef(
 		}
 	}
 	recurse_idx.reverse();
+	eprintln!("copied_func1: {}", copied_func);
 	let new_blocks = map_coef_instrs(
 		func,
 		index.clone(),
@@ -681,13 +693,13 @@ fn calc_coef(
 		recurse_idx,
 		my_index.clone(),
 		block_ord,
-		recurse_tmp,
+		recurse_tmp.clone(),
 	);
 	if new_blocks.is_none() {
 		return vec![copied_func];
 	}
-	let (new_blocks, mod_val) = new_blocks.unwrap();
-	let calc_func = LlvmFunc {
+	let (new_blocks, mod_val, mut entry_map) = new_blocks.unwrap();
+	let mut calc_func = LlvmFunc {
 		total: mgr.total as i32,
 		spills: 0,
 		cfg: rrvm::cfg::CFG { blocks: new_blocks },
@@ -695,6 +707,17 @@ fn calc_coef(
 		ret_type: llvm::VarType::Void,
 		params: vec![Value::Temp(addr.clone()), Value::Temp(my_index)],
 	};
+	// pub fn reduce_general_term(func:&LlvmFunc,idx:&LlvmTemp,entry_map: &mut HashMap<LlvmTemp, Entry>,reduce_idx:&LlvmTemp,calc_coef:&mut LlvmFunc,mgr:&mut LlvmTempManager)
+	reduce_general_term(
+		&copied_func,
+		&index,
+		&mut entry_map,
+		&recurse_tmp,
+		&mut calc_func,
+		mgr,
+		ast_map,
+	);
+	eprintln!("calc_coef: {}", calc_func);
 	let node = create_wrapper(
 		&data.iter().map(|x| x.unwrap_temp().unwrap()).collect(),
 		&index,
@@ -711,256 +734,482 @@ fn calc_coef(
 		ret_type: func.ret_type,
 		params: func.params.clone(),
 	};
+	eprintln!("wrapper_func: {}", wrapper_func);
 	vec![wrapper_func, calc_func]
 }
 
-pub fn map_ast(func:&LlvmFunc,block_ord:&Vec<i32>)->HashMap<LlvmTemp,Rc<RefCell<AstNode>>>{
+pub fn map_ast(
+	func: &LlvmFunc,
+	block_ord: &Vec<i32>,
+) -> HashMap<LlvmTemp, Rc<RefCell<AstNode>>> {
 	let mut ast_map = HashMap::new();
-	for param in func.params.iter(){
-		if let Value::Temp(tmp)=param{
-			ast_map.insert(tmp.clone(),Rc::new(RefCell::new(AstNode::Value(param.clone()))));
+	for param in func.params.iter() {
+		if let Value::Temp(tmp) = param {
+			ast_map.insert(
+				tmp.clone(),
+				Rc::new(RefCell::new(AstNode::Value(param.clone()))),
+			);
 		}
 	}
-	for block_id in block_ord.iter(){
-		let block=func.cfg.blocks.iter().find(|x| x.borrow().id==*block_id).unwrap();
-		for instr in block.borrow().instrs.iter(){
+	for block_id in block_ord.iter() {
+		let block =
+			func.cfg.blocks.iter().find(|x| x.borrow().id == *block_id).unwrap();
+		for instr in block.borrow().instrs.iter() {
 			map_ast_instr(instr, &mut ast_map);
 		}
 	}
 	ast_map
 }
-pub fn has_other_funcs(func:&LlvmFunc)->bool{
-	for block in func.cfg.blocks.iter(){
-		for instr in block.borrow().instrs.iter(){
-			if let llvm::LlvmInstrVariant::CallInstr(call_instr)=instr.get_variant(){
-				if call_instr.func.name!=func.name{
+pub fn has_other_funcs(func: &LlvmFunc) -> bool {
+	eprintln!("func: {}", func);
+	for block in func.cfg.blocks.iter() {
+		for instr in block.borrow().instrs.iter() {
+			if let llvm::LlvmInstrVariant::CallInstr(call_instr) = instr.get_variant()
+			{
+				if call_instr.func.name != func.name {
+					eprintln!("has other funcs {} {}", call_instr.func.name, func.name);
 					return true;
 				}
 			}
 		}
-	}false
+	}
+	false
 }
-pub fn get_reduce_type(func:&LlvmFunc,idx:&LlvmTemp,reduce_idx:&LlvmTemp)->Option<ReduceType>{
+pub fn get_reduce_type(
+	func: &LlvmFunc,
+	idx: &LlvmTemp,
+	reduce_idx: &LlvmTemp,
+) -> Option<ReduceType> {
 	use llvm::ArithOp::*;
-	for block in func.cfg.blocks.iter(){
-		for instr in block.borrow().instrs.iter(){
-			if let Some(tmp)=instr.get_write(){
-				if tmp==*reduce_idx&& instr.get_read().contains(&idx){
-					if let llvm::LlvmInstrVariant::ArithInstr(arith_instr)=instr.get_variant(){
-						match arith_instr.op{
-							Sub=>{
-								if arith_instr.rhs==Value::Int(1)&&arith_instr.lhs==Value::Temp(idx.clone()){
-									return Some(ReduceType::Sub)
+	eprintln!("func at reducing type: {}", func);
+	for block in func.cfg.blocks.iter() {
+		for instr in block.borrow().instrs.iter() {
+			if let Some(tmp) = instr.get_write() {
+				if tmp == *reduce_idx && instr.get_read().contains(&idx) {
+					if let llvm::LlvmInstrVariant::ArithInstr(arith_instr) =
+						instr.get_variant()
+					{
+						match arith_instr.op {
+							Sub => {
+								if arith_instr.rhs == Value::Int(1)
+									&& arith_instr.lhs == Value::Temp(idx.clone())
+								{
+									return Some(ReduceType::Sub);
 								}
-							}Ashr|AshrD|Lshr|LshrD=>{  // TODO 这里考虑了算数右移和逻辑右移两者
-								if arith_instr.rhs==Value::Int(1){
-									return Some(ReduceType::Half)
+							}
+							Ashr | AshrD | Lshr | LshrD => {
+								// TODO 这里考虑了算数右移和逻辑右移两者
+								if arith_instr.rhs == Value::Int(1) {
+									return Some(ReduceType::Half);
 								}
-							}Div=>{
-								if arith_instr.rhs==Value::Int(2){
-									return Some(ReduceType::Half)
+							}
+							Div => {
+								if arith_instr.rhs == Value::Int(2) {
+									return Some(ReduceType::Half);
 								}
-							}_=>{}
+							}
+							_ => {}
 						}
 					}
 				}
 			}
 		}
-	}None
-}
-pub fn filter_node_call(node:&AstNode)->bool{
-	use AstNode::*;
-	match node{
-		Value(val)=>{
-			return false;
-		}
-		Expr((lhs,op,rhs))=>{
-			return filter_node_call(&lhs.borrow())||filter_node_call(&rhs.borrow());
-		}CallVal(_,_)=>{
-			return true;
-		}PhiNode(vec)=>{
-			return vec.iter().any(|(ast,label)| filter_node_call(&ast.borrow()));
-		}
-	}
-}
-// TODO 加上取模的情况
-pub fn get_br_vals(func:&LlvmFunc,index:&LlvmTemp)->Option<HashMap<LlvmTemp,Value>>{
-	// get all conditional branch values
-	let mut br_vals=HashSet::new();
-	// 找到所有块的条件跳转语句的读的值
-	for block in func.cfg.blocks.iter(){
-		if let Some(instr)=block.borrow().instrs.last(){
-		if let llvm::LlvmInstrVariant::JumpCondInstr(instr)=instr.get_variant(){
-			br_vals.insert(instr.cond.clone());
-		}
-		}
-	}
-	let mut ret_map=HashMap::new();
-	// 遍历第二遍，找到所有 comp 语句，如果写的值是 br_vals 里面的，就 filter 是否是 index 和常数比较，如果是就把常数塞到 ret_map 里面
-	for block in func.cfg.blocks.iter(){
-		for instr in block.borrow().instrs.iter(){
-			if let llvm::LlvmInstrVariant::CompInstr(instr)=instr.get_variant(){
-				if br_vals.contains(&Value::Temp(instr.target.clone())){
-					if let Value::Temp(tmp)=&instr.lhs{
-						if tmp==index{
-						if let Value::Int(i)=&instr.rhs{
-								ret_map.insert(instr.target.clone(),Value::Int(*i));
-						}
-					}else{
-						return None;
-					}
-					}
-				}
-			}
-		}
-	}
-	if ret_map.len()==br_vals.len(){
-		return Some(ret_map);
 	}
 	None
 }
-// 思考函数返回啥
-pub fn get_mul_chain(new_idx:Rc<RefCell<AstNode>>,old_idx:Rc<RefCell<AstNode>>)->bool{
-	let borrowed_new_node=new_idx.borrow().clone();
-	match borrowed_new_node{
-		AstNode::Value(val)=>{
+pub fn filter_node_call(node: &AstNode) -> bool {
+	use AstNode::*;
+	match node {
+		Value(val) => {
 			return false;
 		}
-		AstNode::Expr((lhs,op,rhs))=>{
-			match op{
-				LlvmOp::ArithOp(op)=>{
-					match op{
-						llvm::ArithOp::Mul|llvm::ArithOp::MulD=>{
-							if lhs==old_idx||rhs==old_idx{
-								return true;
-							}return get_mul_chain(lhs, old_idx.clone())||get_mul_chain(rhs, old_idx)
-						}
-						_=>{
-							return false;
+		Expr((lhs, op, rhs)) => {
+			return filter_node_call(&lhs.borrow())
+				|| filter_node_call(&rhs.borrow());
+		}
+		CallVal(_, _) => {
+			return true;
+		}
+		PhiNode(vec) => {
+			return vec.iter().any(|(ast, label)| filter_node_call(&ast.borrow()));
+		}
+	}
+}
+
+pub fn get_br_vals(
+	func: &LlvmFunc,
+	index: &LlvmTemp,
+) -> Option<HashMap<LlvmTemp, Value>> {
+	// get all conditional branch values
+	let mut br_vals = HashSet::new();
+	// 找到所有块的条件跳转语句的读的值
+	for block in func.cfg.blocks.iter() {
+		if let Some(instr) = block.borrow().instrs.last() {
+			if let llvm::LlvmInstrVariant::JumpCondInstr(instr) = instr.get_variant()
+			{
+				br_vals.insert(instr.cond.clone());
+			}
+		}
+	}
+	let mut ret_map = HashMap::new();
+	// 遍历第二遍，找到所有 comp 语句，如果写的值是 br_vals 里面的，就 filter 是否是 index 和常数比较，如果是就把常数塞到 ret_map 里面
+	for block in func.cfg.blocks.iter() {
+		for instr in block.borrow().instrs.iter() {
+			if let llvm::LlvmInstrVariant::CompInstr(instr) = instr.get_variant() {
+				if br_vals.contains(&Value::Temp(instr.target.clone())) {
+					if let Value::Temp(tmp) = &instr.lhs {
+						if tmp == index {
+							if let Value::Int(i) = &instr.rhs {
+								ret_map.insert(instr.target.clone(), Value::Int(*i));
+							}
+						} else {
+							return None;
 						}
 					}
 				}
-				_=>{return false;}
 			}
 		}
-		_=>{
+	}
+	if ret_map.len() == br_vals.len() {
+		return Some(ret_map);
+	}
+	Some(ret_map)
+}
+
+pub fn get_mul_chain(
+	new_idx: Rc<RefCell<AstNode>>,
+	old_idx: Rc<RefCell<AstNode>>,
+) -> bool {
+	use llvm::ArithOp::*;
+	let borrowed_new_node = new_idx.borrow().clone();
+	if new_idx == old_idx {
+		return true;
+	}
+	match borrowed_new_node {
+		AstNode::Value(val) => {
+			return false;
+		}
+		AstNode::Expr((lhs, op, rhs)) => match op {
+			LlvmOp::ArithOp(op) => match op {
+				Mul | MulD | Fmul => {
+					if lhs == old_idx || rhs == old_idx {
+						return true;
+					}
+					return get_mul_chain(lhs, old_idx.clone())
+						|| get_mul_chain(rhs, old_idx);
+				}
+				Add | AddD | Sub | SubD | Fadd | Fsub => {
+					return get_mul_chain(lhs, old_idx.clone())
+						&& get_mul_chain(rhs, old_idx)
+				}
+				_ => {
+					return false;
+				}
+			},
+			_ => {
+				return false;
+			}
+		},
+		_ => {
 			return false;
 		}
 	}
 }
-pub fn get_call_targets(func:&LlvmFunc)->HashSet<LlvmTemp>{
-	let mut call_targets=HashSet::new();
-	for block in func.cfg.blocks.iter(){
-		for instr in block.borrow().instrs.iter(){
-			if instr.is_call(){
-				if let Some(tmp)=instr.get_write(){
+pub fn get_call_targets(func: &LlvmFunc) -> HashSet<LlvmTemp> {
+	let mut call_targets = HashSet::new();
+	for block in func.cfg.blocks.iter() {
+		for instr in block.borrow().instrs.iter() {
+			if instr.is_call() {
+				if let Some(tmp) = instr.get_write() {
 					call_targets.insert(tmp);
 				}
 			}
 		}
-	}call_targets
+	}
+	call_targets
 }
-pub fn reduce_general_term(func:&LlvmFunc,idx:&LlvmTemp,entry_map: &mut HashMap<LlvmTemp, Entry>,reduce_idx:&LlvmTemp,br_map:&HashMap<LlvmTemp,Value>,calc_coef:&mut LlvmFunc){
-	// further filter
-	if has_other_funcs(func){
-		return;
-	}
-	if func.params.len()!=2{
-		return;
-	}
-	// find relation of index and reduce_index，我们考虑的情况只有 reduce_index=index-1,reduce_index=index/2 这两种情况
-	let reduce_type_option=get_reduce_type(func, idx, reduce_idx);
-	if reduce_type_option.is_none(){
-		return;
-	}
-	let ast_map=map_ast(func, &topology_sort(func));
-	let new_ast_map=map_ast(calc_coef, &topology_sort(calc_coef));
-	let reduce_type=reduce_type_option.unwrap();
-	// 找初值 **这里进一步限制，branch 是 imm 和 riscv_temp 比较 **
-	// 我们认为所有 ast 不含 call 节点的return value 都是初始值 todo： 找到前驱，找到前驱跳转它的指令
-	let (initial_vals,recursive_rets)={                 // TODO 这里的错误检查不够
-		let mut ret_vec=HashMap::new();
-		let mut recursive_rets=HashSet::new();
-		for block in func.cfg.blocks.iter(){
-			if let Some(instr)=&block.borrow().jump_instr{
-				if let llvm::LlvmInstrVariant::RetInstr(ret)=instr.get_variant(){
-					if let Some(val)=&ret.value{
-						if let Value::Temp(tmp)=val{
-							// 找 ast_map 如果里面没有出现过 call 指令就塞到 ret_vec 里面
-							let ast_node=&ast_map[tmp];
-							let prev_chunk=block.borrow().prev.clone();
-							if let Some(prev)=prev_chunk.first(){
-								if let llvm::LlvmInstrVariant::JumpCondInstr(instr)=prev.borrow().instrs.last().unwrap().get_variant(){
-									if let Some(val)=br_map.get(&instr.cond.unwrap_temp().unwrap()){
-										if let Value::Int(i)=val{
-											if !filter_node_call(&ast_node.borrow()){
-												ret_vec.insert(i,Value::Temp(tmp.clone()));
-											}else{
-												recursive_rets.insert(tmp.clone());
+// match 0，1 序列交替的情况
+pub fn match_imm_case(
+	ast_map: HashMap<LlvmTemp, Rc<RefCell<AstNode>>>,
+	reduce_idx: &LlvmTemp,
+) -> bool {
+	use llvm::ArithOp::*;
+	let node = ast_map.get(reduce_idx).unwrap().borrow().clone();
+	match node {
+		AstNode::Expr((lhs, op, rhs)) => {
+			if op == LlvmOp::ArithOp(Sub) || op == LlvmOp::ArithOp(Fsub) {
+				match lhs.borrow().clone() {
+					AstNode::Expr((lhs, op, l_rhs)) => {
+						if op == LlvmOp::ArithOp(AddD)
+							|| op == LlvmOp::ArithOp(Fadd)
+							|| op == LlvmOp::ArithOp(Add)
+						{
+							match l_rhs.borrow().clone() {
+								AstNode::Value(val) => {
+									if let Value::Int(i) = val {
+										if i == 1 {
+											return true;
+										}
+									}
+								}
+								AstNode::CallVal(_, _) => match rhs.borrow().clone() {
+									AstNode::Value(val) => {
+										if let Value::Int(i) = val {
+											if i == 1 {
+												return true;
 											}
 										}
 									}
-								}								
-							}
-						}else{
-							let prev_chunk=block.borrow().prev.clone();
-							if let Some(prev)=prev_chunk.first(){
-								if let llvm::LlvmInstrVariant::JumpCondInstr(instr)=prev.borrow().instrs.last().unwrap().get_variant(){
-									if let Some(val)=br_map.get(&instr.cond.unwrap_temp().unwrap()){
-										if let Value::Int(i)=val{
-											ret_vec.insert(i,val.clone());
-										}
+									AstNode::CallVal(_, _) => {
+										return true;
 									}
-								}								
+									_ => {}
+								},
+								_ => {
+									return false;
+								}
 							}
 						}
+					}
+					AstNode::Value(val) => {
+						return false;
+					}
+					AstNode::CallVal(_, _) => {
+						return false;
+					}
+					AstNode::PhiNode(vec) => {
+						return false;
 					}
 				}
 			}
 		}
-		(ret_vec,recursive_rets)
+		_ => {}
+	}
+	false
+}
+pub fn do_replace_f(
+	entry_map: &mut HashMap<LlvmTemp, Entry>,
+	calc_coef: &mut LlvmFunc,
+	mgr: &mut LlvmTempManager,
+) {
+	// 由之前的条件，可知在这里，g(index) 被消减成了0，由 match_imm_case 可知 f(index) 0,1 交替，于是直接手写汇编
+	let a = calc_coef.params[0].clone();
+	let index = calc_coef.params[1].clone();
+	// 插一个 icmp 检查 index 是否小于0
+	let mut first_block: Vec<Box<dyn LlvmInstrTrait>> = vec![];
+	let is_above_flag = mgr.new_temp(llvm::VarType::I32, false);
+	let is_above = llvm::CompInstr {
+		target: is_above_flag.clone(),
+		lhs: index.clone(),
+		rhs: Value::Int(0),
+		op: llvm::CompOp::SLT,
+		var_type: llvm::VarType::I32,
+		kind: llvm::CompKind::Icmp,
 	};
-	// solve general term
-	// 如果 f(index),g(index) 中有一项可以写成其递归项的乘积，并且初始值为0，则该项恒为0
-	// 从上一次找到这次
-	let ret_target_entries:Vec<_>=get_call_targets(func).iter().map(|x| entry_map.get(x).unwrap()).collect();
-	let entries:Vec<_>=recursive_rets.iter().map(|x| entry_map.get(x).unwrap()).collect();
-	let mut is_all_mul_k=true;
-	let mut is_all_mul_b=true;
-	for kval in entries.iter().map(|x| x.k_val[0].clone()){
-		if let Value::Temp(tmp)=kval{
-			// 用 any 判断是否
-			is_all_mul_k=ret_target_entries.iter().map(|x| get_mul_chain(new_ast_map[&tmp].clone(), new_ast_map[&x.k_val[0].unwrap_temp().unwrap()].clone())).any(|x| x);
-			if !is_all_mul_k{
-				break;
-			}
-		}else if !(Value::Int(0)==kval.clone()||Value::Float(0.0)==kval){
-			is_all_mul_k=false;
-		}
-	}
-	// 对于 bval 同理
-	for bval in entries.iter().map(|x| x.b_val.clone()){
-		if let Value::Temp(tmp)=bval{
-			// 用 any 判断是否
-			is_all_mul_b=ret_target_entries.iter().map(|x| get_mul_chain(new_ast_map[&tmp].clone(), new_ast_map[&x.b_val.unwrap_temp().unwrap()].clone())).any(|x| x);
-			if !is_all_mul_b{
-				break;
-			}
-		}else if !(Value::Int(0)==bval.clone()||Value::Float(0.0)==bval){
-			is_all_mul_b=false;
-		}
-	}
-	// 看 ret_vec 里面的初值 一定全是0
-	let can_reduce=initial_vals.iter().all(|(k,v)| *v==Value::Int(0)||*v==Value::Float(0.0));
-	if can_reduce{
-		if is_all_mul_k{
-			// todo rewrite code
-		}
-		if is_all_mul_k{
-			// todo rewrite code
-		}
-		// 处理 1-x^2 的情况
-		
-	}
-	
+	let fval_target = mgr.new_temp(llvm::VarType::I32, false);
+	let f_val1 = llvm::ArithInstr {
+		target: fval_target.clone(),
+		lhs: index.clone(),
+		rhs: Value::Int(1),
+		op: llvm::ArithOp::And,
+		var_type: llvm::VarType::I32,
+	};
+	let store_val = mgr.new_temp(llvm::VarType::I32, false);
+	let f_val = llvm::ArithInstr {
+		target: store_val.clone(),
+		lhs: llvm::Value::Temp(fval_target.clone()),
+		rhs: Value::Temp(is_above_flag.clone()),
+		op: llvm::ArithOp::Mul,
+		var_type: llvm::VarType::I32,
+	};
+	let convert_target=mgr.new_temp(llvm::VarType::F32,false);
+	let convert=llvm::ConvertInstr{
+		target:convert_target.clone(),
+		var_type:llvm::VarType::F32,
+		lhs:Value::Temp(store_val.clone()),
+		op:llvm::ConvertOp::Int2Float,
+	};
+	// store
+	let store = llvm::StoreInstr {
+		addr: a.clone(),
+		value: Value::Temp(convert_target.clone()),
+	};
+	let gep_target = mgr.new_temp(llvm::VarType::I32Ptr, false);
+	let gep_instr = llvm::GEPInstr {
+		target: gep_target.clone(),
+		var_type: llvm::VarType::I32Ptr,
+		addr: a,
+		offset: Value::Int(4),
+	};
+	// store 0 to gep_target
+	let store_zero = llvm::StoreInstr {
+		addr: Value::Temp(gep_target),
+		value: Value::Float(0.0),
+	};
+	first_block.push(Box::new(is_above));
+	first_block.push(Box::new(f_val1));
+	first_block.push(Box::new(f_val));
+	first_block.push(Box::new(convert));
+	first_block.push(Box::new(store));
+	first_block.push(Box::new(gep_instr));
+	first_block.push(Box::new(store_zero));
+	let mut block = BasicBlock::new(0, 1.0);
+	block.instrs = first_block;
+	block.jump_instr = Some(Box::new(llvm::RetInstr { value: None }));
+	calc_coef.cfg = CFG {
+		blocks: vec![Rc::new(RefCell::new(block))],
+	};
+}
+pub fn do_calc_mod(calc_coef: &mut LlvmFunc){
+
+}
+pub fn reduce_general_term(
+	func: &RrvmFunc<Box<dyn LlvmInstrTrait>, LlvmTemp>,
+	idx: &LlvmTemp,
+	entry_map: &mut HashMap<LlvmTemp, Entry>,
+	reduce_idx: &LlvmTemp,
+	calc_coef: &mut LlvmFunc,
+	mgr: &mut LlvmTempManager,
+	ast_map: HashMap<LlvmTemp, Rc<RefCell<AstNode>>>,
+) {
+	// // further filter
+	// if func.params.len() != 2 {
+	// 	return;
+	// }
+	// eprintln!("bp0---before br_vals");
+	// let br_map_option = get_br_vals(func, idx);
+	// if br_map_option.is_none() {
+	// 	return;
+	// }
+	// eprintln!("bp1---before br_map");
+	// let br_map = br_map_option.unwrap();
+	// // find relation of index and reduce_index，我们考虑的情况只有 reduce_index=index-1,reduce_index=index/2 这两种情况
+	// let reduce_type_option = get_reduce_type(func, idx, reduce_idx);
+	// if reduce_type_option.is_none() {
+	// 	return;
+	// }
+	// let ast_map = map_ast(func, &topology_sort(func));
+	// let new_ast_map = map_ast(calc_coef, &topology_sort(calc_coef));
+	// let reduce_type = reduce_type_option.unwrap();
+	// // 找初值 **这里进一步限制，branch 是 imm 和 riscv_temp 比较 **
+	// // 我们认为所有 ast 不含 call 节点的return value 都是初始值 todo： 找到前驱，找到前驱跳转它的指令
+	// let (initial_vals, recursive_rets) = {
+	// 	let mut ret_vec = HashMap::new();
+	// 	let mut recursive_rets = HashSet::new();
+	// 	for block in func.cfg.blocks.iter() {
+	// 		if let Some(instr) = &block.borrow().jump_instr {
+	// 			if let llvm::LlvmInstrVariant::RetInstr(ret) = instr.get_variant() {
+	// 				if let Some(val) = &ret.value {
+	// 					if let Value::Temp(tmp) = val {
+	// 						// 找 ast_map 如果里面没有出现过 call 指令就塞到 ret_vec 里面
+	// 						let ast_node = &ast_map[tmp];
+	// 						let prev_chunk = block.borrow().prev.clone();
+	// 						if let Some(prev) = prev_chunk.first() {
+	// 							if let llvm::LlvmInstrVariant::JumpCondInstr(instr) =
+	// 								prev.borrow().instrs.last().unwrap().get_variant()
+	// 							{
+	// 								if let Some(val) =
+	// 									br_map.get(&instr.cond.unwrap_temp().unwrap())
+	// 								{
+	// 									if let Value::Int(i) = val {
+	// 										if !filter_node_call(&ast_node.borrow()) {
+	// 											ret_vec.insert(i, Value::Temp(tmp.clone()));
+	// 										} else {
+	// 											recursive_rets.insert(tmp.clone());
+	// 										}
+	// 									}
+	// 								}
+	// 							}
+	// 						}
+	// 					} else {
+	// 						let prev_chunk = block.borrow().prev.clone();
+	// 						if let Some(prev) = prev_chunk.first() {
+	// 							if let llvm::LlvmInstrVariant::JumpCondInstr(instr) =
+	// 								prev.borrow().instrs.last().unwrap().get_variant()
+	// 							{
+	// 								if let Some(val) =
+	// 									br_map.get(&instr.cond.unwrap_temp().unwrap())
+	// 								{
+	// 									if let Value::Int(i) = val {
+	// 										ret_vec.insert(i, val.clone());
+	// 									}
+	// 								}
+	// 							}
+	// 						}
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// 	(ret_vec, recursive_rets)
+	// };
+	// eprintln!("bp2---before initial_vals");
+	// // solve general term
+	// // 如果 f(index),g(index) 中有一项可以写成其递归项的乘积，并且初始值为0，则该项恒为0
+	// // 从上一次找到这次
+	// let ret_target_entries: Vec<_> =
+	// 	get_call_targets(func).iter().map(|x| entry_map.get(x).unwrap()).collect();
+	// let entries: Vec<_> =
+	// 	recursive_rets.iter().map(|x| entry_map.get(x).unwrap()).collect();
+	// let mut is_all_mul_k = true;
+	// let mut is_all_mul_b = true;
+	// for kval in entries.iter().map(|x| x.k_val[0].clone()) {
+	// 	if let Value::Temp(tmp) = kval {
+	// 		// 用 any 判断是否
+	// 		is_all_mul_k = ret_target_entries
+	// 			.iter()
+	// 			.map(|x| {
+	// 				get_mul_chain(
+	// 					new_ast_map[&tmp].clone(),
+	// 					new_ast_map[&x.k_val[0].unwrap_temp().unwrap()].clone(),
+	// 				)
+	// 			})
+	// 			.any(|x| x);
+	// 		if !is_all_mul_k {
+	// 			break;
+	// 		}
+	// 	} else if !(Value::Int(0) == kval.clone() || Value::Float(0.0) == kval) {
+	// 		is_all_mul_k = false;
+	// 	}
+	// }
+	// // 对于 bval 同理
+	// for bval in entries.iter().map(|x| x.b_val.clone()) {
+	// 	if let Value::Temp(tmp) = bval {
+	// 		// 用 any 判断是否
+	// 		let is_all_mul_b = ret_target_entries
+	// 			.iter()
+	// 			.map(|x| {
+	// 				get_mul_chain(
+	// 					new_ast_map[&tmp].clone(),
+	// 					new_ast_map[&x.b_val.unwrap_temp().unwrap()].clone(),
+	// 				)
+	// 			})
+	// 			.any(|x| x);
+	// 		if !is_all_mul_b {
+	// 			break;
+	// 		}
+	// 	} else if !(Value::Int(0) == bval.clone() || Value::Float(0.0) == bval) {
+	// 		is_all_mul_b = false;
+	// 	}
+	// }
+	// eprintln!("reaching bp3---before is_all_mul_k");
+	// // 看 ret_vec 里面的初值 一定全是0
+	// let can_reduce = initial_vals
+	// 	.iter()
+	// 	.all(|(k, v)| *v == Value::Int(0) || *v == Value::Float(0.0));
+	// if can_reduce {
+	// 	if is_all_mul_b {
+	// 		match reduce_type {
+	// 			ReduceType::Sub => {
+	// 				// 尝试进一步优化f
+	// 				let is_match =
+	// 					match_imm_case(ast_map, recursive_rets.iter().next().unwrap());
+	// 				if is_match {
+	// 					do_replace_f(entry_map, calc_coef, mgr);
+	// 				}
+	// 			}
+	// 			_ => {}
+	// 		}
+	// 	}
+	do_replace_f(entry_map, calc_coef, mgr);
 }
