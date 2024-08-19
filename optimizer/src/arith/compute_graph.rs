@@ -333,6 +333,109 @@ pub fn div(this: &GraphValue, other: &GraphValue) -> Option<GraphValue> {
 	}
 }
 
+pub fn remove_addicative_common(
+	left: &GraphValue,
+	right: &GraphValue,
+) -> Option<(GraphValue, GraphValue)> {
+	// dbg!(left, right);
+
+	fn get_not_common<'a, 'b>(
+		value1: Vec<&'a GraphValue>,
+		value2: Vec<&'b GraphValue>,
+	) -> (Vec<&'a GraphValue>, Vec<&'b GraphValue>) {
+		let mut iter_left = value1.into_iter().peekable();
+		let mut iter_right = value2.into_iter().peekable();
+		let mut result_left = vec![];
+		let mut result_right = vec![];
+
+		while let (Some(&left), Some(&right)) =
+			(iter_left.peek(), iter_right.peek())
+		{
+			if left == right {
+				iter_left.next();
+				iter_right.next();
+			} else if left < right {
+				result_left.push(iter_left.next().unwrap());
+			} else {
+				result_right.push(iter_right.next().unwrap());
+			}
+		}
+
+		for v in iter_left {
+			result_left.push(v);
+		}
+
+		for v in iter_right {
+			result_right.push(v);
+		}
+
+		(result_left, result_right)
+	}
+
+	fn resolve_value(adds: Vec<&GraphValue>) -> GraphValue {
+		match adds.len() {
+			0 => GraphValue::Single(Single::Int(0)),
+			#[allow(suspicious_double_ref_op)]
+			1 => adds.first().unwrap().clone().clone(),
+			_ => GraphValue::NonTrival((
+				GraphOp::Plus,
+				adds.into_iter().cloned().collect(),
+			)),
+		}
+	}
+
+	match (left, right) {
+		(
+			GraphValue::Single(single),
+			GraphValue::NonTrival((GraphOp::Plus, adds)),
+		) => {
+			// dbg!(single, adds);
+			let left = GraphValue::Single(single.clone());
+			let left_values = vec![&left];
+			let right_values: Vec<_> = adds.iter().collect();
+			let (result_left, result_right) =
+				get_not_common(left_values, right_values);
+			if result_right.len() < adds.len() && result_left.is_empty() {
+				Some((resolve_value(result_left), resolve_value(result_right)))
+			} else {
+				None
+			}
+		}
+		(
+			GraphValue::NonTrival((GraphOp::Plus, adds)),
+			GraphValue::Single(single),
+		) => {
+			// dbg!(adds, single);
+			let right = GraphValue::Single(single.clone());
+			let right_values = vec![&right];
+			let left_values: Vec<_> = adds.iter().collect();
+			let (result_left, result_right) =
+				get_not_common(left_values, right_values);
+			if result_left.len() < adds.len() && result_right.is_empty() {
+				Some((resolve_value(result_left), resolve_value(result_right)))
+			} else {
+				None
+			}
+		}
+		(
+			GraphValue::NonTrival((GraphOp::Plus, adds_l)),
+			GraphValue::NonTrival((GraphOp::Plus, adds_r)),
+		) => {
+			// dbg!(adds_l, adds_r);
+			let left_values: Vec<_> = adds_l.iter().collect();
+			let right_values: Vec<_> = adds_r.iter().collect();
+			let (result_left, result_right) =
+				get_not_common(left_values, right_values);
+			if result_right.len() < adds_r.len() && result_left.len() < adds_l.len() {
+				Some((resolve_value(result_left), resolve_value(result_right)))
+			} else {
+				None
+			}
+		}
+		_ => None,
+	}
+}
+
 fn solve_constant(v: &mut GraphValue) -> Result<bool, OverflowError> {
 	let old_size = v.size();
 
@@ -516,7 +619,21 @@ fn mul_const(v: &mut GraphValue) -> Result<bool, OverflowError> {
 	let mut changed = false;
 
 	if let GraphValue::NonTrival((op, parts)) = v {
-		if *op == GraphOp::Mul && parts.len() > 1 {
+		parts.sort();
+		if *op == GraphOp::Mul
+			&& parts.len() == 2
+			&& parts.first().is_some_and(|first| first.as_number().is_some())
+		{
+			let const_part = parts.first().unwrap().as_number().unwrap();
+			if const_part != 1 {
+				if let GraphValue::NonTrival((GraphOp::Plus, add_parts)) = &parts[1] {
+					if let Ok(timed_add_parts) = times(const_part, add_parts.clone()) {
+						*op = GraphOp::Plus;
+						*parts = timed_add_parts;
+					}
+				}
+			}
+		} else if *op == GraphOp::Mul && parts.len() > 2 {
 			let mut const_part = 1i32;
 			let mut new_parts = vec![];
 
@@ -738,15 +855,19 @@ impl GraphValue {
 	}
 
 	fn sanity(&mut self) -> Result<(), OverflowError> {
+		let mut cnt = 0;
 		loop {
 			self.sort();
 			self.reduce();
 
 			let old = self.metric();
-			let reduced = self.simplify()?;
+			let mut changed = false;
+			changed |= self.simplify()?;
+			self.reduce();
 			let new = self.metric();
 
-			if old == new || !reduced {
+			cnt += 1;
+			if cnt > 10 && (!changed || old == new) {
 				break;
 			}
 		}

@@ -1,10 +1,7 @@
 use crate::{useless_phis::RemoveUselessPhis, *};
 use alloc_hoisting::AllocHoisting;
-<<<<<<< HEAD
-use calc_coef::CalcCoef;
-=======
 use arith::ArithSimplify;
->>>>>>> 26a0dbc (feat: self-simplify compute graph)
+use calc_coef::CalcCoef;
 use code_hoisting::CodeHoisting;
 use dead_code::RemoveDeadCode;
 use fold_constants::FoldConstants;
