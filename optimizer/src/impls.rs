@@ -70,11 +70,8 @@ impl Optimizer2 {
 			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
 			flag |= FoldConstants::new().apply(program, &mut metadata)?;
-			
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
-			eprintln!("program before : {}", program);
 			flag |= CalcCoef::new().apply(program, &mut metadata)?;
-			eprintln!("program after : {}", program);
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
