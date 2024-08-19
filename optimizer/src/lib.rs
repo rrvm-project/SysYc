@@ -1,4 +1,5 @@
 mod alloc_hoisting;
+mod calc_coef;
 mod code_hoisting;
 mod dead_code;
 mod fold_constants;

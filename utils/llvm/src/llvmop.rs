@@ -32,6 +32,21 @@ impl Hash for Value {
 		}
 	}
 }
+impl Value {
+	pub fn is_zero(&self) -> bool {
+		match self {
+			Self::Int(v) => *v == 0,
+			Self::Float(v) => *v == 0.0,
+			_ => false,
+		}
+	}
+}
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum HashableValue {
+	Int(i32),
+	Float(u64, i16, i8),
+	Temp(LlvmTemp),
+}
 
 #[derive(Fuyuki, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ArithOp {
