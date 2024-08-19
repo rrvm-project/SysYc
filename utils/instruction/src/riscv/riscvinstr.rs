@@ -38,7 +38,6 @@ impl Clone for RiscvInstr {
 		self.clone_box()
 	}
 }
-
 pub trait RiscvInstrTrait:
 	Display + UseTemp<Temp> + CloneRiscvInstr + RTN
 {
