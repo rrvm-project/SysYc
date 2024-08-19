@@ -55,10 +55,9 @@ impl<'a> OneLoopSolver<'a> {
 		loop_cnt: Value,
 	) -> Option<Value> {
 		let indvar = self.indvars[&header].clone();
-		// TODO: 只展开 scale 为 1 的
-		// TODO: 乘法改成双字乘法
-		// TODO： zfp 归纳变量的初始值可能大于 p,需要展开一次循环
-		if indvar.scale == Value::Int(1) {
+		// TODO: 只展开 scale / divisor 为 1 的, 或 step 为 0 的
+		// TODO：zfp 归纳变量的初始值可能大于 p,需要展开一次循环
+		if indvar.scale == Value::Int(1) && indvar.divisor == Value::Int(1) {
 			#[cfg(feature = "debug")]
 			eprintln!(
 				"extracting indvar: {} {} with loop_cnt: {}",
@@ -99,6 +98,9 @@ impl<'a> OneLoopSolver<'a> {
 				sum = compute_two_value(&sum, zfp, ArithOp::RemD);
 			}
 			Some(sum)
+		} else if indvar.step == vec![Value::Int(0)] {
+			eprintln!("not extract indvar(step==0): {} {}", header, indvar);
+			None
 		} else {
 			#[cfg(feature = "debug")]
 			eprintln!("not extract indvar: {} {}", header, indvar);
