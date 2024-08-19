@@ -72,7 +72,7 @@ impl RrvmOptimizer for CalcCoef {
 	}
 }
 fn can_calc(func: &LlvmFunc, metadata: &mut MetaData) -> bool {
-	// 按照以下条件进行判断：1. 参数>=2 2. 有至少1次递归 3. 递归函数中有相同项（用 gvn 判断）4. 没有 load/store 没有 convert 没有 alloc gep
+	// 按照以下条件进行判断：1. 参数>=2 2. 有大于等于两次递归 3. 递归函数中有相同项（用 gvn 判断）4. 没有 load/store 没有 convert 没有 alloc gep
 	if func.params.len() < 2 {
 		return false;
 	}
@@ -97,7 +97,7 @@ fn can_calc(func: &LlvmFunc, metadata: &mut MetaData) -> bool {
 			}
 		}
 	}
-	if call_selfs.is_empty() {
+	if call_selfs.len() < 2 {
 		return false;
 	}
 	let func_data = metadata.get_func_data(&func.name);
@@ -233,11 +233,11 @@ fn map_instr(
 				})
 				.collect();
 			let mut k_targets = vec![];
-			let mut entries:Vec<_>=phi_instr.source.iter().map(|(val,label)| get_entry(val, entry_map, params_len)).collect();
+			let entries:Vec<_>=phi_instr.source.iter().map(|(val,_label)| get_entry(val, entry_map, params_len)).collect();
 			if entries.iter().any(|x| x.is_none()){
 				return false;
 			}
-			let mut entries_unwrapped:Vec<_>=entries.iter().map(|x| x.clone().unwrap()).collect();
+			let entries_unwrapped:Vec<_>=entries.iter().map(|x| x.clone().unwrap()).collect();
 			let instr:Box<dyn LlvmInstrTrait>=Box::new(phi_instr.clone());
 			let status=calc_mod(&instr, entries_unwrapped);
 			if status.is_none(){
@@ -300,7 +300,7 @@ fn map_instr(
 	}
 	true
 }
-pub fn judge_return(entries:&Vec<Entry>)->Option<Option<Value>>{
+pub fn judge_return(entries:&[Entry])->Option<Option<Value>>{
 	let mut imms=vec![];
 	let mut mod_val=None;
 	for entry in entries.iter(){
@@ -317,24 +317,22 @@ pub fn judge_return(entries:&Vec<Entry>)->Option<Option<Value>>{
 			if entry.mod_val.is_activated{
 			if mod_val.is_none(){
 				mod_val=Some(mod_num);
-			}else{
-				if mod_val!=Some(mod_num){
+			}else if mod_val!=Some(mod_num){
 					return None;
 				}
-			}
+			
 		}else{
 			return None;
 		}
-		}else if !mod_val.is_none(){
+		}else if mod_val.is_some(){
 			return None;
 		}
 	}for imm in imms.iter(){
 		// 判断所有 imm 都小于除数的绝对值
-		if let Some(mod_val)=mod_val.clone(){
-			if let Value::Int(mod_val)=mod_val{
+		if let Some(Value::Int(mod_val))=mod_val.clone(){
 				if imm.abs()>=mod_val.abs(){
 					return None;
-				}
+				
 			}
 		}
 	}
@@ -476,8 +474,7 @@ fn map_coef_instrs(
 	let mut ret_imms=vec![];  // 得到返回值之后再判断
 	for block in func.cfg.blocks.iter(){
 		if let Some(jmp_instr)=block.borrow().jump_instr.clone(){
-			match jmp_instr.get_variant(){
-				llvm::LlvmInstrVariant::RetInstr(retinstr)=>{
+			if let llvm::LlvmInstrVariant::RetInstr(retinstr)= jmp_instr.get_variant(){
 					let val=retinstr.value.clone();
 					if let Some(val)=val{
 						match val{
@@ -494,16 +491,13 @@ fn map_coef_instrs(
 							}
 							_=>{}
 						}
-					}
+					
 				}
-				_=>{}
 			}
 		}
 	}
 	let mod_val=judge_return(&ret_entries_vec);
-	if mod_val.is_none(){
-		return None;
-	}
+	mod_val.as_ref()?;
 	let unwrapped_mod_val=mod_val.unwrap();
 	if let Some(mod_val)=&unwrapped_mod_val{
 		for imm in ret_imms.iter(){
