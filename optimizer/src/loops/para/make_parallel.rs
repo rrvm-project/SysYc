@@ -43,9 +43,9 @@ fn add_arith_instr(
 			rhs,
 		}),
 
-		Value::Temp(t) if t.var_type == VarType::I32Ptr => Box::new(GEPInstr {
+		Value::Temp(t) if t.var_type.is_ptr() => Box::new(GEPInstr {
 			target: target.clone(),
-			var_type: VarType::I32Ptr,
+			var_type: t.var_type,
 			addr: t.into(),
 			offset: rhs,
 		}),
