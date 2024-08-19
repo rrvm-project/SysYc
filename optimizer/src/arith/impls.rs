@@ -1,11 +1,11 @@
 use super::{compute_graph::GraphOp, ArithSimplify};
 use crate::{
-	arith::compute_graph::{GraphValue, Single},
+	arith::compute_graph::{remove_addicative_common, GraphValue, Single},
 	RrvmOptimizer,
 };
 use llvm::{
-	ArithInstr, LlvmInstr, LlvmInstrVariant, LlvmTemp, LlvmTempManager, Value,
-	VarType,
+	ArithInstr, CompInstr, LlvmInstr, LlvmInstrVariant, LlvmTemp,
+	LlvmTempManager, Value, VarType,
 };
 use rrvm::{program::LlvmProgram, LlvmNode};
 use std::{
@@ -461,6 +461,8 @@ fn sovle_bb(
 	// dbg!(&graph_values);
 	// dbg!(&killed_temp);
 
+	let mut graph_value_back: HashMap<LlvmTemp, GraphValue> = HashMap::new();
+
 	let mut new_instr = vec![];
 
 	let old_size = bb.borrow().instrs.len();
@@ -472,6 +474,7 @@ fn sovle_bb(
 			} else if let Some((target, value)) =
 				graph_values.remove_entry(&arith.target)
 			{
+				graph_value_back.insert(target.clone(), value.clone());
 				build_instr(value, llvm_temp_manager, &mut new_instr, target);
 			} else {
 				new_instr.push(instr);
@@ -487,11 +490,68 @@ fn sovle_bb(
 		let mut label = bb.borrow().label().to_string();
 		label.push(' ');
 		label.push_str("become longer after optimization");
-		Err((label, "arith simplify".to_string()))
+		return Err((label, "arith simplify".to_string()));
 	} else {
 		bb.borrow_mut().instrs = new_instr;
-		Ok(false)
+	};
+
+	fn get_graph_value(
+		map: &HashMap<LlvmTemp, GraphValue>,
+		value: &Value,
+	) -> Option<GraphValue> {
+		match value {
+			Value::Int(i) => Some(GraphValue::Single(Single::Int(*i))),
+			Value::Temp(t) if t.var_type == VarType::I32 => map
+				.get(t)
+				.cloned()
+				.or_else(|| Some(GraphValue::Single(Single::Temp(t.clone())))),
+			_ => None,
+		}
 	}
+
+	let mut new_instr = vec![];
+	for instr in std::mem::take(&mut bb.borrow_mut().instrs) {
+		if let LlvmInstrVariant::CompInstr(arith_instr) = instr.get_variant() {
+			let op = arith_instr.op;
+			let kind = arith_instr.kind;
+			let var_type = arith_instr.var_type;
+
+			let mut done = false;
+
+			if var_type == VarType::I32 {
+				if let (Some(lhs), Some(rhs)) = (
+					get_graph_value(&graph_value_back, &arith_instr.lhs),
+					get_graph_value(&graph_value_back, &arith_instr.rhs),
+				) {
+					if let Some((lhs_new, rhs_new)) = remove_addicative_common(&lhs, &rhs)
+					{
+						done = true;
+						let new_lhs =
+							build_providing_value(lhs_new, llvm_temp_manager, &mut new_instr);
+						let new_rhs =
+							build_providing_value(rhs_new, llvm_temp_manager, &mut new_instr);
+						new_instr.push(Box::new(CompInstr {
+							kind,
+							target: arith_instr.target.clone(),
+							op,
+							var_type,
+							lhs: new_lhs,
+							rhs: new_rhs,
+						}));
+					}
+				}
+			}
+			if !done {
+				new_instr.push(instr);
+			}
+		} else {
+			new_instr.push(instr);
+		}
+	}
+
+	bb.borrow_mut().instrs = new_instr;
+
+	Ok(false)
 }
 
 impl RrvmOptimizer for ArithSimplify {
