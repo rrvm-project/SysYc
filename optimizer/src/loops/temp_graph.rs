@@ -44,6 +44,7 @@ impl TempGraph {
 					}
 					_ => None,
 				},
+				LlvmInstrVariant::GEPInstr(_) => Some(ArithOp::Add),
 				_ => None,
 			}
 		} else {
