@@ -27,6 +27,7 @@ impl<'a> OneLoopSolver<'a> {
 			dom_tree,
 			tarjan_var: TarjanVar::new(),
 			header_map: HashMap::new(),
+			header_map_rev: HashMap::new(),
 			cur_loop,
 			useful_variants: HashSet::new(),
 			indvars: HashMap::new(),

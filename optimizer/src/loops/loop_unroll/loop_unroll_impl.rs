@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc, vec};
 
 use llvm::{LlvmInstrTrait, LlvmTemp};
 use rrvm::{cfg::unlink_node, rrvm_loop::LoopPtr};
-use utils::{MAX_UNROLL_INSTR_CNT, MAX_UNROLL_TOTAL_INSTR_CNT};
+use utils::{MAX_BLOCK_CNT, MAX_UNROLL_INSTR_CNT, MAX_UNROLL_TOTAL_INSTR_CNT};
 
 use crate::loops::loopinfo::LoopInfo;
 
@@ -23,6 +23,11 @@ impl<'a> LoopUnroll<'a> {
 			if instr_cnt * loop_cnt > MAX_UNROLL_TOTAL_INSTR_CNT {
 				return false;
 			}
+			let block_cnt = loop_.borrow().blocks(&self.loopdata.loop_map).len();
+			if block_cnt * loop_cnt > MAX_BLOCK_CNT {
+				return false;
+			}
+			#[cfg(feature = "debug")]
 			eprintln!(
 				"Unroll loop: {} cnt: {}",
 				loop_.borrow().header.borrow().label(),
