@@ -62,6 +62,7 @@ impl<'a> OneLoopSolver<'a> {
 			scc.iter().for_each(|t| {
 				self.header_map.insert(t.clone(), header.clone());
 			});
+			self.header_map_rev.insert(header.clone(), scc);
 			self.classify_many_members_scc(header);
 		}
 	}

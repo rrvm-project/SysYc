@@ -25,12 +25,12 @@ impl<'a> OneLoopSolver<'a> {
 		self.outside_use.retain(|t| !used_in_subloop.contains(t));
 		#[cfg(feature = "debug")]
 		eprintln!("used in subloop: {:?}", used_in_subloop);
-		work.extend(used_in_subloop);
+		work.extend(used_in_subloop.iter().map(|t| self.header_of_temp(t)));
 		let mut reduce_map = HashMap::new();
 		for block in blocks.iter() {
 			for instr in block.borrow().phi_instrs.iter() {
 				if !self.indvars.contains_key(&instr.target) {
-					work.push_back(instr.target.clone());
+					work.push_back(self.header_of_temp(&instr.target));
 				}
 				for read in instr.get_read() {
 					if !self.is_temp_in_current_loop(&read) {
@@ -46,10 +46,10 @@ impl<'a> OneLoopSolver<'a> {
 							&mut reduce_map,
 							phi_num,
 						);
-						work.extend(reads);
+						work.extend(reads.iter().map(|t| self.header_of_temp(t)));
 					}
 					LlvmInstrVariant::CallInstr(inst) => {
-						work.push_back(inst.target.clone());
+						work.push_back(self.header_of_temp(&inst.target));
 					}
 					_ => {}
 				}
@@ -62,7 +62,7 @@ impl<'a> OneLoopSolver<'a> {
 			for instr in block.borrow().jump_instr.iter() {
 				let reads =
 					self.find_temp_to_reduce(instr.get_read(), &mut reduce_map, phi_num);
-				work.extend(reads);
+				work.extend(reads.iter().map(|t| self.header_of_temp(t)));
 				for read in instr.get_read() {
 					if !self.is_temp_in_current_loop(&read) {
 						self.outside_use.insert(read.clone());
@@ -71,10 +71,9 @@ impl<'a> OneLoopSolver<'a> {
 			}
 		}
 		while let Some(temp) = work.pop_front() {
-			self.useful_variants.insert(temp.clone());
-			let instr = &self.loopdata.temp_graph.temp_to_instr[&temp].instr;
-			let mut reads = instr
-				.get_read()
+			self.useful_variants.extend(self.scc_of_temp(&temp));
+			let mut reads = self
+				.reads_of_temp_in_scc(&temp)
 				.into_iter()
 				// 过滤掉不在当前循环中的变量
 				.filter(|t| self.def_loop(t).borrow().id == self.cur_loop.borrow().id)

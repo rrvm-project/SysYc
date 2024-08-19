@@ -230,4 +230,21 @@ impl<'a> OneLoopSolver<'a> {
 	pub fn get_cur_loop_preheader(&self) -> LlvmNode {
 		self.cur_loop.borrow().get_loop_preheader(&self.loopdata.loop_map).unwrap()
 	}
+	pub fn header_of_temp(&self, temp: &LlvmTemp) -> LlvmTemp {
+		self.header_map.get(temp).cloned().unwrap_or(temp.clone())
+	}
+	pub fn scc_of_temp(&self, temp: &LlvmTemp) -> Vec<LlvmTemp> {
+		if let Some(header) = self.header_map.get(temp) {
+			self.header_map_rev[header].clone()
+		} else {
+			vec![temp.clone()]
+		}
+	}
+	pub fn reads_of_temp_in_scc(&self, temp: &LlvmTemp) -> Vec<LlvmTemp> {
+		let mut reads = Vec::new();
+		for t in self.scc_of_temp(temp) {
+			reads.extend(self.loopdata.temp_graph.get_use_temps(&t));
+		}
+		reads
+	}
 }

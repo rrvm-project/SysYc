@@ -40,11 +40,9 @@ impl TempGraph {
 					ArithOp::Add
 					| ArithOp::Sub
 					| ArithOp::Mul
-					| ArithOp::Rem
 					| ArithOp::AddD
 					| ArithOp::SubD
-					| ArithOp::MulD
-					| ArithOp::RemD => Some(inst.op),
+					| ArithOp::MulD => Some(inst.op),
 					_ => None,
 				},
 				LlvmInstrVariant::GEPInstr(_) => Some(ArithOp::Add),
@@ -55,7 +53,16 @@ impl TempGraph {
 		}
 	}
 	pub fn is_mod(&self, temp: &LlvmTemp) -> bool {
-		self.is_candidate_operator(temp).is_some_and(|op| op == ArithOp::Rem)
+		if let Some(node) = self.temp_to_instr.get(temp) {
+			match node.instr.get_variant() {
+				LlvmInstrVariant::ArithInstr(inst) => {
+					inst.op == ArithOp::Rem || inst.op == ArithOp::RemD
+				}
+				_ => false,
+			}
+		} else {
+			false
+		}
 	}
 	pub fn get_use_temps(&self, temp: &LlvmTemp) -> Vec<LlvmTemp> {
 		self.temp_to_instr[temp].instr.get_read()

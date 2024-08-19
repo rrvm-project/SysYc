@@ -31,6 +31,8 @@ pub struct OneLoopSolver<'a> {
 	pub cur_loop: LoopPtr,
 	// 每个变量映射到它所在的 scc 的 header
 	header_map: HashMap<LlvmTemp, LlvmTemp>,
+	// header 映射到它的 scc
+	header_map_rev: HashMap<LlvmTemp, Vec<LlvmTemp>>,
 	// 对于一个 scc, 只记录 header
 	useful_variants: HashSet<LlvmTemp>,
 	// 不记录 0 阶归纳变量
