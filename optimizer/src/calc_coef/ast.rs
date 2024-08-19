@@ -2,10 +2,12 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use llvm::{ArithOp, CompOp, LlvmInstrTrait, LlvmTemp, Value, VarType};
 use utils::Label;
+#[derive(PartialEq, Eq,Clone)]
 pub enum LlvmOp{
     ArithOp(ArithOp),
     CompOp(CompOp),
 }
+#[derive(PartialEq, Eq,Clone)]
 pub enum AstNode {
 	Value(Value),
 	Expr((Rc<RefCell<AstNode>>, LlvmOp, Rc<RefCell<AstNode>>)),
