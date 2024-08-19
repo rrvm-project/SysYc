@@ -1,14 +1,13 @@
 use super::{
-	utils::{
+	ast::{AstNode, ReduceType}, utils::{
 		calc_mod, get_entry, get_typed_one, get_typed_zero, is_constant_term,
 		topology_sort, ModStatus,
-	},
-	CalcCoef,
+	}, CalcCoef
 };
 use crate::{
-	calc_coef::utils::{
+	calc_coef::{ast::map_ast_instr, utils::{
 		calc_arith, calc_call, calc_ret, create_wrapper, get_constant_term, Entry,
-	},
+	}},
 	metadata::FuncData,
 	MetaData, RrvmOptimizer,
 };
@@ -51,7 +50,9 @@ impl RrvmOptimizer for CalcCoef {
 					return vec![func];
 				}
 				if can_calc(&func, metadata) {
+					let mut ast_map=map_ast(&func, &ord_blocks);
 					for index in func.params.iter().map(|x| x.unwrap_temp().unwrap()) {
+						
 						let calc_funcs = calc_coef(
 							&func,
 							index,
@@ -717,4 +718,111 @@ fn calc_coef(
 		params: func.params.clone(),
 	};
 	vec![wrapper_func, calc_func]
+}
+
+pub fn map_ast(func:&LlvmFunc,block_ord:&Vec<i32>)->HashMap<LlvmTemp,Rc<RefCell<AstNode>>>{
+	let mut ast_map = HashMap::new();
+	for param in func.params.iter(){
+		if let Value::Temp(tmp)=param{
+			ast_map.insert(tmp.clone(),Rc::new(RefCell::new(AstNode::Value(param.clone()))));
+		}
+	}
+	for block_id in block_ord.iter(){
+		let block=func.cfg.blocks.iter().find(|x| x.borrow().id==*block_id).unwrap();
+		for instr in block.borrow().instrs.iter(){
+			map_ast_instr(instr, &mut ast_map);
+		}
+	}
+	ast_map
+}
+pub fn has_other_funcs(func:&LlvmFunc)->bool{
+	for block in func.cfg.blocks.iter(){
+		for instr in block.borrow().instrs.iter(){
+			if let llvm::LlvmInstrVariant::CallInstr(call_instr)=instr.get_variant(){
+				if call_instr.func.name!=func.name{
+					return true;
+				}
+			}
+		}
+	}false
+}
+pub fn get_reduce_type(func:&LlvmFunc,idx:&LlvmTemp,reduce_idx:&LlvmTemp)->Option<ReduceType>{
+	use llvm::ArithOp::*;
+	for block in func.cfg.blocks.iter(){
+		for instr in block.borrow().instrs.iter(){
+			if let Some(tmp)=instr.get_write(){
+				if tmp==*reduce_idx&& instr.get_read().contains(&idx){
+					if let llvm::LlvmInstrVariant::ArithInstr(arith_instr)=instr.get_variant(){
+						match arith_instr.op{
+							Sub=>{
+								if arith_instr.rhs==Value::Int(1)&&arith_instr.lhs==Value::Temp(idx.clone()){
+									return Some(ReduceType::Sub)
+								}
+							}Ashr|AshrD|Lshr|LshrD=>{  // TODO 这里考虑了算数右移和逻辑右移两者
+								if arith_instr.rhs==Value::Int(1){
+									return Some(ReduceType::Half)
+								}
+							}Div=>{
+								if arith_instr.rhs==Value::Int(2){
+									return Some(ReduceType::Half)
+								}
+							}_=>{}
+						}
+					}
+				}
+			}
+		}
+	}None
+}
+pub fn filter_node_call(node:&AstNode)->bool{
+	use AstNode::*;
+	match node{
+		Value(val)=>{
+			return false;
+		}
+		Expr((lhs,op,rhs))=>{
+			return filter_node_call(&lhs.borrow())||filter_node_call(&rhs.borrow());
+		}CallVal(_,_)=>{
+			return true;
+		}PhiNode(vec)=>{
+			return vec.iter().any(|(ast,label)| filter_node_call(&ast.borrow()));
+		}
+	}
+}
+pub fn reduce_general_term(func:&LlvmFunc,ast_map:&HashMap<LlvmTemp,Rc<RefCell<AstNode>>>,idx:&LlvmTemp,entry_map: &mut HashMap<LlvmTemp, Entry>,reduce_idx:&LlvmTemp)->Option<Vec<LlvmFunc>>{
+	// further filter
+	if has_other_funcs(func){
+		return None;
+	}
+	// find relation of index and reduce_index，我们考虑的情况只有 reduce_index=index-1,reduce_index=index/2 这两种情况
+	let reduce_type_option=get_reduce_type(func, idx, reduce_idx);
+	if reduce_type_option.is_none(){
+		return None;
+	}
+	let reduce_type=reduce_type_option.unwrap();
+	// 找初值 **这里进一步限制，branch 是 imm 和 riscv_temp 比较 **
+	// 我们认为所有 ast 不含 call 节点的return value 都是初始值 todo： 找到前驱，找到前驱跳转它的指令
+	let initial_vals={
+		let mut ret_vec=vec![];
+		for block in func.cfg.blocks.iter(){
+			if let Some(instr)=&block.borrow().jump_instr{
+				if let llvm::LlvmInstrVariant::RetInstr(ret)=instr.get_variant(){
+					if let Some(val)=&ret.value{
+						if let Value::Temp(tmp)=val{
+							// 找 ast_map 如果里面没有出现过 call 指令就塞到 ret_vec 里面
+							let ast_node=&ast_map[tmp];
+							if !filter_node_call(&ast_node.borrow()){
+								ret_vec.push(val.clone());
+							}
+						}else{
+							ret_vec.push(val.clone());
+						}
+					}
+				}
+			}
+		}
+		ret_vec
+	};
+	
+	None
 }
