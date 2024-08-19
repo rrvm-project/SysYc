@@ -113,7 +113,6 @@ impl Optimizer2 {
 		loop_handler.indvar_extraction(program, &mut metadata)?;
 		loop_handler.parallel(program, &mut metadata)?;
 
-
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
@@ -133,7 +132,6 @@ impl Optimizer2 {
 			}
 		}
 
-		
 		program.analysis();
 		Ok(())
 	}

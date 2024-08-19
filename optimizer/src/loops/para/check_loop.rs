@@ -9,7 +9,7 @@ pub fn check_ok(
 	ptr_tracer: &mut PointerTracer,
 	indvar_ptr_tracer: &mut PointerTracer,
 	ok: &mut HashSet<i32>,
-	cfg: &LlvmCFG,
+	_cfg: &LlvmCFG,
 	loop_map: &HashMap<i32, LoopPtr>,
 ) {
 	'current_loop: for current in root_loop.borrow().subloops.iter() {
@@ -21,7 +21,7 @@ pub fn check_ok(
 			map.insert(array, indvar).is_some_and(|old_indvar| old_indvar != indvar)
 		}
 
-		for bb in &current.borrow().blocks(cfg, loop_map) {
+		for bb in &current.borrow().blocks(loop_map) {
 			//with subloop
 			for instr in bb.borrow().instrs.iter() {
 				match instr.get_variant() {
@@ -42,7 +42,7 @@ pub fn check_ok(
 			}
 		}
 
-		for bb in &current.borrow().blocks(cfg, loop_map) {
+		for bb in &current.borrow().blocks(loop_map) {
 			//with subloop
 			for instr in bb.borrow().instrs.iter() {
 				match instr.get_variant() {
