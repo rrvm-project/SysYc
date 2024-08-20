@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use llvm::{LlvmInstrVariant, LlvmTemp};
+use llvm::{ArithOp, LlvmInstrVariant, LlvmTemp, Value};
 use utils::{UseTemp, MAX_PHI_NUM};
 
 use super::OneLoopSolver;
@@ -128,6 +128,40 @@ impl<'a> OneLoopSolver<'a> {
 				{
 					if phi_num >= MAX_PHI_NUM {
 						break;
+					}
+					// 如果我自己本身就是另一个归纳变量相加减小于2048的常数的结果，就不强度削弱
+					let instr = &self.loopdata.temp_graph.temp_to_instr[read].instr;
+					match instr.get_variant() {
+						LlvmInstrVariant::ArithInstr(instr) => {
+							if let (
+								ArithOp::Add | ArithOp::Sub,
+								Value::Temp(t),
+								Value::Int(i),
+							) = (instr.op, &instr.lhs, &instr.rhs)
+							{
+								if !self.header_map.contains_key(t)
+									&& self.indvars.contains_key(t)
+									&& *i <= 2047 && *i >= -2048
+								{
+									eprintln!("not reducing {}", instr);
+									continue;
+								}
+							}
+						}
+						LlvmInstrVariant::GEPInstr(instr) => {
+							if let (Value::Temp(t), Value::Int(i)) =
+								(&instr.addr, &instr.offset)
+							{
+								if !self.header_map.contains_key(t)
+									&& self.indvars.contains_key(t)
+									&& *i <= 2047 && *i >= -2048
+								{
+									eprintln!("not reducing {}", instr);
+									continue;
+								}
+							}
+						}
+						_ => {}
 					}
 					phi_num += 1;
 					let flag = self.try_strength_reduce(read, &iv, reduce_map);

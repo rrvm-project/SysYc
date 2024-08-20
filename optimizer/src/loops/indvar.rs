@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
 use llvm::Value;
+
+use crate::{metadata::FuncData, number::Number};
 // 每个 induction variable 具有通项公式： a_{n+1} = scale * a_n + step
 #[derive(Debug, Clone)]
 pub struct IndVar {
@@ -33,6 +35,22 @@ impl IndVar {
 			step,
 			zfp,
 		}
+	}
+	pub fn has_constant_distance(
+		&self,
+		other: &Self,
+		funcdata: &FuncData,
+	) -> Option<i32> {
+		if self.scale == Value::Int(1) && other.scale == Value::Int(1) {
+			if self.step == other.step {
+				let self_base = funcdata.get_val_number(&self.base).unwrap();
+				let other_base = funcdata.get_val_number(&other.base).unwrap();
+				return Number::sub(&other_base, &self_base)
+					.same_value()
+					.map(|x| x as i32);
+			}
+		}
+		None
 	}
 }
 

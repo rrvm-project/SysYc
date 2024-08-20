@@ -1,11 +1,11 @@
 use std::collections::VecDeque;
 
-use crate::loops::{indvar::IndVar, loopinfo::LoopInfo};
+use crate::loops::indvar::IndVar;
 
 use super::OneLoopSolver;
 
-use llvm::{compute_two_value, CompOp, LlvmInstr, LlvmTemp, Value};
-use rrvm::{rrvm_loop::LoopPtr, LlvmNode};
+use llvm::{LlvmInstr, LlvmTemp, Value};
+use rrvm::rrvm_loop::LoopPtr;
 impl<'a> OneLoopSolver<'a> {
 	pub fn stack_push(&mut self, temp: LlvmTemp) {
 		self.tarjan_var.stack.push(temp.clone());
@@ -87,86 +87,6 @@ impl<'a> OneLoopSolver<'a> {
 			Value::Float(_) => true,
 		}
 	}
-	pub fn compute_loop_cnt(&mut self, info: &LoopInfo) -> Value {
-		let start = &info.begin;
-		let step = &info.step;
-		let end = &info.end;
-		let op = info.comp_op;
-		match op {
-			CompOp::SLT | CompOp::SGT => {
-				// (end - start + step - 1) / step;
-				let (tmp1, instr) = compute_two_value(
-					end.clone(),
-					start.clone(),
-					llvm::ArithOp::Sub,
-					self.temp_mgr,
-				);
-				instr.map(|i| {
-					self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
-				});
-				let (tmp2, instr) = compute_two_value(
-					tmp1,
-					step.clone(),
-					llvm::ArithOp::Add,
-					self.temp_mgr,
-				);
-				instr.map(|i| {
-					self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
-				});
-				let (tmp3, instr) = compute_two_value(
-					tmp2,
-					llvm::Value::Int(1),
-					llvm::ArithOp::Sub,
-					self.temp_mgr,
-				);
-				instr.map(|i| {
-					self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
-				});
-				let (tmp4, instr) = compute_two_value(
-					tmp3,
-					step.clone(),
-					llvm::ArithOp::Div,
-					self.temp_mgr,
-				);
-				instr.map(|i| {
-					self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
-				});
-				tmp4
-			}
-			CompOp::SLE | CompOp::SGE => {
-				// (end - start + step) / step
-				let (tmp1, instr) = compute_two_value(
-					end.clone(),
-					start.clone(),
-					llvm::ArithOp::Sub,
-					self.temp_mgr,
-				);
-				instr.map(|i| {
-					self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
-				});
-				let (tmp2, instr) = compute_two_value(
-					tmp1,
-					step.clone(),
-					llvm::ArithOp::Add,
-					self.temp_mgr,
-				);
-				instr.map(|i| {
-					self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
-				});
-				let (tmp3, instr) = compute_two_value(
-					tmp2,
-					step.clone(),
-					llvm::ArithOp::Div,
-					self.temp_mgr,
-				);
-				instr.map(|i| {
-					self.new_invariant_instr.insert(i.get_write().unwrap().clone(), i)
-				});
-				tmp3
-			}
-			_ => unreachable!(),
-		}
-	}
 	// 某变量定义在哪个循环中
 	pub fn def_loop(&self, temp: &LlvmTemp) -> LoopPtr {
 		if let Some(bb) = self.loopdata.def_map.get(temp) {
@@ -225,25 +145,5 @@ impl<'a> OneLoopSolver<'a> {
 			.add_temp(instr.get_write().unwrap().clone(), instr.clone());
 		preheader.borrow_mut().instrs.push(instr);
 		self.flag = true;
-	}
-	pub fn get_cur_loop_preheader(&self) -> LlvmNode {
-		self.cur_loop.borrow().get_loop_preheader(&self.loopdata.loop_map).unwrap()
-	}
-	pub fn header_of_temp(&self, temp: &LlvmTemp) -> LlvmTemp {
-		self.header_map.get(temp).cloned().unwrap_or(temp.clone())
-	}
-	pub fn scc_of_temp(&self, temp: &LlvmTemp) -> Vec<LlvmTemp> {
-		if let Some(header) = self.header_map.get(temp) {
-			self.header_map_rev[header].clone()
-		} else {
-			vec![temp.clone()]
-		}
-	}
-	pub fn reads_of_temp_in_scc(&self, temp: &LlvmTemp) -> Vec<LlvmTemp> {
-		let mut reads = Vec::new();
-		for t in self.scc_of_temp(temp) {
-			reads.extend(self.loopdata.temp_graph.get_use_temps(&t));
-		}
-		reads
 	}
 }

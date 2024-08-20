@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use loop_data::LoopData;
 
+mod add_value_to_cfg;
 mod chain_node;
 mod impls;
 mod indvar;
+mod indvar_combine;
 mod indvar_extraction;
 mod indvar_type;
 mod loop_data;

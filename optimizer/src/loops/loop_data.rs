@@ -20,6 +20,7 @@ pub struct LoopData {
 	// Temp to IndVar
 	// Temp 仅能相对于它的定义所在的 Loop 来说是 IndVar
 	pub indvars: HashMap<LlvmTemp, IndVar>,
+	pub scc_map: HashMap<LlvmTemp, Vec<LlvmTemp>>,
 }
 
 impl LoopData {
@@ -34,6 +35,7 @@ impl LoopData {
 			root_loop,
 			loop_infos: HashMap::new(),
 			indvars: HashMap::new(),
+			scc_map: HashMap::new(),
 		}
 	}
 

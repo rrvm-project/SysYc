@@ -130,7 +130,17 @@ impl Optimizer2 {
 			if !flag {
 				break;
 			}
-		}
+		}		
+		
+		loop_handler.rebuild(program);
+		loop_handler.add_value_to_cfg(program, &mut metadata)?;
+		GlobalValueNumbering::new().apply(program, &mut metadata)?;
+		loop_handler.indvar_combine(program, &mut metadata)?;
+		RemoveDeadCode::new().apply(program, &mut metadata)?;
+		GlobalAnalysis::new().apply(program, &mut metadata)?;
+		RemoveUselessCode::new().apply(program, &mut metadata)?;
+		RemoveUnreachCode::new().apply(program, &mut metadata)?;
+		FoldConstants::new().apply(program, &mut metadata)?;
 
 		program.analysis();
 		Ok(())
