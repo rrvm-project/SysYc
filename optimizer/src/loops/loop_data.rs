@@ -37,7 +37,7 @@ impl LoopData {
 		}
 	}
 
-	fn build_def_map(func: &LlvmFunc) -> HashMap<LlvmTemp, LlvmNode> {
+	pub fn build_def_map(func: &LlvmFunc) -> HashMap<LlvmTemp, LlvmNode> {
 		let mut def_map = HashMap::new();
 		for bb in func.cfg.blocks.iter() {
 			for inst in bb.borrow().phi_instrs.iter() {

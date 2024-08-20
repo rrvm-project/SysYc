@@ -107,7 +107,31 @@ impl Optimizer2 {
 				break;
 			}
 		}
-		// eprintln!("program after : {}", program);
+
+		loop_handler.rebuild(program);
+		loop_handler.loop_simplify(program, &mut metadata)?;
+		loop_handler.indvar_extraction(program, &mut metadata)?;
+		loop_handler.parallel(program, &mut metadata)?;
+
+		loop {
+			let mut flag = false;
+			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
+			flag |= GlobalAnalysis::new().apply(program, &mut metadata)?;
+			flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
+			flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
+			flag |= FoldConstants::new().apply(program, &mut metadata)?;
+			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
+			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
+			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
+			flag |= InlineFunction::new().apply(program, &mut metadata)?;
+			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
+			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
+			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
+			if !flag {
+				break;
+			}
+		}
+
 		program.analysis();
 		Ok(())
 	}

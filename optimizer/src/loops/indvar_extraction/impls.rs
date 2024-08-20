@@ -28,6 +28,14 @@ impl<'a> IndvarExtraction<'a> {
 		let (flag, _, _phi_num) = self.dfs(self.loopdata.root_loop.clone());
 		#[cfg(feature = "debug")]
 		eprintln!("loop: entry, subloop phi num: {}", _phi_num);
+
+		// let missing = LlvmTemp{
+		// 	name: "128".into(),
+		// 	is_global: false,
+		// 	var_type: llvm::VarType::I32Ptr,
+		// };
+		// dbg!(self.loopdata.indvars.get(&missing));
+
 		flag
 	}
 	// 返回自己是否做出优化，以及汇报自己用了哪些外层循环的变量, 自己的 phi 语句数量和子循环中 phi 语句数量的最大值之和

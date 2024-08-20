@@ -11,6 +11,7 @@ mod loop_data;
 mod loop_simplify;
 mod loop_unroll;
 mod loopinfo;
+mod para;
 mod temp_graph;
 
 pub struct HandleLoops {

@@ -24,6 +24,7 @@ pub const BUILTIN_FUNCS: &[&str] = &[
 	"_sysy_stoptime",
 	"__create_threads",
 	"__join_threads",
+	"__fill_zero_words",
 ];
 
 impl RrvmOptimizer for GlobalAnalysis {
