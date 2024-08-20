@@ -22,6 +22,8 @@ pub enum SysycError {
 	RiscvGenError(String),
 	#[error("Llvm generating error: {0}")]
 	LlvmvGenError(String),
+	#[error("Llvm generating error: In pass {0}, {1}.")]
+	OptimizerError(String, String),
 }
 
 pub type Result<T, E = SysycError> = core::result::Result<T, E>;
