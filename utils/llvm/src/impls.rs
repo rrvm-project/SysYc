@@ -470,8 +470,11 @@ impl PhiInstr {
 			source,
 		}
 	}
-	pub fn get_incoming_value_for_block(&self, label: &Label) -> Option<Value> {
-		self.source.iter().find(|(_, l)| l == label).map(|(v, _)| v.clone())
+	pub fn get_value(&self, label: &Label) -> Option<Value> {
+		self
+			.source
+			.iter()
+			.find_map(|(v, l)| if l == label { Some(v.clone()) } else { None })
 	}
 }
 

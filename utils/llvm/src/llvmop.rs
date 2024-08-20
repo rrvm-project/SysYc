@@ -74,10 +74,8 @@ pub enum ArithOp {
 	ClzD,
 	Ctz, // count trailing zeros
 	CtzD,
-	Min, // min
-	MinD,
-	Max, // max
-	MaxD,
+	Min,  // min
+	Max,  // max
 	Fadd, // Float add
 	Fsub, // Float sub
 	Fdiv, // Float div

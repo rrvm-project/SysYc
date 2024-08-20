@@ -124,8 +124,8 @@ impl<'a> LoopSimplify<'a> {
 				for pred in preds.iter() {
 					let pred = pred.borrow();
 					if in_var.is_none() {
-						in_var = phi.get_incoming_value_for_block(&pred.label());
-					} else if in_var != phi.get_incoming_value_for_block(&pred.label()) {
+						in_var = phi.get_value(&pred.label());
+					} else if in_var != phi.get_value(&pred.label()) {
 						in_var = None;
 						break;
 					}

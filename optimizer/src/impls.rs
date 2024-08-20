@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use crate::{useless_phis::RemoveUselessPhis, *};
 use alloc_hoisting::AllocHoisting;
 use calc_coef::CalcCoef;
@@ -8,6 +9,7 @@ use function_inline::InlineFunction;
 use global_analysis::GlobalAnalysis;
 use global_value_numbering::GlobalValueNumbering;
 use if_combine::IfCombine;
+use instruction_extension::InstructionExtension;
 use loops::HandleLoops;
 use mem2reg::Mem2Reg;
 use tail_recursion::SolveTailRecursion;
@@ -85,7 +87,7 @@ impl Optimizer2 {
 			}
 		}
 		let mut loop_handler = HandleLoops::new(program);
-		eprintln!("{}", program);
+
 		loop {
 			let mut flag = false;
 			flag |= RemoveDeadCode::new().apply(program, &mut metadata)?;
@@ -96,7 +98,8 @@ impl Optimizer2 {
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			{
-				flag |= IfCombine::new().apply(program, &mut metadata)?;
+				// flag |= IfCombine::new().apply(program, &mut metadata)?;
+				flag |= InstructionExtension::new().apply(program, &mut metadata)?;
 				flag |= RemoveUselessCode::new().apply(program, &mut metadata)?;
 				flag |= RemoveUnreachCode::new().apply(program, &mut metadata)?;
 			}
@@ -118,7 +121,7 @@ impl Optimizer2 {
 				break;
 			}
 		}
-		// eprintln!("program after : {}", program);
+
 		program.analysis();
 		Ok(())
 	}

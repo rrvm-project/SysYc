@@ -8,6 +8,7 @@ mod global_analysis;
 mod global_value_numbering;
 mod if_combine;
 pub mod impls;
+mod instruction_extension;
 mod loops;
 mod mem2reg;
 mod metadata;

@@ -175,7 +175,7 @@ pub fn compute_two_boolean(
 	temp_mgr: &mut LlvmTempManager,
 ) -> (Value, Option<LlvmInstr>) {
 	match op {
-		And => {
+		ArithOp::And => {
 			if v1 == Value::Int(0) || v2 == Value::Int(0) {
 				(Value::Int(0), None)
 			} else if v1 == Value::Int(1) {
@@ -194,7 +194,7 @@ pub fn compute_two_boolean(
 				(Value::Temp(target), Some(instr))
 			}
 		}
-		Or => {
+		ArithOp::Or => {
 			if v1 == Value::Int(1) || v2 == Value::Int(1) {
 				(Value::Int(1), None)
 			} else if v1 == Value::Int(0) {
@@ -213,7 +213,7 @@ pub fn compute_two_boolean(
 				(Value::Temp(target), Some(instr))
 			}
 		}
-		Xor => {
+		ArithOp::Xor => {
 			if v1 == Value::Int(0) {
 				(v2, None)
 			} else if v2 == Value::Int(0) {

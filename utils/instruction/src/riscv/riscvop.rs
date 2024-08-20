@@ -74,14 +74,8 @@ pub enum RTriInstrOp {
 	#[style("fdiv.s")]
 	Fdiv,
 
-	#[style("min.d")]
 	Min,
-	#[style("min.w")]
-	Minw,
-	#[style("max.d")]
 	Max,
-	#[style("max.w")]
-	Maxw,
 	Sh1add,
 	Sh2add,
 	Sh3add,
@@ -218,10 +212,8 @@ pub fn to_rop(op: &ArithOp) -> RTriInstrOp {
 		ArithOp::ClzD => Clz,
 		ArithOp::Ctz => Ctzw,
 		ArithOp::CtzD => Ctz,
-		ArithOp::Min => Minw,
-		ArithOp::MinD => Min,
-		ArithOp::Max => Maxw,
-		ArithOp::MaxD => Max,
+		ArithOp::Min => Min,
+		ArithOp::Max => Max,
 		ArithOp::Fmin => Fmin,
 		ArithOp::Fmax => Fmax,
 	}

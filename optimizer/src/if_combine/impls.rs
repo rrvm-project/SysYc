@@ -345,11 +345,6 @@ impl RrvmOptimizer for IfCombine {
 						continue;
 					}
 
-					if !block.phi_instrs.is_empty() {
-						eprintln!("别急");
-						continue;
-					}
-
 					flag = true;
 					prev1.instrs.clear();
 					prev2.instrs.clear();
