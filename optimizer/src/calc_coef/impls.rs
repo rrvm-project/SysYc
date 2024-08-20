@@ -677,6 +677,7 @@ fn calc_coef(
 		name: func.name.clone(),
 		ret_type: func.ret_type,
 		params: func.params.clone(),
+		need_cache: false,
 	};
 	let addr = mgr.new_temp(llvm::VarType::I32Ptr, false);
 	let my_index = mgr.new_temp(index.var_type, false);
@@ -753,6 +754,7 @@ fn calc_coef(
 		name: format!("{}_calc_coef", func.name),
 		ret_type: llvm::VarType::Void,
 		params: vec![Value::Temp(addr.clone()), Value::Temp(my_index)],
+		need_cache: false,
 	};
 	// pub fn reduce_general_term(func:&LlvmFunc,idx:&LlvmTemp,entry_map: &mut HashMap<LlvmTemp, Entry>,reduce_idx:&LlvmTemp,calc_coef:&mut LlvmFunc,mgr:&mut LlvmTempManager)
 	let is_reduced = reduce_general_term(
@@ -783,6 +785,7 @@ fn calc_coef(
 		name: func.name.clone(),
 		ret_type: func.ret_type,
 		params: func.params.clone(),
+		need_cache: false,
 	};
 	vec![wrapper_func, calc_func]
 }

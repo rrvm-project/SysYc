@@ -150,6 +150,14 @@ impl RiscvCFG {
 		self.blocks.iter().for_each(|v| v.borrow_mut().clear_data_flow());
 	}
 	pub fn analysis(&self) {
+		self.blocks.iter().for_each(|v| v.borrow_mut().prev.clear());
+		self.blocks.iter().for_each(|u| {
+			let succ = u.borrow().succ.clone();
+			for v in succ {
+				v.borrow_mut().prev.push(u.clone());
+			}
+		});
+
 		self.blocks.iter().for_each(|v| v.borrow_mut().init_data_flow());
 		loop {
 			let mut changed = false;
