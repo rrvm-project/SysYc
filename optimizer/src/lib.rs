@@ -1,4 +1,5 @@
 mod alloc_hoisting;
+mod array_global;
 mod calc_coef;
 mod code_hoisting;
 mod dead_code;
@@ -15,6 +16,7 @@ mod tail_recursion;
 mod unreachable;
 mod useless_code;
 mod useless_phis;
+mod zero_init;
 use metadata::MetaData;
 use rrvm::program::LlvmProgram;
 use utils::errors::Result;
