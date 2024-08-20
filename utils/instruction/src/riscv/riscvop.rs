@@ -178,6 +178,7 @@ pub fn can_to_iop(op: &ArithOp) -> bool {
 pub fn to_iop(op: &ArithOp) -> ITriInstrOp {
 	match op {
 		ArithOp::Add => Addiw,
+		ArithOp::AddD => Addi,
 		ArithOp::Shl => Slli,
 		ArithOp::Lshr => Srli,
 		ArithOp::Ashr => Srai,

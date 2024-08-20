@@ -74,6 +74,16 @@ impl FuncData {
 		self.usage_info.may_loads.insert(("系统调用".to_owned(), 0));
 		self.usage_info.may_stores.insert(("系统调用".to_owned(), 0));
 	}
+	pub fn value_euqal(&self, x: &Value, y: &Value) -> bool {
+		match (x, y) {
+			(Value::Int(x), Value::Int(y)) => x == y,
+			(Value::Float(x), Value::Float(y)) => x.to_bits() == y.to_bits(),
+			(Value::Temp(x), Value::Temp(y)) => {
+				self.get_number(x) == self.get_number(y)
+			}
+			_ => false,
+		}
+	}
 	pub fn is_equal(&self, x: &LlvmInstr, y: &LlvmInstr) -> bool {
 		match (x.get_variant(), y.get_variant()) {
 			(ArithInstr(x), ArithInstr(y)) => {

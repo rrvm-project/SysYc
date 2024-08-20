@@ -140,7 +140,6 @@ pub fn work(
 			insert(&instr.rhs, &rhs);
 			let number = match (instr.op, lhs.same_value(), rhs.same_value()) {
 				(Add, _, _) => calc(&lhs, &rhs, |x, y| x.wrapping_add(y)),
-				(AddD, _, _) => calc(&lhs, &rhs, |x, y| x.wrapping_add(y)),
 				(Sub, _, _) => calc(&lhs, &rhs, |x, y| x.wrapping_sub(y)),
 				(Mul, _, _) => calc(&lhs, &rhs, |x, y| x.wrapping_mul(y)),
 				(Div, Some(x), Some(y)) => Number::from((x as i32 / y as i32) as u32),
@@ -148,8 +147,6 @@ pub fn work(
 				(Shl, Some(x), Some(y)) => Number::from(x << y),
 				(Lshr, Some(x), Some(y)) => Number::from(x >> y),
 				(Ashr, Some(x), Some(y)) => Number::from((x as i32 >> y) as u32),
-				(And, _, _) => calc(&lhs, &rhs, |x, y| x & y),
-				(Or, _, _) => calc(&lhs, &rhs, |x, y| x | y),
 				(Xor, _, _) => calc(&lhs, &rhs, |x, y| x ^ y),
 				(Fadd, Some(x), Some(y)) => {
 					Number::from((f32::from_bits(x) + f32::from_bits(y)).to_bits())

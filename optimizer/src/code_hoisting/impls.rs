@@ -142,6 +142,9 @@ impl<'a> Solver<'a> {
 		{
 			return;
 		}
+		if node.borrow().succ.iter().any(|v| v.borrow().prev.len() != 1) {
+			return;
+		}
 		let mut common = node.borrow().succ[0].borrow().instrs.clone();
 		for child in node.borrow().succ.iter() {
 			let length = common

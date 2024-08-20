@@ -19,17 +19,15 @@ use super::IfCombine;
 
 use utils::Result;
 
-struct Solver<'a> {
+struct Solver {
 	dom_tree: LlvmDomTree,
-	_metadata: &'a mut MetaData,
 	boolean: HashSet<LlvmTemp>,
 }
 
-impl<'a> Solver<'a> {
-	pub fn new(func: &LlvmFunc, metadata: &'a mut MetaData) -> Self {
+impl Solver {
+	pub fn new(func: &LlvmFunc) -> Self {
 		Self {
 			dom_tree: LlvmDomTree::new(&func.cfg, false),
-			_metadata: metadata,
 			boolean: HashSet::new(),
 		}
 	}
@@ -144,7 +142,7 @@ impl<'a> Solver<'a> {
 			let target = mgr.new_temp(I32, false);
 			instrs.push(Box::new(llvm::ArithInstr {
 				op: llvm::ArithOp::Add,
-				target: masked_diff.clone(),
+				target: target.clone(),
 				lhs: value2.clone(),
 				rhs: masked_diff.clone().into(),
 				var_type: I32,
@@ -166,8 +164,8 @@ impl<'a> Solver<'a> {
 				lhs: true_cond.clone(),
 				var_type: F32,
 			}));
-			let diff = mgr.new_temp(I32, false);
-			let masked_diff = mgr.new_temp(I32, false);
+			let diff = mgr.new_temp(F32, false);
+			let masked_diff = mgr.new_temp(F32, false);
 			instrs.push(Box::new(llvm::ArithInstr {
 				op: llvm::ArithOp::Fsub,
 				target: diff.clone(),
@@ -182,10 +180,10 @@ impl<'a> Solver<'a> {
 				rhs: coef.clone().into(),
 				var_type: F32,
 			}));
-			let target = mgr.new_temp(I32, false);
+			let target = mgr.new_temp(F32, false);
 			instrs.push(Box::new(llvm::ArithInstr {
 				op: llvm::ArithOp::Fadd,
-				target: masked_diff.clone(),
+				target: target.clone(),
 				lhs: value2.clone(),
 				rhs: masked_diff.clone().into(),
 				var_type: F32,
@@ -221,8 +219,9 @@ impl RrvmOptimizer for IfCombine {
 			mgr: &mut LlvmTempManager,
 		) -> bool {
 			let mut flag = false;
-			let mut solver = Solver::new(func, metadata);
+			let mut solver = Solver::new(func);
 			solver.dfs(func.cfg.get_entry());
+			let func_data = metadata.get_func_data(&func.name);
 			for node in func.cfg.blocks.iter() {
 				if node.borrow().prev.len() == 2 {
 					let prev1 = node.borrow().prev[0].clone();
@@ -235,11 +234,7 @@ impl RrvmOptimizer for IfCombine {
 					}
 					let prev1 = &mut prev1.borrow_mut();
 					let prev2 = &mut prev2.borrow_mut();
-					if prev1.instrs.iter().any(|instr| instr.get_write().is_some())
-						|| prev2.instrs.iter().any(|instr| instr.get_write().is_some())
-						|| prev1.instrs.len() != prev2.instrs.len()
-						|| prev1.instrs.is_empty()
-					{
+					if prev1.instrs.is_empty() && prev2.instrs.is_empty() {
 						continue;
 					}
 					let mut block = node.borrow_mut();
@@ -265,24 +260,79 @@ impl RrvmOptimizer for IfCombine {
 					let mut instrs = Vec::new();
 
 					let mut failed = false;
-					for (instr1, instr2) in prev1.instrs.iter().zip(prev2.instrs.iter()) {
-						match (instr1.get_variant(), instr2.get_variant()) {
-							(StoreInstr(instr1), StoreInstr(instr2)) => {
-								if instr1.addr != instr2.addr {
-									failed = true;
-									break;
+
+					let mut iter1 = prev1.instrs.iter().peekable();
+					let mut iter2 = prev2.instrs.iter().peekable();
+
+					loop {
+						match (iter1.peek(), iter2.peek()) {
+							(Some(instr1), _) if !instr1.has_sideeffect() => {
+								instrs.push(iter1.next().unwrap().clone_box());
+							}
+							(_, Some(instr2)) if !instr2.has_sideeffect() => {
+								instrs.push(iter2.next().unwrap().clone_box());
+							}
+							(Some(_), Some(_)) => {
+								match (
+									iter1.next().unwrap().get_variant(),
+									iter2.next().unwrap().get_variant(),
+								) {
+									(StoreInstr(instr1), StoreInstr(instr2)) => {
+										if !func_data.value_euqal(&instr1.addr, &instr2.addr) {
+											failed = true;
+											break;
+										}
+										let value = solver.combine_value(
+											instr1.value.clone(),
+											instr2.value.clone(),
+											&father_jump_instr.cond,
+											&mut instrs,
+											mgr,
+										);
+										instrs.push(Box::new(llvm::StoreInstr {
+											addr: instr1.addr.clone(),
+											value,
+										}));
+									}
+									(CallInstr(instr1), CallInstr(instr2)) => {
+										if instr1.func.name != instr2.func.name
+											|| instr1.var_type != Void
+										{
+											failed = true;
+											break;
+										}
+										let params = instr1
+											.params
+											.iter()
+											.zip(instr2.params.iter())
+											.map(|((var_type, param1), (_, param2))| {
+												(
+													*var_type,
+													solver.combine_value(
+														param1.clone(),
+														param2.clone(),
+														&father_jump_instr.cond,
+														&mut instrs,
+														mgr,
+													),
+												)
+											})
+											.collect();
+										instrs.push(Box::new(llvm::CallInstr {
+											target: instr1.target.clone(),
+											var_type: instr1.var_type,
+											func: instr1.func.clone(),
+											params,
+										}));
+									}
+									_ => {
+										failed = true;
+										break;
+									}
 								}
-								let value = solver.combine_value(
-									instr1.value.clone(),
-									instr2.value.clone(),
-									&father_jump_instr.cond,
-									&mut instrs,
-									mgr,
-								);
-								instrs.push(Box::new(llvm::StoreInstr {
-									addr: instr1.addr.clone(),
-									value,
-								}));
+							}
+							(None, None) => {
+								break;
 							}
 							_ => {
 								failed = true;
@@ -300,7 +350,6 @@ impl RrvmOptimizer for IfCombine {
 						continue;
 					}
 
-					eprintln!("if combine 成功");
 					flag = true;
 					prev1.instrs.clear();
 					prev2.instrs.clear();

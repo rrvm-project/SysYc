@@ -74,6 +74,7 @@ impl RrvmOptimizer for RemoveUselessCode {
 				}
 				for instr in block.phi_instrs.iter() {
 					let u = instr.get_write().unwrap();
+					add_edge(u.clone().into(), block.label().into());
 					for v in instr.get_read() {
 						add_edge(u.clone().into(), v.into());
 					}
