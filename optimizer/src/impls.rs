@@ -84,6 +84,10 @@ impl Optimizer2 {
 			}
 		}
 		let mut loop_handler = HandleLoops::new(program);
+		loop_handler.rebuild(program);
+		loop_handler.loop_simplify(program, &mut metadata)?;
+		loop_handler.indvar_extraction(program, &mut metadata)?;
+		loop_handler.loop_unroll(program, &mut metadata)?;
 
 		loop {
 			let mut flag = false;
@@ -95,14 +99,9 @@ impl Optimizer2 {
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
-			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
-			loop_handler.rebuild(program);
-			flag |= loop_handler.loop_simplify(program, &mut metadata)?;
-			flag |= loop_handler.indvar_extraction(program, &mut metadata)?;
-			flag |= loop_handler.loop_unroll(program, &mut metadata)?;
 			if !flag {
 				break;
 			}
@@ -123,7 +122,6 @@ impl Optimizer2 {
 			flag |= GlobalValueNumbering::new().apply(program, &mut metadata)?;
 			flag |= Mem2Reg::new().apply(program, &mut metadata)?;
 			flag |= RemoveUselessPhis::new().apply(program, &mut metadata)?;
-			flag |= InlineFunction::new().apply(program, &mut metadata)?;
 			flag |= AllocHoisting::new().apply(program, &mut metadata)?;
 			flag |= CodeHoisting::new().apply(program, &mut metadata)?;
 			flag |= SolveTailRecursion::new().apply(program, &mut metadata)?;
