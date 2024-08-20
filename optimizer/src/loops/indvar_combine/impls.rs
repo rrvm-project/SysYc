@@ -1,15 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use llvm::{
-	GEPInstr, LlvmInstr, LlvmTemp, LlvmTempManager, Value,
-	VarType,
-};
+use llvm::{GEPInstr, LlvmInstr, LlvmTemp, LlvmTempManager, Value, VarType};
 use rrvm::{dominator::LlvmDomTree, program::LlvmFunc, rrvm_loop::LoopPtr};
 
 use crate::{
-	loops::{
-		indvar::IndVar, indvar_type::IndVarType, loop_data::LoopData,
-	},
+	loops::{indvar::IndVar, indvar_type::IndVarType, loop_data::LoopData},
 	metadata::FuncData,
 };
 
@@ -84,9 +79,7 @@ impl<'a> IndvarCombine<'a> {
 				}
 			}
 			if !found {
-				let mut set = Vec::new();
-				set.push((temp.clone(), 0));
-				combine_map.insert(temp.clone(), set);
+				combine_map.insert(temp.clone(), vec![(temp.clone(), 0)]);
 			}
 		}
 		for (_, v) in combine_map.iter_mut() {
@@ -99,10 +92,10 @@ impl<'a> IndvarCombine<'a> {
 			let mut v_iter = v.iter();
 			while let Some(last_uncovered_point) = last_uncovered_point_outer.clone()
 			{
-				let mut pivot_iter = v_iter.clone();
+				let pivot_iter = v_iter.clone();
 				let mut pivot = last_uncovered_point.clone();
 				// [-2048, 2047]
-				while let Some(next_v) = pivot_iter.next() {
+				for next_v in pivot_iter {
 					if self.loopdata.scc_map.contains_key(&next_v.0)
 						&& !self.loopdata.temp_graph.temp_to_instr[&next_v.0].instr.is_phi()
 					{
@@ -127,10 +120,10 @@ impl<'a> IndvarCombine<'a> {
 						continue;
 					}
 					if pivot_covered.1 - pivot.1 < 2047 {
-						pivot_covered.1 = pivot_covered.1 - pivot.1;
+						pivot_covered.1 -= pivot.1;
 						pivot_coverage
 							.entry(pivot.0.clone())
-							.or_insert(vec![])
+							.or_default()
 							.push(pivot_covered.clone());
 					} else {
 						last_uncovered_point_outer = Some(pivot_covered);
@@ -145,7 +138,7 @@ impl<'a> IndvarCombine<'a> {
 		// 把每个 pivot 做成环，放到 header 中，把它所控制的变量的定义换掉，其中有些变量是 phi
 		for (pivot, covers) in pivot_coverage {
 			if self.try_strength_reduce(&pivot, &indvars[&pivot], loop_.clone()) {
-				let mut new_instrs = HashMap::new();
+				let mut new_instrs: HashMap<LlvmTemp, LlvmInstr> = HashMap::new();
 				let mut phi_cover = HashSet::new();
 				let mut phi_cover_instr: Vec<LlvmInstr> = Vec::new();
 				for cover in covers {
@@ -157,7 +150,7 @@ impl<'a> IndvarCombine<'a> {
 							target: cover.0.clone(),
 							var_type: cover.0.var_type,
 							addr: pivot.clone().into(),
-							offset: Value::Int(cover.1.clone()),
+							offset: Value::Int(cover.1),
 						};
 						if self.loopdata.temp_graph.temp_to_instr[&cover.0].instr.is_phi() {
 							phi_cover.insert(cover.0.clone());
@@ -183,7 +176,7 @@ impl<'a> IndvarCombine<'a> {
 					for instr in block.borrow_mut().instrs.iter_mut() {
 						if let Some(w) = instr.get_write() {
 							if let Some(new_instr) = new_instrs.get(&w) {
-								*instr = new_instr.clone();
+								instr.clone_from(new_instr)
 							}
 						}
 					}
@@ -213,19 +206,13 @@ impl<'a> IndvarCombine<'a> {
 		if latch_bbs.iter().any(|latch_bb| {
 			!self.dom_tree.dominates[&def_bb.borrow().id].contains(latch_bb)
 		}) {
-			return false;
+			false
+		} else if iv.get_type() == IndVarType::Ordinary {
+			self.loopdata.temp_graph.temp_to_instr[target].instr.is_phi()
 		} else {
-			if iv.get_type() == IndVarType::Ordinary {
-				if self.loopdata.temp_graph.temp_to_instr[target].instr.is_phi() {
-					return true;
-				} else {
-					return false;
-				}
-			} else {
-				#[cfg(feature = "debug")]
-				eprintln!("SR: not reducing iv: {}", iv);
-				false
-			}
+			#[cfg(feature = "debug")]
+			eprintln!("SR: not reducing iv: {}", iv);
+			false
 		}
 	}
 }

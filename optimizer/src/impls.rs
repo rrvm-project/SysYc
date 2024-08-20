@@ -130,8 +130,8 @@ impl Optimizer2 {
 			if !flag {
 				break;
 			}
-		}		
-		
+		}
+
 		loop_handler.rebuild(program);
 		loop_handler.add_value_to_cfg(program, &mut metadata)?;
 		GlobalValueNumbering::new().apply(program, &mut metadata)?;

@@ -41,14 +41,15 @@ impl IndVar {
 		other: &Self,
 		funcdata: &FuncData,
 	) -> Option<i32> {
-		if self.scale == Value::Int(1) && other.scale == Value::Int(1) {
-			if self.step == other.step {
-				let self_base = funcdata.get_val_number(&self.base).unwrap();
-				let other_base = funcdata.get_val_number(&other.base).unwrap();
-				return Number::sub(&other_base, &self_base)
-					.same_value()
-					.map(|x| x as i32);
-			}
+		if self.scale == Value::Int(1)
+			&& other.scale == Value::Int(1)
+			&& self.step == other.step
+		{
+			let self_base = funcdata.get_val_number(&self.base).unwrap();
+			let other_base = funcdata.get_val_number(&other.base).unwrap();
+			return Number::sub(&other_base, &self_base)
+				.same_value()
+				.map(|x| x as i32);
 		}
 		None
 	}

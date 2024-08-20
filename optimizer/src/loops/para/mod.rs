@@ -257,6 +257,7 @@ fn handle_function(
 		root_loop,
 		loop_infos,
 		indvars,
+		scc_map: HashMap::new(),
 	}
 }
 
