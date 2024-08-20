@@ -1,5 +1,6 @@
 use crate::{useless_phis::RemoveUselessPhis, zero_init::ZeroInit, *};
 use alloc_hoisting::AllocHoisting;
+use array_global::ArrayGlobal;
 use calc_coef::CalcCoef;
 use code_hoisting::CodeHoisting;
 use dead_code::RemoveDeadCode;
@@ -132,6 +133,7 @@ impl Optimizer2 {
 			}
 		}
 
+		ArrayGlobal::new().apply(program, &mut metadata)?;
 		ZeroInit::new().apply(program, &mut metadata)?;
 
 		program.analysis();

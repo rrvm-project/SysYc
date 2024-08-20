@@ -1,4 +1,5 @@
 mod alloc_hoisting;
+mod array_global;
 mod calc_coef;
 mod code_hoisting;
 mod dead_code;
