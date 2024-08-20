@@ -266,7 +266,10 @@ fn build_instr(
 		}
 		Value::Float(_) => unreachable!(),
 		Value::Temp(t) => {
-			if output.last().is_some_and(|last| last.get_write() == Some(t.clone())) {
+			if output.last().is_some_and(|last| {
+				matches!(last.get_variant(), LlvmInstrVariant::ArithInstr(_))
+					&& last.get_write() == Some(t.clone())
+			}) {
 				output.last_mut().unwrap().set_target(target);
 			} else {
 				output.push(Box::new(ArithInstr {
