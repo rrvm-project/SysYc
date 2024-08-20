@@ -3,8 +3,8 @@ use std::{mem::replace, vec};
 
 use crate::{metadata::MetaData, RrvmOptimizer};
 use llvm::{
-	CallInstr, LlvmInstrTrait, LlvmInstrVariant, LlvmTemp, LlvmTempManager,
-	Value, VarType,
+	CallInstr, GEPInstr, LlvmInstrTrait, LlvmInstrVariant, LlvmTemp,
+	LlvmTempManager, Value, VarType,
 };
 use rrvm::program::LlvmProgram;
 use utils::{errors::Result, Label};
@@ -105,9 +105,18 @@ fn work(
 					_ => unreachable!(),
 				};
 
+				result.push(Box::new(GEPInstr {
+					target: end_addr.clone(),
+					var_type: end_addr.var_type,
+					addr: begin_addr.clone(),
+					offset: Value::Int((((pending.len() + 1) / 2) as i32) * 4),
+				}));
+
+				let fake_end_addr = tmp.new_temp(VarType::Void, false);
+
 				result.push(Box::new(CallInstr {
-					target: end_addr,
-					var_type,
+					target: fake_end_addr,
+					var_type: VarType::Void,
 					func: Label::new("__fill_zero_words"),
 					params: vec![
 						(var_type, begin_addr),
