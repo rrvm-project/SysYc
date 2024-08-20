@@ -131,7 +131,6 @@ impl Optimizer2 {
 				break;
 			}
 		}
-
 		program.analysis();
 		Ok(())
 	}
