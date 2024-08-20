@@ -1,4 +1,4 @@
-use crate::{useless_phis::RemoveUselessPhis, *};
+use crate::{useless_phis::RemoveUselessPhis, zero_init::ZeroInit, *};
 use alloc_hoisting::AllocHoisting;
 use calc_coef::CalcCoef;
 use code_hoisting::CodeHoisting;
@@ -131,6 +131,8 @@ impl Optimizer2 {
 				break;
 			}
 		}
+
+		ZeroInit::new().apply(program, &mut metadata)?;
 
 		program.analysis();
 		Ok(())

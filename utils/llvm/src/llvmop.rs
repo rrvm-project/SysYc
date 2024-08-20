@@ -40,6 +40,14 @@ impl Value {
 			_ => false,
 		}
 	}
+
+	pub fn get_temp(self) -> Option<LlvmTemp> {
+		if let Value::Temp(t) = self {
+			Some(t)
+		} else {
+			None
+		}
+	}
 }
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum HashableValue {
