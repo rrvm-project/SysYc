@@ -106,7 +106,6 @@ impl Optimizer2 {
 				break;
 			}
 		}
-		// eprintln!("program after : {}", program);
 		program.analysis();
 		Ok(())
 	}

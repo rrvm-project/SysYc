@@ -521,6 +521,20 @@ fn map_coef_instrs(
 		}
 	}
 	// assemble blocks with phi_instrs and new_instrs
+	// map id to pred ids and succ ids
+	let mut id_map = HashMap::new();
+	for block in func.cfg.blocks.iter() {
+		let mut preds = vec![];
+		for pred in block.borrow().prev.iter() {
+			preds.push(pred.borrow().id);
+		}
+		let mut succs = vec![];
+		for succ in block.borrow().succ.iter() {
+			succs.push(succ.borrow().id);
+		}
+		id_map.insert(block.borrow().id, (preds, succs));
+	}
+	let mut block_ptr_map = HashMap::new();
 	let mut new_blocks = vec![];
 	for block in func
 		.cfg
@@ -539,13 +553,24 @@ fn map_coef_instrs(
 			prev: block.borrow().prev.clone(),
 			succ: block.borrow().succ.clone(),
 			weight: block.borrow().weight,
-			defs: block.borrow().defs.clone(),
-			uses: block.borrow().uses.clone(),
-			kills: block.borrow().kills.clone(),
-			live_in: block.borrow().live_in.clone(),
-			live_out: block.borrow().live_out.clone(),
+			defs: HashSet::new(),
+			uses: HashSet::new(),
+			kills: HashSet::new(),
+			live_in: HashSet::new(),
+			live_out: HashSet::new(),
 		};
 		new_blocks.push(Rc::new(RefCell::new(new_block)));
+		block_ptr_map.insert(block.borrow().id, new_blocks.last().unwrap().clone());
+	}
+	// connect all blocks
+	for block in new_blocks.iter() {
+		let (preds, succs) = id_map.get(&block.borrow().id).unwrap();
+		for pred in preds.iter() {
+			block.borrow_mut().prev.push(block_ptr_map.get(pred).unwrap().clone());
+		}
+		for succ in succs.iter() {
+			block.borrow_mut().succ.push(block_ptr_map.get(succ).unwrap().clone());
+		}
 	}
 	Some((new_blocks, unwrapped_mod_val, entry_map))
 }
@@ -1144,11 +1169,9 @@ pub fn reduce_general_term(
 	{
 		// 看初始值 有无覆盖到所有模数
 		if !initial_filter_mod(idx, entry_map, func) {
-			eprintln!("returning at... initial_filter_mod");
 			return false;
 		}
 		if !filter_mod_recurse(idx, entry_map, func, ast_map.clone()) {
-			eprintln!("returning at... filter_mod_recurse");
 			return false;
 		}
 		do_calc_mod(calc_coef, mgr);
