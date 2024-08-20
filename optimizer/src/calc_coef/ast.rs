@@ -1,13 +1,13 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use llvm::{ArithOp, CompOp, LlvmInstrTrait, LlvmTemp, Value, VarType};
+use llvm::{ArithOp, CompOp, LlvmInstrTrait, LlvmTemp, Value};
 use utils::Label;
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum LlvmOp {
 	ArithOp(ArithOp),
 	CompOp(CompOp),
 }
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum AstNode {
 	Value(Value),
 	Expr((Rc<RefCell<AstNode>>, LlvmOp, Rc<RefCell<AstNode>>)),
@@ -32,6 +32,7 @@ pub fn get_ast_node(
 		Rc::new(RefCell::new(AstNode::Value(val.clone())))
 	}
 }
+#[allow(clippy::borrowed_box)]
 pub fn map_ast_instr(
 	instr: &Box<dyn LlvmInstrTrait>,
 	ast_map: &mut HashMap<LlvmTemp, Rc<RefCell<AstNode>>>,
@@ -69,7 +70,7 @@ pub fn map_ast_instr(
 		}
 		CallInstr(call_instr) => {
 			let mut args = Vec::new();
-			for (var_type, arg) in &call_instr.params {
+			for (_, arg) in &call_instr.params {
 				args.push(get_ast_node(arg, ast_map));
 			}
 			let res = Rc::new(RefCell::new(AstNode::CallVal(
